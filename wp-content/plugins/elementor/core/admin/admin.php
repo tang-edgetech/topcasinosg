@@ -8,6 +8,7 @@ use Elementor\Core\Base\App;
 use Elementor\Core\Upgrade\Manager as Upgrade_Manager;
 use Elementor\Core\Utils\Assets_Config_Provider;
 use Elementor\Core\Utils\Collection;
+use Elementor\Modules\FloatingButtons\Module as Floating_Buttons_Module;
 use Elementor\Plugin;
 use Elementor\Settings;
 use Elementor\User;
@@ -34,6 +35,34 @@ class Admin extends App {
 	 */
 	public function get_name() {
 		return 'admin';
+	}
+
+	/**
+	 * Check if current page is an Elementor admin page.
+	 *
+	 * @param \WP_Screen|null $current_screen Optional. Screen object to check. Defaults to current screen.
+	 *
+	 * @return bool Whether current page is an Elementor admin page.
+	 */
+	public static function is_elementor_admin_page( $current_screen = null ) {
+		if ( ! $current_screen ) {
+			$current_screen = get_current_screen();
+		}
+
+		if ( ! $current_screen ) {
+			return false;
+		}
+
+		$screen_id = $current_screen->id ?? '';
+		$post_type = $current_screen->post_type ?? '';
+
+		$is_elementor_screen = strpos( $screen_id, 'elementor' ) !== false
+			|| strpos( $screen_id, Floating_Buttons_Module::CPT_FLOATING_BUTTONS ) !== false;
+
+		$is_elementor_post_type = strpos( $post_type, 'elementor' ) !== false
+			|| strpos( $post_type, Floating_Buttons_Module::CPT_FLOATING_BUTTONS ) !== false;
+
+		return $is_elementor_screen || $is_elementor_post_type;
 	}
 
 	/**
@@ -166,11 +195,9 @@ class Admin extends App {
 	 * @access public
 	 */
 	public function enqueue_styles() {
-		$direction_suffix = is_rtl() ? '-rtl' : '';
-
 		wp_register_style(
 			'elementor-admin',
-			$this->get_css_assets_url( 'admin' . $direction_suffix ),
+			$this->get_css_assets_url( 'admin' ),
 			[
 				'elementor-common',
 			],
@@ -374,8 +401,8 @@ class Admin extends App {
 	public function plugin_row_meta( $plugin_meta, $plugin_file ) {
 		if ( ELEMENTOR_PLUGIN_BASE === $plugin_file ) {
 			$row_meta = [
-				'docs' => '<a href="https://go.elementor.com/docs-admin-plugins/" aria-label="' . esc_attr( esc_html__( 'View Elementor Documentation', 'elementor' ) ) . '" target="_blank">' . esc_html__( 'Docs & FAQs', 'elementor' ) . '</a>',
-				'ideo' => '<a href="https://go.elementor.com/yt-admin-plugins/" aria-label="' . esc_attr( esc_html__( 'View Elementor Video Tutorials', 'elementor' ) ) . '" target="_blank">' . esc_html__( 'Video Tutorials', 'elementor' ) . '</a>',
+				'docs' => '<a href="https://go.elementor.com/docs-admin-plugins/" aria-label="' . esc_attr__( 'View Elementor Documentation', 'elementor' ) . '" target="_blank">' . esc_html__( 'Docs & FAQs', 'elementor' ) . '</a>',
+				'ideo' => '<a href="https://go.elementor.com/yt-admin-plugins/" aria-label="' . esc_attr__( 'View Elementor Video Tutorials', 'elementor' ) . '" target="_blank">' . esc_html__( 'Video Tutorials', 'elementor' ) . '</a>',
 			];
 
 			$plugin_meta = array_merge( $plugin_meta, $row_meta );
@@ -510,7 +537,7 @@ class Admin extends App {
 	 * Fired by `elementor_dashboard_overview_widget` function.
 	 *
 	 * @param array $args
-	 * @param bool $show_heading
+	 * @param bool  $show_heading
 	 *
 	 * @return void
 	 * @since 3.12.0
@@ -546,7 +573,7 @@ class Admin extends App {
 	 * Displays the Elementor dashboard widget - news and updates section.
 	 * Fired by `elementor_dashboard_overview_widget` function.
 	 *
-	 * @param int $limit_feed
+	 * @param int  $limit_feed
 	 * @param bool $show_heading
 	 *
 	 * @return void
@@ -1049,6 +1076,25 @@ class Admin extends App {
 	public function register_ajax_hints( $ajax_manager ) {
 		$ajax_manager->register_ajax_action( 'elementor_image_optimization_campaign', [ $this, 'ajax_set_image_optimization_campaign' ] );
 		$ajax_manager->register_ajax_action( 'elementor_core_site_mailer_campaign', [ $this, 'ajax_site_mailer_campaign' ] );
+		$ajax_manager->register_ajax_action( 'elementor_core_ally_campaign', [ $this, 'ajax_ally_campaign' ] );
+	}
+
+	public function ajax_ally_campaign( $request ) {
+		if ( ! current_user_can( 'install_plugins' ) ) {
+			return;
+		}
+
+		if ( empty( $request['source'] ) ) {
+			return;
+		}
+
+		$campaign_data = [
+			'source' => sanitize_key( $request['source'] ),
+			'campaign' => 'ally-plg',
+			'medium' => 'wp-dash',
+		];
+
+		set_transient( 'elementor_ea11y_campaign', $campaign_data, 30 * DAY_IN_SECONDS );
 	}
 
 	public function ajax_set_image_optimization_campaign( $request ) {

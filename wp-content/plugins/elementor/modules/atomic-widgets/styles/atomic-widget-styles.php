@@ -3,13 +3,14 @@
 namespace Elementor\Modules\AtomicWidgets\Styles;
 
 use Elementor\Core\Base\Document;
-use Elementor\Modules\AtomicWidgets\Cache_Validity;
-use Elementor\Modules\AtomicWidgets\Utils;
+use Elementor\Modules\AtomicWidgets\Utils\Utils;
 use Elementor\Modules\GlobalClasses\Utils\Atomic_Elements_Utils;
 use Elementor\Plugin;
 
 class Atomic_Widget_Styles {
 	const STYLES_KEY = 'local';
+	const CONTEXT_FRONTEND = 'frontend';
+	const CONTEXT_PREVIEW = 'preview';
 
 	public function register_hooks() {
 		add_action( 'elementor/atomic-widgets/styles/register', function( Atomic_Styles_Manager $styles_manager, array $post_ids ) {
@@ -17,43 +18,37 @@ class Atomic_Widget_Styles {
 		}, 30, 2 );
 
 		add_action( 'elementor/document/after_save', fn( Document $document ) => $this->invalidate_cache(
-			[ $document->get_main_post()->ID ]
+			[ $document->get_main_post()->ID ],
+			$this->get_context( ! Utils::is_post_published( $document ) )
 		), 20, 2 );
 
 		add_action(
 			'elementor/core/files/clear_cache',
 			fn() => $this->invalidate_cache(),
 		);
+
+		add_action(
+			'deleted_post',
+			fn( $post_id ) => $this->invalidate_cache( [ $post_id ] )
+		);
 	}
 
 	private function register_styles( Atomic_Styles_Manager $styles_manager, array $post_ids ) {
+		$context = $this->get_context( is_preview() );
+
 		foreach ( $post_ids as $post_id ) {
 			$get_styles = fn() => $this->parse_post_styles( $post_id );
 
-			$style_key = $this->get_style_key( $post_id );
-
-			$styles_manager->register( $style_key, $get_styles, [ self::STYLES_KEY, $post_id ] );
+			$styles_manager->register( [ self::STYLES_KEY, $post_id, $context ], $get_styles );
 		}
 	}
 
 	private function parse_post_styles( $post_id ) {
-		$document = Plugin::$instance->documents->get_doc_for_frontend( $post_id );
-
-		if ( ! $document ) {
-			return [];
-		}
-
-		$elements_data = $document->get_elements_data();
-
-		if ( empty( $elements_data ) ) {
-			return [];
-		}
-
 		$post_styles = [];
 
-		Plugin::$instance->db->iterate_data( $elements_data, function( $element_data ) use ( &$post_styles ) {
+		Utils::traverse_post_elements( $post_id, function( $element_data ) use ( &$post_styles ) {
 			$post_styles = array_merge( $post_styles, $this->parse_element_style( $element_data ) );
-		});
+		} );
 
 		return $post_styles;
 	}
@@ -69,21 +64,26 @@ class Atomic_Widget_Styles {
 		return $element_data['styles'] ?? [];
 	}
 
-	private function invalidate_cache( ?array $post_ids = null ) {
-		$cache_validity = new Cache_Validity();
-
+	private function invalidate_cache( ?array $post_ids = null, ?string $context = null ) {
 		if ( empty( $post_ids ) ) {
-			$cache_validity->invalidate( [ self::STYLES_KEY ] );
+			do_action( 'elementor/atomic-widgets/styles/clear', [ self::STYLES_KEY ] );
 
 			return;
 		}
 
+		$is_post_status_publish = self::CONTEXT_FRONTEND === $context;
+
+		// When a user publishes a post, we should invalidate the styles of the draft too
 		foreach ( $post_ids as $post_id ) {
-			$cache_validity->invalidate( [ self::STYLES_KEY, $post_id ] );
+			do_action( 'elementor/atomic-widgets/styles/clear',
+				empty( $context ) || $is_post_status_publish
+					? [ self::STYLES_KEY, $post_id ]
+					: [ self::STYLES_KEY, $post_id, $context ]
+			);
 		}
 	}
 
-	private function get_style_key( $post_id ) {
-		return self::STYLES_KEY . '-' . $post_id;
+	private function get_context( bool $is_preview ) {
+		return $is_preview ? self::CONTEXT_PREVIEW : self::CONTEXT_FRONTEND;
 	}
 }

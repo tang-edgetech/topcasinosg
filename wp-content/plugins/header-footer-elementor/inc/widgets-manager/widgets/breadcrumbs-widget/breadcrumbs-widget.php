@@ -71,6 +71,18 @@ class Breadcrumbs_Widget extends Common_Widget {
 	}
 
 	/**
+	 * Retrieve Widget Keywords.
+	 *
+	 * @since 2.6.0
+	 * @access public
+	 *
+	 * @return string Widget keywords.
+	 */
+	public function get_keywords() {
+		return parent::get_widget_keywords( 'Breadcrumbs_Widget' );
+	}
+
+	/**
 	 * Indicates if the widget's content is dynamic.
 	 *
 	 * This method returns true if the widget's output is dynamic and should not be cached,
@@ -81,6 +93,28 @@ class Breadcrumbs_Widget extends Common_Widget {
 	 */
 	protected function is_dynamic_content(): bool { // phpcs:ignore
 		return true;
+	}
+
+	/**
+	 * Get widget upsale data.
+	 *
+	 * Retrieve the widget promotion data.
+	 *
+	 * @since 2.5.0
+	 * @access protected
+	 *
+	 * @return array Widget promotion data.
+	 */
+	protected function get_upsale_data() {
+		return [
+			'condition' => ! defined( 'UAEL_VER' ),
+			'image' => esc_url( HFE_URL . 'assets/images/upgrade-pro.png' ),
+			'image_alt' => esc_attr__( 'Upgrade', 'header-footer-elementor' ),
+			'title' => esc_html__( 'Get more than just Breadcrumbs', 'header-footer-elementor' ),
+			'description' => esc_html__( 'UAE Pro includes Schema widgets like FAQ Schema and How-To Schema, helping your content rank higher.', 'header-footer-elementor' ),
+			'upgrade_url' => esc_url( 'https://ultimateelementor.com/pricing/?utm_source=UAE-Breadcrumbs&utm_medium=editor&utm_campaign=static-promotion' ),
+			'upgrade_text' => esc_html__( 'Upgrade Now', 'header-footer-elementor' ),
+		];
 	}
 
 	/**
@@ -100,7 +134,6 @@ class Breadcrumbs_Widget extends Common_Widget {
 		$this->register_breadcrumbs_general_style_controls();
 		$this->register_breadcrumbs_separator_style_controls();
 		$this->register_breadcrumbs_current_style_controls();
-		$this->register_pro_promotion_controls();
 	}
 
 	
@@ -631,36 +664,6 @@ class Breadcrumbs_Widget extends Common_Widget {
 
 	}
 
-	/**
-	 * Register Breadcrumbs Promotion Controls.
-	 *
-	 * @since 2.4.0
-	 * @access protected
-	 */
-	protected function register_pro_promotion_controls() {
-
-		if(! defined( 'UAEL_VER' )){
-			$this->start_controls_section(
-				'section_pro_features_field',
-				array(
-					'label' => __( 'Go Pro for More Features', 'header-footer-elementor' ),
-				)
-			);
-
-			$this->add_control(
-				'uae_pro_promotion_notice',
-				[
-					'type' => Controls_Manager::NOTICE,
-					'notice_type' => 'info',
-					'dismissible' => false,
-					'content' => __( '<b>Build smarter and faster</b> with premium widgets, 200+ section blocks, and advanced customisation controls — all available in the <a href="https://ultimateelementor.com/pricing/?utm_source=uae-dashboard&utm_medium=editor&utm_campaign=uae-pro-promotion" target="_blank">UAE Pro</a>.', 'header-footer-elementor' ),
-				]
-			);
-
-
-			$this->end_controls_section();
-		}
-	}
 
 	/**
 	 * Render Heading output on the frontend.

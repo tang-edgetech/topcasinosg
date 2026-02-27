@@ -891,6 +891,7 @@ class Woo_Product_Images extends Widget_Base {
 		$pi_data_settings['eael_image_zoom_effect'] = ! empty( $settings['eael_image_zoom_effect'] ) ? $settings['eael_image_zoom_effect'] : '';
 		$pi_data_settings['eael_zoom_effect_type'] = ! empty( $settings['eael_zoom_effect_type'] ) ? $settings['eael_zoom_effect_type'] : '';
 		$pi_data_settings['eael_zoom_lens_border_radius'] = ! empty( $settings['eael_zoom_lens_border_radius']['size'] ) ? $settings['eael_zoom_lens_border_radius']['size'] . $settings['eael_zoom_lens_border_radius']['unit'] : '8px';
+		$pi_data_settings['eael_zoom_lens_size'] = ! empty( $settings['eael_zoom_lens_size']['size'] ) ? $settings['eael_zoom_lens_size']['size'] : '';
 
 		return $pi_data_settings;
 	}
@@ -953,7 +954,7 @@ class Woo_Product_Images extends Widget_Base {
 				'type' => $image_settings['eael_zoom_effect_type'],
 				'lensBorderRadius' => $image_settings['eael_zoom_lens_border_radius'],
 				'lensBorder' => $border_style,
-				'lensSize' => isset( $image_settings['eael_zoom_lens_size']['size'] ) ? $image_settings['eael_zoom_lens_size']['size'] : '',
+				'lensSize' => $image_settings['eael_zoom_lens_size'] ?? '',
 			];
 		}
 
@@ -1094,7 +1095,7 @@ class Woo_Product_Images extends Widget_Base {
 				<?php if( 'yes' == $thumb_settings['thumbnail'] ) {
 					$single_thumb_img = ( count($img_links) > 1 ) ? '' : 'single-thumb-img';
 					$thumb_size = $thumb_settings['thumbnail_size']; ?>
-					<div class="swiper-wrapper <?php esc_attr_e( $single_thumb_img ); ?>">
+					<div class="swiper-wrapper <?php echo esc_attr( $single_thumb_img ); ?>">
 						<?php
 							foreach ( $img_links as $img_link ) {
 								$this->render_slide( $img_link, 'product_image_slider__thumbs__image', $thumb_size );
@@ -1103,8 +1104,8 @@ class Woo_Product_Images extends Widget_Base {
 					</div>
 					<?php $print_left_right = in_array( $thumb_settings['thumb_position'], $thumb_position ) ? 'left-right-prev' : ''; ?>
 						<?php if ( 'yes' == $thumb_settings['thumb_navigation'] && count( $img_links ) > $thumb_settings['desktop'] ) { ?>
-							<span class="swiper-button-prev <?php esc_attr_e( $print_left_right ); ?>"></span>
-							<span class="swiper-button-next <?php esc_attr_e( $print_left_right ); ?>"></span>
+							<span class="swiper-button-prev <?php echo esc_attr( $print_left_right ); ?>"></span>
+							<span class="swiper-button-next <?php echo esc_attr( $print_left_right ); ?>"></span>
 						<?php } ?>
 					<?php } ?>
 				</div>

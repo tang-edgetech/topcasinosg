@@ -1021,11 +1021,6 @@ $config = [
                         'context' => 'view',
                     ],
 	                [
-		                'file' => EAEL_PLUGIN_PATH . 'assets/front-end/js/lib-view/moment/moment.min.js',
-		                'type' => 'lib',
-		                'context' => 'view',
-	                ],
-	                [
 		                'file' => EAEL_PLUGIN_PATH . 'assets/front-end/js/lib-view/fancy-table/fancy-table.min.js',
 		                'type' => 'lib',
 		                'context' => 'view',
@@ -1415,6 +1410,89 @@ $config = [
                 'js'  => [
                     [
                         'file'    => EAEL_PLUGIN_PATH . 'assets/front-end/js/view/hover-effect.min.js',
+                        'type'    => 'self',
+                        'context' => 'view',
+                    ],
+                ],
+            ],
+        ],
+        'liquid-glass-effect' => [
+            'class'      => '\Essential_Addons_Elementor\Extensions\Liquid_Glass_Effect',
+            'dependency' => [
+                'css' => [
+                    [
+                        'file'    => EAEL_PLUGIN_PATH . 'assets/front-end/css/view/liquid-glass-effect.min.css',
+                        'type'    => 'self',
+                        'context' => 'view',
+                    ],
+                ],
+            ],
+        ],
+        'image-masking' => [
+            'class'      => '\Essential_Addons_Elementor\Extensions\Image_Masking',
+            'dependency' => [
+                'js' => [
+                    [
+                        'file'    => EAEL_PLUGIN_PATH . 'assets/front-end/js/lib-view/gsap/gsap.min.js',
+                        'type'    => 'lib',
+                        'context' => 'view',
+                    ],
+                    [
+                        'file'    => EAEL_PLUGIN_PATH . 'assets/front-end/js/lib-view/gsap/MorphSVGPlugin.min.js',
+                        'type'    => 'lib',
+                        'context' => 'view',
+                    ],
+                    [
+                        'file'    => EAEL_PLUGIN_PATH . 'assets/front-end/js/lib-view/blob-animation/polygon-morphing-animation.min.js',
+                        'type'    => 'lib',
+                        'context' => 'view',
+                    ],
+                    [
+                        'file'    => EAEL_PLUGIN_PATH . 'assets/front-end/js/lib-view/gsap/gsap.min.js',
+                        'type'    => 'lib',
+                        'context' => 'edit',
+                    ],
+                    [
+                        'file'    => EAEL_PLUGIN_PATH . 'assets/front-end/js/lib-view/gsap/MorphSVGPlugin.min.js',
+                        'type'    => 'lib',
+                        'context' => 'edit',
+                    ],
+                    [
+                        'file'    => EAEL_PLUGIN_PATH . 'assets/front-end/js/lib-view/blob-animation/polygon-morphing-animation.min.js',
+                        'type'    => 'lib',
+                        'context' => 'edit',
+                    ],
+                    [
+                        'file'    => EAEL_PLUGIN_PATH . 'assets/front-end/js/lib-view/dom-purify/purify.min.js',
+                        'type'    => 'lib',
+                        'context' => 'edit',
+                    ],
+                    [
+                        'file'    => EAEL_PLUGIN_PATH . 'assets/front-end/js/edit/image-masking.min.js',
+                        'type'    => 'self',
+                        'context' => 'edit',
+                    ],
+                    [
+                        'file'    => EAEL_PLUGIN_PATH . 'assets/front-end/js/view/image-masking.min.js',
+                        'type'    => 'self',
+                        'context' => 'view',
+                    ],
+                ],
+            ],
+        ],
+        'vertical-text-orientation' => [
+            'class'      => '\Essential_Addons_Elementor\Extensions\Vertical_Text_Orientation',
+            'dependency' => [
+                'css' => [
+                    [
+                        'file'    => EAEL_PLUGIN_PATH . 'assets/front-end/css/view/vertical-text-orientation.min.css',
+                        'type'    => 'self',
+                        'context' => 'view',
+                    ],
+                ],
+                'js'  => [
+                    [
+                        'file'    => EAEL_PLUGIN_PATH . 'assets/front-end/js/view/vertical-text-orientation.min.js',
                         'type'    => 'self',
                         'context' => 'view',
                     ],

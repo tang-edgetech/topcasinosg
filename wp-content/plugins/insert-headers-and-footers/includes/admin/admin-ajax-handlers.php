@@ -19,6 +19,9 @@ add_filter( 'heartbeat_received', 'wpcode_heartbeat_data', 10, 3 );
 add_action( 'wp_ajax_wpcode_save_editor_height', 'wpcode_save_editor_height' );
 add_action( 'wp_ajax_wpcode_get_shortcode_locations', 'wpcode_get_shortcode_locations' );
 add_action( 'wp_ajax_wpcode_sync_snippet', 'wpcode_sync_snippet' );
+add_action( 'wp_ajax_wpcode_save_preview_css', 'wpcode_save_preview_css' );
+add_action( 'wp_ajax_wpcode_clear_preview_css', 'wpcode_clear_preview_css' );
+add_action( 'wp_ajax_wpcode_set_preview_css', 'wpcode_set_preview_css' );
 
 /**
  * Handles toggling a snippet status from the admin.
@@ -390,15 +393,15 @@ function wpcode_get_shortcode_locations() {
 	$params[] = $per_page;
 	$params[] = $offset;
 
+	// Build query structure with sprintf, escaping prepare() placeholders with %%.
+	$query = sprintf(
+		"SELECT ID FROM {$wpdb->posts} WHERE post_type IN (%s) AND post_status != 'trash' AND (%s) LIMIT %%d OFFSET %%d",
+		$post_type_placeholders,
+		$where_like
+	);
+
 	$candidate_ids = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.DirectQuery
-		$wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
-			"SELECT ID FROM {$wpdb->posts}  
-            WHERE post_type IN ($post_type_placeholders)
-            AND post_status != 'trash'
-            AND ($where_like) 
-            LIMIT %d OFFSET %d",
-			$params
-		)
+		$wpdb->prepare( $query, $params ) // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	);
 	$candidate_ids = array_unique( $candidate_ids );
 
@@ -506,4 +509,165 @@ function wpcode_sync_snippet() {
 			'version' => isset( $result['version'] ) ? $result['version'] : '',
 		)
 	);
+}
+
+/**
+ * AJAX handler to save preview CSS to snippet.
+ * Supports both CSS and SCSS snippets.
+ *
+ * @return void
+ */
+function wpcode_save_preview_css() {
+	// Check nonce.
+	check_ajax_referer( 'wpcode_admin', 'nonce' );
+
+	// Check permissions.
+	if ( ! current_user_can( 'wpcode_edit_snippets' ) ) { //phpcs:ignore
+		wp_send_json_error( array( 'message' => __( 'You do not have permission to edit snippets.', 'insert-headers-and-footers' ) ) );
+	}
+
+	$snippet_id  = isset( $_POST['snippet_id'] ) ? absint( $_POST['snippet_id'] ) : 0;
+	$css         = isset( $_POST['css'] ) ? wp_unslash( $_POST['css'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+	$code_type   = isset( $_POST['code_type'] ) ? sanitize_text_field( wp_unslash( $_POST['code_type'] ) ) : '';
+	$source_code = isset( $_POST['source_code'] ) ? wp_unslash( $_POST['source_code'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+
+	if ( ! $snippet_id ) {
+		wp_send_json_error( array( 'message' => __( 'Invalid snippet ID.', 'insert-headers-and-footers' ) ) );
+	}
+
+	// Get the snippet.
+	$snippet = wpcode_get_snippet( $snippet_id );
+
+	if ( ! $snippet || ! $snippet->get_id() ) {
+		wp_send_json_error( array( 'message' => __( 'Snippet not found.', 'insert-headers-and-footers' ) ) );
+	}
+
+	// Preserve existing "Compress Output" option explicitly without mutating the property to a false value.
+	$compress_enabled = get_post_meta( $snippet_id, '_wpcode_compress_output', true );
+
+	// For SCSS snippets, save the source code and compiled CSS.
+	if ( 'scss' === $code_type || 'scss' === $snippet->get_code_type() ) {
+		// Use source code if provided, otherwise use the compiled CSS as source (shouldn't happen).
+		$snippet->code = ! empty( $source_code ) ? $source_code : $css;
+		// Store the compiled CSS.
+		$snippet->compiled_code = $css;
+	} else {
+		// For CSS snippets, just save the CSS directly.
+		$snippet->code = $css;
+	}
+
+	// Re-apply compress_output flag only if it was previously enabled.
+	if ( $compress_enabled ) {
+		$snippet->compress_output = true;
+	}
+	$result = $snippet->save();
+
+	if ( ! $result ) {
+		wp_send_json_error( array( 'message' => __( 'Failed to save snippet.', 'insert-headers-and-footers' ) ) );
+	}
+
+	// Clear the preview transients.
+	$user_id       = get_current_user_id();
+	$transient_key = "wpcode_preview_css_{$user_id}_{$snippet_id}";
+	delete_transient( $transient_key );
+
+	// Also clear SCSS source transient if it exists.
+	$source_transient_key = "wpcode_preview_scss_source_{$user_id}_{$snippet_id}";
+	delete_transient( $source_transient_key );
+
+	// Return success with redirect URL.
+	wp_send_json_success(
+		array(
+			'message' => __( 'Snippet saved successfully.', 'insert-headers-and-footers' ),
+			'url'     => add_query_arg(
+				array(
+					'page'       => 'wpcode-snippet-manager',
+					'snippet_id' => $snippet_id,
+					'message'    => 1,
+				),
+				admin_url( 'admin.php' )
+			),
+		)
+	);
+}
+
+/**
+ * AJAX handler to clear preview CSS transient.
+ * Supports both CSS and SCSS snippets.
+ *
+ * @return void
+ */
+function wpcode_clear_preview_css() {
+	// Check nonce.
+	check_ajax_referer( 'wpcode_admin', 'nonce' );
+
+	// Check permissions.
+	if ( ! current_user_can( 'wpcode_edit_snippets' ) ) { //phpcs:ignore
+		wp_send_json_error( array( 'message' => __( 'You do not have permission.', 'insert-headers-and-footers' ) ) );
+	}
+
+	$snippet_id = isset( $_POST['snippet_id'] ) ? absint( $_POST['snippet_id'] ) : 0;
+
+	if ( ! $snippet_id ) {
+		wp_send_json_error( array( 'message' => __( 'Invalid snippet ID.', 'insert-headers-and-footers' ) ) );
+	}
+
+	// Clear the preview transients.
+	$user_id       = get_current_user_id();
+	$transient_key = "wpcode_preview_css_{$user_id}_{$snippet_id}";
+	delete_transient( $transient_key );
+
+	// Also clear SCSS source transient if it exists.
+	$source_transient_key = "wpcode_preview_scss_source_{$user_id}_{$snippet_id}";
+	delete_transient( $source_transient_key );
+
+	wp_send_json_success(
+		array(
+			'message' => __( 'Preview cleared.', 'insert-headers-and-footers' ),
+		)
+	);
+}
+
+/**
+ * AJAX handler to set preview CSS transient only (no DB save).
+ * Supports both CSS and SCSS snippets.
+ *
+ * @return void
+ */
+function wpcode_set_preview_css() {
+	// Check nonce.
+	check_ajax_referer( 'wpcode_admin', 'nonce' );
+
+	// Check permissions.
+	if ( ! current_user_can( 'wpcode_edit_snippets' ) ) { //phpcs:ignore
+		wp_send_json_error( array( 'message' => __( 'You do not have permission to edit snippets.', 'insert-headers-and-footers' ) ) );
+	}
+
+	$snippet_id  = isset( $_POST['snippet_id'] ) ? absint( $_POST['snippet_id'] ) : 0;
+	$css         = isset( $_POST['css'] ) ? wp_unslash( $_POST['css'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+	$code_type   = isset( $_POST['code_type'] ) ? sanitize_text_field( wp_unslash( $_POST['code_type'] ) ) : 'css';
+	$source_code = isset( $_POST['source_code'] ) ? wp_unslash( $_POST['source_code'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+
+	if ( ! $snippet_id ) {
+		wp_send_json_error( array( 'message' => __( 'Invalid snippet ID.', 'insert-headers-and-footers' ) ) );
+	}
+
+	$user_id = get_current_user_id();
+
+	// For SCSS, store both the compiled CSS (for preview) and source code (for saving).
+	if ( 'scss' === $code_type ) {
+		// Store compiled CSS for preview frame.
+		$compiled_transient_key = "wpcode_preview_css_{$user_id}_{$snippet_id}";
+		set_transient( $compiled_transient_key, $css, HOUR_IN_SECONDS );
+
+		// Store source SCSS for saving later.
+		$source_transient_key = "wpcode_preview_scss_source_{$user_id}_{$snippet_id}";
+		set_transient( $source_transient_key, $source_code, HOUR_IN_SECONDS );
+	} else {
+		// Store the CSS in the same transient used by the preview frame.
+		$transient_key = "wpcode_preview_css_{$user_id}_{$snippet_id}";
+		set_transient( $transient_key, $css, HOUR_IN_SECONDS );
+	}
+
+	wp_send_json_success( array( 'message' => __( 'Preview CSS stored.', 'insert-headers-and-footers' ) ) );
 }

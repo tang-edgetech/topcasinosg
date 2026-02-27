@@ -9,6 +9,9 @@ use Elementor\Includes\Settings\AdminMenuItems\Getting_Started_Menu_Item;
 use Elementor\Modules\Promotions\Module as Promotions_Module;
 use Elementor\TemplateLibrary\Source_Local;
 use Elementor\Modules\Home\Module as Home_Module;
+use Elementor\Modules\EditorOne\Classes\Menu_Data_Provider;
+use Elementor\Includes\Settings\AdminMenuItems\Editor_One_Home_Menu;
+use Elementor\Includes\Settings\AdminMenuItems\Editor_One_Settings_Menu;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
@@ -102,7 +105,9 @@ class Settings extends Settings_Page {
 
 		if ( $this->home_module->is_experiment_active() ) {
 			add_action( 'elementor/admin/menu/register', function( Admin_Menu_Manager $admin_menu ) {
-				$admin_menu->register( 'elementor-settings', new Admin_Menu_Item( $this ) );
+				if ( ! $this->is_editor_one_active() ) {
+					$admin_menu->register( 'elementor-settings', new Admin_Menu_Item( $this ) );
+				}
 			}, 0 );
 		}
 	}
@@ -159,8 +164,22 @@ class Settings extends Settings_Page {
 	 * @access private
 	 */
 	private function register_knowledge_base_menu( Admin_Menu_Manager $admin_menu ) {
-		$admin_menu->register( 'elementor-getting-started', new Getting_Started_Menu_Item() );
-		$admin_menu->register( 'go_knowledge_base_site', new Get_Help_Menu_Item() );
+		if ( ! Plugin::instance()->modules_manager->get_modules( 'editor-one' ) ) {
+			$admin_menu->register( 'elementor-getting-started', new Getting_Started_Menu_Item() );
+			$admin_menu->register( 'go_knowledge_base_site', new Get_Help_Menu_Item() );
+		}
+	}
+
+	private function register_editor_one_settings_menu( Menu_Data_Provider $menu_data_provider ) {
+		$menu_data_provider->register_menu( new Editor_One_Settings_Menu() );
+	}
+
+	private function register_editor_one_home_menu( Menu_Data_Provider $menu_data_provider ) {
+		$menu_data_provider->register_menu( new Editor_One_Home_Menu() );
+	}
+
+	private function is_editor_one_active(): bool {
+		return (bool) Plugin::instance()->modules_manager->get_modules( 'editor-one' );
 	}
 
 	/**
@@ -371,6 +390,7 @@ class Settings extends Settings_Page {
 										'0' => esc_html__( 'Disable', 'elementor' ),
 									],
 									'desc' => sprintf(
+										/* translators: 1: Link opening tag, 2: Link closing tag */
 										esc_html__( 'Disable this option if you want to prevent Google Fonts from being loaded. This setting is recommended when loading fonts from a different source (plugin, theme or %1$scustom fonts%2$s).', 'elementor' ),
 										'<a href="' . admin_url( 'admin.php?page=elementor_custom_fonts' ) . '">',
 										'</a>'
@@ -466,6 +486,18 @@ class Settings extends Settings_Page {
 									'desc' => esc_html__( 'Improve initial page load performance by lazy loading all background images except the first one.', 'elementor' ),
 								],
 							],
+							'local_google_fonts' => [
+								'label' => esc_html__( 'Load Google Fonts Locally', 'elementor' ),
+								'field_args' => [
+									'type' => 'select',
+									'std' => '0',
+									'options' => [
+										'1' => esc_html__( 'Enable', 'elementor' ),
+										'0' => esc_html__( 'Disable', 'elementor' ),
+									],
+									'desc' => esc_html__( 'Load Google fonts locally to benefit from faster performance and ensure GDPR compliance. Fonts will be served from your own server instead of Google’s. Only the very first load (in the editor and on the front end) may take slightly longer.', 'elementor' ),
+								],
+							],
 						],
 					],
 				],
@@ -542,6 +574,13 @@ class Settings extends Settings_Page {
 
 		add_action( 'admin_menu', [ $this, 'register_admin_menu' ], 20 );
 
+		add_action( 'elementor/editor-one/menu/register', function ( Menu_Data_Provider $menu_data_provider ) {
+			if ( $this->home_module->is_experiment_active() ) {
+				$this->register_editor_one_settings_menu( $menu_data_provider );
+				$this->register_editor_one_home_menu( $menu_data_provider );
+			}
+		} );
+
 		add_action( 'elementor/admin/menu/register', function ( Admin_Menu_Manager $admin_menu ) {
 			$this->register_knowledge_base_menu( $admin_menu );
 		}, Promotions_Module::ADMIN_MENU_PRIORITY - 1 );
@@ -558,6 +597,7 @@ class Settings extends Settings_Page {
 			'elementor_disable_color_schemes',
 			'elementor_disable_typography_schemes',
 			'elementor_css_print_method',
+			'elementor_local_google_fonts',
 		];
 
 		foreach ( $css_settings as $option_name ) {

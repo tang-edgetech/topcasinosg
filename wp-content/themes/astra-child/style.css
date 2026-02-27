@@ -1,0 +1,326 @@
+/**
+Theme Name: Astra Child
+Author: Brainstorm Force
+Author URI: http://wpastra.com/about/
+Description: Astra is the fastest, fully customizable & beautiful theme suitable for blogs, personal portfolios and business websites. It is very lightweight (less than 50KB on frontend) and offers unparalleled speed. Built with SEO in mind, Astra comes with schema.org code integrated so search engines will love your site. Astra offers plenty of sidebar options and widget areas giving you a full control for customizations. Furthermore, we have included special features and templates so feel free to choose any of your favorite page builder plugin to create pages flexibly. Some of the other features: # WooCommerce Ready # Responsive # Compatible with major plugins # Translation Ready # Extendible with premium addons # Regularly updated # Designed, Developed, Maintained & Supported by Brainstorm Force. Looking for a perfect base theme? Look no further. Astra is fast, fully customizable and beautiful theme!
+Version: 1.0.0
+License: GNU General Public License v2 or later
+License URI: http://www.gnu.org/licenses/gpl-2.0.html
+Text Domain: astra-child
+Template: astra
+*/
+
+:root {
+    --theme-dark-blue: #1A1E71;
+    --theme-blue: #3139D7;
+    --theme-blue-secondary: #5A65B4;
+    --theme-yellow: #F7B500;
+    --color-white: #fff;
+    --color-black: #000;
+    --color-high: #FF4553;
+    --color-high-light: rgba(255, 69, 83, 0.3);
+    --color-moderate: #FE870C;
+    --color-moderate-light: rgba(254, 135, 12, 0.3);
+    --color-low: #00BB9E;
+    --color-low-light: rgba(0, 187, 158, 0.3);
+}
+* {
+    position: relative;
+}
+.elementor h1, .elementor h2, .elementor h3, .elementor h4, .elementor h5, .elementor h6, .elementor p {
+    margin-bottom: 0;
+}
+#masthead .eael-simple-menu-container {
+    display: flex;
+}
+#masthead .eael-simple-menu-container , #masthead .elementor-widget-eael-simple-menu {
+    align-items: center;
+}
+#masthead #menu-main-menu .menu-item-has-children > a {
+    display: flex;
+    align-items: center;
+    flex-direction: row;
+}
+#masthead #menu-main-menu .menu-item-has-children > a > span.dropdown-menu-toggle {
+    display: none;
+}
+#masthead #menu-main-menu .menu-item-has-children > a > span {
+    width: 1.5rem;
+    height: 1.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.d-none {
+    display: none;
+}
+.d-block {
+    display: block;
+}
+.d-inline {
+    display: inline;
+}
+.d-inline-block {
+    display: inline-block;
+}
+.d-flex {
+    display: flex;
+}
+.d-grid {
+    display: grid;
+}
+.position-relative {
+    position: relative;
+}
+.position-absolute {
+    position: absolute;
+}
+.position-static {
+    position: static;
+}
+.position-fixed {
+    position: fixed;
+}
+.position-sticky {
+    position: sticky;
+}
+.ln-row {
+    display: flex;
+    flex-wrap: wrap;
+}
+.elementor-default p, .text-editor p {
+    margin-bottom: 0;
+}
+button[type="button"].btn-close {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: auto;
+    padding: 0;
+    font-size: 1.25rem;
+    line-height: 1.25rem;
+    z-index: 2;
+}
+.btn-close, .btn-close:hover {
+    background-color: transparent;
+}
+.error {
+    display: none;
+    position: relative;
+    width: 100%;
+    margin: 0.5rem 0;
+    color: var(--color-high);
+    font-size: 1rem;
+    line-height: 1;
+}
+.error-dialog {
+    display: none;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    z-index: 998;
+}
+.error-dialog:not(.show), .error-dialog:not(.show)::before {
+    opacity: 0;
+}
+.error-dialog, .error-dialog::before, .error-dialog .error-dialog-inner {
+    transition: all 0.5s ease;
+}
+.error-dialog::before {
+    content: '';
+    display: block;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+}
+.error-dialog:not(.show) .error-dialog-inner {
+    transform: translateY(3.125rem);
+}
+.error-dialog .error-dialog-inner {
+    display: block;
+    padding: 1.5rem;
+    border-radius: 0.75rem;
+    margin: 5rem auto 0;
+    width: 100%;
+    max-width: 600px;
+    background-color: var(--color-white);
+}
+.error-dialog .error-dialog-body {
+    color: var(--color-high);
+    text-align: center;
+    font-size: 1.25rem;
+    line-height: 1.25rem;
+}
+.error-dialog-print {
+    display: block;
+    width: 100%;
+    min-height: 1.5rem;
+}
+footer {
+    z-index: 1;
+}
+#final-words {
+    overflow: hidden;
+}
+.overflow-x-hidden {
+    overflow-x: hidden;
+}
+.overflow-y-hidden {
+    overflow-y: hidden;
+}
+@media (max-width: 767px) {
+    .single.ast-separate-container #primary {
+        padding: 0 1.5rem;
+    }
+    .error-dialog {
+        padding: 0 1.5rem;
+    }
+}
+@media (min-width: 768px) {
+    .d-md-none {
+        display: none;
+    }
+    .d-md-block {
+        display: block;
+    }
+    .d-md-inline {
+        display: inline;
+    }
+    .d-md-inline-block {
+        display: inline-block;
+    }
+    .d-md-flex {
+        display: flex;
+    }
+    .d-md-grid {
+        display: grid;
+    }
+    .position-md-relative {
+        position: relative;
+    }
+    .position-md-absolute {
+        position: absolute;
+    }
+    .position-md-static {
+        position: static;
+    }
+    .position-md-fixed {
+        position: fixed;
+    }
+    .position-md-sticky {
+        position: sticky;
+    }
+}
+@media (min-width: 992px) {
+    .d-lg-none {
+        display: none;
+    }
+    .d-lg-block {
+        display: block;
+    }
+    .d-lg-inline {
+        display: inline;
+    }
+    .d-lg-inline-block {
+        display: inline-block;
+    }
+    .d-lg-flex {
+        display: flex;
+    }
+    .d-lg-grid {
+        display: grid;
+    }
+    .position-lg-relative {
+        position: relative;
+    }
+    .position-lg-absolute {
+        position: absolute;
+    }
+    .position-lg-static {
+        position: static;
+    }
+    .position-lg-fixed {
+        position: fixed;
+    }
+    .position-lg-sticky {
+        position: sticky;
+    }
+}
+@media (min-width: 1200px) {
+    .d-xl-none {
+        display: none;
+    }
+    .d-xl-block {
+        display: block;
+    }
+    .d-xl-inline {
+        display: inline;
+    }
+    .d-xl-inline-block {
+        display: inline-block;
+    }
+    .d-xl-flex {
+        display: flex;
+    }
+    .d-xl-grid {
+        display: grid;
+    }
+    .position-xl-relative {
+        position: relative;
+    }
+    .position-xl-absolute {
+        position: absolute;
+    }
+    .position-xl-static {
+        position: static;
+    }
+    .position-xl-fixed {
+        position: fixed;
+    }
+    .position-xl-sticky {
+        position: sticky;
+    }
+}
+@media (min-width: 1400px) {
+    .d-xxl-none {
+        display: none;
+    }
+    .d-xxl-block {
+        display: block;
+    }
+    .d-xxl-inline {
+        display: inline;
+    }
+    .d-xxl-inline-block {
+        display: inline-block;
+    }
+    .d-xxl-flex {
+        display: flex;
+    }
+    .d-xxl-grid {
+        display: grid;
+    }
+    .position-xxl-relative {
+        position: relative;
+    }
+    .position-xxl-absolute {
+        position: absolute;
+    }
+    .position-xxl-static {
+        position: static;
+    }
+    .position-xxl-fixed {
+        position: fixed;
+    }
+    .position-xxl-sticky {
+        position: sticky;
+    }
+}
+@media (min-width: 1600px) {
+
+}

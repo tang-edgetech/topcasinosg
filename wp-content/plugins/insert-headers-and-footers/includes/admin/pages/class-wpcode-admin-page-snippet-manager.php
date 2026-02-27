@@ -1257,6 +1257,7 @@ class WPCode_Admin_Page_Snippet_Manager extends WPCode_Admin_Page {
 		}
 
 		do_action( 'wpcode_header_buttons', $this->snippet );
+		$this->live_preview_button();
 		$this->update_button();
 	}
 
@@ -1269,6 +1270,69 @@ class WPCode_Admin_Page_Snippet_Manager extends WPCode_Admin_Page {
 		?>
 		<button class="wpcode-button" type="submit" value="publish" name="button"><?php echo esc_html( $this->publish_button_text ); ?></button>
 		<?php
+	}
+
+	/**
+	 * The Live Preview button for CSS and SCSS snippets.
+	 *
+	 * @return void
+	 */
+	public function live_preview_button() {
+		$is_new_snippet      = ! isset( $this->snippet_id );
+		$supported_types     = array( 'css', 'scss' );
+
+		// For existing snippets, only show for CSS and SCSS snippets.
+		if ( ! $is_new_snippet && ! in_array( $this->snippet->get_code_type(), $supported_types, true ) ) {
+			return;
+		}
+
+		// Determine current location and allowed site-wide locations for JS to validate before launching preview.
+		$location            = $is_new_snippet ? 'site_wide_header' : $this->snippet->get_location();
+		$supported_locations = array( 'site_wide_header', 'site_wide_footer', 'site_wide_body' );
+
+		// Build the live preview URL.
+		$preview_url = add_query_arg(
+			array(
+				'page'       => 'wpcode-live-preview',
+				'snippet_id' => $is_new_snippet ? 0 : $this->snippet_id,
+			),
+			admin_url( 'admin.php' )
+		);
+
+		// Store current CSS in transient before opening preview (only for existing snippets).
+		if ( ! $is_new_snippet ) {
+			$this->store_css_for_preview();
+		}
+		?>
+		<a href="<?php echo esc_url( $preview_url ); ?>" class="wpcode-button wpcode-button-secondary wpcode-live-preview-button" id="wpcode-live-preview-button" data-current-location="<?php echo esc_attr( $location ); ?>" data-allowed-locations="<?php echo esc_attr( implode( ',', $supported_locations ) ); ?>" data-is-new="<?php echo $is_new_snippet ? '1' : '0'; ?>" data-show-if-id="#wpcode_snippet_type" data-show-if-value="<?php echo esc_attr( implode( ',', $supported_types ) ); ?>">
+			<?php wpcode_icon( 'eye', 15, 10, "0 0 17 10" ); ?>
+			<?php esc_html_e( 'Live Preview', 'insert-headers-and-footers' ); ?>
+		</a>
+		<?php
+	}
+
+	/**
+	 * Store the current CSS/SCSS in a transient for preview.
+	 *
+	 * @return void
+	 */
+	private function store_css_for_preview() {
+		if ( ! isset( $this->snippet ) ) {
+			return;
+		}
+
+		$user_id   = get_current_user_id();
+		$code_type = $this->snippet->get_code_type();
+
+		// For SCSS, store in the source transient. The compiled CSS will be generated client-side.
+		if ( 'scss' === $code_type ) {
+			$transient_key = "wpcode_preview_scss_source_{$user_id}_{$this->snippet_id}";
+		} else {
+			$transient_key = "wpcode_preview_css_{$user_id}_{$this->snippet_id}";
+		}
+
+		// Store the current code for 1 hour.
+		set_transient( $transient_key, $this->snippet->get_code(), HOUR_IN_SECONDS );
 	}
 
 	/**
@@ -1829,6 +1893,12 @@ class WPCode_Admin_Page_Snippet_Manager extends WPCode_Admin_Page {
 		$data['ai_url']           = wpcode_utm_url( 'https://wpcode.com/lite/', 'snippet-editor', 'ai', 'generate' );
 		$data['ai_improve_url']   = wpcode_utm_url( 'https://wpcode.com/lite/', 'snippet-editor', 'ai', 'improve' );
 		$data['ai_button']        = esc_html__( 'Upgrade to PRO', 'insert-headers-and-footers' );
+
+		// Live preview save prompt strings.
+		$data['live_preview_save_title']  = esc_html__( 'Save Snippet First', 'insert-headers-and-footers' );
+		$data['live_preview_save_text']   = esc_html__( 'Please save your CSS snippet first before using Live Preview. This will allow you to preview your changes in real-time.', 'insert-headers-and-footers' );
+		$data['live_preview_save_button'] = esc_html__( 'Save Snippet', 'insert-headers-and-footers' );
+		$data['cancel']                   = esc_html__( 'Cancel', 'insert-headers-and-footers' );
 
 		return $data;
 	}

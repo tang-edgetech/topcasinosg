@@ -1,11 +1,11 @@
 === Elementor Website Builder - More Than Just a Page Builder ===
 Contributors: elemntor
 Tags: page builder, editor, landing page, drag-and-drop, elementor,
-Requires at least: 6.6
-Tested up to: 6.8
+Requires at least: 6.7
+Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 3.31.2
-Beta tag: 3.31.0-beta2
+Stable tag: 3.34.0
+Beta tag: 3.34.0-beta3
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -349,53 +349,26 @@ You can also add a new language via [translate.wordpress.org](https://go.element
 
 == Changelog ==
 
-= 3.31.2 - 2025-08-11 =
+= 3.34.0 - 2025-12-22 =
 
-* Tweak: Improved permissions functionality in Class Management - Editor V4
-* Fix: Page failed to save on certain hosting providers due to blocked requests – Editor V4 ([#31992](https://github.com/elementor/elementor/issues/31992))
-* Fix: Renaming a class causes it to lose applied styles – Editor V4
-* Fix: Inherited values not working as expected with custom units in responsive modes – Editor V4
-* Fix: Visual Choose control not displaying properly in Firefox for Shape Divider
-* Fix: Icon alignment not working in Icon Box widget
-
-= 3.31.1 - 2025-08-06 =
-
-* Tweak: Updated `form-data` package version
-* Fix: Custom order field disappeared when set to 0 or cleared - Editor V4
-
-= 3.31.0 - 2025-08-05 =
-
-* New: Introducing Variables - define reusable color and font values to ensure consistent and scalable design across your site - Editor V4
-* New: Introducing Inherited Values - style properties now indicate when values are inherited from Classes or Base styles - Editor V4
-* New: Introducing Filters - add visual effects like blur, brightness, and contrast with full design control - Editor V4
-* New: Introducing Backdrop Filters - apply visual effects behind elements for layered design - Editor V4
-* New: Introducing Divider - a modular layout element for visual separation - Editor V4
-* New: Class Usage Overview – gain insights into class usage directly from the Class Manager - Editor V4
-* New: Class Locator - locate all elements using a specific class across your design - Editor V4
-* Tweak: Removed background videos from the accessibility tree to improve screen reader behavior ([#23880](https://github.com/elementor/elementor/issues/23880))
-* Tweak: Search by Class name - quickly locate existing classes in the Class Manager - Editor V4
-* Tweak: Improved style detection across breakpoints when using Classes - Editor V4
-* Tweak: Added Custom option to Object Position in Size section - Editor V4
-* Tweak: Added ID control in YouTube element - Editor V4
-* Tweak: Added Opacity control - set element transparency - Editor V4
-* Tweak: Display Base Style indication - clearly shows when Base styles are applied to an element - Editor V4
-* Tweak: Improved drag and drop behavior into Flexbox and Div Blocks inside the Canvas - Editor V4
-* Tweak: Replaced select control with a visual choice control in Shape Dividers
-* Tweak: Replaced SASS mixins and functions with native CSS logical properties
-* Tweak: Added support for `lh` and `rlh` CSS units in Typography Line Height control
-* Tweak: Added responsive capabilities to Custom Mask
-* Tweak: Activated "Element Caching" experiment for all sites
-* Tweak: Updated Icon List widget to use CSS logical properties
-* Tweak: Updated Star Rating widget to use CSS logical properties
-* Tweak: Updated Alert widget to use CSS logical properties
-* Tweak: Updated Accordion widget to use CSS logical properties
-* Tweak: Updated Toggle widget to use CSS logical properties
-* Tweak: Updated Icon Box widget to use CSS logical properties
-* Tweak: Updated Menu Anchor widget to use CSS logical properties
-* Tweak: Updated Tabs widget to use CSS logical properties
-* Tweak: Updated Testimonial widget to use CSS logical properties
-* Tweak: Updated Text Editor widget to use CSS logical properties
-* Tweak: Updated Paragraph Spacing in Site Settings Typography to use CSS logical properties
-* Tweak: Optimized CSS output for Masks
+* New: Introducing Atomic Tabs - enabling flexible and fully customizable tab layouts with nested Atomic Elements - Editor V4
+* New: Introducing Entrance Interactions to add lightweight motion and bring elements to life as they appear - Editor V4
+* Tweak: Replaced the legacy V3 container wrapper with the optimized V4 wrapper for improved markup - Editor V4
+* Tweak: Improved frontend link control output to ensure consistent rendering - Editor V4 ([#32233](https://github.com/elementor/elementor/issues/32233))
+* Tweak: Added reset option inside popovers - Editor V4
+* Tweak: Updated Border control layout for a clearer and more consistent editing workflow - Editor V4
+* Tweak: Added `span` option inside the Paragraph atom - Editor V4
+* Tweak: Improved transitions to better support logical properties - Editor V4
+* Tweak: Improved dropdown folder behavior and resolved related UI issues in Template Library
+* Tweak: Merged "Import/Export Customization" feature into the version
+* Tweak: Added `builder_content_data` filter for extending Template Library and Global Widget content (props [@dgwatkins](https://github.com/dgwatkins))
+* Tweak: Applied CSS logical properties in Icon Box widget
+* Tweak: Applied CSS logical properties in Icon List widget
+* Tweak: Applied CSS logical properties in text alignment controls and fixed RTL rendering in the Editor
+* Fix: Local Transform values overridden Class-level Transform defaults even when unchanged - Editor V4
+* Fix: Fatal error when opening pages containing atomic elements while the V4 experiment is deactivated - Editor V4
+* Fix: Hover Scale transform set through Class did not save correctly - Editor V4
+* Fix: PHP 8.4 deprecation notices related to deprecated `E_STRICT` constant
+* Fix: Missing CSS regeneration after clearing cached files on pages containing dynamic tags
 
 [See changelog for all versions.](https://go.elementor.com/full-changelog/)

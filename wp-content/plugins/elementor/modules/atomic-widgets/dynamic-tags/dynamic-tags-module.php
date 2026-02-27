@@ -19,7 +19,7 @@ class Dynamic_Tags_Module {
 	private Dynamic_Tags_Schemas $schemas;
 
 	private function __construct() {
-		$this->schemas = new Dynamic_Tags_Schemas();
+		$this->schemas  = new Dynamic_Tags_Schemas();
 		$this->registry = new Dynamic_Tags_Editor_Config( $this->schemas );
 	}
 
@@ -43,11 +43,18 @@ class Dynamic_Tags_Module {
 
 		add_filter(
 			'elementor/atomic-widgets/props-schema',
-			fn( array $schema ) => Dynamic_Prop_Types_Mapping::make()->get_modified_prop_types( $schema )
+			fn( array $schema ) => Dynamic_Prop_Types_Mapping::make()->get_extended_schema( $schema )
 		);
 
 		add_action(
 			'elementor/atomic-widgets/settings/transformers/register',
+			fn ( $transformers, $prop_resolver ) => $this->register_transformers( $transformers, $prop_resolver ),
+			10,
+			2
+		);
+
+		add_action(
+			'elementor/atomic-widgets/styles/transformers/register',
 			fn ( $transformers, $prop_resolver ) => $this->register_transformers( $transformers, $prop_resolver ),
 			10,
 			2
@@ -57,7 +64,7 @@ class Dynamic_Tags_Module {
 	private function add_atomic_dynamic_tags_to_editor_settings( $settings ) {
 		if ( isset( $settings['dynamicTags']['tags'] ) ) {
 			$settings['atomicDynamicTags'] = [
-				'tags' => $this->registry->get_tags(),
+				'tags'   => $this->registry->get_tags(),
 				'groups' => Plugin::$instance->dynamic_tags->get_config()['groups'],
 			];
 		}

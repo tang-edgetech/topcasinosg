@@ -13,7 +13,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 $product = wc_get_product( get_the_ID() );
 if ( ! $product ) {
-	error_log( '$product not found in ' . __FILE__ );
 	return;
 }
 
@@ -56,10 +55,20 @@ $quick_view_setting = [
 ];
 $product_wrapper_classes = implode( " ", apply_filters( 'eael_product_wrapper_class', [], $product->get_id(), 'eicon-woocommerce' ) );
 
+// Get secondary image data for hover effect
+$show_secondary_image = isset( $settings['eael_product_grid_show_secondary_image'] ) && 'yes' === $settings['eael_product_grid_show_secondary_image'];
+$image_sources = [
+    'src' => '',
+    'src_hover' => ''
+];
+if( $show_secondary_image ){
+    $image_sources = Helper::eael_get_woo_product_gallery_image_srcs( $product, $settings['eael_product_grid_image_size_size'] );
+}
+
 if ( true === wc_get_loop_product_visibility( $product->get_id() ) || $product->is_visible() ) {
     ?>
     <li class="product <?php echo esc_attr( "{$product_wrapper_classes} {$list_style_preset}" ) ?>">
-        <div class="eael-product-wrap">
+        <div class="eael-product-wrap" data-src="<?php echo esc_url( $image_sources['src'] ); ?>" data-src-hover="<?php echo esc_url( $image_sources['src_hover'] ); ?>">
             <div class="product-image-wrap">
                 <div class="image-wrap">
                     <?php

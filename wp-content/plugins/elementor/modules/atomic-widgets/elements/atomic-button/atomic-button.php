@@ -8,7 +8,7 @@ use Elementor\Modules\AtomicWidgets\Controls\Section;
 use Elementor\Modules\AtomicWidgets\Controls\Types\Link_Control;
 use Elementor\Modules\AtomicWidgets\Elements\Has_Template;
 use Elementor\Modules\AtomicWidgets\PropTypes\Background_Prop_Type;
-use Elementor\Modules\AtomicWidgets\PropTypes\Key_Value_Array_Prop_Type;
+use Elementor\Modules\AtomicWidgets\PropTypes\Attributes_Prop_Type;
 use Elementor\Modules\AtomicWidgets\PropTypes\Classes_Prop_Type;
 use Elementor\Modules\AtomicWidgets\PropTypes\Color_Prop_Type;
 use Elementor\Modules\AtomicWidgets\PropTypes\Link_Prop_Type;
@@ -47,11 +47,12 @@ class Atomic_Button extends Atomic_Widget_Base {
 				->default( [] ),
 
 			'text' => String_Prop_Type::make()
-				->default( __( 'Click here', 'elementor' ) ),
+				->default( __( 'Click here', 'elementor' ) )
+				->description( 'The text displayed on the button.' ),
 
 			'link' => Link_Prop_Type::make(),
 
-			'attributes' => Key_Value_Array_Prop_Type::make(),
+			'attributes' => Attributes_Prop_Type::make(),
 		];
 
 		return $props;
@@ -63,16 +64,24 @@ class Atomic_Button extends Atomic_Widget_Base {
 				->set_label( __( 'Content', 'elementor' ) )
 				->set_items( [
 					Text_Control::bind_to( 'text' )
-						->set_label( __( 'Button text', 'elementor' ) )
-						->set_placeholder( __( 'Type your button text here', 'elementor' ) ),
+						->set_placeholder( __( 'Type your button text here', 'elementor' ) )
+						->set_label( __( 'Button text', 'elementor' ) ),
 				] ),
+			Section::make()
+				->set_label( __( 'Settings', 'elementor' ) )
+				->set_id( 'settings' )
+				->set_items( $this->get_settings_controls() ),
 		];
 	}
 
 	protected function get_settings_controls(): array {
 		return [
 			Link_Control::bind_to( 'link' )
+				->set_placeholder( __( 'Type or paste your URL', 'elementor' ) )
 				->set_label( __( 'Link', 'elementor' ) ),
+			Text_Control::bind_to( '_cssid' )
+				->set_label( __( 'ID', 'elementor' ) )
+				->set_meta( $this->get_css_id_control_meta() ),
 		];
 	}
 

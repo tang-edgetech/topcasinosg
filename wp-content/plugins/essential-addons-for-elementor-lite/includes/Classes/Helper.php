@@ -213,7 +213,7 @@ class Helper
 		    }
 
 		    if ( ! empty( $args['tax_query'] ) ) {
-			    $args['tax_query']['relation'] = 'AND';
+			    $args['tax_query']['relation'] = isset( $settings['tax_query_relation'] ) ? $settings['tax_query_relation'] : 'AND';
 		    }
 	    }
 
@@ -222,7 +222,33 @@ class Helper
 		    $args['meta_key'] = '_eael_post_view_count';
 	    }
 
-	    if ( ! empty( $settings['authors'] ) ) {
+	    // Handle custom field sorting
+	    if ( $args['orderby'] === 'meta_value' && ! empty( $settings['meta_key'] ) ) {
+		    $args['meta_key'] = sanitize_text_field( $settings['meta_key'] );
+
+		    // Set the appropriate orderby based on meta_type
+		    $meta_type = ! empty( $settings['meta_type'] ) ? $settings['meta_type'] : 'CHAR';
+
+		    switch ( $meta_type ) {
+			    case 'NUMERIC':
+				    $args['orderby'] = 'meta_value_num';
+				    break;
+			    case 'DATE':
+			    case 'DATETIME':
+				    $args['orderby'] = 'meta_value';
+				    $args['meta_type'] = $meta_type;
+				    break;
+			    case 'CHAR':
+			    default:
+				    $args['orderby'] = 'meta_value';
+				    $args['meta_type'] = 'CHAR';
+				    break;
+		    }
+	    }
+
+        if ( ! empty( $settings['posts_by_current_user'] ) && 'yes' === $settings['posts_by_current_user'] ) {
+		    $args['author__in'] = [ get_current_user_id() ];
+	    } elseif ( ! empty( $settings['authors'] ) ) {
 		    $args['author__in'] = $settings['authors'];
 	    }
 
@@ -321,7 +347,8 @@ class Helper
 		    'rand'          => __( 'Random', 'essential-addons-for-elementor-lite' ),
 		    'comment_count' => __( 'Comment Count', 'essential-addons-for-elementor-lite' ),
 		    'most_viewed'   => __( 'Most Viewed', 'essential-addons-for-elementor-lite' ),
-		    'menu_order'    => __( 'Menu Order', 'essential-addons-for-elementor-lite' )
+		    'menu_order'    => __( 'Menu Order', 'essential-addons-for-elementor-lite' ),
+		    'meta_value'    => __( 'Custom Field', 'essential-addons-for-elementor-lite' )
 	    );
 
         return $orderby;
@@ -718,7 +745,10 @@ class Helper
      */
     public static function get_doc_post_count($term_count = 0, $term_id = 0)
     {
-        $tax_terms = get_terms('doc_category', ['child_of' => $term_id]);
+        $tax_terms = get_terms([
+            'taxonomy' => 'doc_category',
+            'child_of' => $term_id
+        ]);
 
         foreach ($tax_terms as $tax_term) {
             $term_count += $tax_term->count;
@@ -865,7 +895,7 @@ class Helper
 
         $query = "select post_title,ID  from $wpdb->posts where post_status = 'publish' $where $limit";
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $results = $wpdb->get_results($query);
         if (!empty($results)) {
             foreach ($results as $row) {
@@ -1382,7 +1412,8 @@ class Helper
             'title' => [ 'title' => [] ],
             'path'     => [
                 'd'    => [], 
-                'fill' => [] 
+                'fill' => [],
+                'transform' => [] 
             ],
 			'i'      => [
 				'class' => [],
@@ -1459,7 +1490,7 @@ class Helper
      *
      * @return string
      */
-    public static function get_svg_by_icon( $icon ) {
+    public static function get_svg_by_icon( $icon, $attributes = [] ) {
         if ( empty( $icon ) || empty( $icon['value'] ) || empty( $icon['library'] ) ) return '';
 
         $svg_html = "";
@@ -1474,8 +1505,18 @@ class Helper
 
         $icon       = $svg_object['icons'][$icon_name];
         $view_box   = "0 0 {$icon[0]} {$icon[1]}";
-        $svg_html  .= "<svg class='svg-inline--". $i_class ."  eael-svg-icon' aria-hidden='true' data-icon='store' role='img' xmlns='http://www.w3.org/2000/svg' viewBox='{$view_box}' >";
-        $svg_html  .= "<path d='{$icon[4]}'></path>";
+        $svg_html  .= "<svg ";
+
+        $color = '';
+        if( ! empty( $attributes ) ) {
+            $color = $attributes['fill'] ?? '';
+            unset( $attributes['fill'] );
+            foreach ( $attributes as $key => $value ) {
+                $svg_html .= $value ? "{$key}='{$value}' " : '';
+            }
+        }
+        $svg_html  .= " class='svg-inline--". $i_class ."  eael-svg-icon' aria-hidden='true' data-icon='store' role='img' xmlns='http://www.w3.org/2000/svg' viewBox='{$view_box}' >";
+        $svg_html  .= "<path fill='{$color}' d='{$icon[4]}'></path>";
         $svg_html  .= "</svg>";
 
         return $svg_html;
@@ -1676,7 +1717,8 @@ class Helper
 		}
 
 		if ( Plugin::$instance->editor->is_edit_mode() ) {
-			$active_doc = $_GET['active-document'] ?? 0;
+            // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$active_doc = !empty( $_GET['active-document'] ) ? sanitize_text_field( wp_unslash( $_GET['active-document'] ) ) : 0;
 			$mode       = $active_doc === $template_id ? 'save' : 'edit';
 			?>
 			<div class='eael-onpage-edit-template-wrapper'>

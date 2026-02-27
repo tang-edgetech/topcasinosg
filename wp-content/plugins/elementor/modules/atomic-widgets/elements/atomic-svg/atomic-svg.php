@@ -8,12 +8,13 @@ use Elementor\Modules\AtomicWidgets\Elements\Atomic_Widget_Base;
 use Elementor\Core\Utils\Svg\Svg_Sanitizer;
 use Elementor\Modules\AtomicWidgets\Controls\Types\Svg_Control;
 use Elementor\Modules\AtomicWidgets\PropTypes\Image_Src_Prop_Type;
-use Elementor\Modules\AtomicWidgets\PropTypes\Key_Value_Array_Prop_Type;
+use Elementor\Modules\AtomicWidgets\PropTypes\Attributes_Prop_Type;
 use Elementor\Modules\AtomicWidgets\PropTypes\Link_Prop_Type;
 use Elementor\Modules\AtomicWidgets\PropTypes\Primitives\String_Prop_Type;
 use Elementor\Modules\AtomicWidgets\PropTypes\Size_Prop_Type;
 use Elementor\Modules\AtomicWidgets\Styles\Style_Definition;
 use Elementor\Modules\AtomicWidgets\Styles\Style_Variant;
+use Elementor\Modules\AtomicWidgets\Controls\Types\Text_Control;
 use Elementor\Utils;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -47,7 +48,7 @@ class Atomic_Svg extends Atomic_Widget_Base {
 			'classes' => Classes_Prop_Type::make()->default( [] ),
 			'svg' => Image_Src_Prop_Type::make()->default_url( static::DEFAULT_SVG_URL ),
 			'link' => Link_Prop_Type::make(),
-			'attributes' => Key_Value_Array_Prop_Type::make(),
+			'attributes' => Attributes_Prop_Type::make(),
 		];
 	}
 
@@ -59,13 +60,21 @@ class Atomic_Svg extends Atomic_Widget_Base {
 					Svg_Control::bind_to( 'svg' )
 						->set_label( __( 'SVG', 'elementor' ) ),
 				] ),
+			Section::make()
+				->set_label( __( 'Settings', 'elementor' ) )
+				->set_id( 'settings' )
+				->set_items( $this->get_settings_controls() ),
 		];
 	}
 
 	protected function get_settings_controls(): array {
 		return [
 			Link_Control::bind_to( 'link' )
+				->set_placeholder( __( 'Type or paste your URL', 'elementor' ) )
 				->set_label( __( 'Link', 'elementor' ) ),
+			Text_Control::bind_to( '_cssid' )
+				->set_label( __( 'ID', 'elementor' ) )
+				->set_meta( $this->get_css_id_control_meta() ),
 		];
 	}
 
@@ -104,6 +113,13 @@ class Atomic_Svg extends Atomic_Widget_Base {
 		}
 
 		$svg->set_attribute( 'fill', 'currentColor' );
+		$svg->set_attribute( 'data-interaction-id', $this->get_id() );
+
+		$interaction_ids = $this->get_interactions_ids();
+		if ( ! empty( $interaction_ids ) ) {
+			$svg->set_attribute( 'data-interactions', wp_json_encode( $interaction_ids ) );
+		}
+
 		$this->add_svg_style( $svg, 'width: 100%; height: 100%; overflow: unset;' );
 
 		$svg_html = ( new Svg_Sanitizer() )->sanitize( $svg->get_updated_html() );
@@ -119,17 +135,29 @@ class Atomic_Svg extends Atomic_Widget_Base {
 
 		$all_attributes = trim( $cssid_attribute . ' ' . $settings['attributes'] );
 
+		$data_attributes_string = '';
+
+		if ( ! empty( $interaction_ids ) ) {
+			$data_attributes_string = sprintf(
+				'data-interaction-id="%s" data-interactions="%s"',
+				esc_attr( $this->get_id() ),
+				esc_attr( wp_json_encode( $interaction_ids ) )
+			);
+		}
+
+		$attributes_string = trim( $data_attributes_string . ' ' . $all_attributes );
+
 		if ( isset( $settings['link'] ) && ! empty( $settings['link']['href'] ) ) {
 			$svg_html = sprintf(
 				'<a href="%s" target="%s" class="%s" %s>%s</a>',
 				$settings['link']['href'],
 				esc_attr( $settings['link']['target'] ),
 				esc_attr( $classes_string ),
-				$all_attributes,
+				$attributes_string,
 				$svg_html
 			);
 		} else {
-			$svg_html = sprintf( '<div class="%s" %s>%s</div>', esc_attr( $classes_string ), $all_attributes, $svg_html );
+			$svg_html = sprintf( '<div class="%s" %s>%s</div>', esc_attr( $classes_string ), $attributes_string, $svg_html );
 		}
 
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
