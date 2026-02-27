@@ -25,7 +25,7 @@
 
 # Example plugin
 /wp-content/plugins/hello.php
-
+wp_plugin.sql
 # Uploads
 # /wp-content/uploads/
 
