@@ -1,4 +1,0 @@
-<?php
-
-the_content();
-?>
