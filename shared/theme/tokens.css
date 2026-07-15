@@ -1,0 +1,41 @@
+/*
+ * Shared Tailwind v4 design tokens for Top Casino SG.
+ * Sourced from Figma "Element" page, node 3006:8990 (Color Pallet / Button Styling / Star Rating).
+ * Imported by both web/ and admin/ globals.css — keep this file the single source of truth
+ * so both apps stay visually in sync. See docs/theme.md for the full extraction notes.
+ */
+@theme {
+  --font-figtree: "Figtree", ui-sans-serif, system-ui, sans-serif;
+
+  /* Primary — indigo (brand) */
+  --color-primary-50: #e7e9f4;
+  --color-primary-100: #c3c8e5;
+  --color-primary-200: #9da4d3;
+  --color-primary-300: #7781c1;
+  --color-primary-400: #5a65b4;
+  --color-primary-500: #3e4ba8;
+  --color-primary-600: #38439e;
+  --color-primary-700: #2f3a92;
+  --color-primary-800: #273086;
+  --color-primary-900: #1a1e71;
+  /* Used only as the far end of the primary button hover gradient, not part of the numbered scale */
+  --color-primary-glow: #3139d7;
+
+  /* Secondary — amber/orange (accent, CTAs) */
+  --color-secondary-50: #fdf8e1;
+  --color-secondary-100: #fbedb4;
+  --color-secondary-200: #fae183;
+  --color-secondary-300: #f8d650;
+  --color-secondary-400: #f7cc2a;
+  --color-secondary-500: #f7c30b;
+  --color-secondary-600: #f7b500;
+  --color-secondary-700: #f7a300;
+  --color-secondary-800: #f89200;
+  --color-secondary-900: #f87300;
+
+  /* Status */
+  --color-success: #00bb9e;
+  --color-success-subtle: #e6f9f6;
+  --color-danger: #ff4553;
+  --color-star: #ffd54e;
+}
