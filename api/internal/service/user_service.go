@@ -15,16 +15,16 @@ var (
 	ErrInvalidRole          = errors.New("role is not assignable by this account")
 	ErrCannotActOnSelf      = errors.New("cannot perform this action on your own account")
 	ErrWrongCurrentPassword = errors.New("current password is incorrect")
+	ErrInvalidTheme         = errors.New("theme must be 'light' or 'dark'")
 )
 
 type UserService struct {
 	users         *repository.UserRepo
 	refreshTokens *repository.RefreshTokenRepo
-	settings      *repository.SettingsRepo
 }
 
-func NewUserService(users *repository.UserRepo, refreshTokens *repository.RefreshTokenRepo, settings *repository.SettingsRepo) *UserService {
-	return &UserService{users: users, refreshTokens: refreshTokens, settings: settings}
+func NewUserService(users *repository.UserRepo, refreshTokens *repository.RefreshTokenRepo) *UserService {
+	return &UserService{users: users, refreshTokens: refreshTokens}
 }
 
 // visibleRoles mirrors domain.AssignableRoles: what an actor may see is
@@ -186,20 +186,11 @@ func (s *UserService) ResetOTP(ctx context.Context, actor *domain.AdminUser, tar
 	return s.refreshTokens.RevokeAllForUser(ctx, targetID)
 }
 
-func (s *UserService) GetTwoFactorEnabled(ctx context.Context, actor *domain.AdminUser) (bool, error) {
-	if actor.Role != domain.RoleSuperAdmin {
-		return false, ErrForbidden
+// SetTheme is self-only — there's no product requirement for anyone to set
+// another user's theme, it's a personal display preference.
+func (s *UserService) SetTheme(ctx context.Context, actor *domain.AdminUser, theme domain.Theme) error {
+	if !theme.Valid() {
+		return ErrInvalidTheme
 	}
-	return s.settings.Is2FAEnabled(ctx)
-}
-
-func (s *UserService) SetTwoFactorEnabled(ctx context.Context, actor *domain.AdminUser, enabled bool) error {
-	if actor.Role != domain.RoleSuperAdmin {
-		return ErrForbidden
-	}
-	value := "false"
-	if enabled {
-		value = "true"
-	}
-	return s.settings.Set(ctx, repository.SettingTwoFactorEnabled, value)
+	return s.users.UpdateTheme(ctx, actor.ID, theme)
 }

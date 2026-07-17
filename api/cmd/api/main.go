@@ -27,7 +27,7 @@ func main() {
 	}
 
 	users := repository.NewUserRepo(conn)
-	settings := repository.NewSettingsRepo(conn)
+	siteSettings := repository.NewSiteSettingsRepo(conn)
 	refreshTokens := repository.NewRefreshTokenRepo(conn)
 
 	jwtIssuer := security.NewJWTIssuer(cfg.JWTSecret)
@@ -36,15 +36,17 @@ func main() {
 		log.Fatalf("secretbox: %v", err)
 	}
 
-	authService := service.NewAuthService(users, settings, refreshTokens, jwtIssuer, secretbox, cfg)
-	userService := service.NewUserService(users, refreshTokens, settings)
+	authService := service.NewAuthService(users, siteSettings, refreshTokens, jwtIssuer, secretbox, cfg)
+	userService := service.NewUserService(users, refreshTokens)
+	siteSettingsService := service.NewSiteSettingsService(siteSettings)
 
 	deps := server.Deps{
-		Config:      cfg,
-		JWT:         jwtIssuer,
-		Users:       users,
-		AuthHandler: handler.NewAuthHandler(authService, cfg),
-		UserHandler: handler.NewUserHandler(userService),
+		Config:              cfg,
+		JWT:                 jwtIssuer,
+		Users:               users,
+		AuthHandler:         handler.NewAuthHandler(authService, cfg),
+		UserHandler:         handler.NewUserHandler(userService),
+		SiteSettingsHandler: handler.NewSiteSettingsHandler(siteSettingsService, cfg),
 	}
 	router := server.NewRouter(deps)
 

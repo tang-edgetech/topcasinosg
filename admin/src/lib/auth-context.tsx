@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { api } from "./api";
+import { applyTheme, type Theme } from "./theme";
 import type { AdminUserDTO } from "./types";
 
 interface AuthContextValue {
@@ -9,6 +10,7 @@ interface AuthContextValue {
   loading: boolean;
   refresh: () => Promise<void>;
   logout: () => Promise<void>;
+  setTheme: (theme: Theme) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -21,6 +23,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const data = await api.get<{ user: AdminUserDTO }>("/api/admin/auth/me");
       setUser(data.user);
+      applyTheme(data.user.themePreference);
     } catch {
       setUser(null);
     } finally {
@@ -37,7 +40,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
-  return <AuthContext.Provider value={{ user, loading, refresh, logout }}>{children}</AuthContext.Provider>;
+  const setTheme = useCallback(async (theme: Theme) => {
+    applyTheme(theme);
+    setUser((prev) => (prev ? { ...prev, themePreference: theme } : prev));
+    await api.put("/api/admin/account/theme", { theme });
+  }, []);
+
+  return <AuthContext.Provider value={{ user, loading, refresh, logout, setTheme }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

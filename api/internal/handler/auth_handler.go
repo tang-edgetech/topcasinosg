@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/tang-edgetech/topcasinosg/api/internal/config"
+	"github.com/tang-edgetech/topcasinosg/api/internal/domain"
 	"github.com/tang-edgetech/topcasinosg/api/internal/httpx"
 	"github.com/tang-edgetech/topcasinosg/api/internal/middleware"
 	"github.com/tang-edgetech/topcasinosg/api/internal/response"
@@ -47,6 +48,13 @@ type bootstrapRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 	FullName string `json:"fullName"`
+
+	SiteURL   string `json:"siteUrl"`
+	SiteTitle string `json:"siteTitle"`
+	SEOIndex  bool   `json:"seoIndex"`
+	SEOFollow bool   `json:"seoFollow"`
+	Timezone  string `json:"timezone"`
+	Language  string `json:"language"`
 }
 
 func (h *AuthHandler) Bootstrap(w http.ResponseWriter, r *http.Request) {
@@ -60,7 +68,18 @@ func (h *AuthHandler) Bootstrap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := h.auth.Bootstrap(r.Context(), req.Email, req.Password, req.FullName); err != nil {
+	if _, err := h.auth.Bootstrap(r.Context(), service.BootstrapInput{
+		Email:    req.Email,
+		Password: req.Password,
+		FullName: req.FullName,
+
+		SiteURL:   req.SiteURL,
+		SiteTitle: req.SiteTitle,
+		SEOIndex:  req.SEOIndex,
+		SEOFollow: req.SEOFollow,
+		Timezone:  req.Timezone,
+		Language:  domain.Language(req.Language),
+	}); err != nil {
 		response.Err(w, authErrorStatus(err), err.Error())
 		return
 	}

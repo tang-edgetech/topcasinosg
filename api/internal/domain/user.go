@@ -27,6 +27,17 @@ const (
 	StatusDeleted  Status = "deleted"
 )
 
+type Theme string
+
+const (
+	ThemeLight Theme = "light"
+	ThemeDark  Theme = "dark"
+)
+
+func (t Theme) Valid() bool {
+	return t == ThemeLight || t == ThemeDark
+}
+
 // AdminUser mirrors the admin_users table. PasswordHash and OTPSecretEncrypted
 // are never serialized to JSON — handlers build their own response DTOs.
 type AdminUser struct {
@@ -36,6 +47,7 @@ type AdminUser struct {
 	FullName           string
 	Role               Role
 	CanManageAdmins    bool
+	ThemePreference    Theme
 	Status             Status
 	OTPSecretEncrypted []byte
 	OTPConfirmedAt     *time.Time

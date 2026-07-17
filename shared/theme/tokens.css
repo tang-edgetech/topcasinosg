@@ -4,6 +4,10 @@
  * Imported by both web/ and admin/ globals.css — keep this file the single source of truth
  * so both apps stay visually in sync. See docs/theme.md for the full extraction notes.
  */
+/* Class-based dark mode: toggled per-user (stored in admin_users.theme_preference),
+   not tied to OS preference — see admin/src/lib/theme.ts. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-figtree: "Figtree", ui-sans-serif, system-ui, sans-serif;
 
@@ -38,4 +42,21 @@
   --color-success-subtle: #e6f9f6;
   --color-danger: #ff4553;
   --color-star: #ffd54e;
+
+  /* Semantic surface/text/border tokens — pair with `dark:` for theme
+     switching instead of hardcoding primary-50/900 in every component. */
+  --color-surface: #ffffff;
+  --color-surface-dark: #12141a;
+  --color-surface-muted: var(--color-primary-50);
+  --color-surface-muted-dark: #1c1f27;
+  --color-text: var(--color-primary-900);
+  --color-text-dark: #e7e9f0;
+  --color-text-muted: var(--color-primary-500);
+  --color-text-muted-dark: #9096a8;
+  --color-border: var(--color-primary-100);
+  --color-border-dark: #2a2e37;
+
+  /* Sidebar — fixed brand color regardless of the user's light/dark choice. */
+  --color-sidebar: var(--color-primary-600);
+  --color-sidebar-active: var(--color-primary-700);
 }

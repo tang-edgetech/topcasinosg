@@ -14,6 +14,7 @@ type UserDTO struct {
 	FullName        string    `json:"fullName"`
 	Role            string    `json:"role"`
 	CanManageAdmins bool      `json:"canManageAdmins"`
+	ThemePreference string    `json:"themePreference"`
 	Status          string    `json:"status"`
 	OTPEnrolled     bool      `json:"otpEnrolled"`
 	CreatedAt       time.Time `json:"createdAt"`
@@ -26,6 +27,7 @@ func toUserDTO(u *domain.AdminUser) UserDTO {
 		FullName:        u.FullName,
 		Role:            string(u.Role),
 		CanManageAdmins: u.CanManageAdmins,
+		ThemePreference: string(u.ThemePreference),
 		Status:          string(u.Status),
 		OTPEnrolled:     u.OTPEnrolled(),
 		CreatedAt:       u.CreatedAt,

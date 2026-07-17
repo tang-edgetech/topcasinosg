@@ -6,11 +6,14 @@ import QRCode from "qrcode";
 import { api, ApiError } from "@/lib/api";
 import type { LoginResponse, OTPSetupResponse } from "@/lib/types";
 import PasswordInput from "@/components/PasswordInput";
+import BrandMark from "@/components/BrandMark";
+import { useSiteSettings } from "@/lib/site-settings-context";
 
 type Step = "checking" | "credentials" | "otp-verify" | "otp-setup";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { settings } = useSiteSettings();
   const [step, setStep] = useState<Step>("checking");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -108,20 +111,23 @@ export default function LoginPage() {
   if (step === "checking") {
     return (
       <div id="login-page" className="flex flex-1 items-center justify-center">
-        <p className="text-primary-500">Loading…</p>
+        <p className="text-text-muted dark:text-text-muted-dark">Loading…</p>
       </div>
     );
   }
 
   return (
     <div id="login-page" className="flex flex-1 items-center justify-center px-4 py-16">
-      <div className="auth-card w-full max-w-sm rounded-lg border border-primary-100 p-8 shadow-sm">
-        <h1 className="mb-6 text-xl font-bold text-primary-900">Top Casino SG — Backoffice</h1>
+      <div className="auth-card w-full max-w-sm rounded-lg border border-border bg-surface p-8 shadow-sm dark:border-border-dark dark:bg-surface-dark">
+        <div className="mb-6 flex items-center gap-3">
+          <BrandMark size={36} />
+          <h1 className="text-xl font-bold text-text dark:text-text-dark">{settings?.siteTitle || "Top Casino SG"}</h1>
+        </div>
 
         {step === "credentials" && (
           <form id="login-form" className="auth-form flex flex-col gap-4" onSubmit={handleLogin}>
             <div className="form-field flex flex-col gap-1">
-              <label htmlFor="login-email" className="text-sm font-medium text-primary-900">
+              <label htmlFor="login-email" className="text-sm font-medium text-text dark:text-text-dark">
                 Email
               </label>
               <input
@@ -132,7 +138,7 @@ export default function LoginPage() {
                 autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="rounded-md border border-primary-200 px-3 py-2 text-sm text-primary-900 outline-none focus:border-primary-500"
+                className="rounded-md border border-border dark:border-border-dark px-3 py-2 text-sm text-text dark:text-text-dark outline-none focus:border-primary-500"
               />
             </div>
             <PasswordInput
@@ -147,7 +153,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="btn btn--primary mt-2 rounded-md bg-primary-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+              className="btn btn--primary mt-2 rounded-md bg-primary-900 px-4 py-2.5 text-sm font-semibold text-white cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting ? "Signing in…" : "Sign in"}
             </button>
@@ -156,9 +162,9 @@ export default function LoginPage() {
 
         {step === "otp-verify" && (
           <form id="otp-verify-form" className="auth-form flex flex-col gap-4" onSubmit={handleVerifyOtp}>
-            <p className="text-sm text-primary-500">Enter the 6-digit code from your authenticator app.</p>
+            <p className="text-sm text-text-muted dark:text-text-muted-dark">Enter the 6-digit code from your authenticator app.</p>
             <div className="form-field flex flex-col gap-1">
-              <label htmlFor="otp-verify-code" className="text-sm font-medium text-primary-900">
+              <label htmlFor="otp-verify-code" className="text-sm font-medium text-text dark:text-text-dark">
                 Authentication code
               </label>
               <input
@@ -169,14 +175,14 @@ export default function LoginPage() {
                 required
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                className="rounded-md border border-primary-200 px-3 py-2 text-sm tracking-widest text-primary-900 outline-none focus:border-primary-500"
+                className="rounded-md border border-border dark:border-border-dark px-3 py-2 text-sm tracking-widest text-text dark:text-text-dark outline-none focus:border-primary-500"
               />
             </div>
             {error && <p className="form-error text-sm text-danger">{error}</p>}
             <button
               type="submit"
               disabled={submitting}
-              className="btn btn--primary rounded-md bg-primary-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+              className="btn btn--primary rounded-md bg-primary-900 px-4 py-2.5 text-sm font-semibold text-white cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting ? "Verifying…" : "Verify"}
             </button>
@@ -185,7 +191,7 @@ export default function LoginPage() {
 
         {step === "otp-setup" && (
           <form id="otp-setup-form" className="auth-form flex flex-col gap-4" onSubmit={handleConfirmOtpSetup}>
-            <p className="text-sm text-primary-500">
+            <p className="text-sm text-text-muted dark:text-text-muted-dark">
               Two-factor authentication is required. Scan this QR code with your authenticator app (e.g. Google
               Authenticator), or enter the code manually.
             </p>
@@ -193,11 +199,11 @@ export default function LoginPage() {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={qrDataUrl} alt="Scan with your authenticator app" width={200} height={200} className="otp-setup__qr self-center" />
             )}
-            <p className="otp-setup__secret break-all rounded-md bg-primary-50 px-3 py-2 text-center text-xs text-primary-900">
+            <p className="otp-setup__secret break-all rounded-md bg-surface-muted dark:bg-surface-muted-dark px-3 py-2 text-center text-xs text-text dark:text-text-dark">
               {otpSecret}
             </p>
             <div className="form-field flex flex-col gap-1">
-              <label htmlFor="otp-setup-code" className="text-sm font-medium text-primary-900">
+              <label htmlFor="otp-setup-code" className="text-sm font-medium text-text dark:text-text-dark">
                 Enter the code shown in your app
               </label>
               <input
@@ -208,14 +214,14 @@ export default function LoginPage() {
                 required
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                className="rounded-md border border-primary-200 px-3 py-2 text-sm tracking-widest text-primary-900 outline-none focus:border-primary-500"
+                className="rounded-md border border-border dark:border-border-dark px-3 py-2 text-sm tracking-widest text-text dark:text-text-dark outline-none focus:border-primary-500"
               />
             </div>
             {error && <p className="form-error text-sm text-danger">{error}</p>}
             <button
               type="submit"
               disabled={submitting}
-              className="btn btn--primary rounded-md bg-primary-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+              className="btn btn--primary rounded-md bg-primary-900 px-4 py-2.5 text-sm font-semibold text-white cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting ? "Confirming…" : "Confirm & sign in"}
             </button>

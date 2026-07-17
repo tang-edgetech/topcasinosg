@@ -18,13 +18,13 @@ func NewUserRepo(db *sql.DB) *UserRepo {
 	return &UserRepo{db: db}
 }
 
-const userColumns = `id, email, password_hash, full_name, role, can_manage_admins, status,
+const userColumns = `id, email, password_hash, full_name, role, can_manage_admins, theme_preference, status,
 	otp_secret_encrypted, otp_confirmed_at, created_by, created_at, updated_at`
 
 func scanUser(row interface{ Scan(...any) error }) (*domain.AdminUser, error) {
 	var u domain.AdminUser
 	if err := row.Scan(
-		&u.ID, &u.Email, &u.PasswordHash, &u.FullName, &u.Role, &u.CanManageAdmins, &u.Status,
+		&u.ID, &u.Email, &u.PasswordHash, &u.FullName, &u.Role, &u.CanManageAdmins, &u.ThemePreference, &u.Status,
 		&u.OTPSecretEncrypted, &u.OTPConfirmedAt, &u.CreatedBy, &u.CreatedAt, &u.UpdatedAt,
 	); err != nil {
 		return nil, err
@@ -156,5 +156,10 @@ func (r *UserRepo) ResetOTP(ctx context.Context, id int64) error {
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE admin_users SET otp_secret_encrypted = NULL, otp_confirmed_at = NULL WHERE id = ?`, id,
 	)
+	return err
+}
+
+func (r *UserRepo) UpdateTheme(ctx context.Context, id int64, theme domain.Theme) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE admin_users SET theme_preference = ? WHERE id = ?`, theme, id)
 	return err
 }

@@ -28,6 +28,8 @@ func userErrorStatus(err error) int {
 		return http.StatusConflict
 	case errors.Is(err, service.ErrWrongCurrentPassword):
 		return http.StatusUnauthorized
+	case errors.Is(err, service.ErrInvalidTheme):
+		return http.StatusBadRequest
 	default:
 		return http.StatusInternalServerError
 	}
@@ -213,28 +215,18 @@ func (h *UserHandler) SelfChangePassword(w http.ResponseWriter, r *http.Request)
 	response.JSON(w, http.StatusOK, map[string]bool{"updated": true})
 }
 
-func (h *UserHandler) GetTwoFactorEnabled(w http.ResponseWriter, r *http.Request) {
-	actor := middleware.UserFromContext(r.Context())
-	enabled, err := h.users.GetTwoFactorEnabled(r.Context(), actor)
-	if err != nil {
-		response.Err(w, userErrorStatus(err), err.Error())
-		return
-	}
-	response.JSON(w, http.StatusOK, map[string]bool{"enabled": enabled})
+type setThemeRequest struct {
+	Theme string `json:"theme"`
 }
 
-type setTwoFactorRequest struct {
-	Enabled bool `json:"enabled"`
-}
-
-func (h *UserHandler) SetTwoFactorEnabled(w http.ResponseWriter, r *http.Request) {
+func (h *UserHandler) SetTheme(w http.ResponseWriter, r *http.Request) {
 	actor := middleware.UserFromContext(r.Context())
-	var req setTwoFactorRequest
+	var req setThemeRequest
 	if err := httpx.DecodeJSON(r, &req); err != nil {
 		response.Err(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if err := h.users.SetTwoFactorEnabled(r.Context(), actor, req.Enabled); err != nil {
+	if err := h.users.SetTheme(r.Context(), actor, domain.Theme(req.Theme)); err != nil {
 		response.Err(w, userErrorStatus(err), err.Error())
 		return
 	}

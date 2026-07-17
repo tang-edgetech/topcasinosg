@@ -33,7 +33,7 @@ type LoginOutcome struct {
 
 type AuthService struct {
 	users         *repository.UserRepo
-	settings      *repository.SettingsRepo
+	siteSettings  *repository.SiteSettingsRepo
 	refreshTokens *repository.RefreshTokenRepo
 	jwt           *security.JWTIssuer
 	secretbox     *security.Secretbox
@@ -42,13 +42,13 @@ type AuthService struct {
 
 func NewAuthService(
 	users *repository.UserRepo,
-	settings *repository.SettingsRepo,
+	siteSettings *repository.SiteSettingsRepo,
 	refreshTokens *repository.RefreshTokenRepo,
 	jwt *security.JWTIssuer,
 	secretbox *security.Secretbox,
 	cfg config.Config,
 ) *AuthService {
-	return &AuthService{users: users, settings: settings, refreshTokens: refreshTokens, jwt: jwt, secretbox: secretbox, cfg: cfg}
+	return &AuthService{users: users, siteSettings: siteSettings, refreshTokens: refreshTokens, jwt: jwt, secretbox: secretbox, cfg: cfg}
 }
 
 func (s *AuthService) NeedsBootstrap(ctx context.Context) (bool, error) {
@@ -59,7 +59,23 @@ func (s *AuthService) NeedsBootstrap(ctx context.Context) (bool, error) {
 	return count == 0, nil
 }
 
-func (s *AuthService) Bootstrap(ctx context.Context, email, password, fullName string) (*domain.AdminUser, error) {
+// BootstrapInput bundles the first Super Admin's credentials with the
+// site-wide settings the product requires be configured in the same
+// one-time setup flow, before any admin account exists.
+type BootstrapInput struct {
+	Email    string
+	Password string
+	FullName string
+
+	SiteURL   string
+	SiteTitle string
+	SEOIndex  bool
+	SEOFollow bool
+	Timezone  string
+	Language  domain.Language
+}
+
+func (s *AuthService) Bootstrap(ctx context.Context, input BootstrapInput) (*domain.AdminUser, error) {
 	needsBootstrap, err := s.NeedsBootstrap(ctx)
 	if err != nil {
 		return nil, err
@@ -68,15 +84,15 @@ func (s *AuthService) Bootstrap(ctx context.Context, email, password, fullName s
 		return nil, ErrAlreadyBootstapped
 	}
 
-	hash, err := security.HashPassword(password)
+	hash, err := security.HashPassword(input.Password)
 	if err != nil {
 		return nil, err
 	}
 
 	user := &domain.AdminUser{
-		Email:        email,
+		Email:        input.Email,
 		PasswordHash: hash,
-		FullName:     fullName,
+		FullName:     input.FullName,
 		Role:         domain.RoleSuperAdmin,
 		Status:       domain.StatusActive,
 	}
@@ -85,6 +101,18 @@ func (s *AuthService) Bootstrap(ctx context.Context, email, password, fullName s
 		return nil, err
 	}
 	user.ID = id
+
+	if err := s.siteSettings.Update(ctx, &domain.SiteSettings{
+		SiteURL:   input.SiteURL,
+		SiteTitle: input.SiteTitle,
+		SEOIndex:  input.SEOIndex,
+		SEOFollow: input.SEOFollow,
+		Timezone:  input.Timezone,
+		Language:  input.Language,
+	}); err != nil {
+		return nil, err
+	}
+
 	return user, nil
 }
 
@@ -94,7 +122,11 @@ func (s *AuthService) twoFactorRequired(ctx context.Context) (bool, error) {
 	if !s.cfg.IsProduction() {
 		return false, nil
 	}
-	return s.settings.Is2FAEnabled(ctx)
+	settings, err := s.siteSettings.Get(ctx)
+	if err != nil {
+		return false, err
+	}
+	return settings.TwoFactorEnabled, nil
 }
 
 func (s *AuthService) Login(ctx context.Context, email, password string) (*LoginOutcome, error) {

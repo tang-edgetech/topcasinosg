@@ -19,6 +19,9 @@ type Config struct {
 	// ".topcasinosg.com.sg" in production so the cookie is shared between the
 	// admin and api subdomains.
 	CookieDomain string
+
+	// UploadDir stores logo/favicon uploads, served back at /uploads/.
+	UploadDir string
 }
 
 func Load() Config {
@@ -34,6 +37,8 @@ func Load() Config {
 
 		CORSAllowedOrigin: getEnv("CORS_ALLOWED_ORIGIN", "http://localhost:4001"),
 		CookieDomain:      getEnv("COOKIE_DOMAIN", ""),
+
+		UploadDir: getEnv("UPLOAD_DIR", "uploads"),
 	}
 }
 

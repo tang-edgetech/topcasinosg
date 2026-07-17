@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Figtree } from "next/font/google";
+import Script from "next/script";
+import { themeInitScript } from "@/lib/theme";
+import { SiteSettingsProvider } from "@/lib/site-settings-context";
 import "./globals.css";
 
 const figtree = Figtree({
@@ -19,7 +22,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${figtree.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col font-sans">{children}</body>
+      <head>
+        {/* Runs before hydration so the stored theme applies with no flash. */}
+        <Script id="theme-init" strategy="beforeInteractive">
+          {themeInitScript}
+        </Script>
+      </head>
+      <body className="min-h-full flex flex-col bg-surface font-sans text-text dark:bg-surface-dark dark:text-text-dark">
+        <SiteSettingsProvider>{children}</SiteSettingsProvider>
+      </body>
     </html>
   );
 }
