@@ -5,7 +5,16 @@ import { useAuth } from "@/lib/auth-context";
 import { useSiteSettings } from "@/lib/site-settings-context";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { api, ApiError } from "@/lib/api";
-import BrandMark from "@/components/BrandMark";
+import MediaPicker from "@/components/media/MediaPicker";
+import IconButton from "@/components/IconButton";
+import { IconUpload, IconPhoto } from "@/components/Icons";
+import type { MediaDTO } from "@/lib/types";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
+
+function assetUrl(url: string) {
+  return url.startsWith("http") ? url : `${API_URL}${url}`;
+}
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -25,6 +34,7 @@ export default function SettingsPage() {
   const logoInputRef = useRef<HTMLInputElement>(null);
   const faviconInputRef = useRef<HTMLInputElement>(null);
   const [uploadError, setUploadError] = useState("");
+  const [mediaPickerField, setMediaPickerField] = useState<"logo" | "favicon" | null>(null);
 
   useEffect(() => {
     if (!settings) return;
@@ -89,6 +99,24 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleSelectFromLibrary(field: "logo" | "favicon", media: MediaDTO) {
+    setUploadError("");
+    const ok = await confirm({
+      title: field === "logo" ? "Change Logo" : "Change Favicon",
+      message: `Use "${media.title || media.originalFilename}" as the site ${field}?`,
+      confirmLabel: "Use This File",
+    });
+    if (!ok) return;
+
+    try {
+      const path = field === "logo" ? "/api/admin/settings/site/logo" : "/api/admin/settings/site/favicon";
+      await api.put(path, { url: media.url });
+      await refresh();
+    } catch (err) {
+      setUploadError(err instanceof ApiError ? err.message : `Could not set ${field}.`);
+    }
+  }
+
   return (
     <section id="settings-page" className="settings-page flex flex-col gap-10">
       <h1 className="text-2xl font-bold text-text dark:text-text-dark">Settings</h1>
@@ -97,15 +125,33 @@ export default function SettingsPage() {
         <h2 className="mb-4 text-lg font-bold text-text dark:text-text-dark">Logo &amp; Favicon</h2>
         <div className="flex items-center gap-8">
           <div className="flex flex-col items-center gap-2">
-            <BrandMark size={56} />
-            <button
-              type="button"
-              id="settings-logo-upload-button"
-              onClick={() => logoInputRef.current?.click()}
-              className="cursor-pointer text-xs font-medium text-primary-600 hover:text-primary-900 dark:hover:text-primary-300"
-            >
-              Change Logo
-            </button>
+            <div className="flex h-8 items-center">
+              {settings?.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={assetUrl(settings.logoUrl)} alt="Logo" className="h-8 w-auto max-w-[160px] object-contain" />
+              ) : (
+                <span className="flex h-8 w-8 items-center justify-center rounded-md bg-secondary-600 text-sm font-bold text-primary-900">
+                  {(settings?.siteTitle || "Top Casino SG").charAt(0).toUpperCase()}
+                </span>
+              )}
+            </div>
+            <p className="text-xs font-medium text-text-muted dark:text-text-muted-dark">Logo</p>
+            <div className="flex items-center gap-2">
+              <IconButton
+                id="settings-logo-upload-button"
+                title="Upload New Logo"
+                onClick={() => logoInputRef.current?.click()}
+                icon={<IconUpload width={14} height={14} />}
+                variant="muted"
+              />
+              <IconButton
+                id="settings-logo-media-library-button"
+                title="Choose Logo From Media Library"
+                onClick={() => setMediaPickerField("logo")}
+                icon={<IconPhoto width={14} height={14} />}
+                variant="muted"
+              />
+            </div>
             <input
               ref={logoInputRef}
               id="settings-logo-input"
@@ -119,28 +165,33 @@ export default function SettingsPage() {
             />
           </div>
           <div className="flex flex-col items-center gap-2">
-            {settings?.faviconUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090"}${settings.faviconUrl}`}
-                alt="Favicon"
-                width={32}
-                height={32}
-                className="rounded"
+            <div className="flex h-8 items-center">
+              {settings?.faviconUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={assetUrl(settings.faviconUrl)} alt="Favicon" width={32} height={32} className="h-8 w-8 rounded object-contain" />
+              ) : (
+                <span className="flex h-8 w-8 items-center justify-center rounded bg-surface-muted text-xs text-text-muted dark:bg-surface-muted-dark dark:text-text-muted-dark">
+                  —
+                </span>
+              )}
+            </div>
+            <p className="text-xs font-medium text-text-muted dark:text-text-muted-dark">Favicon</p>
+            <div className="flex items-center gap-2">
+              <IconButton
+                id="settings-favicon-upload-button"
+                title="Upload New Favicon"
+                onClick={() => faviconInputRef.current?.click()}
+                icon={<IconUpload width={14} height={14} />}
+                variant="muted"
               />
-            ) : (
-              <span className="flex h-8 w-8 items-center justify-center rounded bg-surface-muted text-xs text-text-muted dark:bg-surface-muted-dark dark:text-text-muted-dark">
-                —
-              </span>
-            )}
-            <button
-              type="button"
-              id="settings-favicon-upload-button"
-              onClick={() => faviconInputRef.current?.click()}
-              className="cursor-pointer text-xs font-medium text-primary-600 hover:text-primary-900 dark:hover:text-primary-300"
-            >
-              Change Favicon
-            </button>
+              <IconButton
+                id="settings-favicon-media-library-button"
+                title="Choose Favicon From Media Library"
+                onClick={() => setMediaPickerField("favicon")}
+                icon={<IconPhoto width={14} height={14} />}
+                variant="muted"
+              />
+            </div>
             <input
               ref={faviconInputRef}
               id="settings-favicon-input"
@@ -159,6 +210,15 @@ export default function SettingsPage() {
           Leave empty to keep using the first-letter badge shown above.
         </p>
       </div>
+
+      <MediaPicker
+        open={mediaPickerField !== null}
+        onClose={() => setMediaPickerField(null)}
+        onSelect={(media) => {
+          if (mediaPickerField) handleSelectFromLibrary(mediaPickerField, media);
+          setMediaPickerField(null);
+        }}
+      />
 
       <form id="settings-site-form" className="settings-site-form flex max-w-lg flex-col gap-4" onSubmit={handleSubmit}>
         <h2 className="text-lg font-bold text-text dark:text-text-dark">Site</h2>

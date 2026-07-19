@@ -170,3 +170,144 @@ export function IconUser(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+export function IconFile(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" />
+      <path d="M14 3v5h5" />
+    </svg>
+  );
+}
+
+export function IconMusicNote(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M9 18V5l11-2v13" />
+      <circle cx="6.5" cy="18" r="2.5" />
+      <circle cx="17.5" cy="16" r="2.5" />
+    </svg>
+  );
+}
+
+export function IconFilm(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="4" width="18" height="16" rx="1.5" />
+      <path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4" />
+    </svg>
+  );
+}
+
+export function IconUpload(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 16V4M7 9l5-5 5 5" />
+      <path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+    </svg>
+  );
+}
+
+export function IconPhoto(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <circle cx="8.5" cy="8.5" r="1.5" />
+      <path d="M21 15l-5-5L5 21" />
+    </svg>
+  );
+}
+
+export function IconCalendar(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="4.5" width="18" height="16" rx="2" />
+      <path d="M3 9.5h18M8 3v3M16 3v3" />
+    </svg>
+  );
+}
+
+export function IconGlobe(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18M12 3c2.5 2.7 4 6 4 9s-1.5 6.3-4 9c-2.5-2.7-4-6-4-9s1.5-6.3 4-9Z" />
+    </svg>
+  );
+}
+
+export function IconTag(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12.5 3H4v8.5L14 21l8-8L12.5 3Z" />
+      <circle cx="8.5" cy="7.5" r="1.25" />
+    </svg>
+  );
+}
+
+export function IconGift(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="9" width="18" height="12" rx="1" />
+      <path d="M3 9V6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v3M12 5v16" />
+      <path d="M12 5C10.5 2.5 6 2.5 6 5.5c0 1.4 1.6 2 3 2h3ZM12 5c1.5-2.5 6-2.5 6 .5 0 1.4-1.6 2-3 2h-3Z" />
+    </svg>
+  );
+}
+
+export function IconCopy(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <rect x="9" y="9" width="12" height="12" rx="2" />
+      <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
+    </svg>
+  );
+}
+
+export function IconCreditCard(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <rect x="2.5" y="5" width="19" height="14" rx="2" />
+      <path d="M2.5 10h19" />
+      <path d="M6 14.5h4" />
+    </svg>
+  );
+}
+
+export function IconPercent(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M19 5 5 19" />
+      <circle cx="7" cy="7" r="2.25" />
+      <circle cx="17" cy="17" r="2.25" />
+    </svg>
+  );
+}
+
+export function IconBook(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15.5H6.5A2.5 2.5 0 0 0 4 21Z" />
+      <path d="M4 5.5v15.5" />
+    </svg>
+  );
+}
+
+export function IconBan(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M5.5 5.5l13 13" />
+    </svg>
+  );
+}
+
+export function IconNewspaper(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 5h13a2 2 0 0 1 2 2v11a1.5 1.5 0 0 1-1.5 1.5H6a2 2 0 0 1-2-2Z" />
+      <path d="M19 8.5v9a1.5 1.5 0 0 0 1.5 1.5" />
+      <path d="M7.5 8.5h8M7.5 12h8M7.5 15h5" />
+    </svg>
+  );
+}

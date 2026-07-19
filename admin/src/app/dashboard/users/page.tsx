@@ -1,25 +1,28 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { api, ApiError } from "@/lib/api";
-import type { AdminUserDTO, Role } from "@/lib/types";
-import { assignableRoles, canManage } from "@/lib/roles";
+import type { AdminUserDTO } from "@/lib/types";
+import { canManage } from "@/lib/roles";
 import { titleCase } from "@/lib/format";
 import PasswordInput from "@/components/PasswordInput";
 import IconButton from "@/components/IconButton";
 import { IconEdit, IconKey, IconShieldReset, IconPause, IconPlay, IconTrash, IconPlus, IconCrown } from "@/components/Icons";
+import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "@/lib/pagination";
 
 export default function UsersPage() {
   const { user: actor } = useAuth();
   const confirm = useConfirm();
+  const router = useRouter();
   const [users, setUsers] = useState<AdminUserDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [editTarget, setEditTarget] = useState<AdminUserDTO | null>(null);
   const [resetPasswordTarget, setResetPasswordTarget] = useState<AdminUserDTO | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   async function loadUsers() {
     setLoading(true);
@@ -105,7 +108,7 @@ export default function UsersPage() {
     <section id="users-page" className="users-page flex flex-col gap-6">
       <div className="users-page__header flex items-center justify-between">
         <h1 className="text-2xl font-bold text-text dark:text-text-dark">Users</h1>
-        <IconButton id="users-add-button" title="Add User" onClick={() => setShowAddForm(true)} icon={<IconPlus />} />
+        <IconButton id="users-add-button" title="Add User" onClick={() => router.push("/dashboard/users/new")} icon={<IconPlus />} />
       </div>
 
       {error && <p className="form-error text-sm text-danger">{error}</p>}
@@ -113,62 +116,88 @@ export default function UsersPage() {
       {loading ? (
         <p className="text-text-muted dark:text-text-muted-dark">Loading…</p>
       ) : (
-        <div className="users-table overflow-x-auto rounded-lg border border-border dark:border-border-dark">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-surface-muted text-text dark:bg-surface-muted-dark dark:text-text-dark">
-              <tr>
-                <th className="px-4 py-3 font-semibold">Name</th>
-                <th className="px-4 py-3 font-semibold">Role</th>
-                <th className="px-4 py-3 font-semibold">Status</th>
-                <th className="px-4 py-3 font-semibold">2FA</th>
-                <th className="px-4 py-3 font-semibold">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((target) => (
-                <UserRow
-                  key={target.id}
-                  actor={actor}
-                  target={target}
-                  onEdit={() => setEditTarget(target)}
-                  onSetStatus={handleSetStatus}
-                  onToggleCrown={handleToggleCrown}
-                  onResetOtp={handleResetOtp}
-                  onResetPassword={() => setResetPasswordTarget(target)}
-                />
-              ))}
-              {users.length === 0 && (
+        <>
+          <div className="users-table overflow-x-auto rounded-lg border border-border dark:border-border-dark">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-surface-muted text-text dark:bg-surface-muted-dark dark:text-text-dark">
                 <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-text-muted dark:text-text-muted-dark">
-                    No users to show.
-                  </td>
+                  <th className="px-4 py-3 font-semibold">Name</th>
+                  <th className="px-4 py-3 font-semibold">Role</th>
+                  <th className="px-4 py-3 font-semibold">Status</th>
+                  <th className="px-4 py-3 font-semibold">2FA</th>
+                  <th className="px-4 py-3 font-semibold">Actions</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {users.slice((page - 1) * pageSize, page * pageSize).map((target) => (
+                  <UserRow
+                    key={target.id}
+                    actor={actor}
+                    target={target}
+                    onEdit={() => router.push(`/dashboard/users/${target.id}`)}
+                    onSetStatus={handleSetStatus}
+                    onToggleCrown={handleToggleCrown}
+                    onResetOtp={handleResetOtp}
+                    onResetPassword={() => setResetPasswordTarget(target)}
+                  />
+                ))}
+                {users.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-6 text-center text-text-muted dark:text-text-muted-dark">
+                      No users to show.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
 
-      {showAddForm && (
-        <AddUserPanel
-          actor={actor}
-          onClose={() => setShowAddForm(false)}
-          onCreated={() => {
-            setShowAddForm(false);
-            loadUsers();
-          }}
-        />
-      )}
-
-      {editTarget && (
-        <EditUserPanel
-          target={editTarget}
-          onClose={() => setEditTarget(null)}
-          onSaved={() => {
-            setEditTarget(null);
-            loadUsers();
-          }}
-        />
+          {users.length > 0 && (
+            <div id="users-pagination" className="users-pagination flex items-center justify-between text-sm text-text-muted dark:text-text-muted-dark">
+              <div className="flex items-center gap-2">
+                <span>Rows per page</span>
+                <select
+                  id="users-page-size"
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  className="cursor-pointer rounded-md border border-border bg-surface px-2 py-1 text-text outline-none focus:border-primary-500 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark"
+                >
+                  {PAGE_SIZE_OPTIONS.map((size) => (
+                    <option key={size} value={size}>
+                      {size}
+                    </option>
+                  ))}
+                </select>
+                <span>
+                  {Math.min((page - 1) * pageSize + 1, users.length)}–{Math.min(page * pageSize, users.length)} of {users.length}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  id="users-page-prev"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="cursor-pointer rounded-md border border-border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50 dark:border-border-dark"
+                >
+                  Prev
+                </button>
+                <button
+                  type="button"
+                  id="users-page-next"
+                  disabled={page * pageSize >= users.length}
+                  onClick={() => setPage((p) => p + 1)}
+                  className="cursor-pointer rounded-md border border-border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50 dark:border-border-dark"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {resetPasswordTarget && (
@@ -203,11 +232,27 @@ function UserRow({
   const manageable = !isSelf && canManage(actor, target);
 
   return (
-    <tr id={`user-row-${target.id}`} className="user-row border-t border-border dark:border-border-dark">
+    <tr
+      id={`user-row-${target.id}`}
+      className={`user-row border-t border-border dark:border-border-dark ${
+        target.status !== "active" ? "bg-surface-muted dark:bg-surface-muted-dark" : ""
+      }`}
+    >
       <td className="px-4 py-3">
-        <p className="user-row__name text-[15px] font-semibold leading-tight text-text dark:text-text-dark">
-          {target.fullName}
-        </p>
+        <div className="user-row__name-wrap relative inline-block">
+          {target.canManageAdmins && (
+            <span
+              id={`user-row-${target.id}-crown-badge`}
+              title="Can Manage Admins"
+              className="user-row__crown-badge absolute -right-4 -top-2 text-yellow-400"
+            >
+              <IconCrown width={14} height={14} />
+            </span>
+          )}
+          <p className="user-row__name text-[15px] font-semibold leading-tight text-text dark:text-text-dark">
+            {target.fullName}
+          </p>
+        </div>
         <p className="user-row__email text-[13px] font-normal leading-tight text-text-muted dark:text-text-muted-dark">
           {target.email}
         </p>
@@ -290,192 +335,6 @@ function UserRow({
         )}
       </td>
     </tr>
-  );
-}
-
-function AddUserPanel({
-  actor,
-  onClose,
-  onCreated,
-}: {
-  actor: AdminUserDTO;
-  onClose: () => void;
-  onCreated: () => void;
-}) {
-  const confirm = useConfirm();
-  const roles = assignableRoles(actor);
-  const [email, setEmail] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [password, setPassword] = useState("");
-  const [role, setRole] = useState<Role>(roles[roles.length - 1] ?? "editor");
-  const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  async function handleSubmit(e: React.SubmitEvent) {
-    e.preventDefault();
-    setError("");
-    const ok = await confirm({ title: "Add User", message: `Create a new ${titleCase(role)} account for ${fullName}?` });
-    if (!ok) return;
-
-    setSubmitting(true);
-    try {
-      await api.post("/api/admin/users", { email, password, fullName, role });
-      onCreated();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not create user.");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <div id="add-user-overlay" className="fixed inset-0 z-[90] flex items-center justify-center bg-primary-900/40 px-4">
-      <div className="add-user-panel w-full max-w-sm rounded-lg bg-surface p-6 shadow-lg dark:bg-surface-dark">
-        <h2 className="mb-4 text-lg font-bold text-text dark:text-text-dark">Add User</h2>
-        <form id="add-user-form" className="flex flex-col gap-4" onSubmit={handleSubmit}>
-          <div className="form-field flex flex-col gap-1">
-            <label htmlFor="add-user-full-name" className="text-sm font-medium text-text dark:text-text-dark">
-              Full Name
-            </label>
-            <input
-              id="add-user-full-name"
-              required
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-primary-500 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark"
-            />
-          </div>
-          <div className="form-field flex flex-col gap-1">
-            <label htmlFor="add-user-email" className="text-sm font-medium text-text dark:text-text-dark">
-              Email
-            </label>
-            <input
-              id="add-user-email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-primary-500 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark"
-            />
-          </div>
-          <div className="form-field flex flex-col gap-1">
-            <label htmlFor="add-user-role" className="text-sm font-medium text-text dark:text-text-dark">
-              Role
-            </label>
-            <select
-              id="add-user-role"
-              value={role}
-              onChange={(e) => setRole(e.target.value as Role)}
-              className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-primary-500 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark"
-            >
-              {roles.map((r) => (
-                <option key={r} value={r}>
-                  {titleCase(r)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <PasswordInput id="add-user-password" name="password" label="Temporary Password" value={password} onChange={setPassword} autoComplete="new-password" />
-          {error && <p className="form-error text-sm text-danger">{error}</p>}
-          <div className="mt-2 flex justify-end gap-2">
-            <button type="button" id="add-user-cancel" onClick={onClose} className="cursor-pointer rounded-md px-4 py-2 text-sm font-medium text-text-muted dark:text-text-muted-dark">
-              Cancel
-            </button>
-            <button
-              type="submit"
-              id="add-user-submit"
-              disabled={submitting}
-              className="btn btn--primary cursor-pointer rounded-md bg-primary-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {submitting ? "Creating…" : "Create"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-function EditUserPanel({
-  target,
-  onClose,
-  onSaved,
-}: {
-  target: AdminUserDTO;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const confirm = useConfirm();
-  const [email, setEmail] = useState(target.email);
-  const [fullName, setFullName] = useState(target.fullName);
-  const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  async function handleSubmit(e: React.SubmitEvent) {
-    e.preventDefault();
-    setError("");
-    const ok = await confirm({ title: "Save Changes", message: `Update profile details for ${target.fullName}?` });
-    if (!ok) return;
-
-    setSubmitting(true);
-    try {
-      await api.put(`/api/admin/users/${target.id}`, { email, fullName });
-      onSaved();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not update user.");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <div id="edit-user-overlay" className="fixed inset-0 z-[90] flex items-center justify-center bg-primary-900/40 px-4">
-      <div className="edit-user-panel w-full max-w-sm rounded-lg bg-surface p-6 shadow-lg dark:bg-surface-dark">
-        <h2 className="mb-1 text-lg font-bold text-text dark:text-text-dark">Edit User</h2>
-        <p className="mb-4 text-sm text-text-muted dark:text-text-muted-dark">{titleCase(target.role)}</p>
-        <form id="edit-user-form" className="flex flex-col gap-4" onSubmit={handleSubmit}>
-          <div className="form-field flex flex-col gap-1">
-            <label htmlFor="edit-user-full-name" className="text-sm font-medium text-text dark:text-text-dark">
-              Full Name
-            </label>
-            <input
-              id="edit-user-full-name"
-              required
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-primary-500 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark"
-            />
-          </div>
-          <div className="form-field flex flex-col gap-1">
-            <label htmlFor="edit-user-email" className="text-sm font-medium text-text dark:text-text-dark">
-              Email
-            </label>
-            <input
-              id="edit-user-email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-primary-500 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark"
-            />
-          </div>
-          {error && <p className="form-error text-sm text-danger">{error}</p>}
-          <div className="mt-2 flex justify-end gap-2">
-            <button type="button" id="edit-user-cancel" onClick={onClose} className="cursor-pointer rounded-md px-4 py-2 text-sm font-medium text-text-muted dark:text-text-muted-dark">
-              Cancel
-            </button>
-            <button
-              type="submit"
-              id="edit-user-submit"
-              disabled={submitting}
-              className="btn btn--primary cursor-pointer rounded-md bg-primary-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {submitting ? "Saving…" : "Save"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
   );
 }
 

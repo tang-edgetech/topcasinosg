@@ -1,8 +1,26 @@
 @import "tailwindcss";
 @import "../../../shared/theme/tokens.css";
+@import "../../../shared/theme/rich-text.css";
 
 /* Theme (light/dark) is a per-user DB preference toggled via a `.dark` class
    on <html> (see lib/theme.ts) — deliberately not driven by OS preference. */
 @theme inline {
   --font-sans: var(--font-figtree);
+}
+
+/* Sidebar nav list scrollbar — yellow-400 thumb on the dark sidebar track,
+   matching the active/hover nav link color (see Sidebar.tsx's .nav-wrapper). */
+.nav-wrapper {
+  scrollbar-width: thin;
+  scrollbar-color: #facc15 transparent;
+}
+.nav-wrapper::-webkit-scrollbar {
+  width: 6px;
+}
+.nav-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+.nav-wrapper::-webkit-scrollbar-thumb {
+  background-color: #facc15;
+  border-radius: 9999px;
 }

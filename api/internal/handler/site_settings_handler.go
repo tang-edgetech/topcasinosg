@@ -1,30 +1,26 @@
 package handler
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
-	"io"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/tang-edgetech/topcasinosg/api/internal/config"
 	"github.com/tang-edgetech/topcasinosg/api/internal/domain"
 	"github.com/tang-edgetech/topcasinosg/api/internal/httpx"
 	"github.com/tang-edgetech/topcasinosg/api/internal/middleware"
 	"github.com/tang-edgetech/topcasinosg/api/internal/response"
 	"github.com/tang-edgetech/topcasinosg/api/internal/service"
+	"github.com/tang-edgetech/topcasinosg/api/internal/storage"
 )
 
 type SiteSettingsHandler struct {
 	settings *service.SiteSettingsService
-	cfg      config.Config
+	storage  storage.Storage
 }
 
-func NewSiteSettingsHandler(settings *service.SiteSettingsService, cfg config.Config) *SiteSettingsHandler {
-	return &SiteSettingsHandler{settings: settings, cfg: cfg}
+func NewSiteSettingsHandler(settings *service.SiteSettingsService, store storage.Storage) *SiteSettingsHandler {
+	return &SiteSettingsHandler{settings: settings, storage: store}
 }
 
 type siteSettingsDTO struct {
@@ -150,6 +146,42 @@ func (h *SiteSettingsHandler) UploadFavicon(w http.ResponseWriter, r *http.Reque
 	response.JSON(w, http.StatusOK, map[string]string{"faviconUrl": url})
 }
 
+type setImageURLRequest struct {
+	URL string `json:"url"`
+}
+
+// SetLogo points the site logo at an already-uploaded Media Library file
+// instead of accepting a fresh multipart upload (see UploadLogo).
+func (h *SiteSettingsHandler) SetLogo(w http.ResponseWriter, r *http.Request) {
+	actor := middleware.UserFromContext(r.Context())
+	var req setImageURLRequest
+	if err := httpx.DecodeJSON(r, &req); err != nil || req.URL == "" {
+		response.Err(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if err := h.settings.SetLogoURL(r.Context(), actor, req.URL); err != nil {
+		response.Err(w, siteSettingsErrorStatus(err), err.Error())
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]string{"logoUrl": req.URL})
+}
+
+// SetFavicon points the site favicon at an already-uploaded Media Library
+// file instead of accepting a fresh multipart upload (see UploadFavicon).
+func (h *SiteSettingsHandler) SetFavicon(w http.ResponseWriter, r *http.Request) {
+	actor := middleware.UserFromContext(r.Context())
+	var req setImageURLRequest
+	if err := httpx.DecodeJSON(r, &req); err != nil || req.URL == "" {
+		response.Err(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if err := h.settings.SetFaviconURL(r.Context(), actor, req.URL); err != nil {
+		response.Err(w, siteSettingsErrorStatus(err), err.Error())
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]string{"faviconUrl": req.URL})
+}
+
 func (h *SiteSettingsHandler) saveUpload(w http.ResponseWriter, r *http.Request, field string) (string, bool) {
 	const maxUploadSize = 5 << 20 // 5MB
 	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
@@ -171,28 +203,17 @@ func (h *SiteSettingsHandler) saveUpload(w http.ResponseWriter, r *http.Request,
 		return "", false
 	}
 
-	nameBytes := make([]byte, 16)
-	if _, err := rand.Read(nameBytes); err != nil {
+	filename, err := storage.GenerateFilename(field, ext)
+	if err != nil {
 		response.Err(w, http.StatusInternalServerError, "could not generate file name")
 		return "", false
 	}
-	filename := field + "-" + hex.EncodeToString(nameBytes) + ext
 
-	if err := os.MkdirAll(h.cfg.UploadDir, 0o755); err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not prepare upload directory")
-		return "", false
-	}
-	dst, err := os.Create(filepath.Join(h.cfg.UploadDir, filename))
+	url, err := h.storage.Save(r.Context(), filename, file)
 	if err != nil {
 		response.Err(w, http.StatusInternalServerError, "could not save file")
 		return "", false
 	}
-	defer dst.Close()
 
-	if _, err := io.Copy(dst, file); err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not save file")
-		return "", false
-	}
-
-	return "/uploads/" + filename, true
+	return url, true
 }

@@ -1,7 +1,9 @@
+import "@ant-design/v5-patch-for-react-19";
 import type { Metadata } from "next";
 import { Figtree } from "next/font/google";
 import Script from "next/script";
-import { themeInitScript } from "@/lib/theme";
+import { themeInitScript, ThemeProvider } from "@/lib/theme-context";
+import AntdThemeProvider from "@/components/AntdThemeProvider";
 import { SiteSettingsProvider } from "@/lib/site-settings-context";
 import "./globals.css";
 
@@ -21,7 +23,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${figtree.variable} h-full antialiased`}>
+    <html lang="en" className={`${figtree.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
         {/* Runs before hydration so the stored theme applies with no flash. */}
         <Script id="theme-init" strategy="beforeInteractive">
@@ -29,7 +31,11 @@ export default function RootLayout({
         </Script>
       </head>
       <body className="min-h-full flex flex-col bg-surface font-sans text-text dark:bg-surface-dark dark:text-text-dark">
-        <SiteSettingsProvider>{children}</SiteSettingsProvider>
+        <ThemeProvider>
+          <AntdThemeProvider>
+            <SiteSettingsProvider>{children}</SiteSettingsProvider>
+          </AntdThemeProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

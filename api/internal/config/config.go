@@ -1,7 +1,10 @@
 // Package config loads runtime configuration from environment variables.
 package config
 
-import "os"
+import (
+	"os"
+	"strings"
+)
 
 type Config struct {
 	Port string
@@ -14,7 +17,11 @@ type Config struct {
 	// OTPEncryptionKey encrypts TOTP secrets at rest (32 bytes, AES-256-GCM).
 	OTPEncryptionKey string
 
-	CORSAllowedOrigin string
+	// CORSAllowedOrigins lists every frontend origin allowed to call this API
+	// with credentials (admin dashboard + public site, each on their own
+	// scheme+host+port). A wildcard can't be combined with credentialed
+	// requests, so this must stay an explicit allow-list, not "*".
+	CORSAllowedOrigins []string
 	// CookieDomain is left empty on localhost (host-only cookie) and set to
 	// ".topcasinosg.com.sg" in production so the cookie is shared between the
 	// admin and api subdomains.
@@ -35,11 +42,22 @@ func Load() Config {
 		JWTSecret:        getEnv("JWT_SECRET", "dev-only-insecure-secret-change-me"),
 		OTPEncryptionKey: getEnv("OTP_ENCRYPTION_KEY", "dev-only-insecure-32-byte-key!!!"),
 
-		CORSAllowedOrigin: getEnv("CORS_ALLOWED_ORIGIN", "http://localhost:4001"),
-		CookieDomain:      getEnv("COOKIE_DOMAIN", ""),
+		CORSAllowedOrigins: splitCSV(getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:4000,http://localhost:4001")),
+		CookieDomain:       getEnv("COOKIE_DOMAIN", ""),
 
 		UploadDir: getEnv("UPLOAD_DIR", "uploads"),
 	}
+}
+
+func splitCSV(v string) []string {
+	parts := strings.Split(v, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // IsProduction gates behavior that must never run on localhost: the Secure

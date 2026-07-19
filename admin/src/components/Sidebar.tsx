@@ -7,11 +7,45 @@ import { useSiteSettings } from "@/lib/site-settings-context";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { titleCase } from "@/lib/format";
 import BrandMark from "@/components/BrandMark";
-import { IconGrid, IconUsers, IconUser, IconSettings, IconSun, IconMoon, IconLogout, IconClose } from "@/components/Icons";
+import {
+  IconGrid,
+  IconUsers,
+  IconUser,
+  IconSettings,
+  IconSun,
+  IconMoon,
+  IconLogout,
+  IconClose,
+  IconPhoto,
+  IconGlobe,
+  IconTag,
+  IconGift,
+  IconCreditCard,
+  IconPercent,
+  IconBook,
+  IconBan,
+  IconNewspaper,
+  IconMenu,
+} from "@/components/Icons";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Overview", roles: ["super_admin", "admin", "editor"], icon: IconGrid },
+  { href: "/dashboard/regions", label: "Regions", roles: ["super_admin", "admin"], icon: IconGlobe },
+  { href: "/dashboard/casinos", label: "Casinos", roles: ["super_admin", "admin", "editor"], icon: IconTag },
+  { href: "/dashboard/bonuses", label: "Bonuses", roles: ["super_admin", "admin", "editor"], icon: IconGift },
+  {
+    href: "/dashboard/payment-methods",
+    label: "Payment Methods",
+    roles: ["super_admin", "admin", "editor"],
+    icon: IconCreditCard,
+  },
+  { href: "/dashboard/rtp", label: "RTP", roles: ["super_admin", "admin", "editor"], icon: IconPercent },
+  { href: "/dashboard/guides", label: "Guides", roles: ["super_admin", "admin", "editor"], icon: IconBook },
+  { href: "/dashboard/blacklist", label: "Blacklist", roles: ["super_admin", "admin", "editor"], icon: IconBan },
+  { href: "/dashboard/news", label: "News", roles: ["super_admin", "admin", "editor"], icon: IconNewspaper },
+  { href: "/dashboard/media", label: "Media Library", roles: ["super_admin", "admin", "editor"], icon: IconPhoto },
   { href: "/dashboard/users", label: "Users", roles: ["super_admin", "admin"], icon: IconUsers },
+  { href: "/dashboard/navigation", label: "Navigation", roles: ["super_admin", "admin"], icon: IconMenu },
   { href: "/dashboard/account", label: "My Account", roles: ["super_admin", "admin", "editor"], icon: IconUser },
   { href: "/dashboard/settings", label: "Settings", roles: ["super_admin"], icon: IconSettings },
 ];
@@ -42,47 +76,56 @@ export default function Sidebar({ onNavigate, onClose }: { onNavigate?: () => vo
   return (
     <nav
       id="dashboard-sidebar"
-      className="sidebar flex h-full w-64 shrink-0 flex-col justify-between bg-sidebar px-3 py-5 text-white"
+      className="sidebar sticky top-0 flex h-full max-h-screen w-64 shrink-0 flex-col bg-sidebar px-3 py-5 text-white"
     >
-      <div className="flex flex-col gap-1">
-        <div className="sidebar__brand mb-6 flex items-center justify-between px-2">
-          <div className="flex items-center gap-2">
-            <BrandMark size={30} />
-            <span className="text-base font-bold tracking-tight">{settings?.siteTitle || "Top Casino SG"}</span>
-          </div>
-          {onClose && (
-            <button
-              type="button"
-              id="sidebar-close"
-              title="Close Menu"
-              onClick={onClose}
-              className="cursor-pointer rounded-md p-1 text-white/70 hover:bg-white/10 hover:text-white"
-            >
-              <IconClose width={18} height={18} />
-            </button>
-          )}
+      <div className="sidebar__brand mb-6 flex shrink-0 items-center justify-between px-2">
+        <div className="flex items-center gap-2">
+          <BrandMark size={30} />
+          <span className="text-base font-bold tracking-tight">{settings?.siteTitle || "Top Casino SG"}</span>
         </div>
+        {onClose && (
+          <button
+            type="button"
+            id="sidebar-close"
+            title="Close Menu"
+            onClick={onClose}
+            className="cursor-pointer rounded-md p-1 text-white/70 hover:bg-white/10 hover:text-white"
+          >
+            <IconClose width={18} height={18} />
+          </button>
+        )}
+      </div>
 
+      <div className="nav-wrapper flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
         {NAV_ITEMS.filter((item) => !user || item.roles.includes(user.role)).map((item) => {
-          const active = pathname === item.href;
+          // Overview ("/dashboard") only matches exactly, or every other
+          // item would also light it up. Every other item also matches
+          // its own sub-routes (e.g. /dashboard/casinos/new, /dashboard/casinos/123)
+          // so the parent stays highlighted while creating/editing.
+          const active =
+            item.href === "/dashboard"
+              ? pathname === item.href
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
           return (
             <Link
               key={item.href}
               href={item.href}
               onClick={onNavigate}
-              className={`sidebar__link flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                active ? "bg-sidebar-active text-white" : "text-white/75 hover:bg-white/10 hover:text-white"
+              className={`sidebar__link flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
+                active
+                  ? "bg-sidebar-active font-bold! text-yellow-400!"
+                  : "font-medium text-white! hover:font-bold! hover:text-yellow-400!"
               }`}
             >
               <Icon width={18} height={18} />
-              {titleCase(item.label)}
+              {item.label}
             </Link>
           );
         })}
       </div>
 
-      <div className="sidebar__footer flex flex-col gap-3 border-t border-white/15 pt-4">
+      <div className="sidebar__footer flex shrink-0 flex-col gap-3 border-t border-white/15 pt-4">
         <button
           type="button"
           id="sidebar-theme-toggle"

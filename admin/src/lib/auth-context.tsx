@@ -1,8 +1,10 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { api } from "./api";
-import { applyTheme, type Theme } from "./theme";
+import { useThemeContext, type Theme } from "./theme-context";
+import { useIdleSession } from "./idle-session";
 import type { AdminUserDTO } from "./types";
 
 interface AuthContextValue {
@@ -16,6 +18,8 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const { setLocalTheme } = useThemeContext();
   const [user, setUser] = useState<AdminUserDTO | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -23,13 +27,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const data = await api.get<{ user: AdminUserDTO }>("/api/admin/auth/me");
       setUser(data.user);
-      applyTheme(data.user.themePreference);
+      setLocalTheme(data.user.themePreference);
     } catch {
       setUser(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setLocalTheme]);
 
   useEffect(() => {
     refresh();
@@ -40,11 +44,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
-  const setTheme = useCallback(async (theme: Theme) => {
-    applyTheme(theme);
-    setUser((prev) => (prev ? { ...prev, themePreference: theme } : prev));
-    await api.put("/api/admin/account/theme", { theme });
-  }, []);
+  const handleIdleTimeout = useCallback(async () => {
+    // Best-effort: revoke the refresh token server-side too, not just the
+    // local state, so the session can't be resumed from a stale cookie.
+    await logout().catch(() => {});
+    router.replace("/");
+  }, [logout, router]);
+
+  useIdleSession(!!user, handleIdleTimeout);
+
+  const setTheme = useCallback(
+    async (theme: Theme) => {
+      setLocalTheme(theme);
+      setUser((prev) => (prev ? { ...prev, themePreference: theme } : prev));
+      await api.put("/api/admin/account/theme", { theme });
+    },
+    [setLocalTheme],
+  );
 
   return <AuthContext.Provider value={{ user, loading, refresh, logout, setTheme }}>{children}</AuthContext.Provider>;
 }

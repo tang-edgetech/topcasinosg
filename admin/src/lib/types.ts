@@ -39,3 +39,146 @@ export interface SiteSettingsDTO {
   faviconUrl: string | null;
   twoFactorEnabled: boolean;
 }
+
+export type MediaKind = "image" | "document" | "audio" | "video";
+
+export interface MediaDTO {
+  id: number;
+  originalFilename: string;
+  title: string;
+  altText: string;
+  description: string;
+  mimeType: string;
+  kind: MediaKind;
+  fileSize: number;
+  url: string;
+  createdAt: string;
+}
+
+export type ContentStatus = "draft" | "scheduled" | "published";
+
+export interface RegionDTO {
+  id: number;
+  code: string;
+  name: string;
+  flagMediaId: number | null;
+  flagUrl: string | null;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+}
+
+export interface CasinoDTO {
+  id: number;
+  slug: string;
+  name: string;
+  logoMediaId: number | null;
+  rating: number;
+  summary: string;
+  content: string;
+  languages: string[] | null;
+  paymentMethods: string[] | null;
+  payoutSpeed: string;
+  ctaUrl: string;
+  status: ContentStatus;
+  publishAt: string | null;
+  regionIds: number[] | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type BonusType = "welcome" | "no_deposit" | "free_spins" | "cashback" | "loyalty_vip" | "deposit";
+
+export interface BonusDTO {
+  id: number;
+  regionId: number;
+  casinoId: number | null;
+  bonusType: BonusType;
+  title: string;
+  terms: string;
+  code: string | null;
+  validFrom: string | null;
+  validUntil: string | null;
+  status: ContentStatus;
+  publishAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaymentMethodDTO {
+  id: number;
+  regionId: number;
+  name: string;
+  description: string;
+  iconMediaId: number | null;
+  status: ContentStatus;
+  publishAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type RTPCategory = "slot" | "table" | "live" | "other";
+
+export interface RTPEntryDTO {
+  id: number;
+  regionId: number;
+  casinoId: number | null;
+  gameName: string;
+  category: RTPCategory;
+  rtpPercentage: number;
+  status: ContentStatus;
+  publishAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GuideDTO {
+  id: number;
+  regionId: number | null;
+  title: string;
+  slug: string;
+  coverMediaId: number | null;
+  excerpt: string;
+  content: string;
+  status: ContentStatus;
+  publishAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BlacklistEntryDTO {
+  id: number;
+  name: string;
+  reason: string;
+  details: string;
+  status: ContentStatus;
+  publishAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type MenuLocation = "header" | "footer";
+export type MenuItemSourceType = "static" | "dynamic_regions" | "dynamic_casinos";
+
+export interface MenuItemDTO {
+  id: number;
+  location: MenuLocation;
+  parentId: number | null;
+  label: string;
+  href: string | null;
+  sourceType: MenuItemSourceType;
+  sortOrder: number;
+}
+
+export interface NewsArticleDTO {
+  id: number;
+  title: string;
+  slug: string;
+  coverMediaId: number | null;
+  excerpt: string;
+  content: string;
+  status: ContentStatus;
+  publishAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}

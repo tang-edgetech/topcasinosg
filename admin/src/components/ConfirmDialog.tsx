@@ -39,7 +39,10 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
       {options && (
         <div
           id="confirm-dialog-overlay"
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-primary-900/40 px-4"
+          // Must outrank antd's own Modal/Drawer z-index (~1000) — this
+          // dialog is very often triggered by a Save/Delete button that
+          // itself lives inside an antd Modal (e.g. Add Casino).
+          className="fixed inset-0 z-[2000] flex items-center justify-center bg-primary-900/40 px-4"
         >
           <div className="confirm-dialog w-full max-w-sm rounded-lg bg-surface p-6 shadow-lg dark:bg-surface-dark">
             <h2 className="confirm-dialog__title mb-2 text-lg font-bold text-text dark:text-text-dark">

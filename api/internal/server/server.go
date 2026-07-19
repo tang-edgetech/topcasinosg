@@ -14,12 +14,22 @@ import (
 )
 
 type Deps struct {
-	Config              config.Config
-	JWT                 *security.JWTIssuer
-	Users               *repository.UserRepo
-	AuthHandler         *handler.AuthHandler
-	UserHandler         *handler.UserHandler
-	SiteSettingsHandler *handler.SiteSettingsHandler
+	Config                config.Config
+	JWT                   *security.JWTIssuer
+	Users                 *repository.UserRepo
+	AuthHandler           *handler.AuthHandler
+	UserHandler           *handler.UserHandler
+	SiteSettingsHandler   *handler.SiteSettingsHandler
+	MediaHandler          *handler.MediaHandler
+	RegionHandler         *handler.RegionHandler
+	CasinoHandler         *handler.CasinoHandler
+	BonusHandler          *handler.BonusHandler
+	PaymentMethodHandler  *handler.PaymentMethodHandler
+	RTPEntryHandler       *handler.RTPEntryHandler
+	GuideHandler          *handler.GuideHandler
+	BlacklistEntryHandler *handler.BlacklistEntryHandler
+	NewsArticleHandler    *handler.NewsArticleHandler
+	MenuItemHandler       *handler.MenuItemHandler
 }
 
 func NewRouter(deps Deps) http.Handler {
@@ -44,9 +54,26 @@ func NewRouter(deps Deps) http.Handler {
 	// Static file serving for uploaded logo/favicon.
 	mux.Handle("GET /uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir(deps.Config.UploadDir))))
 
+	// Public content reads — no auth. This is what web/ consumes.
+	mux.HandleFunc("GET /api/regions", deps.RegionHandler.ListPublic)
+	mux.HandleFunc("GET /api/casinos", deps.CasinoHandler.ListPublic)
+	mux.HandleFunc("GET /api/casinos/{slug}", deps.CasinoHandler.GetPublic)
+	mux.HandleFunc("GET /api/bonuses", deps.BonusHandler.ListPublic)
+	mux.HandleFunc("GET /api/payment-methods", deps.PaymentMethodHandler.ListPublic)
+	mux.HandleFunc("GET /api/rtp", deps.RTPEntryHandler.ListPublic)
+	mux.HandleFunc("GET /api/guides", deps.GuideHandler.ListPublic)
+	mux.HandleFunc("GET /api/guides/{slug}", deps.GuideHandler.GetPublic)
+	mux.HandleFunc("GET /api/blacklist", deps.BlacklistEntryHandler.ListPublic)
+	mux.HandleFunc("GET /api/news", deps.NewsArticleHandler.ListPublic)
+	mux.HandleFunc("GET /api/news/{slug}", deps.NewsArticleHandler.GetPublic)
+	mux.HandleFunc("GET /api/menus", deps.MenuItemHandler.ListPublic)
+
 	authenticate := middleware.Authenticate(deps.JWT, deps.Users)
 	staffOnly := middleware.RequireRoles(domain.RoleSuperAdmin, domain.RoleAdmin)
 	superAdminOnly := middleware.RequireRoles(domain.RoleSuperAdmin)
+	// Content-management roles: Editors manage content (including media),
+	// just not other admin accounts — see internal/domain/user.go.
+	contentStaff := middleware.RequireRoles(domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleEditor)
 
 	mux.Handle("GET /api/admin/auth/me", authenticate(http.HandlerFunc(deps.AuthHandler.Me)))
 
@@ -68,6 +95,86 @@ func NewRouter(deps Deps) http.Handler {
 	mux.Handle("PUT /api/admin/settings/2fa", authenticate(superAdminOnly(http.HandlerFunc(deps.SiteSettingsHandler.SetTwoFactorEnabled))))
 	mux.Handle("POST /api/admin/settings/site/logo", authenticate(superAdminOnly(http.HandlerFunc(deps.SiteSettingsHandler.UploadLogo))))
 	mux.Handle("POST /api/admin/settings/site/favicon", authenticate(superAdminOnly(http.HandlerFunc(deps.SiteSettingsHandler.UploadFavicon))))
+	mux.Handle("PUT /api/admin/settings/site/logo", authenticate(superAdminOnly(http.HandlerFunc(deps.SiteSettingsHandler.SetLogo))))
+	mux.Handle("PUT /api/admin/settings/site/favicon", authenticate(superAdminOnly(http.HandlerFunc(deps.SiteSettingsHandler.SetFavicon))))
 
-	return middleware.CORS(deps.Config.CORSAllowedOrigin)(mux)
+	// Media library — any content-management role.
+	mux.Handle("GET /api/admin/media", authenticate(contentStaff(http.HandlerFunc(deps.MediaHandler.List))))
+	mux.Handle("POST /api/admin/media", authenticate(contentStaff(http.HandlerFunc(deps.MediaHandler.Upload))))
+	mux.Handle("PUT /api/admin/media/{id}", authenticate(contentStaff(http.HandlerFunc(deps.MediaHandler.UpdateMetadata))))
+	mux.Handle("DELETE /api/admin/media/{id}", authenticate(contentStaff(http.HandlerFunc(deps.MediaHandler.Delete))))
+
+	// Regions — readable by any content-staff (Editors pick a region when
+	// adding a Bonus/Guide/etc.); structural changes gated inside the
+	// service to Super Admin + Admin only.
+	mux.Handle("GET /api/admin/regions", authenticate(contentStaff(http.HandlerFunc(deps.RegionHandler.List))))
+	mux.Handle("POST /api/admin/regions", authenticate(contentStaff(http.HandlerFunc(deps.RegionHandler.Create))))
+	mux.Handle("PUT /api/admin/regions/{id}", authenticate(contentStaff(http.HandlerFunc(deps.RegionHandler.Update))))
+	mux.Handle("PUT /api/admin/regions/{id}/active", authenticate(contentStaff(http.HandlerFunc(deps.RegionHandler.SetActive))))
+
+	// Navigation (header mega-menu + footer) — Super Admin and Admin only,
+	// same tier as Regions/Site Settings; Editors have no access at all.
+	mux.Handle("GET /api/admin/menu-items", authenticate(staffOnly(http.HandlerFunc(deps.MenuItemHandler.List))))
+	mux.Handle("POST /api/admin/menu-items", authenticate(staffOnly(http.HandlerFunc(deps.MenuItemHandler.Create))))
+	mux.Handle("PUT /api/admin/menu-items/{id}", authenticate(staffOnly(http.HandlerFunc(deps.MenuItemHandler.Update))))
+	mux.Handle("DELETE /api/admin/menu-items/{id}", authenticate(staffOnly(http.HandlerFunc(deps.MenuItemHandler.Delete))))
+
+	// Casinos — any content-management role, matching "Editor: add/edit/
+	// delete contents".
+	mux.Handle("GET /api/admin/casinos", authenticate(contentStaff(http.HandlerFunc(deps.CasinoHandler.List))))
+	mux.Handle("POST /api/admin/casinos", authenticate(contentStaff(http.HandlerFunc(deps.CasinoHandler.Create))))
+	mux.Handle("GET /api/admin/casinos/{id}", authenticate(contentStaff(http.HandlerFunc(deps.CasinoHandler.Get))))
+	mux.Handle("PUT /api/admin/casinos/{id}", authenticate(contentStaff(http.HandlerFunc(deps.CasinoHandler.Update))))
+	mux.Handle("PUT /api/admin/casinos/{id}/status", authenticate(contentStaff(http.HandlerFunc(deps.CasinoHandler.SetStatus))))
+	mux.Handle("DELETE /api/admin/casinos/{id}", authenticate(contentStaff(http.HandlerFunc(deps.CasinoHandler.Delete))))
+
+	// Bonuses.
+	mux.Handle("GET /api/admin/bonuses", authenticate(contentStaff(http.HandlerFunc(deps.BonusHandler.List))))
+	mux.Handle("POST /api/admin/bonuses", authenticate(contentStaff(http.HandlerFunc(deps.BonusHandler.Create))))
+	mux.Handle("GET /api/admin/bonuses/{id}", authenticate(contentStaff(http.HandlerFunc(deps.BonusHandler.Get))))
+	mux.Handle("PUT /api/admin/bonuses/{id}", authenticate(contentStaff(http.HandlerFunc(deps.BonusHandler.Update))))
+	mux.Handle("PUT /api/admin/bonuses/{id}/status", authenticate(contentStaff(http.HandlerFunc(deps.BonusHandler.SetStatus))))
+	mux.Handle("DELETE /api/admin/bonuses/{id}", authenticate(contentStaff(http.HandlerFunc(deps.BonusHandler.Delete))))
+
+	// Payment Methods.
+	mux.Handle("GET /api/admin/payment-methods", authenticate(contentStaff(http.HandlerFunc(deps.PaymentMethodHandler.List))))
+	mux.Handle("POST /api/admin/payment-methods", authenticate(contentStaff(http.HandlerFunc(deps.PaymentMethodHandler.Create))))
+	mux.Handle("GET /api/admin/payment-methods/{id}", authenticate(contentStaff(http.HandlerFunc(deps.PaymentMethodHandler.Get))))
+	mux.Handle("PUT /api/admin/payment-methods/{id}", authenticate(contentStaff(http.HandlerFunc(deps.PaymentMethodHandler.Update))))
+	mux.Handle("PUT /api/admin/payment-methods/{id}/status", authenticate(contentStaff(http.HandlerFunc(deps.PaymentMethodHandler.SetStatus))))
+	mux.Handle("DELETE /api/admin/payment-methods/{id}", authenticate(contentStaff(http.HandlerFunc(deps.PaymentMethodHandler.Delete))))
+
+	// RTP entries.
+	mux.Handle("GET /api/admin/rtp", authenticate(contentStaff(http.HandlerFunc(deps.RTPEntryHandler.List))))
+	mux.Handle("POST /api/admin/rtp", authenticate(contentStaff(http.HandlerFunc(deps.RTPEntryHandler.Create))))
+	mux.Handle("GET /api/admin/rtp/{id}", authenticate(contentStaff(http.HandlerFunc(deps.RTPEntryHandler.Get))))
+	mux.Handle("PUT /api/admin/rtp/{id}", authenticate(contentStaff(http.HandlerFunc(deps.RTPEntryHandler.Update))))
+	mux.Handle("PUT /api/admin/rtp/{id}/status", authenticate(contentStaff(http.HandlerFunc(deps.RTPEntryHandler.SetStatus))))
+	mux.Handle("DELETE /api/admin/rtp/{id}", authenticate(contentStaff(http.HandlerFunc(deps.RTPEntryHandler.Delete))))
+
+	// Guides.
+	mux.Handle("GET /api/admin/guides", authenticate(contentStaff(http.HandlerFunc(deps.GuideHandler.List))))
+	mux.Handle("POST /api/admin/guides", authenticate(contentStaff(http.HandlerFunc(deps.GuideHandler.Create))))
+	mux.Handle("GET /api/admin/guides/{id}", authenticate(contentStaff(http.HandlerFunc(deps.GuideHandler.Get))))
+	mux.Handle("PUT /api/admin/guides/{id}", authenticate(contentStaff(http.HandlerFunc(deps.GuideHandler.Update))))
+	mux.Handle("PUT /api/admin/guides/{id}/status", authenticate(contentStaff(http.HandlerFunc(deps.GuideHandler.SetStatus))))
+	mux.Handle("DELETE /api/admin/guides/{id}", authenticate(contentStaff(http.HandlerFunc(deps.GuideHandler.Delete))))
+
+	// Blacklist entries.
+	mux.Handle("GET /api/admin/blacklist", authenticate(contentStaff(http.HandlerFunc(deps.BlacklistEntryHandler.List))))
+	mux.Handle("POST /api/admin/blacklist", authenticate(contentStaff(http.HandlerFunc(deps.BlacklistEntryHandler.Create))))
+	mux.Handle("GET /api/admin/blacklist/{id}", authenticate(contentStaff(http.HandlerFunc(deps.BlacklistEntryHandler.Get))))
+	mux.Handle("PUT /api/admin/blacklist/{id}", authenticate(contentStaff(http.HandlerFunc(deps.BlacklistEntryHandler.Update))))
+	mux.Handle("PUT /api/admin/blacklist/{id}/status", authenticate(contentStaff(http.HandlerFunc(deps.BlacklistEntryHandler.SetStatus))))
+	mux.Handle("DELETE /api/admin/blacklist/{id}", authenticate(contentStaff(http.HandlerFunc(deps.BlacklistEntryHandler.Delete))))
+
+	// News — any content-management role, matching "Editor: add/edit/delete contents".
+	mux.Handle("GET /api/admin/news", authenticate(contentStaff(http.HandlerFunc(deps.NewsArticleHandler.List))))
+	mux.Handle("POST /api/admin/news", authenticate(contentStaff(http.HandlerFunc(deps.NewsArticleHandler.Create))))
+	mux.Handle("GET /api/admin/news/{id}", authenticate(contentStaff(http.HandlerFunc(deps.NewsArticleHandler.Get))))
+	mux.Handle("PUT /api/admin/news/{id}", authenticate(contentStaff(http.HandlerFunc(deps.NewsArticleHandler.Update))))
+	mux.Handle("PUT /api/admin/news/{id}/status", authenticate(contentStaff(http.HandlerFunc(deps.NewsArticleHandler.SetStatus))))
+	mux.Handle("DELETE /api/admin/news/{id}", authenticate(contentStaff(http.HandlerFunc(deps.NewsArticleHandler.Delete))))
+
+	return middleware.CORS(deps.Config.CORSAllowedOrigins)(mux)
 }
