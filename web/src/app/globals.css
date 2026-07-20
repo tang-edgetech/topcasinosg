@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "../../../shared/theme/tokens.css";
 @import "../../../shared/theme/rich-text.css";
+@import "../../../shared/theme/sections.css";
 
 :root {
   --background: #ffffff;

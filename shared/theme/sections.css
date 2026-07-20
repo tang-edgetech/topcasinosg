@@ -1,0 +1,68 @@
+/*
+ * Canonical per-block-type classes for the Pages CMS section renderer
+ * (web/src/components/sections). Every section of a given blockType is
+ * styled the same way by default, independent of any admin-supplied custom
+ * class/id layered on top (admin/src/app/dashboard/pages/SectionBuilder) —
+ * this is what makes e.g. every "icon box group" section look consistent
+ * without the admin having to name or maintain the class themselves.
+ */
+
+.section--hero {
+  background: linear-gradient(135deg, var(--color-primary-900), var(--color-primary-glow));
+}
+
+.section--rich-text {
+  background: transparent;
+}
+
+.section--icon-box-group {
+  background: var(--color-surface-muted);
+}
+
+.section--image-gallery {
+  background: transparent;
+}
+
+.section--cta {
+  background: var(--color-primary-900);
+}
+
+.section--logo-strip {
+  background: transparent;
+}
+
+.section--stats-counter {
+  background: var(--color-surface-muted);
+}
+
+.section--faq {
+  background: transparent;
+}
+
+/*
+ * Icon Box normal/hover/active colors — set as CSS custom properties on the
+ * grid wrapper by IconBoxGroupSection (from the admin's colorNormal/
+ * colorHover/colorActive fields) rather than combinatorial classes, so any
+ * of the 4-token palette (primary/secondary/white/muted) can combine freely.
+ */
+.icon-box__heading,
+.icon-box__text {
+  color: var(--iconbox-color-normal, var(--color-primary-900));
+  transition: color 0.15s ease;
+}
+.icon-box:hover .icon-box__heading,
+.icon-box:hover .icon-box__text {
+  color: var(--iconbox-color-hover, var(--color-secondary-600));
+}
+.icon-box.is-active .icon-box__heading,
+.icon-box.is-active .icon-box__text {
+  color: var(--iconbox-color-active, var(--color-primary-900));
+}
+
+/* Shared by Icon Box's "dropdown" display mode and FaqSection. */
+.accordion-item__header {
+  cursor: pointer;
+}
+.accordion-item__chevron {
+  color: var(--color-text-muted);
+}

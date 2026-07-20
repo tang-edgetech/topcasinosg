@@ -40,6 +40,8 @@ func main() {
 	blacklistEntryRepo := repository.NewBlacklistEntryRepo(conn)
 	newsArticleRepo := repository.NewNewsArticleRepo(conn)
 	menuItemRepo := repository.NewMenuItemRepo(conn)
+	pageRepo := repository.NewPageRepo(conn)
+	snippetRepo := repository.NewSnippetRepo(conn)
 
 	jwtIssuer := security.NewJWTIssuer(cfg.JWTSecret)
 	secretbox, err := security.NewSecretbox(cfg.OTPEncryptionKey)
@@ -61,6 +63,8 @@ func main() {
 	blacklistEntryService := service.NewBlacklistEntryService(blacklistEntryRepo)
 	newsArticleService := service.NewNewsArticleService(newsArticleRepo)
 	menuItemService := service.NewMenuItemService(menuItemRepo)
+	pageService := service.NewPageService(pageRepo)
+	snippetService := service.NewSnippetService(snippetRepo)
 
 	deps := server.Deps{
 		Config:                cfg,
@@ -79,6 +83,8 @@ func main() {
 		BlacklistEntryHandler: handler.NewBlacklistEntryHandler(blacklistEntryService),
 		NewsArticleHandler:    handler.NewNewsArticleHandler(newsArticleService),
 		MenuItemHandler:       handler.NewMenuItemHandler(menuItemService),
+		PageHandler:           handler.NewPageHandler(pageService),
+		SnippetHandler:        handler.NewSnippetHandler(snippetService),
 	}
 	router := server.NewRouter(deps)
 

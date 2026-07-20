@@ -182,3 +182,82 @@ export interface NewsArticleDTO {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface PageDTO {
+  id: number;
+  slug: string;
+  title: string;
+  metaTitle: string;
+  metaDescription: string;
+  robotsIndex: boolean;
+  robotsFollow: boolean;
+  headSnippet: string;
+  bodySnippet: string;
+  footerSnippet: string;
+  status: ContentStatus;
+  publishAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SnippetLocation = "head" | "body" | "footer";
+export type SnippetKind = "global" | "code";
+export type CodeType = "html" | "css" | "js" | "universal";
+export type ConditionField = "page" | "url";
+export type ConditionOperator = "is" | "is_not" | "contains" | "not_contains";
+
+export interface SnippetConditionDTO {
+  id: number;
+  field: ConditionField;
+  operator: ConditionOperator;
+  pageId: number | null;
+  value: string;
+  sortOrder: number;
+}
+
+export interface SnippetDTO {
+  id: number;
+  name: string;
+  kind: SnippetKind;
+  codeType: CodeType | null;
+  location: SnippetLocation;
+  content: string;
+  isActive: boolean;
+  sortOrder: number;
+  priority: number;
+  conditions: SnippetConditionDTO[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PageFieldType = "text" | "richtext" | "image" | "button";
+
+export interface PageSectionFieldDTO {
+  itemIndex: number;
+  fieldKey: string;
+  fieldType: PageFieldType;
+  textValue: string;
+  mediaId: number | null;
+  mediaUrl: string | null;
+  urlValue: string;
+  sortOrder: number;
+}
+
+export type PageBlockType =
+  | "hero"
+  | "rich_text"
+  | "icon_box_group"
+  | "image_gallery"
+  | "cta"
+  | "logo_strip"
+  | "stats_counter"
+  | "faq";
+
+export interface PageSectionDTO {
+  id: number;
+  blockType: PageBlockType;
+  customClass: string;
+  customId: string;
+  sortOrder: number;
+  fields: PageSectionFieldDTO[];
+}

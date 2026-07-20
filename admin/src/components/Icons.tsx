@@ -311,3 +311,38 @@ export function IconNewspaper(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+export function IconChevronUp(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M5 15l7-7 7 7" />
+    </svg>
+  );
+}
+
+export function IconChevronDown(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M5 9l7 7 7-7" />
+    </svg>
+  );
+}
+
+export function IconCode(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M9 18l-6-6 6-6" />
+      <path d="M15 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+export function IconLayout(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="4" width="18" height="16" rx="1.5" />
+      <path d="M3 9h18" />
+      <path d="M9 9v11" />
+    </svg>
+  );
+}

@@ -26,10 +26,13 @@ import {
   IconBan,
   IconNewspaper,
   IconMenu,
+  IconLayout,
+  IconCode,
 } from "@/components/Icons";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Overview", roles: ["super_admin", "admin", "editor"], icon: IconGrid },
+  { href: "/dashboard/pages", label: "Pages", roles: ["super_admin", "admin", "editor"], icon: IconLayout },
   { href: "/dashboard/regions", label: "Regions", roles: ["super_admin", "admin"], icon: IconGlobe },
   { href: "/dashboard/casinos", label: "Casinos", roles: ["super_admin", "admin", "editor"], icon: IconTag },
   { href: "/dashboard/bonuses", label: "Bonuses", roles: ["super_admin", "admin", "editor"], icon: IconGift },
@@ -47,6 +50,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/users", label: "Users", roles: ["super_admin", "admin"], icon: IconUsers },
   { href: "/dashboard/navigation", label: "Navigation", roles: ["super_admin", "admin"], icon: IconMenu },
   { href: "/dashboard/account", label: "My Account", roles: ["super_admin", "admin", "editor"], icon: IconUser },
+  { href: "/dashboard/snippets", label: "Snippets", roles: ["super_admin"], icon: IconCode },
   { href: "/dashboard/settings", label: "Settings", roles: ["super_admin"], icon: IconSettings },
 ];
 

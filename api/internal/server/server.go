@@ -30,6 +30,8 @@ type Deps struct {
 	BlacklistEntryHandler *handler.BlacklistEntryHandler
 	NewsArticleHandler    *handler.NewsArticleHandler
 	MenuItemHandler       *handler.MenuItemHandler
+	PageHandler           *handler.PageHandler
+	SnippetHandler        *handler.SnippetHandler
 }
 
 func NewRouter(deps Deps) http.Handler {
@@ -67,6 +69,8 @@ func NewRouter(deps Deps) http.Handler {
 	mux.HandleFunc("GET /api/news", deps.NewsArticleHandler.ListPublic)
 	mux.HandleFunc("GET /api/news/{slug}", deps.NewsArticleHandler.GetPublic)
 	mux.HandleFunc("GET /api/menus", deps.MenuItemHandler.ListPublic)
+	mux.HandleFunc("GET /api/pages/{slug}", deps.PageHandler.GetPublic)
+	mux.HandleFunc("GET /api/snippets", deps.SnippetHandler.GetPublic)
 
 	authenticate := middleware.Authenticate(deps.JWT, deps.Users)
 	staffOnly := middleware.RequireRoles(domain.RoleSuperAdmin, domain.RoleAdmin)
@@ -97,6 +101,14 @@ func NewRouter(deps Deps) http.Handler {
 	mux.Handle("POST /api/admin/settings/site/favicon", authenticate(superAdminOnly(http.HandlerFunc(deps.SiteSettingsHandler.UploadFavicon))))
 	mux.Handle("PUT /api/admin/settings/site/logo", authenticate(superAdminOnly(http.HandlerFunc(deps.SiteSettingsHandler.SetLogo))))
 	mux.Handle("PUT /api/admin/settings/site/favicon", authenticate(superAdminOnly(http.HandlerFunc(deps.SiteSettingsHandler.SetFavicon))))
+
+	// Snippets — Super Admin only. Raw HTML/JS injected into every page;
+	// same trust tier as Settings, not a content-editing capability.
+	mux.Handle("GET /api/admin/snippets", authenticate(superAdminOnly(http.HandlerFunc(deps.SnippetHandler.List))))
+	mux.Handle("POST /api/admin/snippets", authenticate(superAdminOnly(http.HandlerFunc(deps.SnippetHandler.Create))))
+	mux.Handle("PUT /api/admin/snippets/{id}", authenticate(superAdminOnly(http.HandlerFunc(deps.SnippetHandler.Update))))
+	mux.Handle("PUT /api/admin/snippets/{id}/active", authenticate(superAdminOnly(http.HandlerFunc(deps.SnippetHandler.SetActive))))
+	mux.Handle("DELETE /api/admin/snippets/{id}", authenticate(superAdminOnly(http.HandlerFunc(deps.SnippetHandler.Delete))))
 
 	// Media library — any content-management role.
 	mux.Handle("GET /api/admin/media", authenticate(contentStaff(http.HandlerFunc(deps.MediaHandler.List))))
@@ -151,6 +163,18 @@ func NewRouter(deps Deps) http.Handler {
 	mux.Handle("PUT /api/admin/rtp/{id}", authenticate(contentStaff(http.HandlerFunc(deps.RTPEntryHandler.Update))))
 	mux.Handle("PUT /api/admin/rtp/{id}/status", authenticate(contentStaff(http.HandlerFunc(deps.RTPEntryHandler.SetStatus))))
 	mux.Handle("DELETE /api/admin/rtp/{id}", authenticate(contentStaff(http.HandlerFunc(deps.RTPEntryHandler.Delete))))
+
+	// Pages (flexible page builder — Homepage, About, ...) — any
+	// content-management role, same tier as Casinos/Guides/News.
+	mux.Handle("GET /api/admin/pages", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.List))))
+	mux.Handle("POST /api/admin/pages", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.Create))))
+	mux.Handle("GET /api/admin/pages/{id}", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.Get))))
+	mux.Handle("PUT /api/admin/pages/{id}", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.Update))))
+	mux.Handle("PUT /api/admin/pages/{id}/seo", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.UpdateSEO))))
+	mux.Handle("PUT /api/admin/pages/{id}/snippets", authenticate(superAdminOnly(http.HandlerFunc(deps.PageHandler.UpdateSnippets))))
+	mux.Handle("PUT /api/admin/pages/{id}/status", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.SetStatus))))
+	mux.Handle("PUT /api/admin/pages/{id}/sections", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.ReplaceSections))))
+	mux.Handle("DELETE /api/admin/pages/{id}", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.Delete))))
 
 	// Guides.
 	mux.Handle("GET /api/admin/guides", authenticate(contentStaff(http.HandlerFunc(deps.GuideHandler.List))))
