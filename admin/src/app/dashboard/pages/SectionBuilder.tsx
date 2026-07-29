@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Input, Select, App as AntApp } from "antd";
 import { api, ApiError } from "@/lib/api";
 import { useConfirm } from "@/components/ConfirmDialog";
 import IconButton from "@/components/IconButton";
 import { IconChevronUp, IconChevronDown, IconPlus, IconTrash } from "@/components/Icons";
 import BlockFieldEditor, { BLOCK_TYPE_LABELS, defaultFieldsForBlockType, type EditableField } from "./BlockFields";
+import type { SaveAction } from "./SaveActionBar";
 import type { PageBlockType, PageSectionDTO } from "@/lib/types";
 
 interface EditableSection {
@@ -52,7 +53,15 @@ function fromDTO(sections: PageSectionDTO[]): EditableSection[] {
 // PUTs the whole section/field tree in one shot (see PageRepo.ReplaceSections
 // on the backend) — there's no per-field autosave, matching how the rest of
 // this admin's content forms behave (one explicit Save action).
-export default function SectionBuilder({ pageId, initialSections }: { pageId: number; initialSections: PageSectionDTO[] }) {
+export default function SectionBuilder({
+  pageId,
+  initialSections,
+  onSaveActionChange,
+}: {
+  pageId: number;
+  initialSections: PageSectionDTO[];
+  onSaveActionChange?: (action: SaveAction) => void;
+}) {
   const { message } = AntApp.useApp();
   const confirm = useConfirm();
   const [sections, setSections] = useState<EditableSection[]>(() => fromDTO(initialSections));
@@ -111,6 +120,11 @@ export default function SectionBuilder({ pageId, initialSections }: { pageId: nu
       setSaving(false);
     }
   }
+
+  useEffect(() => {
+    onSaveActionChange?.({ id: "section-builder-save", label: "Save Page Content", onSave: handleSave, saving });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saving, sections]);
 
   return (
     <div id="section-builder" className="section-builder flex flex-col gap-6">
@@ -189,18 +203,6 @@ export default function SectionBuilder({ pageId, initialSections }: { pageId: nu
             />
           </div>
         ))}
-      </div>
-
-      <div>
-        <button
-          type="button"
-          id="section-builder-save"
-          onClick={handleSave}
-          disabled={saving}
-          className="btn btn--primary cursor-pointer rounded-md bg-primary-900 px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {saving ? "Saving…" : "Save Page Content"}
-        </button>
       </div>
     </div>
   );

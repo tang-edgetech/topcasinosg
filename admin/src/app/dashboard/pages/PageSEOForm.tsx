@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Form, Input, Switch, App as AntApp } from "antd";
 import { useAuth } from "@/lib/auth-context";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { api, ApiError } from "@/lib/api";
+import type { SaveAction } from "./SaveActionBar";
 import type { PageDTO } from "@/lib/types";
 
 const { TextArea } = Input;
@@ -16,7 +17,15 @@ const { TextArea } = Input;
 // the site-wide Snippets tool, since it's unrestricted script injection.
 // Non-super-admins simply don't see the code section (see Sidebar's
 // role-gated "Snippets" link for the same pattern).
-export default function PageSEOForm({ page, onSaved }: { page: PageDTO; onSaved: (page: PageDTO) => void }) {
+export default function PageSEOForm({
+  page,
+  onSaved,
+  onSaveActionsChange,
+}: {
+  page: PageDTO;
+  onSaved: (page: PageDTO) => void;
+  onSaveActionsChange?: (actions: SaveAction[]) => void;
+}) {
   const { user } = useAuth();
   const { message } = AntApp.useApp();
   const confirm = useConfirm();
@@ -58,6 +67,24 @@ export default function PageSEOForm({ page, onSaved }: { page: PageDTO; onSaved:
     }
   }
 
+  useEffect(() => {
+    if (!onSaveActionsChange) return;
+    const actions: SaveAction[] = [
+      { id: "page-seo-form-submit", label: "Save SEO Settings", onSave: () => seoForm.submit(), saving: savingSeo },
+    ];
+    if (user?.role === "super_admin") {
+      actions.push({
+        id: "page-snippets-form-submit",
+        label: "Save Custom Code",
+        onSave: () => snippetsForm.submit(),
+        saving: savingSnippets,
+        variant: "default",
+      });
+    }
+    onSaveActionsChange(actions);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savingSeo, savingSnippets, user?.role]);
+
   return (
     <div className="flex max-w-2xl flex-col gap-8">
       <div id="page-seo-form" className="page-seo-form flex flex-col gap-4 rounded-lg border border-border p-5 dark:border-border-dark">
@@ -85,14 +112,16 @@ export default function PageSEOForm({ page, onSaved }: { page: PageDTO; onSaved:
           <Form.Item name="robotsFollow" label="Link Following" valuePropName="checked" extra="Off sets a 'nofollow' instruction for search engines.">
             <Switch checkedChildren="Follow" unCheckedChildren="No-follow" />
           </Form.Item>
-          <button
-            type="submit"
-            id="page-seo-form-submit"
-            disabled={savingSeo}
-            className="btn btn--primary cursor-pointer rounded-md bg-primary-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {savingSeo ? "Saving…" : "Save SEO Settings"}
-          </button>
+          {!onSaveActionsChange && (
+            <button
+              type="submit"
+              id="page-seo-form-submit"
+              disabled={savingSeo}
+              className="btn btn--primary cursor-pointer rounded-md bg-primary-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {savingSeo ? "Saving…" : "Save SEO Settings"}
+            </button>
+          )}
         </Form>
       </div>
 
@@ -125,14 +154,16 @@ export default function PageSEOForm({ page, onSaved }: { page: PageDTO; onSaved:
             <Form.Item name="footerSnippet" label="Footer (bottom of page)">
               <TextArea rows={6} className="font-mono" />
             </Form.Item>
-            <button
-              type="submit"
-              id="page-snippets-form-submit"
-              disabled={savingSnippets}
-              className="btn btn--primary cursor-pointer rounded-md bg-primary-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {savingSnippets ? "Saving…" : "Save Custom Code"}
-            </button>
+            {!onSaveActionsChange && (
+              <button
+                type="submit"
+                id="page-snippets-form-submit"
+                disabled={savingSnippets}
+                className="btn btn--primary cursor-pointer rounded-md bg-primary-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {savingSnippets ? "Saving…" : "Save Custom Code"}
+              </button>
+            )}
           </Form>
         </div>
       )}

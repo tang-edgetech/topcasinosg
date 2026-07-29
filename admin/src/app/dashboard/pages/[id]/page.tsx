@@ -9,6 +9,7 @@ import type { PageDTO, PageSectionDTO } from "@/lib/types";
 import PageMetaForm from "../PageMetaForm";
 import PageSEOForm from "../PageSEOForm";
 import SectionBuilder from "../SectionBuilder";
+import SaveActionBar, { type SaveAction } from "../SaveActionBar";
 
 export default function EditPagePage() {
   const { user } = useAuth();
@@ -19,6 +20,15 @@ export default function EditPagePage() {
   const [page, setPage] = useState<PageDTO | null>(null);
   const [sections, setSections] = useState<PageSectionDTO[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("content");
+  const [contentAction, setContentAction] = useState<SaveAction | null>(null);
+  const [detailsAction, setDetailsAction] = useState<SaveAction | null>(null);
+  const [seoActions, setSeoActions] = useState<SaveAction[]>([]);
+
+  const activeActions =
+    activeTab === "content" ? (contentAction ? [contentAction] : [])
+    : activeTab === "details" ? (detailsAction ? [detailsAction] : [])
+    : seoActions;
 
   useEffect(() => {
     async function load() {
@@ -58,25 +68,29 @@ export default function EditPagePage() {
           ← Back to Pages
         </button>
       </div>
-      <h1 className="text-2xl font-bold text-text dark:text-text-dark">Edit Page: {page.title}</h1>
+      <div className="flex items-start justify-between gap-4">
+        <h1 className="text-2xl font-bold text-text dark:text-text-dark">Edit Page: {page.title}</h1>
+        <SaveActionBar actions={activeActions} />
+      </div>
 
       <Tabs
-        defaultActiveKey="content"
+        activeKey={activeTab}
+        onChange={setActiveTab}
         items={[
           {
             key: "content",
             label: "Content",
-            children: <SectionBuilder pageId={page.id} initialSections={sections} />,
+            children: <SectionBuilder pageId={page.id} initialSections={sections} onSaveActionChange={setContentAction} />,
           },
           {
             key: "details",
             label: "Page Details",
-            children: <PageMetaForm target={page} onSaved={(updated) => setPage(updated)} />,
+            children: <PageMetaForm target={page} onSaved={(updated) => setPage(updated)} onSaveActionChange={setDetailsAction} />,
           },
           {
             key: "seo",
             label: "SEO",
-            children: <PageSEOForm page={page} onSaved={(updated) => setPage(updated)} />,
+            children: <PageSEOForm page={page} onSaved={(updated) => setPage(updated)} onSaveActionsChange={setSeoActions} />,
           },
         ]}
       />

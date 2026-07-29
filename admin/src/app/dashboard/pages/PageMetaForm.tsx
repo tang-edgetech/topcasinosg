@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Form, Input, App as AntApp } from "antd";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { api, ApiError } from "@/lib/api";
+import type { SaveAction } from "./SaveActionBar";
 import type { PageDTO } from "@/lib/types";
 
 // Metadata-only form (title/slug) — shared by /dashboard/pages/new and
@@ -12,7 +13,19 @@ import type { PageDTO } from "@/lib/types";
 // action (see SectionBuilder) since it hits a different endpoint
 // (PUT .../sections, a full-tree replace) and there's no reason to force
 // re-submitting the whole block tree just to fix a typo in the title.
-export default function PageMetaForm({ target, onSaved }: { target: PageDTO | null; onSaved?: (page: PageDTO) => void }) {
+//
+// onSaveActionChange is only passed from the [id] edit page, which renders
+// the submit button itself (top-right, sticky) instead of the inline one
+// below — /dashboard/pages/new has no sticky bar, so it keeps the inline button.
+export default function PageMetaForm({
+  target,
+  onSaved,
+  onSaveActionChange,
+}: {
+  target: PageDTO | null;
+  onSaved?: (page: PageDTO) => void;
+  onSaveActionChange?: (action: SaveAction) => void;
+}) {
   const router = useRouter();
   const { message } = AntApp.useApp();
   const confirm = useConfirm();
@@ -44,6 +57,16 @@ export default function PageMetaForm({ target, onSaved }: { target: PageDTO | nu
       setSubmitting(false);
     }
   }
+
+  useEffect(() => {
+    onSaveActionChange?.({
+      id: "page-meta-form-submit",
+      label: target ? "Save Details" : "Create Page",
+      onSave: () => form.submit(),
+      saving: submitting,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submitting, target]);
 
   return (
     <div id="page-meta-form" className="page-meta-form flex max-w-2xl flex-col gap-4 rounded-lg border border-border p-5 dark:border-border-dark">
@@ -78,14 +101,16 @@ export default function PageMetaForm({ target, onSaved }: { target: PageDTO | nu
           >
             {target ? "Back to Pages" : "Cancel"}
           </button>
-          <button
-            type="submit"
-            id="page-meta-form-submit"
-            disabled={submitting}
-            className="btn btn--primary cursor-pointer rounded-md bg-primary-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {submitting ? "Saving…" : target ? "Save Details" : "Create Page"}
-          </button>
+          {!onSaveActionChange && (
+            <button
+              type="submit"
+              id="page-meta-form-submit"
+              disabled={submitting}
+              className="btn btn--primary cursor-pointer rounded-md bg-primary-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {submitting ? "Saving…" : target ? "Save Details" : "Create Page"}
+            </button>
+          )}
         </div>
       </Form>
     </div>
