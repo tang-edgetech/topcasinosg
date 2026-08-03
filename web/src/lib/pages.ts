@@ -51,8 +51,6 @@ export interface PageMeta {
   title: string;
   metaTitle: string;
   metaDescription: string;
-  robotsIndex: boolean;
-  robotsFollow: boolean;
   headSnippet: string;
   bodySnippet: string;
   footerSnippet: string;

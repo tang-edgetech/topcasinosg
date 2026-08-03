@@ -5,6 +5,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import RawHtmlBlock from "@/components/RawHtmlBlock";
 import { getActiveSnippets } from "@/lib/snippets";
+import { getSiteSettings } from "@/lib/site-settings";
 import "./globals.css";
 
 const figtree = Figtree({
@@ -20,23 +21,22 @@ const DEFAULT_METADATA: Metadata = {
     "Independent online casino reviews, ratings, and bonuses for Singapore players.",
 };
 
-// The favicon is a per-site setting the admin can change (see
-// admin/dashboard/settings), so it has to be resolved at request time rather
-// than baked into a static `export const metadata` — a static export can
-// only ever point at the build-time default favicon.ico.
+// The favicon and robots defaults are per-site settings the admin can change
+// (see admin/dashboard/settings), so they have to be resolved at request time
+// rather than baked into a static `export const metadata` — a static export
+// can only ever point at build-time values. This robots default only takes
+// effect for routes that don't set their own `robots` metadata (Next.js
+// metadata merging replaces rather than deep-merges nested objects) — routes
+// with per-item SEO fields (e.g. the Homepage, see app/page.tsx) combine this
+// site-wide default with their own toggle instead of relying on this alone.
 export async function generateMetadata(): Promise<Metadata> {
-  try {
-    const res = await fetch(`${API_URL}/api/admin/settings/site`, { next: { revalidate: 60 } });
-    if (!res.ok) return DEFAULT_METADATA;
-    const body = (await res.json()) as { data?: { faviconUrl?: string | null } };
-    const faviconUrl = body.data?.faviconUrl;
-    if (!faviconUrl) return DEFAULT_METADATA;
+  const settings = await getSiteSettings();
+  const robots = { index: settings.seoIndex, follow: settings.seoFollow };
 
-    const iconUrl = faviconUrl.startsWith("http") ? faviconUrl : `${API_URL}${faviconUrl}`;
-    return { ...DEFAULT_METADATA, icons: { icon: iconUrl } };
-  } catch {
-    return DEFAULT_METADATA;
-  }
+  if (!settings.faviconUrl) return { ...DEFAULT_METADATA, robots };
+
+  const iconUrl = settings.faviconUrl.startsWith("http") ? settings.faviconUrl : `${API_URL}${settings.faviconUrl}`;
+  return { ...DEFAULT_METADATA, robots, icons: { icon: iconUrl } };
 }
 
 export default async function RootLayout({

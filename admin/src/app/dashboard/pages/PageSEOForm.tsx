@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Form, Input, Switch, App as AntApp } from "antd";
+import { Form, Input, App as AntApp } from "antd";
 import { useAuth } from "@/lib/auth-context";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { api, ApiError } from "@/lib/api";
@@ -12,7 +12,8 @@ const { TextArea } = Input;
 
 // Split into two independently-saveable forms because they're two different
 // permission tiers: Meta Title/Description/robots are editable by any
-// content-management role (same as the rest of a page), while the raw
+// content-management role (same as the rest of a page; indexing/following is
+// controlled site-wide only, see Dashboard > Settings), while the raw
 // Head/Body/Footer code injection is Super Admin only — same trust tier as
 // the site-wide Snippets tool, since it's unrestricted script injection.
 // Non-super-admins simply don't see the code section (see Sidebar's
@@ -34,7 +35,7 @@ export default function PageSEOForm({
   const [savingSeo, setSavingSeo] = useState(false);
   const [savingSnippets, setSavingSnippets] = useState(false);
 
-  async function handleSaveSeo(values: { metaTitle: string; metaDescription: string; robotsIndex: boolean; robotsFollow: boolean }) {
+  async function handleSaveSeo(values: { metaTitle: string; metaDescription: string }) {
     setSavingSeo(true);
     try {
       await api.put(`/api/admin/pages/${page.id}/seo`, values);
@@ -96,21 +97,17 @@ export default function PageSEOForm({
           initialValues={{
             metaTitle: page.metaTitle,
             metaDescription: page.metaDescription,
-            robotsIndex: page.robotsIndex,
-            robotsFollow: page.robotsFollow,
           }}
         >
           <Form.Item name="metaTitle" label="Meta Title" extra="Leave blank to fall back to the page title.">
             <Input placeholder="About Us | Top Casino SG" />
           </Form.Item>
-          <Form.Item name="metaDescription" label="Meta Description">
+          <Form.Item
+            name="metaDescription"
+            label="Meta Description"
+            extra="Search engine indexing/following is controlled site-wide — see Dashboard > Settings."
+          >
             <TextArea rows={2} maxLength={300} showCount />
-          </Form.Item>
-          <Form.Item name="robotsIndex" label="Indexing" valuePropName="checked" extra="Off sets a 'noindex' instruction for search engines.">
-            <Switch checkedChildren="Index" unCheckedChildren="No-index" />
-          </Form.Item>
-          <Form.Item name="robotsFollow" label="Link Following" valuePropName="checked" extra="Off sets a 'nofollow' instruction for search engines.">
-            <Switch checkedChildren="Follow" unCheckedChildren="No-follow" />
           </Form.Item>
           {!onSaveActionsChange && (
             <button

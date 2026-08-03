@@ -17,13 +17,13 @@ func NewPageRepo(db *sql.DB) *PageRepo {
 	return &PageRepo{db: db}
 }
 
-const pageColumns = `id, slug, title, meta_title, meta_description, meta_robots_index, meta_robots_follow,
+const pageColumns = `id, slug, title, meta_title, meta_description,
 	head_snippet, body_snippet, footer_snippet, status, publish_at, created_at, updated_at`
 
 func scanPage(row interface{ Scan(...any) error }) (*domain.Page, error) {
 	var p domain.Page
 	if err := row.Scan(
-		&p.ID, &p.Slug, &p.Title, &p.MetaTitle, &p.MetaDescription, &p.RobotsIndex, &p.RobotsFollow,
+		&p.ID, &p.Slug, &p.Title, &p.MetaTitle, &p.MetaDescription,
 		&p.HeadSnippet, &p.BodySnippet, &p.FooterSnippet, &p.Status, &p.PublishAt, &p.CreatedAt, &p.UpdatedAt,
 	); err != nil {
 		return nil, err
@@ -97,10 +97,10 @@ func (r *PageRepo) UpdateDetails(ctx context.Context, id int64, title, slug stri
 	return err
 }
 
-func (r *PageRepo) UpdateSEO(ctx context.Context, id int64, metaTitle, metaDescription string, robotsIndex, robotsFollow bool) error {
+func (r *PageRepo) UpdateSEO(ctx context.Context, id int64, metaTitle, metaDescription string) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE pages SET meta_title = ?, meta_description = ?, meta_robots_index = ?, meta_robots_follow = ? WHERE id = ?`,
-		metaTitle, metaDescription, robotsIndex, robotsFollow, id,
+		`UPDATE pages SET meta_title = ?, meta_description = ? WHERE id = ?`,
+		metaTitle, metaDescription, id,
 	)
 	return err
 }

@@ -27,8 +27,6 @@ type PageDTO struct {
 	Title           string     `json:"title"`
 	MetaTitle       string     `json:"metaTitle"`
 	MetaDescription string     `json:"metaDescription"`
-	RobotsIndex     bool       `json:"robotsIndex"`
-	RobotsFollow    bool       `json:"robotsFollow"`
 	HeadSnippet     string     `json:"headSnippet"`
 	BodySnippet     string     `json:"bodySnippet"`
 	FooterSnippet   string     `json:"footerSnippet"`
@@ -41,7 +39,6 @@ type PageDTO struct {
 func toPageDTO(p *domain.Page) PageDTO {
 	return PageDTO{
 		ID: p.ID, Slug: p.Slug, Title: p.Title, MetaTitle: p.MetaTitle, MetaDescription: p.MetaDescription,
-		RobotsIndex: p.RobotsIndex, RobotsFollow: p.RobotsFollow,
 		HeadSnippet: p.HeadSnippet, BodySnippet: p.BodySnippet, FooterSnippet: p.FooterSnippet,
 		Status: string(p.Status), PublishAt: p.PublishAt, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
 	}
@@ -195,8 +192,6 @@ func (h *PageHandler) Update(w http.ResponseWriter, r *http.Request) {
 type seoRequest struct {
 	MetaTitle       string `json:"metaTitle"`
 	MetaDescription string `json:"metaDescription"`
-	RobotsIndex     bool   `json:"robotsIndex"`
-	RobotsFollow    bool   `json:"robotsFollow"`
 }
 
 func (h *PageHandler) UpdateSEO(w http.ResponseWriter, r *http.Request) {
@@ -212,7 +207,6 @@ func (h *PageHandler) UpdateSEO(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.pages.UpdateSEO(r.Context(), id, service.SEOInput{
 		MetaTitle: req.MetaTitle, MetaDescription: req.MetaDescription,
-		RobotsIndex: req.RobotsIndex, RobotsFollow: req.RobotsFollow,
 	}); err != nil {
 		response.Err(w, pageErrorStatus(err), err.Error())
 		return

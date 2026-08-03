@@ -3,6 +3,9 @@ import { getPage } from "@/lib/pages";
 import SectionRenderer from "@/components/sections/SectionRenderer";
 import RawHtmlBlock from "@/components/RawHtmlBlock";
 
+// No robots field here — the single site-wide Settings > SEO toggle (see
+// app/layout.tsx's generateMetadata) is the only control, and this page
+// doesn't set its own `robots` key, so that site-wide value applies unchanged.
 export async function generateMetadata(): Promise<Metadata> {
   const result = await getPage("home");
   if (!result) return {};
@@ -11,7 +14,6 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: page.metaTitle || undefined,
     description: page.metaDescription || undefined,
-    robots: { index: page.robotsIndex, follow: page.robotsFollow },
   };
 }
 

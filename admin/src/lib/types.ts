@@ -189,8 +189,6 @@ export interface PageDTO {
   title: string;
   metaTitle: string;
   metaDescription: string;
-  robotsIndex: boolean;
-  robotsFollow: boolean;
   headSnippet: string;
   bodySnippet: string;
   footerSnippet: string;

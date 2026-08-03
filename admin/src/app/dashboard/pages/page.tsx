@@ -4,20 +4,34 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Table, App as AntApp } from "antd";
 import { useAuth } from "@/lib/auth-context";
+import { useSiteSettings } from "@/lib/site-settings-context";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { api, ApiError } from "@/lib/api";
 import type { PageDTO } from "@/lib/types";
 import IconButton from "@/components/IconButton";
-import { IconEdit, IconPlus, IconTrash } from "@/components/Icons";
+import { IconEdit, IconExternalLink, IconCopy, IconPlus, IconTrash } from "@/components/Icons";
 import StatusBadge from "@/components/content/StatusBadge";
 import PublishControl from "@/components/content/PublishControl";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "@/lib/pagination";
+
+// NEXT_PUBLIC_WEB_URL points at this environment's actual web app (e.g. the
+// local dev server on :4000), so links open the site you're actually running
+// against. The admin-configured Site URL setting is the production domain
+// (used for SEO/sitemaps) — only used here as a fallback when no per-environment
+// override is set, i.e. in production itself.
+const WEB_URL = process.env.NEXT_PUBLIC_WEB_URL;
+
+function pagePublicUrl(base: string, page: PageDTO) {
+  const root = base.replace(/\/+$/, "");
+  return page.slug === "home" ? `${root}/` : `${root}/${page.slug}`;
+}
 
 export default function PagesPage() {
   const { user } = useAuth();
   const { message } = AntApp.useApp();
   const confirm = useConfirm();
   const router = useRouter();
+  const { settings } = useSiteSettings();
   const [pages, setPages] = useState<PageDTO[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -44,6 +58,15 @@ export default function PagesPage() {
     await api.put(`/api/admin/pages/${page.id}/status`, { status, publishAt });
     message.success("Publish settings updated.");
     load();
+  }
+
+  async function handleCopyLink(url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+      message.success("Link copied.");
+    } catch {
+      message.error("Could not copy link.");
+    }
   }
 
   async function handleDelete(page: PageDTO) {
@@ -86,7 +109,36 @@ export default function PagesPage() {
           showTotal: (t) => `${t} total`,
         }}
         columns={[
-          { title: "Title", dataIndex: "title", key: "title" },
+          {
+            title: "Title",
+            dataIndex: "title",
+            key: "title",
+            render: (_, p) => {
+              const base = WEB_URL || settings?.siteUrl;
+              const url = base ? pagePublicUrl(base, p) : null;
+              return (
+                <div className="flex items-center gap-2">
+                  <span className="text-text dark:text-text-dark">{p.title}</span>
+                  <IconButton
+                    id={`page-${p.id}-open`}
+                    title={url ? "Open in New Tab" : "Set a Site URL in Settings first"}
+                    onClick={() => url && window.open(url, "_blank", "noopener,noreferrer")}
+                    icon={<IconExternalLink />}
+                    variant="muted"
+                    disabled={!url}
+                  />
+                  <IconButton
+                    id={`page-${p.id}-copy-link`}
+                    title={url ? "Copy Link" : "Set a Site URL in Settings first"}
+                    onClick={() => url && handleCopyLink(url)}
+                    icon={<IconCopy />}
+                    variant="muted"
+                    disabled={!url}
+                  />
+                </div>
+              );
+            },
+          },
           { title: "Slug", dataIndex: "slug", key: "slug" },
           { title: "Status", key: "status", render: (_, p) => <StatusBadge status={p.status} /> },
           {

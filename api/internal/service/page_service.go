@@ -86,12 +86,10 @@ func (s *PageService) Update(ctx context.Context, id int64, in PageInput) error 
 type SEOInput struct {
 	MetaTitle       string
 	MetaDescription string
-	RobotsIndex     bool
-	RobotsFollow    bool
 }
 
 func (s *PageService) UpdateSEO(ctx context.Context, id int64, in SEOInput) error {
-	return s.pages.UpdateSEO(ctx, id, in.MetaTitle, in.MetaDescription, in.RobotsIndex, in.RobotsFollow)
+	return s.pages.UpdateSEO(ctx, id, in.MetaTitle, in.MetaDescription)
 }
 
 type SnippetsInput struct {

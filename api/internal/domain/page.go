@@ -11,17 +11,11 @@ type Page struct {
 	Title           string
 	MetaTitle       string
 	MetaDescription string
-	// RobotsIndex/RobotsFollow drive the public page's <meta name="robots">
-	// via Next's Metadata API robots field — default true/true (index,
-	// follow) so existing pages keep behaving exactly as before these were
-	// added.
-	RobotsIndex  bool
-	RobotsFollow bool
 	// HeadSnippet/BodySnippet/FooterSnippet are raw HTML/JS scoped to just
 	// this page, layered on top of the site-wide Snippets (see
 	// domain.SiteSnippet). Editing these three requires Super Admin — see
 	// PageService.UpdateSnippets and the superAdminOnly route in server.go —
-	// while the rest of a page (including MetaTitle/MetaDescription/robots)
+	// while the rest of a page (including MetaTitle/MetaDescription)
 	// stays editable by any content-management role.
 	HeadSnippet   string
 	BodySnippet   string
