@@ -1,21 +1,29 @@
 # TopCasinoSG — Project Overview
 
-A casino review/comparison platform for Southeast Asia, split into a public site and an
-admin CMS, both talking to a separate Go API that is **not** part of this repo.
+A casino review/comparison platform for Southeast Asia: a public site and an admin CMS
+(both Next.js), backed by a Go API — all three live in this one repo.
 
 ## Repo layout
 
 - `admin/` — Next.js 16 admin dashboard (`npm run dev` → port 4001)
 - `web/` — Next.js 16 public site (`npm run dev` → port 4000)
-- `shared/theme/` — CSS design tokens and section layout rules imported by **both** apps
-  (`tokens.css`, `sections.css`, `rich-text.css`)
+- `api/` — Go backend (`go run ./cmd/api` → port 8090, module
+  `github.com/tang-edgetech/topcasinosg/api`). `internal/` follows
+  domain/repository/service/handler layers; `internal/db/migrations/` holds additive SQL
+  migrations, run automatically on startup. Gitignored: `api/bin/`, `api/uploads/`,
+  `api/tmp/`, and any `.env*` — `config.Load()` (`api/internal/config/config.go`) falls
+  back to dev-friendly defaults (DSN `root:@tcp(127.0.0.1:3306)/topcasinosg`, dev JWT
+  secret, etc.) when no `.env` is present, so it runs locally with zero setup as long as
+  MySQL is up and the `topcasinosg` DB exists.
+- `shared/theme/` — CSS design tokens and section layout rules imported by **both**
+  frontend apps (`tokens.css`, `sections.css`, `rich-text.css`)
 - `docs/` — planning docs: [milestones.md](docs/milestones.md) (multi-region Pages CMS
   roadmap, status: pre-Figma) and [theme.md](docs/theme.md) (Figma-sourced design tokens)
 
-The backend API lives in a separate service, reached via `NEXT_PUBLIC_API_URL`
-(defaults to `http://localhost:8090`). Code comments in `admin/src/lib` reference its
-Go source paths directly (e.g. `api/internal/domain/user.go`) as the source of truth —
-client-side logic there is a UI-only mirror; the API enforces the real rules independently.
+Both frontend apps reach the API via `NEXT_PUBLIC_API_URL` (defaults to
+`http://localhost:8090`). Code comments in `admin/src/lib` reference the API's Go source
+paths directly (e.g. `api/internal/domain/user.go`) as the source of truth — client-side
+logic there is a UI-only mirror; the API enforces the real rules independently.
 
 ## Tech stack
 
@@ -76,5 +84,5 @@ this retry — a 401 from a bad password is a real answer, not an expired-token 
 
 ## Not covered here
 
-The Go API's own code, conventions, and domain package live in a separate repository not
-checked out here — this repo only holds its client contracts and env-configured base URL.
+Deeper Go-side conventions (repository/service/handler patterns, migration numbering,
+etc.) beyond what's summarized above — read `api/internal/` directly when it matters.
