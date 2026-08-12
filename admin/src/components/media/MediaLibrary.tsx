@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Upload, Segmented, Pagination, Drawer, Input, App as AntApp } from "antd";
+import { Upload, Segmented, Pagination, Drawer, Input, Table, Checkbox, App as AntApp } from "antd";
 import type { UploadProps } from "antd";
 
 // antd doesn't re-export the customRequest option type from its public
@@ -12,7 +12,17 @@ import { api, ApiError } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
 import { useConfirm } from "@/components/ConfirmDialog";
 import IconButton from "@/components/IconButton";
-import { IconUpload, IconPhoto, IconFile, IconMusicNote, IconFilm, IconTrash, IconCopy } from "@/components/Icons";
+import {
+  IconUpload,
+  IconPhoto,
+  IconFile,
+  IconMusicNote,
+  IconFilm,
+  IconTrash,
+  IconCopy,
+  IconGrid,
+  IconList,
+} from "@/components/Icons";
 import type { MediaDTO, MediaKind } from "@/lib/types";
 
 const { TextArea } = Input;
@@ -52,12 +62,16 @@ interface MediaLibraryProps {
 
 export default function MediaLibrary({ selectable = false, onSelect }: MediaLibraryProps) {
   const { message } = AntApp.useApp();
+  const confirm = useConfirm();
   const [items, setItems] = useState<MediaDTO[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [kind, setKind] = useState<MediaKind | "all">("all");
   const [loading, setLoading] = useState(true);
   const [detailItem, setDetailItem] = useState<MediaDTO | null>(null);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -77,6 +91,12 @@ export default function MediaLibrary({ selectable = false, onSelect }: MediaLibr
   useEffect(() => {
     load();
   }, [load]);
+
+  // Selections are page/filter-scoped — a selected id can't stay meaningful
+  // once its row falls out of view, so clear it whenever the visible set changes.
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [page, kind]);
 
   async function handleUpload(options: UploadRequestOption) {
     const form = new FormData();
@@ -109,6 +129,35 @@ export default function MediaLibrary({ selectable = false, onSelect }: MediaLibr
     setDetailItem(item);
   }
 
+  function toggleSelect(id: number, checked: boolean) {
+    setSelectedIds((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)));
+  }
+
+  async function handleBulkDelete() {
+    const ok = await confirm({
+      title: "Delete Files",
+      message: `Delete ${selectedIds.length} selected file${selectedIds.length === 1 ? "" : "s"}? This cannot be undone.`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
+
+    setBulkDeleting(true);
+    try {
+      const results = await Promise.allSettled(selectedIds.map((id) => api.del(`/api/admin/media/${id}`)));
+      const failed = results.filter((r) => r.status === "rejected").length;
+      if (failed > 0) {
+        message.error(`${failed} of ${selectedIds.length} file(s) could not be deleted.`);
+      } else {
+        message.success("Deleted.");
+      }
+      setSelectedIds([]);
+      load();
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
+
   return (
     <div id="media-library" className="media-library flex flex-col gap-6">
       <Upload.Dragger id="media-library-dragger" {...uploadProps} className="media-library__dragger">
@@ -123,21 +172,67 @@ export default function MediaLibrary({ selectable = false, onSelect }: MediaLibr
         </p>
       </Upload.Dragger>
 
-      <Segmented
-        id="media-library-kind-filter"
-        value={kind}
-        onChange={(v) => {
-          setKind(v as MediaKind | "all");
-          setPage(1);
-        }}
-        options={KIND_FILTERS}
-      />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Segmented
+          id="media-library-kind-filter"
+          value={kind}
+          onChange={(v) => {
+            setKind(v as MediaKind | "all");
+            setPage(1);
+          }}
+          options={KIND_FILTERS}
+        />
+        <Segmented
+          id="media-library-view-toggle"
+          value={viewMode}
+          onChange={(v) => setViewMode(v as "grid" | "list")}
+          options={[
+            { label: "Grid", value: "grid", icon: <IconGrid width={16} height={16} /> },
+            { label: "List", value: "list", icon: <IconList width={16} height={16} /> },
+          ]}
+        />
+      </div>
+
+      {!selectable && items.length > 0 && (
+        <div className="media-library__selection-bar flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-surface-muted px-3 py-2 dark:border-border-dark dark:bg-surface-muted-dark">
+          <Checkbox
+            id="media-library-select-all"
+            checked={selectedIds.length > 0 && selectedIds.length === items.length}
+            indeterminate={selectedIds.length > 0 && selectedIds.length < items.length}
+            onChange={(e) => setSelectedIds(e.target.checked ? items.map((i) => i.id) : [])}
+          >
+            <span className="text-sm text-text dark:text-text-dark">
+              {selectedIds.length > 0 ? `${selectedIds.length} selected` : "Select all"}
+            </span>
+          </Checkbox>
+          {selectedIds.length > 0 && (
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setSelectedIds([])}
+                className="cursor-pointer text-sm font-medium text-primary-600 hover:text-primary-900"
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                id="media-library-bulk-delete"
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+                className="btn cursor-pointer rounded-md border border-danger bg-danger px-3 py-1.5 text-sm font-semibold text-white hover:bg-transparent hover:text-danger disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {bulkDeleting ? "Deleting…" : "Delete Selected"}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <p className="text-text-muted dark:text-text-muted-dark">Loading…</p>
       ) : items.length === 0 ? (
         <p className="text-text-muted dark:text-text-muted-dark">No files yet.</p>
-      ) : (
+      ) : viewMode === "grid" ? (
         <div className="media-library__grid grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
           {items.map((item) => (
             <div
@@ -146,6 +241,16 @@ export default function MediaLibrary({ selectable = false, onSelect }: MediaLibr
               className="media-item group relative flex cursor-pointer flex-col overflow-hidden rounded-lg border border-border bg-surface hover:border-primary-500 dark:border-border-dark dark:bg-surface-dark"
               onClick={() => handleItemClick(item)}
             >
+              {!selectable && (
+                <div
+                  className={`media-item__select absolute left-2 top-2 z-10 rounded bg-white/90 p-0.5 dark:bg-black/60 ${
+                    selectedIds.includes(item.id) ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                  }`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Checkbox checked={selectedIds.includes(item.id)} onChange={(e) => toggleSelect(item.id, e.target.checked)} />
+                </div>
+              )}
               <div className="media-item__thumb flex h-24 items-center justify-center bg-surface-muted text-primary-400 dark:bg-surface-muted-dark">
                 {item.kind === "image" ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -163,6 +268,83 @@ export default function MediaLibrary({ selectable = false, onSelect }: MediaLibr
             </div>
           ))}
         </div>
+      ) : (
+        <Table<MediaDTO>
+          id="media-library-list"
+          rowKey="id"
+          dataSource={items}
+          pagination={false}
+          rowSelection={
+            selectable
+              ? undefined
+              : {
+                  selectedRowKeys: selectedIds,
+                  onChange: (keys) => setSelectedIds(keys as number[]),
+                }
+          }
+          columns={[
+            {
+              title: "File",
+              key: "file",
+              render: (_, item) => (
+                <button
+                  type="button"
+                  onClick={() => handleItemClick(item)}
+                  className="flex cursor-pointer items-center gap-3 text-left"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded bg-surface-muted text-primary-400 dark:bg-surface-muted-dark">
+                    {item.kind === "image" ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={mediaUrl(item)} alt={item.altText || item.originalFilename} className="h-full w-full object-cover" />
+                    ) : (
+                      kindIcon(item.kind, 18)
+                    )}
+                  </span>
+                  <span className="truncate text-sm font-medium text-text dark:text-text-dark">
+                    {item.title || item.originalFilename}
+                  </span>
+                </button>
+              ),
+            },
+            {
+              title: "Kind",
+              key: "kind",
+              render: (_, item) => <span className="capitalize text-text-muted dark:text-text-muted-dark">{item.kind}</span>,
+            },
+            {
+              title: "Size",
+              key: "size",
+              render: (_, item) => <span className="text-text-muted dark:text-text-muted-dark">{formatFileSize(item.fileSize)}</span>,
+            },
+            {
+              title: "Uploaded",
+              key: "createdAt",
+              render: (_, item) => (
+                <span className="text-text-muted dark:text-text-muted-dark">{new Date(item.createdAt).toLocaleDateString()}</span>
+              ),
+            },
+            {
+              title: "",
+              key: "actions",
+              render: (_, item) => (
+                <IconButton
+                  id={`media-list-${item.id}-copy-link`}
+                  title="Copy Link"
+                  variant="muted"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(mediaUrl(item));
+                      message.success("Link copied.");
+                    } catch {
+                      message.error("Could not copy link.");
+                    }
+                  }}
+                  icon={<IconCopy />}
+                />
+              ),
+            },
+          ]}
+        />
       )}
 
       {total > PAGE_SIZE && (

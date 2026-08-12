@@ -29,7 +29,17 @@ export default function AccordionItem({
           ▾
         </span>
       </button>
-      {open && <div className="accordion-item__body">{children}</div>}
+      {/* The 0fr/1fr grid-row trick animates to the content's natural height
+          without measuring it in JS — the row track itself is what's
+          transitioned, so it just follows however tall `children` is. */}
+      <div
+        className="accordion-item__panel grid transition-[grid-template-rows] duration-300 ease-in-out"
+        style={{ gridTemplateRows: open ? "1fr" : "0fr" }}
+      >
+        <div className="accordion-item__body overflow-hidden" aria-hidden={!open}>
+          {children}
+        </div>
+      </div>
     </div>
   );
 }

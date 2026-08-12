@@ -6,7 +6,7 @@ import { api, ApiError } from "@/lib/api";
 import { useConfirm } from "@/components/ConfirmDialog";
 import IconButton from "@/components/IconButton";
 import { IconChevronUp, IconChevronDown, IconPlus, IconTrash } from "@/components/Icons";
-import BlockFieldEditor, { BLOCK_TYPE_LABELS, defaultFieldsForBlockType, type EditableField } from "./BlockFields";
+import BlockFieldEditor, { BLOCK_TYPE_LABELS, defaultFieldsForBlockType, mediaUrl, type EditableField } from "./BlockFields";
 import type { SaveAction } from "./SaveActionBar";
 import type { PageBlockType, PageSectionDTO } from "@/lib/types";
 
@@ -44,7 +44,12 @@ function fromDTO(sections: PageSectionDTO[]): EditableSection[] {
       blockType: s.blockType,
       customClass: s.customClass,
       customId: s.customId,
-      fields: s.fields,
+      // Fields come back from the API with a relative mediaUrl (e.g.
+      // "/uploads/x.webp") — the API's own convention, since it's the
+      // consumer's job to resolve it against the right host. Left
+      // unresolved here, the browser would resolve it against the admin
+      // app's own origin instead of the API's.
+      fields: s.fields.map((f) => (f.mediaUrl ? { ...f, mediaUrl: mediaUrl(f.mediaUrl) } : f)),
     }));
 }
 

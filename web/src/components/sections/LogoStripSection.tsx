@@ -6,9 +6,15 @@ export default function LogoStripSection({ section }: { section: PageSection }) 
 
   return (
     <section id={section.customId || undefined} className={sectionClassName("section--logo-strip", section)}>
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-14">
-        {heading && <h2 className="text-center text-xl font-bold text-primary-900">{heading}</h2>}
-        <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-6">
+      <div className="section-container flex flex-col gap-8 py-14">
+        {heading && (
+          <div className="section-row">
+            <div className="section-col">
+              <h2 className="section-heading text-center text-xl font-bold text-primary-900">{heading}</h2>
+            </div>
+          </div>
+        )}
+        <div className="section-row flex flex-wrap items-center justify-center gap-x-10 gap-y-6">
           {items.map((itemIndex) => {
             const logo = mediaUrl(field(section.fields, itemIndex, "logo")?.mediaUrl);
             const name = field(section.fields, itemIndex, "name")?.textValue ?? "";
@@ -26,11 +32,11 @@ export default function LogoStripSection({ section }: { section: PageSection }) 
             );
 
             return url ? (
-              <a key={itemIndex} href={url} target="_blank" rel="noopener noreferrer" className="logo-strip__item">
+              <a key={itemIndex} href={url} target="_blank" rel="noopener noreferrer" className="logo-strip__item section-col">
                 {content}
               </a>
             ) : (
-              <div key={itemIndex} className="logo-strip__item">
+              <div key={itemIndex} className="logo-strip__item section-col">
                 {content}
               </div>
             );

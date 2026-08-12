@@ -7,12 +7,73 @@
  * without the admin having to name or maintain the class themselves.
  */
 
+/*
+ * Standard content container for every section: 1270px max, centered, with
+ * a 25px gutter from the viewport edge below that (1270 + 2*25 = 1320px
+ * breakpoint). Sections that want a narrower reading measure (rich text,
+ * FAQ, CTA copy) nest their own max-w inside this instead of replacing it,
+ * so the outer rhythm stays consistent site-wide even where the text itself
+ * reads narrower.
+ */
+.section-container {
+  width: 100%;
+  max-width: 1270px;
+  margin-inline: auto;
+  padding-inline: 25px;
+}
+
 .section--hero {
   background: linear-gradient(135deg, var(--color-primary-900), var(--color-primary-glow));
 }
 
+/*
+ * Hero's image (when set) is allowed to overlap 50% into whichever section
+ * follows it — see HeroSection's .hero__image-float. That next section's own
+ * content narrows to the left half so it never runs under the image on the
+ * right. Scoped to the lg breakpoint, matching where the image itself
+ * becomes visible (hidden below lg — see HeroSection).
+ *
+ * The `:only-child` guard is what makes this safe to key off `.section-col`
+ * generically instead of a block-type-specific class: a row with exactly one
+ * column is the single-column reading-width pattern (rich text, CTA, FAQ) —
+ * that's the one that should narrow and left-align. A row with several
+ * columns side by side (an icon-box grid, a stats grid, ...) never matches,
+ * so those keep their normal multi-column layout even directly after Hero.
+ * Its heading and paragraph then fill 100% of that narrowed column (see
+ * .section--rich-text below) rather than narrowing a second time.
+ */
+@media (min-width: 1024px) {
+  .section--hero.has-hero-image + section .section-row > .section-col:only-child {
+    max-width: 50%;
+    margin-inline: 0;
+  }
+}
+
 .section--rich-text {
   background: transparent;
+}
+
+/* Rich Text's own typographic spec: heading fills its column at a fixed
+   size/leading, and the paragraph reads a little narrower than the column
+   on desktop/laptop — independent of whatever width that column itself
+   ends up at (the default max-w-3xl reading column, or the narrowed 50%
+   column right after Hero, above). */
+.section--rich-text .section-heading {
+  font-size: 36px;
+  line-height: 43px;
+}
+@media (min-width: 1024px) {
+  .section--rich-text .rich-text-content {
+    width: 80%;
+  }
+}
+
+/* Our Review Process (icon box group): no card-like background, and pulled
+   up so the gap from the Rich Text section above it is exactly 50px instead
+   of the two sections' combined 64px+64px padding. */
+#our-review-process {
+  background: none;
+  margin-top: -78px;
 }
 
 .section--icon-box-group {

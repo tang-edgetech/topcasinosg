@@ -10,7 +10,7 @@ import type { MediaDTO, PageBlockType, PageFieldType } from "@/lib/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
 
-function mediaUrl(url: string) {
+export function mediaUrl(url: string) {
   return url.startsWith("http") ? url : `${API_URL}${url}`;
 }
 
@@ -91,6 +91,7 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
         textField(0, "colorNormal", "primary", 5),
         textField(0, "colorHover", "secondary", 6),
         textField(0, "colorActive", "primary", 7),
+        blankField(0, "body", "richtext", 8),
       ];
     case "image_gallery":
       return [blankField(0, "heading", "text", 1)];
@@ -432,6 +433,7 @@ function CTAFields({ fields, onChange }: { fields: EditableField[]; onChange: (f
 
 function IconBoxGroupFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
   const heading = getField(fields, 0, "heading");
+  const body = getField(fields, 0, "body");
   const displayMode = getField(fields, 0, "displayMode")?.textValue || "default";
   const layout = getField(fields, 0, "layout")?.textValue || "vertical";
   const columns = getField(fields, 0, "columns")?.textValue || "3";
@@ -465,6 +467,11 @@ function IconBoxGroupFields({ fields, onChange }: { fields: EditableField[]; onC
         value={heading?.textValue ?? ""}
         placeholder="Our Review Process"
         onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
+      />
+      <RichTextField
+        label="Section Paragraph (optional)"
+        value={body?.textValue ?? ""}
+        onChange={(v) => onChange(upsertField(fields, 0, "body", "richtext", 8, { textValue: v }))}
       />
 
       <div className="icon-box-style-row grid grid-cols-2 gap-3 rounded-md bg-surface-muted p-4 sm:grid-cols-3 dark:bg-surface-muted-dark">

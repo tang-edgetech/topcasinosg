@@ -10,19 +10,23 @@ export default function CTASection({ section }: { section: PageSection }) {
 
   return (
     <section id={section.customId || undefined} className={sectionClassName("section--cta", section)}>
-      <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-4 px-6 py-16 text-center">
-        {heading && <h2 className="text-2xl font-bold text-white">{heading}</h2>}
-        {body && (
-          <div
-            className="rich-text-content text-white/90"
-            dangerouslySetInnerHTML={{ __html: sanitizeRichText(body) }}
-          />
-        )}
-        {button?.textValue && button.urlValue && (
-          <Link href={button.urlValue} className={buttonClassName(buttonStyle)}>
-            {button.textValue}
-          </Link>
-        )}
+      <div className="section-container py-16">
+        <div className="section-row flex flex-col">
+          <div className="section-col mx-auto flex w-full max-w-3xl flex-col items-center gap-4 text-center">
+            {heading && <h2 className="section-heading text-2xl font-bold text-white">{heading}</h2>}
+            {body && (
+              <div
+                className="rich-text-content text-white/90"
+                dangerouslySetInnerHTML={{ __html: sanitizeRichText(body) }}
+              />
+            )}
+            {button?.textValue && button.urlValue && (
+              <Link href={button.urlValue} className={buttonClassName(buttonStyle)}>
+                {button.textValue}
+              </Link>
+            )}
+          </div>
+        </div>
       </div>
     </section>
   );

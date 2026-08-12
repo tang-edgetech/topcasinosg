@@ -21,6 +21,7 @@ import AccordionItem from "@/components/Accordion";
 //   Hero/CTA buttons
 export default function IconBoxGroupSection({ section }: { section: PageSection }) {
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
+  const body = field(section.fields, 0, "body")?.textValue ?? "";
   const displayMode = field(section.fields, 0, "displayMode")?.textValue || "default";
   const layout = field(section.fields, 0, "layout")?.textValue || "vertical";
   const columns = field(section.fields, 0, "columns")?.textValue;
@@ -37,9 +38,21 @@ export default function IconBoxGroupSection({ section }: { section: PageSection 
 
   return (
     <section id={section.customId || undefined} className={sectionClassName("section--icon-box-group", section)}>
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-10 px-6 py-16">
-        {heading && <h2 className="text-center text-2xl font-bold text-primary-900">{heading}</h2>}
-        <div className={`grid gap-8 ${columnsClassName(columns)}`} style={colorStyle}>
+      <div className="section-container flex flex-col gap-10 py-16">
+        {(heading || body) && (
+          <div className="section-row">
+            <div className="section-col flex flex-col items-center gap-4 text-center">
+              {heading && <h2 className="section-heading text-2xl font-bold text-primary-900">{heading}</h2>}
+              {body && (
+                <div
+                  className="rich-text-content text-base leading-relaxed text-primary-600"
+                  dangerouslySetInnerHTML={{ __html: sanitizeRichText(body) }}
+                />
+              )}
+            </div>
+          </div>
+        )}
+        <div className={`section-row grid gap-8 ${columnsClassName(columns)}`} style={colorStyle}>
           {items.map((itemIndex) => {
             const icon = mediaUrl(field(section.fields, itemIndex, "icon")?.mediaUrl);
             const boxHeading = field(section.fields, itemIndex, "heading")?.textValue ?? "";
@@ -67,7 +80,7 @@ export default function IconBoxGroupSection({ section }: { section: PageSection 
               return (
                 <AccordionItem
                   key={itemIndex}
-                  className="icon-box icon-box--dropdown rounded-lg border border-primary-100 p-4"
+                  className="icon-box icon-box--dropdown section-col rounded-lg border border-primary-100 p-4"
                   header={
                     <div className="flex items-center gap-3">
                       {iconEl}
@@ -87,7 +100,7 @@ export default function IconBoxGroupSection({ section }: { section: PageSection 
             return (
               <div
                 key={itemIndex}
-                className={`icon-box ${isHorizontal ? "icon-box--horizontal flex-row text-left" : "icon-box--vertical flex-col text-center"} flex items-center gap-4`}
+                className={`icon-box section-col ${isHorizontal ? "icon-box--horizontal flex-row text-left" : "icon-box--vertical flex-col text-center"} flex items-center gap-4`}
               >
                 {iconEl}
                 <div className={`flex flex-col gap-2 ${isHorizontal ? "items-start" : "items-center"}`}>

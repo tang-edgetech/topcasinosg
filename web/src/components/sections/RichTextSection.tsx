@@ -7,14 +7,18 @@ export default function RichTextSection({ section }: { section: PageSection }) {
 
   return (
     <section id={section.customId || undefined} className={sectionClassName("section--rich-text", section)}>
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-6 py-16">
-        {heading && <h2 className="text-2xl font-bold text-primary-900">{heading}</h2>}
-        {body && (
-          <div
-            className="rich-text-content text-base leading-relaxed text-primary-600"
-            dangerouslySetInnerHTML={{ __html: sanitizeRichText(body) }}
-          />
-        )}
+      <div className="section-container py-16">
+        <div className="section-row flex flex-col">
+          <div className="section-col mx-auto flex w-full max-w-3xl flex-col gap-4">
+            {heading && <h2 className="section-heading text-2xl font-bold text-primary-900">{heading}</h2>}
+            {body && (
+              <div
+                className="rich-text-content text-base leading-relaxed text-primary-600"
+                dangerouslySetInnerHTML={{ __html: sanitizeRichText(body) }}
+              />
+            )}
+          </div>
+        </div>
       </div>
     </section>
   );

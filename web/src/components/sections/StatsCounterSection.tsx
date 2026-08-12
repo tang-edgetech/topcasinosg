@@ -7,9 +7,15 @@ export default function StatsCounterSection({ section }: { section: PageSection 
 
   return (
     <section id={section.customId || undefined} className={sectionClassName("section--stats-counter", section)}>
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-10 px-6 py-16">
-        {heading && <h2 className="text-center text-2xl font-bold text-primary-900">{heading}</h2>}
-        <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
+      <div className="section-container flex flex-col gap-10 py-16">
+        {heading && (
+          <div className="section-row">
+            <div className="section-col">
+              <h2 className="section-heading text-center text-2xl font-bold text-primary-900">{heading}</h2>
+            </div>
+          </div>
+        )}
+        <div className="section-row grid grid-cols-2 gap-8 sm:grid-cols-4">
           {items.map((itemIndex) => {
             const prefix = field(section.fields, itemIndex, "prefix")?.textValue ?? "";
             const number = field(section.fields, itemIndex, "number")?.textValue ?? "0";
@@ -17,7 +23,7 @@ export default function StatsCounterSection({ section }: { section: PageSection 
             const title = field(section.fields, itemIndex, "title")?.textValue ?? "";
             const content = field(section.fields, itemIndex, "content")?.textValue ?? "";
             return (
-              <div key={itemIndex} className="stats-counter-item flex flex-col items-center gap-2 text-center">
+              <div key={itemIndex} className="stats-counter-item section-col flex flex-col items-center gap-2 text-center">
                 <span className="text-3xl font-bold text-primary-900 sm:text-4xl">
                   <CountUpNumber value={number} prefix={prefix} suffix={suffix} />
                 </span>
