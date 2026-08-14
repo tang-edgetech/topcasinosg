@@ -9,31 +9,12 @@
  *   GET /api/regions      -> { success, data: { regions: [...] } }
  */
 
+import { type GameType, ALL_GAME_TYPES } from "@/lib/gameTypes";
+
+export type { GameType };
+export { ALL_GAME_TYPES };
+
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
-
-// Fixed taxonomy, mirrors api/internal/domain/casino.go's GameType/AllGameTypes.
-export type GameType =
-  | "slots"
-  | "blackjack"
-  | "baccarat"
-  | "roulette"
-  | "sic_bo"
-  | "craps"
-  | "poker"
-  | "video_poker"
-  | "bingo";
-
-export const ALL_GAME_TYPES: { value: GameType; label: string }[] = [
-  { value: "slots", label: "Slots" },
-  { value: "blackjack", label: "Blackjack" },
-  { value: "baccarat", label: "Baccarat" },
-  { value: "roulette", label: "Roulette" },
-  { value: "sic_bo", label: "Sic Bo" },
-  { value: "craps", label: "Craps" },
-  { value: "poker", label: "Poker" },
-  { value: "video_poker", label: "Video Poker" },
-  { value: "bingo", label: "Bingo" },
-];
 
 export interface CasinoDTO {
   id: number;

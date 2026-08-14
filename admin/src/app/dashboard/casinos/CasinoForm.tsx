@@ -34,7 +34,7 @@ export default function CasinoForm({
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [logoMediaId, setLogoMediaId] = useState<number | null>(target?.logoMediaId ?? null);
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(target?.logoUrl ? mediaUrl(target.logoUrl) : null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
   async function handleFinish(values: {

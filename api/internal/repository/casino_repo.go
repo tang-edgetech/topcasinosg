@@ -18,27 +18,35 @@ func NewCasinoRepo(db *sql.DB) *CasinoRepo {
 	return &CasinoRepo{db: db}
 }
 
-const casinoColumns = `id, slug, name, logo_media_id, rating, summary, content, languages, payment_methods,
-	pros, cons, safe_index, risk_status, supported_games, payout_speed, cta_url, status, publish_at, created_by,
-	created_at, updated_at`
+// media.url is joined in via casinoFromClause/casinoFromClausePrefixed below
+// (mirrors GameProvider/License/Region's logo/flag resolution).
+const casinoColumns = `casinos.id, casinos.slug, casinos.name, casinos.logo_media_id, media.url, casinos.rating,
+	casinos.summary, casinos.content, casinos.languages, casinos.payment_methods, casinos.pros, casinos.cons,
+	casinos.safe_index, casinos.risk_status, casinos.supported_games, casinos.payout_speed, casinos.cta_url,
+	casinos.status, casinos.publish_at, casinos.created_by, casinos.created_at, casinos.updated_at`
+const casinoFromClause = `casinos LEFT JOIN media ON media.id = casinos.logo_media_id`
 
 // Same columns, prefixed for queries that JOIN casinos against another
 // table (region filtering) where an unqualified column name would be
 // ambiguous.
-const casinoColumnsPrefixed = `c.id, c.slug, c.name, c.logo_media_id, c.rating, c.summary, c.content, c.languages,
+const casinoColumnsPrefixed = `c.id, c.slug, c.name, c.logo_media_id, media.url, c.rating, c.summary, c.content, c.languages,
 	c.payment_methods, c.pros, c.cons, c.safe_index, c.risk_status, c.supported_games, c.payout_speed, c.cta_url,
 	c.status, c.publish_at, c.created_by, c.created_at, c.updated_at`
+const casinoFromClausePrefixed = `casinos c LEFT JOIN media ON media.id = c.logo_media_id`
 
 func scanCasino(row interface{ Scan(...any) error }) (*domain.Casino, error) {
 	var c domain.Casino
 	var languagesJSON, paymentMethodsJSON, prosJSON, consJSON, supportedGamesJSON sql.NullString
-	var riskStatus sql.NullString
+	var riskStatus, logoURL sql.NullString
 	if err := row.Scan(
-		&c.ID, &c.Slug, &c.Name, &c.LogoMediaID, &c.Rating, &c.Summary, &c.Content, &languagesJSON, &paymentMethodsJSON,
+		&c.ID, &c.Slug, &c.Name, &c.LogoMediaID, &logoURL, &c.Rating, &c.Summary, &c.Content, &languagesJSON, &paymentMethodsJSON,
 		&prosJSON, &consJSON, &c.SafeIndex, &riskStatus, &supportedGamesJSON, &c.PayoutSpeed, &c.CTAURL, &c.Status,
 		&c.PublishAt, &c.CreatedBy, &c.CreatedAt, &c.UpdatedAt,
 	); err != nil {
 		return nil, err
+	}
+	if logoURL.Valid {
+		c.LogoURL = &logoURL.String
 	}
 	if riskStatus.Valid {
 		rs := domain.RiskStatus(riskStatus.String)
@@ -80,22 +88,24 @@ func (r *CasinoRepo) regionIDs(ctx context.Context, casinoID int64) ([]int64, er
 	return ids, rows.Err()
 }
 
-func (r *CasinoRepo) syncRegions(ctx context.Context, tx *sql.Tx, casinoID int64, regionIDs []int64) error {
-	if _, err := tx.ExecContext(ctx, `DELETE FROM casino_regions WHERE casino_id = ?`, casinoID); err != nil {
-		return err
-	}
-	for _, regionID := range regionIDs {
-		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO casino_regions (casino_id, region_id) VALUES (?, ?)`, casinoID, regionID,
-		); err != nil {
-			return err
-		}
-	}
-	return nil
+// casinoAssociation names one of the three casino <-> entity many-to-many
+// join tables (region, game provider, license) — all three share the exact
+// same shape (a casino_id column plus one entity-id column), so a single
+// generic read/sync/batch-attach helper set replaces what used to be three
+// near-identical copies of each.
+type casinoAssociation struct {
+	table  string
+	column string
 }
 
-func (r *CasinoRepo) gameProviderIDs(ctx context.Context, casinoID int64) ([]int64, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT game_provider_id FROM casino_game_providers WHERE casino_id = ?`, casinoID)
+var (
+	casinoRegionAssoc       = casinoAssociation{table: "casino_regions", column: "region_id"}
+	casinoGameProviderAssoc = casinoAssociation{table: "casino_game_providers", column: "game_provider_id"}
+	casinoLicenseAssoc      = casinoAssociation{table: "casino_licenses", column: "license_id"}
+)
+
+func (r *CasinoRepo) associationIDs(ctx context.Context, a casinoAssociation, casinoID int64) ([]int64, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT `+a.column+` FROM `+a.table+` WHERE casino_id = ?`, casinoID)
 	if err != nil {
 		return nil, err
 	}
@@ -112,45 +122,13 @@ func (r *CasinoRepo) gameProviderIDs(ctx context.Context, casinoID int64) ([]int
 	return ids, rows.Err()
 }
 
-func (r *CasinoRepo) syncGameProviders(ctx context.Context, tx *sql.Tx, casinoID int64, providerIDs []int64) error {
-	if _, err := tx.ExecContext(ctx, `DELETE FROM casino_game_providers WHERE casino_id = ?`, casinoID); err != nil {
+func (r *CasinoRepo) syncAssociation(ctx context.Context, tx *sql.Tx, a casinoAssociation, casinoID int64, ids []int64) error {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM `+a.table+` WHERE casino_id = ?`, casinoID); err != nil {
 		return err
 	}
-	for _, providerID := range providerIDs {
+	for _, id := range ids {
 		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO casino_game_providers (casino_id, game_provider_id) VALUES (?, ?)`, casinoID, providerID,
-		); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (r *CasinoRepo) licenseIDs(ctx context.Context, casinoID int64) ([]int64, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT license_id FROM casino_licenses WHERE casino_id = ?`, casinoID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var ids []int64
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		ids = append(ids, id)
-	}
-	return ids, rows.Err()
-}
-
-func (r *CasinoRepo) syncLicenses(ctx context.Context, tx *sql.Tx, casinoID int64, licenseIDs []int64) error {
-	if _, err := tx.ExecContext(ctx, `DELETE FROM casino_licenses WHERE casino_id = ?`, casinoID); err != nil {
-		return err
-	}
-	for _, licenseID := range licenseIDs {
-		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO casino_licenses (casino_id, license_id) VALUES (?, ?)`, casinoID, licenseID,
+			`INSERT INTO `+a.table+` (casino_id, `+a.column+`) VALUES (?, ?)`, casinoID, id,
 		); err != nil {
 			return err
 		}
@@ -186,19 +164,28 @@ func (r *CasinoRepo) Create(ctx context.Context, c *domain.Casino) (int64, error
 	if err != nil {
 		return 0, err
 	}
-	if err := r.syncRegions(ctx, tx, id, c.RegionIDs); err != nil {
+	if err := r.syncAssociation(ctx, tx, casinoRegionAssoc, id, c.RegionIDs); err != nil {
 		return 0, err
 	}
-	if err := r.syncGameProviders(ctx, tx, id, c.GameProviderIDs); err != nil {
+	if err := r.syncAssociation(ctx, tx, casinoGameProviderAssoc, id, c.GameProviderIDs); err != nil {
 		return 0, err
 	}
-	if err := r.syncLicenses(ctx, tx, id, c.LicenseIDs); err != nil {
+	if err := r.syncAssociation(ctx, tx, casinoLicenseAssoc, id, c.LicenseIDs); err != nil {
 		return 0, err
 	}
 	return id, tx.Commit()
 }
 
-func (r *CasinoRepo) Update(ctx context.Context, c *domain.Casino) error {
+// Update overwrites the casino's own columns and its region associations
+// (RegionIDs is a required field on every casino, so it is always
+// synced from c.RegionIDs). gameProviderIDs and licenseIDs are taken as
+// separate *[]int64 params rather than reading c.GameProviderIDs/LicenseIDs:
+// a nil pointer means "caller didn't touch this association" and leaves the
+// existing rows alone, while a non-nil pointer (including an empty slice)
+// replaces them — so a partial update that omits these optional fields can't
+// silently wipe out a casino's game providers/licenses the way a plain
+// []int64 zero-value would.
+func (r *CasinoRepo) Update(ctx context.Context, c *domain.Casino, gameProviderIDs, licenseIDs *[]int64) error {
 	languagesJSON, _ := json.Marshal(c.Languages)
 	paymentMethodsJSON, _ := json.Marshal(c.PaymentMethods)
 	prosJSON, _ := json.Marshal(c.Pros)
@@ -221,37 +208,67 @@ func (r *CasinoRepo) Update(ctx context.Context, c *domain.Casino) error {
 	); err != nil {
 		return err
 	}
-	if err := r.syncRegions(ctx, tx, c.ID, c.RegionIDs); err != nil {
+	if err := r.syncAssociation(ctx, tx, casinoRegionAssoc, c.ID, c.RegionIDs); err != nil {
 		return err
 	}
-	if err := r.syncGameProviders(ctx, tx, c.ID, c.GameProviderIDs); err != nil {
-		return err
+	if gameProviderIDs != nil {
+		if err := r.syncAssociation(ctx, tx, casinoGameProviderAssoc, c.ID, *gameProviderIDs); err != nil {
+			return err
+		}
 	}
-	if err := r.syncLicenses(ctx, tx, c.ID, c.LicenseIDs); err != nil {
-		return err
+	if licenseIDs != nil {
+		if err := r.syncAssociation(ctx, tx, casinoLicenseAssoc, c.ID, *licenseIDs); err != nil {
+			return err
+		}
 	}
 	return tx.Commit()
 }
 
 func (r *CasinoRepo) attachAssociations(ctx context.Context, c *domain.Casino) error {
-	ids, err := r.regionIDs(ctx, c.ID)
+	ids, err := r.associationIDs(ctx, casinoRegionAssoc, c.ID)
 	if err != nil {
 		return err
 	}
 	c.RegionIDs = ids
 
-	providerIDs, err := r.gameProviderIDs(ctx, c.ID)
+	providerIDs, err := r.associationIDs(ctx, casinoGameProviderAssoc, c.ID)
 	if err != nil {
 		return err
 	}
 	c.GameProviderIDs = providerIDs
 
-	licenseIDs, err := r.licenseIDs(ctx, c.ID)
+	licenseIDs, err := r.associationIDs(ctx, casinoLicenseAssoc, c.ID)
 	if err != nil {
 		return err
 	}
 	c.LicenseIDs = licenseIDs
 	return nil
+}
+
+// attachAssociationBatch fills in one association (region/game
+// provider/license) for a whole page of results with a single extra query
+// (`casino_id IN (...)`) instead of one query per row.
+func (r *CasinoRepo) attachAssociationBatch(
+	ctx context.Context, a casinoAssociation, inClause string, args []any,
+	byID map[int64]*domain.Casino, assign func(c *domain.Casino, id int64),
+) error {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT casino_id, `+a.column+` FROM `+a.table+` WHERE casino_id IN (`+inClause+`)`, args...,
+	)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var casinoID, entityID int64
+		if err := rows.Scan(&casinoID, &entityID); err != nil {
+			return err
+		}
+		if c, ok := byID[casinoID]; ok {
+			assign(c, entityID)
+		}
+	}
+	return rows.Err()
 }
 
 // attachAssociationsBatch fills in RegionIDs, GameProviderIDs, and
@@ -271,67 +288,23 @@ func (r *CasinoRepo) attachAssociationsBatch(ctx context.Context, items []domain
 	}
 	inClause := strings.Join(placeholders, ",")
 
-	regionRows, err := r.db.QueryContext(ctx,
-		`SELECT casino_id, region_id FROM casino_regions WHERE casino_id IN (`+inClause+`)`, args...,
-	)
-	if err != nil {
+	if err := r.attachAssociationBatch(ctx, casinoRegionAssoc, inClause, args, byID, func(c *domain.Casino, id int64) {
+		c.RegionIDs = append(c.RegionIDs, id)
+	}); err != nil {
 		return err
 	}
-	defer regionRows.Close()
-	for regionRows.Next() {
-		var casinoID, regionID int64
-		if err := regionRows.Scan(&casinoID, &regionID); err != nil {
-			return err
-		}
-		if c, ok := byID[casinoID]; ok {
-			c.RegionIDs = append(c.RegionIDs, regionID)
-		}
-	}
-	if err := regionRows.Err(); err != nil {
+	if err := r.attachAssociationBatch(ctx, casinoGameProviderAssoc, inClause, args, byID, func(c *domain.Casino, id int64) {
+		c.GameProviderIDs = append(c.GameProviderIDs, id)
+	}); err != nil {
 		return err
 	}
-
-	providerRows, err := r.db.QueryContext(ctx,
-		`SELECT casino_id, game_provider_id FROM casino_game_providers WHERE casino_id IN (`+inClause+`)`, args...,
-	)
-	if err != nil {
-		return err
-	}
-	defer providerRows.Close()
-	for providerRows.Next() {
-		var casinoID, providerID int64
-		if err := providerRows.Scan(&casinoID, &providerID); err != nil {
-			return err
-		}
-		if c, ok := byID[casinoID]; ok {
-			c.GameProviderIDs = append(c.GameProviderIDs, providerID)
-		}
-	}
-	if err := providerRows.Err(); err != nil {
-		return err
-	}
-
-	licenseRows, err := r.db.QueryContext(ctx,
-		`SELECT casino_id, license_id FROM casino_licenses WHERE casino_id IN (`+inClause+`)`, args...,
-	)
-	if err != nil {
-		return err
-	}
-	defer licenseRows.Close()
-	for licenseRows.Next() {
-		var casinoID, licenseID int64
-		if err := licenseRows.Scan(&casinoID, &licenseID); err != nil {
-			return err
-		}
-		if c, ok := byID[casinoID]; ok {
-			c.LicenseIDs = append(c.LicenseIDs, licenseID)
-		}
-	}
-	return licenseRows.Err()
+	return r.attachAssociationBatch(ctx, casinoLicenseAssoc, inClause, args, byID, func(c *domain.Casino, id int64) {
+		c.LicenseIDs = append(c.LicenseIDs, id)
+	})
 }
 
 func (r *CasinoRepo) GetByID(ctx context.Context, id int64) (*domain.Casino, error) {
-	row := r.db.QueryRowContext(ctx, `SELECT `+casinoColumns+` FROM casinos WHERE id = ?`, id)
+	row := r.db.QueryRowContext(ctx, `SELECT `+casinoColumns+` FROM `+casinoFromClause+` WHERE casinos.id = ?`, id)
 	c, err := scanCasino(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
@@ -346,7 +319,7 @@ func (r *CasinoRepo) GetByID(ctx context.Context, id int64) (*domain.Casino, err
 // page — 404s (via ErrNotFound) if it exists but isn't effectively published.
 func (r *CasinoRepo) GetPublishedBySlug(ctx context.Context, slug string) (*domain.Casino, error) {
 	row := r.db.QueryRowContext(ctx,
-		`SELECT `+casinoColumns+` FROM casinos WHERE slug = ? AND `+EffectivelyPublishedSQL, slug,
+		`SELECT `+casinoColumns+` FROM `+casinoFromClause+` WHERE casinos.slug = ? AND `+EffectivelyPublishedSQL, slug,
 	)
 	c, err := scanCasino(row)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -372,7 +345,7 @@ func (r *CasinoRepo) ListAdmin(ctx context.Context, limit, offset int) ([]domain
 	}
 
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT `+casinoColumns+` FROM casinos ORDER BY updated_at DESC LIMIT ? OFFSET ?`, limit, offset,
+		`SELECT `+casinoColumns+` FROM `+casinoFromClause+` ORDER BY casinos.updated_at DESC LIMIT ? OFFSET ?`, limit, offset,
 	)
 	if err != nil {
 		return nil, 0, err
@@ -418,7 +391,7 @@ func (r *CasinoRepo) ListPublished(ctx context.Context, regionCode *string, game
 		return nil, 0, err
 	}
 
-	listQuery := `SELECT ` + casinoColumnsPrefixed + ` FROM casinos c ` + joinClause +
+	listQuery := `SELECT ` + casinoColumnsPrefixed + ` FROM ` + casinoFromClausePrefixed + ` ` + joinClause +
 		` WHERE ` + EffectivelyPublishedSQL + ` ` + whereRegion + ` ` + whereGameType +
 		` ORDER BY c.rating DESC LIMIT ? OFFSET ?`
 	rows, err := r.db.QueryContext(ctx, listQuery, append(args, limit, offset)...)

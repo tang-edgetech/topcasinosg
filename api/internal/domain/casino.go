@@ -63,6 +63,9 @@ type Casino struct {
 	Slug           string
 	Name           string
 	LogoMediaID    *int64
+	// LogoURL is resolved via a LEFT JOIN against media in every repo read
+	// path (mirrors GameProvider/License/Region) — never set on write.
+	LogoURL        *string
 	Rating         float64
 	Summary        string
 	Content        string

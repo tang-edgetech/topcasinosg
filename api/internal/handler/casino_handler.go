@@ -27,6 +27,7 @@ type CasinoDTO struct {
 	Slug           string     `json:"slug"`
 	Name           string     `json:"name"`
 	LogoMediaID    *int64     `json:"logoMediaId"`
+	LogoURL        *string    `json:"logoUrl"`
 	Rating         float64    `json:"rating"`
 	Summary        string     `json:"summary"`
 	Content        string     `json:"content"`
@@ -55,7 +56,7 @@ func toCasinoDTO(c *domain.Casino) CasinoDTO {
 		riskStatus = &s
 	}
 	return CasinoDTO{
-		ID: c.ID, Slug: c.Slug, Name: c.Name, LogoMediaID: c.LogoMediaID, Rating: c.Rating, Summary: c.Summary,
+		ID: c.ID, Slug: c.Slug, Name: c.Name, LogoMediaID: c.LogoMediaID, LogoURL: c.LogoURL, Rating: c.Rating, Summary: c.Summary,
 		Content: c.Content, Languages: c.Languages, PaymentMethods: c.PaymentMethods, Pros: c.Pros, Cons: c.Cons,
 		SafeIndex: c.SafeIndex, RiskStatus: riskStatus, SupportedGames: c.SupportedGames, PayoutSpeed: c.PayoutSpeed,
 		CTAURL: c.CTAURL, Status: string(c.Status), PublishAt: c.PublishAt, RegionIDs: c.RegionIDs,
@@ -95,8 +96,11 @@ type casinoRequest struct {
 	PayoutSpeed     string   `json:"payoutSpeed"`
 	CTAURL          string   `json:"ctaUrl"`
 	RegionIDs       []int64  `json:"regionIds"`
-	GameProviderIDs []int64  `json:"gameProviderIds"`
-	LicenseIDs      []int64  `json:"licenseIds"`
+	// Pointers so an update request that omits these keys entirely (nil)
+	// is distinguishable from one that explicitly sends an empty array —
+	// see CasinoInput in casino_service.go.
+	GameProviderIDs *[]int64 `json:"gameProviderIds"`
+	LicenseIDs      *[]int64 `json:"licenseIds"`
 }
 
 func (req casinoRequest) toInput() service.CasinoInput {

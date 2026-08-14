@@ -1,35 +1,27 @@
 import Link from "next/link";
 import { field, sectionClassName, type PageSection } from "@/lib/pages";
+import { getBonuses, getCasinos, type BonusType } from "@/app/[region]/_lib/api";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
-
-interface BonusRow {
-  id: number;
-  casinoId: number | null;
-  title: string;
-  terms: string;
-  code: string | null;
-}
-
-interface CasinoRow {
-  id: number;
-  slug: string;
-  name: string;
-}
+// Mirrors api/internal/service/pagination.go's maxPageSize — passed
+// explicitly so the casino cross-reference fetch below covers every
+// published casino in the region (for cross-referencing by id), not just
+// the API's default first-25-by-rating page, which silently dropped the
+// Brand/Claim link for any casino ranked 26th or lower.
+const MAX_CASINOS_FOR_LOOKUP = 200;
 
 // Async server component — unlike every other section (rendered purely from
 // its own field data), this one fetches live Bonus/Casino data at render
-// time using the admin-configured regionCode/bonusType/limit, rather than
-// storing bonus data on the page itself. Table columns are Brand/Bonus/
-// Terms/Code only — Wagering Requirement and Min Deposit aren't separate
-// structured fields on Bonus (just embedded in `terms` as free text), so
-// showing them as their own columns would mean fabricating numbers that
-// don't exist in the data.
+// time using the admin-configured regionCode/bonusType/limit. Reuses the
+// same getBonuses/getCasinos helpers the sibling /[region]/reviews page
+// uses, rather than hand-rolling parallel fetch logic. Table columns are
+// Brand/Bonus/Terms/Code only — Wagering Requirement and Min Deposit aren't
+// separate structured fields on Bonus (just embedded in `terms` as free
+// text), so showing them as their own columns would mean fabricating
+// numbers that don't exist in the data.
 export default async function BonusListingTableSection({ section }: { section: PageSection }) {
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
   const regionCode = field(section.fields, 0, "regionCode")?.textValue ?? "";
-  const bonusType = field(section.fields, 0, "bonusType")?.textValue || "welcome";
-  const limit = Number(field(section.fields, 0, "limit")?.textValue) || 5;
+  const bonusType = (field(section.fields, 0, "bonusType")?.textValue || "welcome") as BonusType;
 
   if (!regionCode) {
     return (
@@ -41,7 +33,21 @@ export default async function BonusListingTableSection({ section }: { section: P
     );
   }
 
-  const [bonuses, casinos] = await Promise.all([fetchBonuses(regionCode, bonusType, limit), fetchCasinos(regionCode)]);
+  // Number("0") is 0, a legitimate "hide this table" choice — only fall
+  // back to the default when the field is genuinely empty/unset/invalid,
+  // not just falsy.
+  const limitRaw = field(section.fields, 0, "limit")?.textValue;
+  const parsedLimit = limitRaw !== undefined && limitRaw !== "" ? Number(limitRaw) : NaN;
+  const limit = Number.isFinite(parsedLimit) ? parsedLimit : 5;
+
+  if (limit <= 0) {
+    return null;
+  }
+
+  const [bonuses, casinos] = await Promise.all([
+    getBonuses(regionCode, bonusType, limit),
+    getCasinos(regionCode, undefined, MAX_CASINOS_FOR_LOOKUP),
+  ]);
   const casinoById = new Map(casinos.map((c) => [c.id, c]));
 
   return (
@@ -106,29 +112,4 @@ export default async function BonusListingTableSection({ section }: { section: P
       </div>
     </section>
   );
-}
-
-async function fetchBonuses(regionCode: string, bonusType: string, limit: number): Promise<BonusRow[]> {
-  try {
-    const params = new URLSearchParams({ region: regionCode, bonusType, pageSize: String(limit) });
-    const res = await fetch(`${API_BASE_URL}/api/bonuses?${params.toString()}`, { next: { revalidate: 60 } });
-    if (!res.ok) return [];
-    const body = (await res.json()) as { success?: boolean; data?: { bonuses?: BonusRow[] } };
-    return body.data?.bonuses ?? [];
-  } catch {
-    return [];
-  }
-}
-
-async function fetchCasinos(regionCode: string): Promise<CasinoRow[]> {
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/casinos?region=${encodeURIComponent(regionCode)}`, {
-      next: { revalidate: 60 },
-    });
-    if (!res.ok) return [];
-    const body = (await res.json()) as { success?: boolean; data?: { casinos?: CasinoRow[] } };
-    return body.data?.casinos ?? [];
-  } catch {
-    return [];
-  }
 }

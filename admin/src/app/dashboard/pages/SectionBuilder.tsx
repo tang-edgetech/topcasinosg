@@ -18,16 +18,11 @@ interface EditableSection {
   fields: EditableField[];
 }
 
-const BLOCK_TYPES: PageBlockType[] = [
-  "hero",
-  "rich_text",
-  "icon_box_group",
-  "image_gallery",
-  "cta",
-  "logo_strip",
-  "stats_counter",
-  "faq",
-];
+// Derived from BLOCK_TYPE_LABELS (BlockFields.tsx) rather than hand-listed
+// here — a new block type only ever needs adding in one place now, instead
+// of this array silently falling out of sync with it (as bonus_calculator
+// and bonus_listing_table did before this fix).
+const BLOCK_TYPES = Object.keys(BLOCK_TYPE_LABELS) as PageBlockType[];
 
 let clientKeySeq = 0;
 function nextClientKey() {

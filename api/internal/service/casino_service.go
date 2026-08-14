@@ -35,8 +35,13 @@ type CasinoInput struct {
 	PayoutSpeed     string
 	CTAURL          string
 	RegionIDs       []int64
-	GameProviderIDs []int64
-	LicenseIDs      []int64
+	// GameProviderIDs/LicenseIDs are pointers so Update can tell "omitted by
+	// the caller" (nil — leave existing associations alone) apart from
+	// "explicitly set to an empty list" ([]int64{} — clear them). RegionIDs
+	// stays a plain slice since a casino is required to belong to at least
+	// one region, so it is always fully replaced on Update.
+	GameProviderIDs *[]int64
+	LicenseIDs      *[]int64
 }
 
 func validateSafeIndexAndRisk(safeIndex *int, riskStatus *domain.RiskStatus) error {
@@ -79,7 +84,7 @@ func (s *CasinoService) Create(ctx context.Context, actor *domain.AdminUser, in 
 		Content: in.Content, Languages: in.Languages, PaymentMethods: in.PaymentMethods, Pros: in.Pros, Cons: in.Cons,
 		SafeIndex: in.SafeIndex, RiskStatus: in.RiskStatus, SupportedGames: in.SupportedGames,
 		PayoutSpeed: in.PayoutSpeed, CTAURL: in.CTAURL, Status: domain.ContentStatusDraft, CreatedBy: &actorID,
-		RegionIDs: in.RegionIDs, GameProviderIDs: in.GameProviderIDs, LicenseIDs: in.LicenseIDs,
+		RegionIDs: in.RegionIDs, GameProviderIDs: derefIDs(in.GameProviderIDs), LicenseIDs: derefIDs(in.LicenseIDs),
 	}
 	id, err := s.casinos.Create(ctx, c)
 	if err != nil {
@@ -106,8 +111,17 @@ func (s *CasinoService) Update(ctx context.Context, id int64, in CasinoInput) er
 		ID: id, Slug: in.Slug, Name: in.Name, LogoMediaID: in.LogoMediaID, Rating: in.Rating, Summary: in.Summary,
 		Content: in.Content, Languages: in.Languages, PaymentMethods: in.PaymentMethods, Pros: in.Pros, Cons: in.Cons,
 		SafeIndex: in.SafeIndex, RiskStatus: in.RiskStatus, SupportedGames: in.SupportedGames,
-		PayoutSpeed: in.PayoutSpeed, CTAURL: in.CTAURL, RegionIDs: in.RegionIDs, GameProviderIDs: in.GameProviderIDs, LicenseIDs: in.LicenseIDs,
-	})
+		PayoutSpeed: in.PayoutSpeed, CTAURL: in.CTAURL, RegionIDs: in.RegionIDs,
+	}, in.GameProviderIDs, in.LicenseIDs)
+}
+
+// derefIDs returns an empty slice for a nil pointer — used only on Create,
+// where there is no existing association to accidentally clear.
+func derefIDs(p *[]int64) []int64 {
+	if p == nil {
+		return nil
+	}
+	return *p
 }
 
 func (s *CasinoService) Get(ctx context.Context, id int64) (*domain.Casino, error) {

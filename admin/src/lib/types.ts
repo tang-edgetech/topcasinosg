@@ -117,6 +117,7 @@ export interface CasinoDTO {
   slug: string;
   name: string;
   logoMediaId: number | null;
+  logoUrl: string | null;
   rating: number;
   summary: string;
   content: string;

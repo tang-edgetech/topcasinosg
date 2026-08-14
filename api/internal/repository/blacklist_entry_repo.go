@@ -46,6 +46,15 @@ func (r *BlacklistEntryRepo) Create(ctx context.Context, e *domain.BlacklistEntr
 	return res.LastInsertId()
 }
 
+// Update always overwrites region_id from e.RegionID (nil clears it back to
+// a global entry). This mirrors every other *int64/nullable field on this
+// struct (and the same full-replace convention used by GuideRepo.Update) —
+// the admin form always submits the complete entry, never a partial patch,
+// so there's no "omitted vs explicitly cleared" ambiguity to resolve here.
+// A presence-detecting fix (distinguishing "key absent from JSON" from
+// "key present with value null") would need a wrapper type around a single
+// nullable scalar, which would be inconsistent with how every other
+// nullable field in this codebase is handled.
 func (r *BlacklistEntryRepo) Update(ctx context.Context, e *domain.BlacklistEntry) error {
 	_, err := r.db.ExecContext(ctx, `
 		UPDATE blacklist_entries SET region_id = ?, name = ?, reason = ?, details = ?

@@ -10,9 +10,9 @@ import {
   getLicenses,
   toTitleCase,
   ALL_GAME_TYPES,
-  mediaUrl,
 } from "../lib";
 import CasinoBadge from "../CasinoBadge";
+import LogoGrid from "../LogoGrid";
 import { sanitizeRichText } from "@/lib/sanitize-html";
 
 /**
@@ -184,57 +184,9 @@ export default async function CasinoDetailPage({
               </section>
             )}
 
-            {casinoGameProviders.length > 0 && (
-              <section id="casino-detail-game-providers" className="flex flex-col gap-3">
-                <h2 className="text-xl font-bold text-primary-900">Game Providers</h2>
-                <div className="flex flex-wrap items-center gap-4">
-                  {casinoGameProviders.map((provider) => (
-                    <div
-                      key={provider.id}
-                      className="flex h-12 w-24 items-center justify-center rounded-md border border-primary-100 bg-surface-muted p-2"
-                      title={provider.name}
-                    >
-                      {provider.logoUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={mediaUrl(provider.logoUrl)}
-                          alt={provider.name}
-                          className="max-h-full max-w-full object-contain"
-                        />
-                      ) : (
-                        <span className="text-xs font-medium text-primary-500">{provider.name}</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
+            <LogoGrid id="casino-detail-game-providers" heading="Game Providers" items={casinoGameProviders} />
 
-            {casinoLicenses.length > 0 && (
-              <section id="casino-detail-licenses" className="flex flex-col gap-3">
-                <h2 className="text-xl font-bold text-primary-900">Licences</h2>
-                <div className="flex flex-wrap items-center gap-4">
-                  {casinoLicenses.map((license) => (
-                    <div
-                      key={license.id}
-                      className="flex h-12 w-24 items-center justify-center rounded-md border border-primary-100 bg-surface-muted p-2"
-                      title={license.name}
-                    >
-                      {license.logoUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={mediaUrl(license.logoUrl)}
-                          alt={license.name}
-                          className="max-h-full max-w-full object-contain"
-                        />
-                      ) : (
-                        <span className="text-xs font-medium text-primary-500">{license.name}</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
+            <LogoGrid id="casino-detail-licenses" heading="Licences" items={casinoLicenses} />
 
             {((casino.pros && casino.pros.length > 0) || (casino.cons && casino.cons.length > 0)) && (
               <section id="casino-detail-comparison" className="flex flex-col gap-3">

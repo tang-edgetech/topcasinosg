@@ -9,6 +9,11 @@
  * below unwraps `body.data` before reading anything further.
  */
 
+import { type GameType, ALL_GAME_TYPES } from "@/lib/gameTypes";
+
+export type { GameType };
+export { ALL_GAME_TYPES };
+
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
 
 // Scheduled-publish content can flip from hidden to visible at any moment
@@ -115,30 +120,6 @@ async function fetchData<T>(url: string): Promise<T | null> {
   }
 }
 
-// Fixed taxonomy, mirrors api/internal/domain/casino.go's GameType/AllGameTypes.
-export type GameType =
-  | "slots"
-  | "blackjack"
-  | "baccarat"
-  | "roulette"
-  | "sic_bo"
-  | "craps"
-  | "poker"
-  | "video_poker"
-  | "bingo";
-
-export const ALL_GAME_TYPES: { value: GameType; label: string }[] = [
-  { value: "slots", label: "Slots" },
-  { value: "blackjack", label: "Blackjack" },
-  { value: "baccarat", label: "Baccarat" },
-  { value: "roulette", label: "Roulette" },
-  { value: "sic_bo", label: "Sic Bo" },
-  { value: "craps", label: "Craps" },
-  { value: "poker", label: "Poker" },
-  { value: "video_poker", label: "Video Poker" },
-  { value: "bingo", label: "Bingo" },
-];
-
 // Subset of CasinoDTO actually used by the Reviews hub (comparison table) —
 // see web/src/app/casinos/lib.ts for the full shape used by /casinos/[slug].
 export interface CasinoDTO {
@@ -151,10 +132,16 @@ export interface CasinoDTO {
   ctaUrl: string;
 }
 
-/** `gameType` is optional — omit it to fetch every casino for the region. */
-export async function getCasinos(regionCode: string, gameType?: GameType): Promise<CasinoDTO[]> {
+/**
+ * `gameType` is optional — omit it to fetch every casino for the region.
+ * `pageSize` defaults to the API's own default (25) — pass a higher value
+ * (e.g. the API's maxPageSize) when the caller needs the full region list
+ * to cross-reference by id rather than to display a paginated page.
+ */
+export async function getCasinos(regionCode: string, gameType?: GameType, pageSize?: number): Promise<CasinoDTO[]> {
   const params = new URLSearchParams({ region: regionCode });
   if (gameType) params.set("gameType", gameType);
+  if (pageSize) params.set("pageSize", String(pageSize));
   const data = await fetchData<{ casinos: CasinoDTO[]; total: number }>(
     `${API_BASE_URL}/api/casinos?${params.toString()}`,
   );
@@ -172,10 +159,11 @@ export async function getActiveRegionByCode(code: string): Promise<RegionDTO | n
   return regions.find((region) => region.code === code && region.isActive) ?? null;
 }
 
-/** `bonusType` is optional — omit it to fetch every type for the region. */
-export async function getBonuses(regionCode: string, bonusType?: BonusType): Promise<BonusDTO[]> {
+/** `bonusType` is optional — omit it to fetch every type for the region. `pageSize` defaults to the API's own default (25). */
+export async function getBonuses(regionCode: string, bonusType?: BonusType, pageSize?: number): Promise<BonusDTO[]> {
   const params = new URLSearchParams({ region: regionCode });
   if (bonusType) params.set("bonusType", bonusType);
+  if (pageSize) params.set("pageSize", String(pageSize));
   const data = await fetchData<{ bonuses: BonusDTO[]; total: number }>(
     `${API_BASE_URL}/api/bonuses?${params.toString()}`,
   );
