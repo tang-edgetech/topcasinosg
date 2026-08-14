@@ -36,7 +36,12 @@ export type PageBlockType =
   | "stats_counter"
   | "faq"
   | "bonus_calculator"
-  | "bonus_listing_table";
+  | "bonus_listing_table"
+  | "team_grid"
+  | "top_casinos_by_region"
+  | "blacklist_preview"
+  | "content_carousel"
+  | "region_explorer";
 
 export interface PageSection {
   id: number;

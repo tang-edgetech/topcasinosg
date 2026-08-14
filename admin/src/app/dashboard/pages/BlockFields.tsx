@@ -40,6 +40,11 @@ export const BLOCK_TYPE_LABELS: Record<PageBlockType, string> = {
   faq: "FAQ",
   bonus_calculator: "Bonus Calculator",
   bonus_listing_table: "Bonus Listing Table",
+  team_grid: "Team Grid",
+  top_casinos_by_region: "Top Casinos By Region",
+  blacklist_preview: "Blacklist Preview",
+  content_carousel: "Content Carousel (Guides/News)",
+  region_explorer: "Region Explorer",
 };
 
 const BONUS_TYPE_OPTIONS = [
@@ -92,7 +97,7 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
         textField(0, "buttonStyle", "primary", 5),
       ];
     case "rich_text":
-      return [blankField(0, "heading", "text", 1), blankField(0, "body", "richtext", 2)];
+      return [blankField(0, "heading", "text", 1), blankField(0, "body", "richtext", 2), blankField(0, "image", "image", 3)];
     case "icon_box_group":
       return [
         blankField(0, "heading", "text", 1),
@@ -132,6 +137,31 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
         textField(0, "bonusType", "welcome", 3),
         textField(0, "limit", "5", 4),
       ];
+    case "team_grid":
+      return [blankField(0, "heading", "text", 1)];
+    case "top_casinos_by_region":
+      return [
+        blankField(0, "heading", "text", 1),
+        textField(0, "highlightCount", "3", 2),
+        textField(0, "moreCount", "5", 3),
+      ];
+    case "blacklist_preview":
+      return [
+        blankField(0, "heading", "text", 1),
+        blankField(0, "subheading", "text", 2),
+        textField(0, "limit", "6", 3),
+        textField(0, "seeAllUrl", "/blacklist", 4),
+      ];
+    case "content_carousel":
+      return [
+        blankField(0, "heading", "text", 1),
+        textField(0, "sourceType", "guides", 2),
+        textField(0, "mode", "manual", 3),
+        textField(0, "limit", "4", 4),
+        blankField(0, "seeAllUrl", "text", 5),
+      ];
+    case "region_explorer":
+      return [blankField(0, "heading", "text", 1)];
   }
 }
 
@@ -350,6 +380,16 @@ export default function BlockFieldEditor({ blockType, fields, onChange }: BlockF
       return <BonusCalculatorFields fields={fields} onChange={onChange} />;
     case "bonus_listing_table":
       return <BonusListingTableFields fields={fields} onChange={onChange} />;
+    case "team_grid":
+      return <TeamGridFields fields={fields} onChange={onChange} />;
+    case "top_casinos_by_region":
+      return <TopCasinosByRegionFields fields={fields} onChange={onChange} />;
+    case "blacklist_preview":
+      return <BlacklistPreviewFields fields={fields} onChange={onChange} />;
+    case "content_carousel":
+      return <ContentCarouselFields fields={fields} onChange={onChange} />;
+    case "region_explorer":
+      return <RegionExplorerFields fields={fields} onChange={onChange} />;
   }
 }
 
@@ -403,6 +443,7 @@ function HeroFields({ fields, onChange }: { fields: EditableField[]; onChange: (
 function RichTextBlockFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
   const heading = getField(fields, 0, "heading");
   const body = getField(fields, 0, "body");
+  const image = getField(fields, 0, "image");
   return (
     <div className="flex flex-col gap-4">
       <TextInputField
@@ -414,6 +455,12 @@ function RichTextBlockFields({ fields, onChange }: { fields: EditableField[]; on
         label="Body"
         value={body?.textValue ?? ""}
         onChange={(v) => onChange(upsertField(fields, 0, "body", "richtext", 2, { textValue: v }))}
+      />
+      <ImagePickerField
+        label="Image (optional — shown side-by-side with the body when set)"
+        mediaId={image?.mediaId ?? null}
+        mediaUrl={image?.mediaUrl ?? null}
+        onChange={(mediaId, mediaUrl) => onChange(upsertField(fields, 0, "image", "image", 3, { mediaId, mediaUrl }))}
       />
     </div>
   );
@@ -970,6 +1017,283 @@ function BonusListingTableFields({ fields, onChange }: { fields: EditableField[]
         label="Max Rows"
         value={limit?.textValue ?? "5"}
         onChange={(v) => onChange(upsertField(fields, 0, "limit", "text", 4, { textValue: v }))}
+      />
+    </div>
+  );
+}
+
+function TeamGridFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const heading = getField(fields, 0, "heading");
+  const items = itemIndexes(fields);
+
+  function addMember() {
+    const idx = nextItemIndex(fields);
+    onChange([
+      ...fields,
+      blankField(idx, "photo", "image", 1),
+      blankField(idx, "name", "text", 2),
+      blankField(idx, "title", "text", 3),
+      blankField(idx, "quote", "text", 4),
+    ]);
+  }
+
+  function removeMember(itemIndex: number) {
+    onChange(fields.filter((f) => f.itemIndex !== itemIndex));
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <TextInputField
+        label="Section Heading"
+        value={heading?.textValue ?? ""}
+        placeholder="Expert Team Behind the Reviews"
+        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
+      />
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {items.map((itemIndex) => {
+          const photo = getField(fields, itemIndex, "photo");
+          const name = getField(fields, itemIndex, "name");
+          const title = getField(fields, itemIndex, "title");
+          const quote = getField(fields, itemIndex, "quote");
+          return (
+            <div key={itemIndex} className="team-member-item flex flex-col gap-2 rounded-md border border-border p-3 dark:border-border-dark">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-text-muted uppercase dark:text-text-muted-dark">Member {itemIndex}</span>
+                <IconButton
+                  id={`team-member-${itemIndex}-remove`}
+                  title="Remove Member"
+                  onClick={() => removeMember(itemIndex)}
+                  icon={<IconTrash width={14} height={14} />}
+                  variant="danger"
+                />
+              </div>
+              <ImagePickerField
+                label="Photo"
+                mediaId={photo?.mediaId ?? null}
+                mediaUrl={photo?.mediaUrl ?? null}
+                onChange={(mediaId, mediaUrl) => onChange(upsertField(fields, itemIndex, "photo", "image", 1, { mediaId, mediaUrl }))}
+              />
+              <TextInputField
+                label="Name"
+                value={name?.textValue ?? ""}
+                onChange={(v) => onChange(upsertField(fields, itemIndex, "name", "text", 2, { textValue: v }))}
+              />
+              <TextInputField
+                label="Title"
+                value={title?.textValue ?? ""}
+                placeholder="Casino Reviewer"
+                onChange={(v) => onChange(upsertField(fields, itemIndex, "title", "text", 3, { textValue: v }))}
+              />
+              <TextInputField
+                label="Quote (optional)"
+                value={quote?.textValue ?? ""}
+                onChange={(v) => onChange(upsertField(fields, itemIndex, "quote", "text", 4, { textValue: v }))}
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      <button
+        type="button"
+        onClick={addMember}
+        className="flex w-fit cursor-pointer items-center gap-2 rounded-md border border-dashed border-primary-300 px-3 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50"
+      >
+        <IconPlus width={14} height={14} />
+        Add Member
+      </button>
+    </div>
+  );
+}
+
+// Live data block — no per-item admin content. For every active region (see
+// web's getRegions()), the web renderer fetches that region's casinos
+// (already sorted by rating desc, GET /api/casinos?region=X) and splits them
+// into `highlightCount` highlight cards + the next `moreCount` in a table.
+function TopCasinosByRegionFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const heading = getField(fields, 0, "heading");
+  const highlightCount = getField(fields, 0, "highlightCount");
+  const moreCount = getField(fields, 0, "moreCount");
+
+  return (
+    <div className="flex flex-col gap-4">
+      <TextInputField
+        label="Heading"
+        value={heading?.textValue ?? ""}
+        placeholder="Top Rated Casino of the Month by Country"
+        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
+      />
+      <TextInputField
+        label="Highlighted Casinos per Region"
+        value={highlightCount?.textValue ?? "3"}
+        onChange={(v) => onChange(upsertField(fields, 0, "highlightCount", "text", 2, { textValue: v }))}
+      />
+      <TextInputField
+        label="More Casinos per Region (table rows)"
+        value={moreCount?.textValue ?? "5"}
+        onChange={(v) => onChange(upsertField(fields, 0, "moreCount", "text", 3, { textValue: v }))}
+      />
+    </div>
+  );
+}
+
+// Live data block — fetches the most recently added published Blacklist
+// entries (GET /api/blacklist, no region filter) at render time; only the
+// surrounding copy and row count are admin-configured.
+function BlacklistPreviewFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const heading = getField(fields, 0, "heading");
+  const subheading = getField(fields, 0, "subheading");
+  const limit = getField(fields, 0, "limit");
+  const seeAllUrl = getField(fields, 0, "seeAllUrl");
+
+  return (
+    <div className="flex flex-col gap-4">
+      <TextInputField
+        label="Heading"
+        value={heading?.textValue ?? ""}
+        placeholder="Blacklisted Casinos to Avoid"
+        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
+      />
+      <TextInputField
+        label="Subheading (optional)"
+        value={subheading?.textValue ?? ""}
+        placeholder="What Makes a Casino Get Blacklisted?"
+        onChange={(v) => onChange(upsertField(fields, 0, "subheading", "text", 2, { textValue: v }))}
+      />
+      <TextInputField
+        label="Max Entries"
+        value={limit?.textValue ?? "6"}
+        onChange={(v) => onChange(upsertField(fields, 0, "limit", "text", 3, { textValue: v }))}
+      />
+      <TextInputField
+        label={'"See All" Link'}
+        value={seeAllUrl?.textValue ?? "/blacklist"}
+        onChange={(v) => onChange(upsertField(fields, 0, "seeAllUrl", "text", 4, { textValue: v }))}
+      />
+    </div>
+  );
+}
+
+const CAROUSEL_SOURCE_OPTIONS = [
+  { value: "guides", label: "Guides" },
+  { value: "news", label: "News" },
+];
+
+const CAROUSEL_MODE_OPTIONS = [
+  { value: "manual", label: "Manually picked" },
+  { value: "latest", label: "Latest (auto)" },
+];
+
+// One reusable carousel block covers all 3 Homepage instances (Guides
+// Winning Strategies, How to Play, Latest Casino News) — Guide has no
+// category field to auto-split "Winning Strategies" from "How to Play", so
+// Guides carousels are always manually curated by slug; News has no such
+// split need, so it supports "latest" auto mode too.
+function ContentCarouselFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const heading = getField(fields, 0, "heading");
+  const sourceType = getField(fields, 0, "sourceType")?.textValue || "guides";
+  const mode = getField(fields, 0, "mode")?.textValue || "manual";
+  const limit = getField(fields, 0, "limit");
+  const seeAllUrl = getField(fields, 0, "seeAllUrl");
+  const items = itemIndexes(fields);
+
+  function addItem() {
+    const idx = nextItemIndex(fields);
+    onChange([...fields, blankField(idx, "slug", "text", 1)]);
+  }
+
+  function removeItem(itemIndex: number) {
+    onChange(fields.filter((f) => f.itemIndex !== itemIndex));
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <TextInputField
+        label="Heading"
+        value={heading?.textValue ?? ""}
+        placeholder="Casino Guides: Winning Strategies"
+        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
+      />
+      <div className="grid grid-cols-2 gap-3">
+        <LabeledField label="Source">
+          <Select
+            value={sourceType}
+            onChange={(v) => onChange(upsertField(fields, 0, "sourceType", "text", 2, { textValue: v }))}
+            options={CAROUSEL_SOURCE_OPTIONS}
+          />
+        </LabeledField>
+        <LabeledField label="Mode">
+          <Select
+            value={mode}
+            onChange={(v) => onChange(upsertField(fields, 0, "mode", "text", 3, { textValue: v }))}
+            options={CAROUSEL_MODE_OPTIONS}
+          />
+        </LabeledField>
+      </div>
+      <TextInputField
+        label="Max Items"
+        value={limit?.textValue ?? "4"}
+        onChange={(v) => onChange(upsertField(fields, 0, "limit", "text", 4, { textValue: v }))}
+      />
+      <TextInputField
+        label={'"See All" Link (optional)'}
+        value={seeAllUrl?.textValue ?? ""}
+        placeholder="/guides"
+        onChange={(v) => onChange(upsertField(fields, 0, "seeAllUrl", "text", 5, { textValue: v }))}
+      />
+
+      {mode === "manual" && (
+        <div className="flex flex-col gap-3">
+          <label className="text-xs font-semibold tracking-wide text-text-muted uppercase dark:text-text-muted-dark">
+            Featured Items (by slug, in order)
+          </label>
+          {items.map((itemIndex) => {
+            const slug = getField(fields, itemIndex, "slug");
+            return (
+              <div key={itemIndex} className="flex items-center gap-2">
+                <Input
+                  value={slug?.textValue ?? ""}
+                  placeholder="how-to-pick-the-right-casino"
+                  onChange={(e) => onChange(upsertField(fields, itemIndex, "slug", "text", 1, { textValue: e.target.value }))}
+                />
+                <IconButton
+                  id={`carousel-item-${itemIndex}-remove`}
+                  title="Remove Item"
+                  onClick={() => removeItem(itemIndex)}
+                  icon={<IconTrash width={14} height={14} />}
+                  variant="danger"
+                />
+              </div>
+            );
+          })}
+          <button
+            type="button"
+            onClick={addItem}
+            className="flex w-fit cursor-pointer items-center gap-2 rounded-md border border-dashed border-primary-300 px-3 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50"
+          >
+            <IconPlus width={14} height={14} />
+            Add Item
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Live data block — no per-item admin content. The web renderer lists every
+// active Region (GET /api/regions) as a link to /{regionCode}; only the
+// heading is admin-authored.
+function RegionExplorerFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const heading = getField(fields, 0, "heading");
+
+  return (
+    <div className="flex flex-col gap-4">
+      <TextInputField
+        label="Heading"
+        value={heading?.textValue ?? ""}
+        placeholder="Explore Online Casinos by Region"
+        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
       />
     </div>
   );

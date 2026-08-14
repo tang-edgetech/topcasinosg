@@ -15,7 +15,7 @@ export default function StatsCounterSection({ section }: { section: PageSection 
             </div>
           </div>
         )}
-        <div className="section-row grid grid-cols-2 gap-8 sm:grid-cols-4">
+        <div className="section-row grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-5">
           {items.map((itemIndex) => {
             const prefix = field(section.fields, itemIndex, "prefix")?.textValue ?? "";
             const number = field(section.fields, itemIndex, "number")?.textValue ?? "0";

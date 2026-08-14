@@ -9,6 +9,11 @@ import StatsCounterSection from "./StatsCounterSection";
 import FaqSection from "./FaqSection";
 import BonusCalculatorSection from "./BonusCalculatorSection";
 import BonusListingTableSection from "./BonusListingTableSection";
+import TeamGridSection from "./TeamGridSection";
+import TopCasinosByRegionSection from "./TopCasinosByRegionSection";
+import BlacklistPreviewSection from "./BlacklistPreviewSection";
+import ContentCarouselSection from "./ContentCarouselSection";
+import RegionExplorerSection from "./RegionExplorerSection";
 
 // Dispatches each section to its block-type component. Every instance of a
 // given blockType gets the same canonical CSS class (see sectionClassName /
@@ -42,6 +47,16 @@ export default function SectionRenderer({ sections }: { sections: PageSection[] 
             return <BonusCalculatorSection key={section.id} section={section} />;
           case "bonus_listing_table":
             return <BonusListingTableSection key={section.id} section={section} />;
+          case "team_grid":
+            return <TeamGridSection key={section.id} section={section} />;
+          case "top_casinos_by_region":
+            return <TopCasinosByRegionSection key={section.id} section={section} />;
+          case "blacklist_preview":
+            return <BlacklistPreviewSection key={section.id} section={section} />;
+          case "content_carousel":
+            return <ContentCarouselSection key={section.id} section={section} />;
+          case "region_explorer":
+            return <RegionExplorerSection key={section.id} section={section} />;
           default:
             return null;
         }
