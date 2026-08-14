@@ -68,6 +68,50 @@ export interface RegionDTO {
   createdAt: string;
 }
 
+export interface GameProviderDTO {
+  id: number;
+  name: string;
+  logoMediaId: number | null;
+  logoUrl: string | null;
+  sortOrder: number;
+  createdAt: string;
+}
+
+export interface LicenseDTO {
+  id: number;
+  name: string;
+  logoMediaId: number | null;
+  logoUrl: string | null;
+  sortOrder: number;
+  createdAt: string;
+}
+
+export type RiskStatus = "low" | "medium" | "high";
+
+// Fixed taxonomy, mirrors api/internal/domain/casino.go's GameType/AllGameTypes.
+export type GameType =
+  | "slots"
+  | "blackjack"
+  | "baccarat"
+  | "roulette"
+  | "sic_bo"
+  | "craps"
+  | "poker"
+  | "video_poker"
+  | "bingo";
+
+export const GAME_TYPE_LABELS: Record<GameType, string> = {
+  slots: "Slots",
+  blackjack: "Blackjack",
+  baccarat: "Baccarat",
+  roulette: "Roulette",
+  sic_bo: "Sic Bo",
+  craps: "Craps",
+  poker: "Poker",
+  video_poker: "Video Poker",
+  bingo: "Bingo",
+};
+
 export interface CasinoDTO {
   id: number;
   slug: string;
@@ -78,11 +122,18 @@ export interface CasinoDTO {
   content: string;
   languages: string[] | null;
   paymentMethods: string[] | null;
+  pros: string[] | null;
+  cons: string[] | null;
+  safeIndex: number | null;
+  riskStatus: RiskStatus | null;
+  supportedGames: GameType[] | null;
   payoutSpeed: string;
   ctaUrl: string;
   status: ContentStatus;
   publishAt: string | null;
   regionIds: number[] | null;
+  gameProviderIds: number[] | null;
+  licenseIds: number[] | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -148,6 +199,7 @@ export interface GuideDTO {
 
 export interface BlacklistEntryDTO {
   id: number;
+  regionId: number | null;
   name: string;
   reason: string;
   details: string;
@@ -249,7 +301,8 @@ export type PageBlockType =
   | "cta"
   | "logo_strip"
   | "stats_counter"
-  | "faq";
+  | "faq"
+  | "bonus_calculator";
 
 export interface PageSectionDTO {
   id: number;

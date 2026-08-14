@@ -72,6 +72,11 @@ func (s *BonusService) ListPublished(ctx context.Context, regionCode string, pag
 	return s.bonuses.ListPublished(ctx, regionCode, pageSize, (page-1)*pageSize)
 }
 
+func (s *BonusService) ListPublishedByCasino(ctx context.Context, casinoID int64, page, pageSize int) ([]domain.Bonus, int, error) {
+	page, pageSize = normalizePaging(page, pageSize)
+	return s.bonuses.ListPublishedByCasino(ctx, casinoID, pageSize, (page-1)*pageSize)
+}
+
 func (s *BonusService) SetStatus(ctx context.Context, id int64, status domain.ContentStatus, publishAt *time.Time) error {
 	if !status.Valid() {
 		return ErrInvalidContentStatus

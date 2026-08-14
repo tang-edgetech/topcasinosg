@@ -69,6 +69,11 @@ func (s *RTPEntryService) ListPublished(ctx context.Context, regionCode string, 
 	return s.entries.ListPublished(ctx, regionCode, pageSize, (page-1)*pageSize)
 }
 
+func (s *RTPEntryService) ListPublishedByCasino(ctx context.Context, casinoID int64, page, pageSize int) ([]domain.RTPEntry, int, error) {
+	page, pageSize = normalizePaging(page, pageSize)
+	return s.entries.ListPublishedByCasino(ctx, casinoID, pageSize, (page-1)*pageSize)
+}
+
 func (s *RTPEntryService) SetStatus(ctx context.Context, id int64, status domain.ContentStatus, publishAt *time.Time) error {
 	if !status.Valid() {
 		return ErrInvalidContentStatus

@@ -2,22 +2,28 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Form, Input, App as AntApp } from "antd";
+import { Form, Input, Select, App as AntApp } from "antd";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { api, ApiError } from "@/lib/api";
-import type { BlacklistEntryDTO } from "@/lib/types";
+import type { BlacklistEntryDTO, RegionDTO } from "@/lib/types";
 import RichTextEditor from "@/components/content/RichTextEditor";
 
 const { TextArea } = Input;
 
-export default function BlacklistEntryForm({ target }: { target: BlacklistEntryDTO | null }) {
+export default function BlacklistEntryForm({
+  target,
+  regions,
+}: {
+  target: BlacklistEntryDTO | null;
+  regions: RegionDTO[];
+}) {
   const router = useRouter();
   const { message } = AntApp.useApp();
   const confirm = useConfirm();
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
 
-  async function handleFinish(values: { name: string; reason: string; details: string }) {
+  async function handleFinish(values: { name: string; reason: string; details: string; regionId?: number }) {
     const ok = await confirm({
       title: target ? "Save Changes" : "Add Blacklist Entry",
       message: target ? `Update "${values.name}"?` : `Create blacklist entry "${values.name}"?`,
@@ -29,6 +35,7 @@ export default function BlacklistEntryForm({ target }: { target: BlacklistEntryD
       name: values.name,
       reason: values.reason,
       details: values.details,
+      regionId: values.regionId ?? null,
     };
     try {
       if (target) {
@@ -54,6 +61,7 @@ export default function BlacklistEntryForm({ target }: { target: BlacklistEntryD
           name: target?.name ?? "",
           reason: target?.reason ?? "",
           details: target?.details ?? "",
+          regionId: target?.regionId ?? undefined,
         }}
       >
         <Form.Item name="name" label="Name" rules={[{ required: true }]}>
@@ -61,6 +69,13 @@ export default function BlacklistEntryForm({ target }: { target: BlacklistEntryD
         </Form.Item>
         <Form.Item name="reason" label="Reason" rules={[{ required: true }]}>
           <TextArea rows={2} placeholder="Short summary of why this operator is blacklisted" />
+        </Form.Item>
+        <Form.Item
+          name="regionId"
+          label="Region"
+          extra="Leave blank for a global entry shown on the site-wide /blacklist index."
+        >
+          <Select allowClear placeholder="Global" options={regions.map((r) => ({ value: r.id, label: r.name }))} />
         </Form.Item>
         <Form.Item name="details" label="Details" rules={[{ required: true }]}>
           <RichTextEditor id="blacklist-form-details" value="" onChange={() => {}} />

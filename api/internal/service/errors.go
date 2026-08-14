@@ -26,6 +26,13 @@ var (
 	ErrHomeSlugLocked   = errors.New("the homepage's slug must stay 'home'")
 )
 
+// CasinoService validation.
+var (
+	ErrInvalidRiskStatus = errors.New("riskStatus must be 'low', 'medium', or 'high'")
+	ErrInvalidSafeIndex  = errors.New("safeIndex must be between 0 and 100")
+	ErrInvalidGameType   = errors.New("supportedGames contains an unknown game type")
+)
+
 // SnippetService validation.
 var (
 	ErrInvalidSnippetLocation  = errors.New("location must be 'head', 'body', or 'footer'")

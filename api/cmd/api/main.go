@@ -32,6 +32,8 @@ func main() {
 	refreshTokens := repository.NewRefreshTokenRepo(conn)
 	mediaRepo := repository.NewMediaRepo(conn)
 	regionRepo := repository.NewRegionRepo(conn)
+	gameProviderRepo := repository.NewGameProviderRepo(conn)
+	licenseRepo := repository.NewLicenseRepo(conn)
 	casinoRepo := repository.NewCasinoRepo(conn)
 	bonusRepo := repository.NewBonusRepo(conn)
 	paymentMethodRepo := repository.NewPaymentMethodRepo(conn)
@@ -55,6 +57,8 @@ func main() {
 	siteSettingsService := service.NewSiteSettingsService(siteSettings)
 	mediaService := service.NewMediaService(mediaRepo, fileStorage)
 	regionService := service.NewRegionService(regionRepo)
+	gameProviderService := service.NewGameProviderService(gameProviderRepo)
+	licenseService := service.NewLicenseService(licenseRepo)
 	casinoService := service.NewCasinoService(casinoRepo)
 	bonusService := service.NewBonusService(bonusRepo)
 	paymentMethodService := service.NewPaymentMethodService(paymentMethodRepo)
@@ -75,6 +79,8 @@ func main() {
 		SiteSettingsHandler:   handler.NewSiteSettingsHandler(siteSettingsService, fileStorage),
 		MediaHandler:          handler.NewMediaHandler(mediaService),
 		RegionHandler:         handler.NewRegionHandler(regionService),
+		GameProviderHandler:   handler.NewGameProviderHandler(gameProviderService),
+		LicenseHandler:        handler.NewLicenseHandler(licenseService),
 		CasinoHandler:         handler.NewCasinoHandler(casinoService),
 		BonusHandler:          handler.NewBonusHandler(bonusService),
 		PaymentMethodHandler:  handler.NewPaymentMethodHandler(paymentMethodService),

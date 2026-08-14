@@ -90,6 +90,18 @@ export interface GuideDTO {
   updatedAt: string;
 }
 
+export interface BlacklistEntryDTO {
+  id: number;
+  regionId: number | null;
+  name: string;
+  reason: string;
+  details: string;
+  status: string;
+  publishAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 async function fetchData<T>(url: string): Promise<T | null> {
   try {
     const res = await fetch(url, { next: { revalidate: REVALIDATE_SECONDS } });
@@ -142,6 +154,21 @@ export async function getGuides(regionCode?: string): Promise<GuideDTO[]> {
     `${API_BASE_URL}/api/guides${query}`,
   );
   return data?.guides ?? [];
+}
+
+export interface PagedBlacklistEntries {
+  entries: BlacklistEntryDTO[];
+  total: number;
+}
+
+/** `regionCode` is optional upstream — omit it to fetch only global entries. */
+export async function getBlacklistEntries(regionCode?: string, page = 1, pageSize = 25): Promise<PagedBlacklistEntries> {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  if (regionCode) params.set("region", regionCode);
+  const data = await fetchData<{ blacklistEntries: BlacklistEntryDTO[]; total: number }>(
+    `${API_BASE_URL}/api/blacklist?${params.toString()}`,
+  );
+  return { entries: data?.blacklistEntries ?? [], total: data?.total ?? 0 };
 }
 
 /** "no_deposit" -> "No Deposit" */

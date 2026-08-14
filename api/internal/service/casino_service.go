@@ -27,12 +27,44 @@ type CasinoInput struct {
 	Content        string
 	Languages      []string
 	PaymentMethods []string
-	PayoutSpeed    string
-	CTAURL         string
-	RegionIDs      []int64
+	Pros           []string
+	Cons           []string
+	SafeIndex      *int
+	RiskStatus     *domain.RiskStatus
+	SupportedGames []string
+	PayoutSpeed     string
+	CTAURL          string
+	RegionIDs       []int64
+	GameProviderIDs []int64
+	LicenseIDs      []int64
+}
+
+func validateSafeIndexAndRisk(safeIndex *int, riskStatus *domain.RiskStatus) error {
+	if safeIndex != nil && (*safeIndex < 0 || *safeIndex > 100) {
+		return ErrInvalidSafeIndex
+	}
+	if riskStatus != nil && !riskStatus.Valid() {
+		return ErrInvalidRiskStatus
+	}
+	return nil
+}
+
+func validateSupportedGames(games []string) error {
+	for _, g := range games {
+		if !domain.GameType(g).Valid() {
+			return ErrInvalidGameType
+		}
+	}
+	return nil
 }
 
 func (s *CasinoService) Create(ctx context.Context, actor *domain.AdminUser, in CasinoInput) (*domain.Casino, error) {
+	if err := validateSafeIndexAndRisk(in.SafeIndex, in.RiskStatus); err != nil {
+		return nil, err
+	}
+	if err := validateSupportedGames(in.SupportedGames); err != nil {
+		return nil, err
+	}
 	exists, err := s.casinos.ExistsSlug(ctx, in.Slug, 0)
 	if err != nil {
 		return nil, err
@@ -44,8 +76,10 @@ func (s *CasinoService) Create(ctx context.Context, actor *domain.AdminUser, in 
 	actorID := actor.ID
 	c := &domain.Casino{
 		Slug: in.Slug, Name: in.Name, LogoMediaID: in.LogoMediaID, Rating: in.Rating, Summary: in.Summary,
-		Content: in.Content, Languages: in.Languages, PaymentMethods: in.PaymentMethods, PayoutSpeed: in.PayoutSpeed,
-		CTAURL: in.CTAURL, Status: domain.ContentStatusDraft, CreatedBy: &actorID, RegionIDs: in.RegionIDs,
+		Content: in.Content, Languages: in.Languages, PaymentMethods: in.PaymentMethods, Pros: in.Pros, Cons: in.Cons,
+		SafeIndex: in.SafeIndex, RiskStatus: in.RiskStatus, SupportedGames: in.SupportedGames,
+		PayoutSpeed: in.PayoutSpeed, CTAURL: in.CTAURL, Status: domain.ContentStatusDraft, CreatedBy: &actorID,
+		RegionIDs: in.RegionIDs, GameProviderIDs: in.GameProviderIDs, LicenseIDs: in.LicenseIDs,
 	}
 	id, err := s.casinos.Create(ctx, c)
 	if err != nil {
@@ -55,6 +89,12 @@ func (s *CasinoService) Create(ctx context.Context, actor *domain.AdminUser, in 
 }
 
 func (s *CasinoService) Update(ctx context.Context, id int64, in CasinoInput) error {
+	if err := validateSafeIndexAndRisk(in.SafeIndex, in.RiskStatus); err != nil {
+		return err
+	}
+	if err := validateSupportedGames(in.SupportedGames); err != nil {
+		return err
+	}
 	exists, err := s.casinos.ExistsSlug(ctx, in.Slug, id)
 	if err != nil {
 		return err
@@ -64,8 +104,9 @@ func (s *CasinoService) Update(ctx context.Context, id int64, in CasinoInput) er
 	}
 	return s.casinos.Update(ctx, &domain.Casino{
 		ID: id, Slug: in.Slug, Name: in.Name, LogoMediaID: in.LogoMediaID, Rating: in.Rating, Summary: in.Summary,
-		Content: in.Content, Languages: in.Languages, PaymentMethods: in.PaymentMethods, PayoutSpeed: in.PayoutSpeed,
-		CTAURL: in.CTAURL, RegionIDs: in.RegionIDs,
+		Content: in.Content, Languages: in.Languages, PaymentMethods: in.PaymentMethods, Pros: in.Pros, Cons: in.Cons,
+		SafeIndex: in.SafeIndex, RiskStatus: in.RiskStatus, SupportedGames: in.SupportedGames,
+		PayoutSpeed: in.PayoutSpeed, CTAURL: in.CTAURL, RegionIDs: in.RegionIDs, GameProviderIDs: in.GameProviderIDs, LicenseIDs: in.LicenseIDs,
 	})
 }
 

@@ -23,6 +23,7 @@ func NewBlacklistEntryHandler(entries *service.BlacklistEntryService) *Blacklist
 
 type BlacklistEntryDTO struct {
 	ID        int64      `json:"id"`
+	RegionID  *int64     `json:"regionId"`
 	Name      string     `json:"name"`
 	Reason    string     `json:"reason"`
 	Details   string     `json:"details"`
@@ -34,7 +35,7 @@ type BlacklistEntryDTO struct {
 
 func toBlacklistEntryDTO(e *domain.BlacklistEntry) BlacklistEntryDTO {
 	return BlacklistEntryDTO{
-		ID: e.ID, Name: e.Name, Reason: e.Reason, Details: e.Details, Status: string(e.Status),
+		ID: e.ID, RegionID: e.RegionID, Name: e.Name, Reason: e.Reason, Details: e.Details, Status: string(e.Status),
 		PublishAt: e.PublishAt, CreatedAt: e.CreatedAt, UpdatedAt: e.UpdatedAt,
 	}
 }
@@ -51,13 +52,14 @@ func blacklistEntryErrorStatus(err error) int {
 }
 
 type blacklistEntryRequest struct {
-	Name    string `json:"name"`
-	Reason  string `json:"reason"`
-	Details string `json:"details"`
+	RegionID *int64 `json:"regionId"`
+	Name     string `json:"name"`
+	Reason   string `json:"reason"`
+	Details  string `json:"details"`
 }
 
 func (req blacklistEntryRequest) toInput() service.BlacklistEntryInput {
-	return service.BlacklistEntryInput{Name: req.Name, Reason: req.Reason, Details: req.Details}
+	return service.BlacklistEntryInput{RegionID: req.RegionID, Name: req.Name, Reason: req.Reason, Details: req.Details}
 }
 
 func (h *BlacklistEntryHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -109,7 +111,13 @@ func (h *BlacklistEntryHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 func (h *BlacklistEntryHandler) List(w http.ResponseWriter, r *http.Request) {
 	page, pageSize := parsePaging(r)
-	items, total, err := h.entries.ListAdmin(r.Context(), page, pageSize)
+	var regionID *int64
+	if v := r.URL.Query().Get("regionId"); v != "" {
+		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
+			regionID = &id
+		}
+	}
+	items, total, err := h.entries.ListAdmin(r.Context(), regionID, page, pageSize)
 	if err != nil {
 		response.Err(w, http.StatusInternalServerError, "could not load blacklist entries")
 		return
@@ -121,9 +129,16 @@ func (h *BlacklistEntryHandler) List(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, map[string]any{"blacklistEntries": dtos, "total": total})
 }
 
+// ListPublic serves both the global /blacklist index (no region param) and
+// /{region}/blacklist (region param set) — unlike Bonuses, region is optional
+// here since blacklist entries can be global.
 func (h *BlacklistEntryHandler) ListPublic(w http.ResponseWriter, r *http.Request) {
 	page, pageSize := parsePaging(r)
-	items, total, err := h.entries.ListPublished(r.Context(), page, pageSize)
+	var regionCode *string
+	if code := r.URL.Query().Get("region"); code != "" {
+		regionCode = &code
+	}
+	items, total, err := h.entries.ListPublished(r.Context(), regionCode, page, pageSize)
 	if err != nil {
 		response.Err(w, http.StatusInternalServerError, "could not load blacklist entries")
 		return

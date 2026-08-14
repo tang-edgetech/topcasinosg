@@ -6,7 +6,7 @@ import Link from "next/link";
 import { App as AntApp } from "antd";
 import { useAuth } from "@/lib/auth-context";
 import { api, ApiError } from "@/lib/api";
-import type { BlacklistEntryDTO } from "@/lib/types";
+import type { BlacklistEntryDTO, RegionDTO } from "@/lib/types";
 import BlacklistEntryForm from "../BlacklistEntryForm";
 
 export default function EditBlacklistEntryPage() {
@@ -14,12 +14,18 @@ export default function EditBlacklistEntryPage() {
   const { message } = AntApp.useApp();
   const params = useParams<{ id: string }>();
   const [entry, setEntry] = useState<BlacklistEntryDTO | null>(null);
+  const [regions, setRegions] = useState<RegionDTO[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api
-      .get<{ blacklistEntry: BlacklistEntryDTO }>(`/api/admin/blacklist/${params.id}`)
-      .then((data) => setEntry(data.blacklistEntry))
+    Promise.all([
+      api.get<{ blacklistEntry: BlacklistEntryDTO }>(`/api/admin/blacklist/${params.id}`),
+      api.get<{ regions: RegionDTO[] | null }>("/api/admin/regions"),
+    ])
+      .then(([entryData, regionData]) => {
+        setEntry(entryData.blacklistEntry);
+        setRegions(regionData.regions ?? []);
+      })
       .catch((err) => message.error(err instanceof ApiError ? err.message : "Could not load blacklist entry."))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -38,7 +44,7 @@ export default function EditBlacklistEntryPage() {
       {loading ? (
         <p className="text-text-muted dark:text-text-muted-dark">Loading…</p>
       ) : entry ? (
-        <BlacklistEntryForm target={entry} />
+        <BlacklistEntryForm target={entry} regions={regions} />
       ) : (
         <p className="text-text-muted dark:text-text-muted-dark">Blacklist entry not found.</p>
       )}

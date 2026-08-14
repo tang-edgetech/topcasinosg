@@ -34,7 +34,8 @@ export type PageBlockType =
   | "cta"
   | "logo_strip"
   | "stats_counter"
-  | "faq";
+  | "faq"
+  | "bonus_calculator";
 
 export interface PageSection {
   id: number;

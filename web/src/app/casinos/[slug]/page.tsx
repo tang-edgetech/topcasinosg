@@ -1,18 +1,29 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getCasino, getRegions } from "../lib";
+import {
+  getCasino,
+  getRegions,
+  getBonusesForCasino,
+  getRtpEntriesForCasino,
+  getGameProviders,
+  getLicenses,
+  toTitleCase,
+  ALL_GAME_TYPES,
+  mediaUrl,
+} from "../lib";
 import CasinoBadge from "../CasinoBadge";
 import { sanitizeRichText } from "@/lib/sanitize-html";
 
 /**
  * /casinos/[slug] — single casino review.
  *
- * Only renders fields that actually exist on CasinoDTO. The Figma mockup for
- * this page has speculative sections (Game Providers, Licenses, VIP
- * Benefits, a Games list, a pros/cons Comparison table, "Bonuses for this
- * casino") that have no backing data in this CMS — intentionally omitted
- * rather than faked.
+ * Bonuses, VIP Benefit (the `loyalty_vip` bonus type), RTP score, Comparison
+ * (pros/cons), Safe Index/Risk Status, the Games checklist (a fixed GameType
+ * taxonomy, see supportedGames), Game Providers, and Licenses (both managed
+ * logo lists, same shape — see GameProviderDTO/LicenseDTO) are all backed by
+ * real CasinoDTO/Bonus/RTP fields now. Every section from the Figma mockup
+ * this page was originally compared against has real data behind it.
  */
 
 interface CasinoPageParams {
@@ -48,6 +59,21 @@ export default async function CasinoDetailPage({
   if (!casino) {
     notFound();
   }
+
+  const [bonuses, rtpEntries, gameProviders, licenses] = await Promise.all([
+    getBonusesForCasino(casino.id),
+    getRtpEntriesForCasino(casino.id),
+    getGameProviders(),
+    getLicenses(),
+  ]);
+  const casinoGameProviders = gameProviders.filter((p) => casino.gameProviderIds?.includes(p.id));
+  const casinoLicenses = licenses.filter((l) => casino.licenseIds?.includes(l.id));
+  const vipBonuses = bonuses.filter((b) => b.bonusType === "loyalty_vip");
+  const generalBonuses = bonuses.filter((b) => b.bonusType !== "loyalty_vip");
+  const averageRtp =
+    rtpEntries.length > 0
+      ? rtpEntries.reduce((sum, e) => sum + e.rtpPercentage, 0) / rtpEntries.length
+      : null;
 
   const regionNames = (casino.regionIds ?? [])
     .map((id) => regions.find((r) => r.id === id)?.name)
@@ -94,6 +120,156 @@ export default async function CasinoDetailPage({
               dangerouslySetInnerHTML={{ __html: sanitizeRichText(casino.content) }}
             />
 
+            {generalBonuses.length > 0 && (
+              <section id="casino-detail-bonuses" className="flex flex-col gap-3">
+                <h2 className="text-xl font-bold text-primary-900">Bonuses</h2>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {generalBonuses.map((bonus) => (
+                    <div
+                      key={bonus.id}
+                      className="casino-bonus-card flex flex-col gap-2 rounded-lg border border-primary-100 bg-surface-muted p-4"
+                    >
+                      <span className="w-fit rounded-full bg-primary-100 px-2.5 py-0.5 text-xs font-semibold text-primary-900">
+                        {toTitleCase(bonus.bonusType)}
+                      </span>
+                      <h3 className="text-base font-semibold text-primary-900">{bonus.title}</h3>
+                      <p className="text-sm text-primary-600">{bonus.terms}</p>
+                      {bonus.code && (
+                        <span className="w-fit rounded border border-dashed border-secondary-600 bg-secondary-50 px-2 py-1 text-xs font-semibold text-primary-900">
+                          Code: {bonus.code}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {vipBonuses.length > 0 && (
+              <section id="casino-detail-vip-benefits" className="flex flex-col gap-3">
+                <h2 className="text-xl font-bold text-primary-900">VIP Benefit</h2>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {vipBonuses.map((bonus) => (
+                    <div
+                      key={bonus.id}
+                      className="casino-vip-card flex flex-col gap-2 rounded-lg border border-secondary-200 bg-secondary-50 p-4"
+                    >
+                      <h3 className="text-base font-semibold text-primary-900">{bonus.title}</h3>
+                      <p className="text-sm text-primary-600">{bonus.terms}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {casino.supportedGames && casino.supportedGames.length > 0 && (
+              <section id="casino-detail-games" className="flex flex-col gap-3">
+                <h2 className="text-xl font-bold text-primary-900">Games</h2>
+                <div className="grid grid-cols-1 gap-x-8 gap-y-2 sm:grid-cols-2">
+                  {ALL_GAME_TYPES.map((game) => {
+                    const supported = casino.supportedGames?.includes(game.value) ?? false;
+                    return (
+                      <div key={game.value} className="flex items-center justify-between gap-2 text-sm">
+                        <span className="text-primary-900">{game.label}</span>
+                        <span
+                          aria-hidden="true"
+                          className={supported ? "text-success" : "text-primary-300"}
+                        >
+                          {supported ? "✓" : "✕"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {casinoGameProviders.length > 0 && (
+              <section id="casino-detail-game-providers" className="flex flex-col gap-3">
+                <h2 className="text-xl font-bold text-primary-900">Game Providers</h2>
+                <div className="flex flex-wrap items-center gap-4">
+                  {casinoGameProviders.map((provider) => (
+                    <div
+                      key={provider.id}
+                      className="flex h-12 w-24 items-center justify-center rounded-md border border-primary-100 bg-surface-muted p-2"
+                      title={provider.name}
+                    >
+                      {provider.logoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={mediaUrl(provider.logoUrl)}
+                          alt={provider.name}
+                          className="max-h-full max-w-full object-contain"
+                        />
+                      ) : (
+                        <span className="text-xs font-medium text-primary-500">{provider.name}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {casinoLicenses.length > 0 && (
+              <section id="casino-detail-licenses" className="flex flex-col gap-3">
+                <h2 className="text-xl font-bold text-primary-900">Licences</h2>
+                <div className="flex flex-wrap items-center gap-4">
+                  {casinoLicenses.map((license) => (
+                    <div
+                      key={license.id}
+                      className="flex h-12 w-24 items-center justify-center rounded-md border border-primary-100 bg-surface-muted p-2"
+                      title={license.name}
+                    >
+                      {license.logoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={mediaUrl(license.logoUrl)}
+                          alt={license.name}
+                          className="max-h-full max-w-full object-contain"
+                        />
+                      ) : (
+                        <span className="text-xs font-medium text-primary-500">{license.name}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {((casino.pros && casino.pros.length > 0) || (casino.cons && casino.cons.length > 0)) && (
+              <section id="casino-detail-comparison" className="flex flex-col gap-3">
+                <h2 className="text-xl font-bold text-primary-900">Comparison</h2>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {casino.pros && casino.pros.length > 0 && (
+                    <div className="flex flex-col gap-2 rounded-lg bg-success-subtle p-4">
+                      <h3 className="text-sm font-semibold text-success">Positive</h3>
+                      <ul className="flex flex-col gap-1 text-sm text-primary-700">
+                        {casino.pros.map((pro) => (
+                          <li key={pro} className="flex items-start gap-1.5">
+                            <span aria-hidden="true" className="text-success">✓</span>
+                            {pro}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {casino.cons && casino.cons.length > 0 && (
+                    <div className="flex flex-col gap-2 rounded-lg bg-danger/5 p-4">
+                      <h3 className="text-sm font-semibold text-danger">Negative</h3>
+                      <ul className="flex flex-col gap-1 text-sm text-primary-700">
+                        {casino.cons.map((con) => (
+                          <li key={con} className="flex items-start gap-1.5">
+                            <span aria-hidden="true" className="text-danger">✕</span>
+                            {con}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
             <a
               href={casino.ctaUrl}
               target="_blank"
@@ -110,12 +286,52 @@ export default async function CasinoDetailPage({
           >
             <h2 className="text-lg font-bold text-primary-900">Casino Info</h2>
 
+            {(casino.safeIndex !== null || casino.riskStatus !== null) && (
+              <div className="flex items-center gap-4">
+                {casino.safeIndex !== null && (
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs font-semibold tracking-wide text-primary-500 uppercase">
+                      Safe Index
+                    </span>
+                    <span className="text-lg font-bold text-primary-900">{casino.safeIndex}</span>
+                  </div>
+                )}
+                {casino.riskStatus !== null && (
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs font-semibold tracking-wide text-primary-500 uppercase">
+                      Status
+                    </span>
+                    <span
+                      className={`w-fit rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                        casino.riskStatus === "low"
+                          ? "bg-success-subtle text-success"
+                          : casino.riskStatus === "medium"
+                            ? "bg-secondary-50 text-secondary-800"
+                            : "bg-danger/10 text-danger"
+                      }`}
+                    >
+                      {casino.riskStatus === "low" ? "Low-Risk" : casino.riskStatus === "medium" ? "Medium-Risk" : "High-Risk"}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="casino-detail-info-item flex flex-col gap-1">
               <span className="text-xs font-semibold tracking-wide text-primary-500 uppercase">
                 Payout Speed
               </span>
               <span className="text-sm text-primary-900">{casino.payoutSpeed}</span>
             </div>
+
+            {averageRtp !== null && (
+              <div className="casino-detail-info-item flex flex-col gap-1">
+                <span className="text-xs font-semibold tracking-wide text-primary-500 uppercase">
+                  Average RTP
+                </span>
+                <span className="text-sm text-primary-900">{averageRtp.toFixed(2)}%</span>
+              </div>
+            )}
 
             {casino.languages && casino.languages.length > 0 && (
               <div className="casino-detail-info-item flex flex-col gap-1">

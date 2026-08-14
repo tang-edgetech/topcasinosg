@@ -17,6 +17,7 @@ const REVALIDATE_SECONDS = 60;
 
 export interface BlacklistEntryDTO {
   id: number;
+  regionId: number | null;
   name: string;
   reason: string;
   details: string;
@@ -26,21 +27,50 @@ export interface BlacklistEntryDTO {
   updatedAt: string;
 }
 
-export async function getBlacklistEntries(): Promise<BlacklistEntryDTO[]> {
+export interface RegionDTO {
+  id: number;
+  code: string;
+  name: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+}
+
+export interface PagedBlacklistEntries {
+  entries: BlacklistEntryDTO[];
+  total: number;
+}
+
+const DEFAULT_PAGE_SIZE = 25;
+
+/** Global index only — the API returns just the region_id IS NULL rows when `region` is omitted. */
+export async function getBlacklistEntries(page = 1, pageSize = DEFAULT_PAGE_SIZE): Promise<PagedBlacklistEntries> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/blacklist`, {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    const res = await fetch(`${API_BASE_URL}/api/blacklist?${params.toString()}`, {
       next: { revalidate: REVALIDATE_SECONDS },
     });
-    if (!res.ok) return [];
+    if (!res.ok) return { entries: [], total: 0 };
 
     const body = (await res.json()) as {
       success?: boolean;
       data?: { blacklistEntries?: BlacklistEntryDTO[]; total?: number };
     };
-    return body.data?.blacklistEntries ?? [];
+    return { entries: body.data?.blacklistEntries ?? [], total: body.data?.total ?? 0 };
   } catch {
     // Public API may be briefly unreachable — degrade to empty rather than
     // failing the whole page.
+    return { entries: [], total: 0 };
+  }
+}
+
+export async function getActiveRegions(): Promise<RegionDTO[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/regions`, { next: { revalidate: REVALIDATE_SECONDS } });
+    if (!res.ok) return [];
+    const body = (await res.json()) as { success?: boolean; data?: { regions?: RegionDTO[] } };
+    return (body.data?.regions ?? []).filter((region) => region.isActive);
+  } catch {
     return [];
   }
 }

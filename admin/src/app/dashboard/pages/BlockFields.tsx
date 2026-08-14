@@ -38,6 +38,7 @@ export const BLOCK_TYPE_LABELS: Record<PageBlockType, string> = {
   logo_strip: "Logo Strip (Acknowledgement)",
   stats_counter: "Stats Counter (Track Record)",
   faq: "FAQ",
+  bonus_calculator: "Bonus Calculator",
 };
 
 export type ButtonStyle = "primary" | "secondary" | "outline" | "white";
@@ -108,6 +109,12 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
       return [blankField(0, "heading", "text", 1)];
     case "faq":
       return [blankField(0, "heading", "text", 1)];
+    case "bonus_calculator":
+      return [
+        blankField(0, "heading", "text", 1),
+        blankField(0, "subheading", "text", 2),
+        blankField(0, "intro", "richtext", 3),
+      ];
   }
 }
 
@@ -322,6 +329,8 @@ export default function BlockFieldEditor({ blockType, fields, onChange }: BlockF
       return <StatsCounterFields fields={fields} onChange={onChange} />;
     case "faq":
       return <FaqFields fields={fields} onChange={onChange} />;
+    case "bonus_calculator":
+      return <BonusCalculatorFields fields={fields} onChange={onChange} />;
   }
 }
 
@@ -872,6 +881,41 @@ function FaqFields({ fields, onChange }: { fields: EditableField[]; onChange: (f
         <IconPlus width={14} height={14} />
         Add Question
       </button>
+    </div>
+  );
+}
+
+// Only the surrounding copy is admin-editable here — the widget's 5 inputs
+// (deposit amount, bonus %, max bonus, wagering requirement, game
+// contribution rate) and the calculation itself are fixed in
+// BonusCalculatorSection on the web side, not configurable per-page (wagering
+// applies to the bonus amount only, not deposit+bonus — see that file).
+// Surrounding content (how-it-works steps, bonus type examples, FAQ) should
+// be authored as separate rich_text/icon_box_group/faq blocks on the same
+// page rather than folded into this one.
+function BonusCalculatorFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const heading = getField(fields, 0, "heading");
+  const subheading = getField(fields, 0, "subheading");
+  const intro = getField(fields, 0, "intro");
+  return (
+    <div className="flex flex-col gap-4">
+      <TextInputField
+        label="Heading"
+        value={heading?.textValue ?? ""}
+        placeholder="Top-Rated Online Casino Bonus Calculator"
+        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
+      />
+      <TextInputField
+        label="Subheading (optional)"
+        value={subheading?.textValue ?? ""}
+        placeholder="Check Your Real Bonus ROI"
+        onChange={(v) => onChange(upsertField(fields, 0, "subheading", "text", 2, { textValue: v }))}
+      />
+      <RichTextField
+        label="Intro Text (optional)"
+        value={intro?.textValue ?? ""}
+        onChange={(v) => onChange(upsertField(fields, 0, "intro", "richtext", 3, { textValue: v }))}
+      />
     </div>
   );
 }

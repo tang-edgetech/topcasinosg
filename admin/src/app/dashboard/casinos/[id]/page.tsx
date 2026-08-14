@@ -6,7 +6,7 @@ import Link from "next/link";
 import { App as AntApp } from "antd";
 import { useAuth } from "@/lib/auth-context";
 import { api, ApiError } from "@/lib/api";
-import type { CasinoDTO, RegionDTO } from "@/lib/types";
+import type { CasinoDTO, RegionDTO, GameProviderDTO, LicenseDTO } from "@/lib/types";
 import CasinoForm from "../CasinoForm";
 
 export default function EditCasinoPage() {
@@ -15,16 +15,22 @@ export default function EditCasinoPage() {
   const params = useParams<{ id: string }>();
   const [casino, setCasino] = useState<CasinoDTO | null>(null);
   const [regions, setRegions] = useState<RegionDTO[]>([]);
+  const [gameProviders, setGameProviders] = useState<GameProviderDTO[]>([]);
+  const [licenses, setLicenses] = useState<LicenseDTO[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       api.get<{ casino: CasinoDTO }>(`/api/admin/casinos/${params.id}`),
       api.get<{ regions: RegionDTO[] | null }>("/api/admin/regions"),
+      api.get<{ gameProviders: GameProviderDTO[] | null }>("/api/admin/game-providers"),
+      api.get<{ licenses: LicenseDTO[] | null }>("/api/admin/licenses"),
     ])
-      .then(([casinoData, regionData]) => {
+      .then(([casinoData, regionData, providerData, licenseData]) => {
         setCasino(casinoData.casino);
         setRegions(regionData.regions ?? []);
+        setGameProviders(providerData.gameProviders ?? []);
+        setLicenses(licenseData.licenses ?? []);
       })
       .catch((err) => message.error(err instanceof ApiError ? err.message : "Could not load casino."))
       .finally(() => setLoading(false));
@@ -44,7 +50,7 @@ export default function EditCasinoPage() {
       {loading ? (
         <p className="text-text-muted dark:text-text-muted-dark">Loading…</p>
       ) : casino ? (
-        <CasinoForm target={casino} regions={regions} />
+        <CasinoForm target={casino} regions={regions} gameProviders={gameProviders} licenses={licenses} />
       ) : (
         <p className="text-text-muted dark:text-text-muted-dark">Casino not found.</p>
       )}

@@ -19,15 +19,17 @@ func NewBlacklistEntryService(entries *repository.BlacklistEntryRepo) *Blacklist
 }
 
 type BlacklistEntryInput struct {
-	Name    string
-	Reason  string
-	Details string
+	RegionID *int64
+	Name     string
+	Reason   string
+	Details  string
 }
 
 func (s *BlacklistEntryService) Create(ctx context.Context, actor *domain.AdminUser, in BlacklistEntryInput) (*domain.BlacklistEntry, error) {
 	actorID := actor.ID
 	e := &domain.BlacklistEntry{
-		Name: in.Name, Reason: in.Reason, Details: in.Details, Status: domain.ContentStatusDraft, CreatedBy: &actorID,
+		RegionID: in.RegionID, Name: in.Name, Reason: in.Reason, Details: in.Details,
+		Status: domain.ContentStatusDraft, CreatedBy: &actorID,
 	}
 	id, err := s.entries.Create(ctx, e)
 	if err != nil {
@@ -38,7 +40,7 @@ func (s *BlacklistEntryService) Create(ctx context.Context, actor *domain.AdminU
 
 func (s *BlacklistEntryService) Update(ctx context.Context, id int64, in BlacklistEntryInput) error {
 	return s.entries.Update(ctx, &domain.BlacklistEntry{
-		ID: id, Name: in.Name, Reason: in.Reason, Details: in.Details,
+		ID: id, RegionID: in.RegionID, Name: in.Name, Reason: in.Reason, Details: in.Details,
 	})
 }
 
@@ -46,14 +48,14 @@ func (s *BlacklistEntryService) Get(ctx context.Context, id int64) (*domain.Blac
 	return s.entries.GetByID(ctx, id)
 }
 
-func (s *BlacklistEntryService) ListAdmin(ctx context.Context, page, pageSize int) ([]domain.BlacklistEntry, int, error) {
+func (s *BlacklistEntryService) ListAdmin(ctx context.Context, regionID *int64, page, pageSize int) ([]domain.BlacklistEntry, int, error) {
 	page, pageSize = normalizePaging(page, pageSize)
-	return s.entries.ListAdmin(ctx, pageSize, (page-1)*pageSize)
+	return s.entries.ListAdmin(ctx, regionID, pageSize, (page-1)*pageSize)
 }
 
-func (s *BlacklistEntryService) ListPublished(ctx context.Context, page, pageSize int) ([]domain.BlacklistEntry, int, error) {
+func (s *BlacklistEntryService) ListPublished(ctx context.Context, regionCode *string, page, pageSize int) ([]domain.BlacklistEntry, int, error) {
 	page, pageSize = normalizePaging(page, pageSize)
-	return s.entries.ListPublished(ctx, pageSize, (page-1)*pageSize)
+	return s.entries.ListPublished(ctx, regionCode, pageSize, (page-1)*pageSize)
 }
 
 func (s *BlacklistEntryService) SetStatus(ctx context.Context, id int64, status domain.ContentStatus, publishAt *time.Time) error {

@@ -5,20 +5,29 @@ import Link from "next/link";
 import { App as AntApp } from "antd";
 import { useAuth } from "@/lib/auth-context";
 import { api, ApiError } from "@/lib/api";
-import type { RegionDTO } from "@/lib/types";
+import type { RegionDTO, GameProviderDTO, LicenseDTO } from "@/lib/types";
 import CasinoForm from "../CasinoForm";
 
 export default function NewCasinoPage() {
   const { user } = useAuth();
   const { message } = AntApp.useApp();
   const [regions, setRegions] = useState<RegionDTO[]>([]);
+  const [gameProviders, setGameProviders] = useState<GameProviderDTO[]>([]);
+  const [licenses, setLicenses] = useState<LicenseDTO[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api
-      .get<{ regions: RegionDTO[] | null }>("/api/admin/regions")
-      .then((data) => setRegions(data.regions ?? []))
-      .catch((err) => message.error(err instanceof ApiError ? err.message : "Could not load regions."))
+    Promise.all([
+      api.get<{ regions: RegionDTO[] | null }>("/api/admin/regions"),
+      api.get<{ gameProviders: GameProviderDTO[] | null }>("/api/admin/game-providers"),
+      api.get<{ licenses: LicenseDTO[] | null }>("/api/admin/licenses"),
+    ])
+      .then(([regionData, providerData, licenseData]) => {
+        setRegions(regionData.regions ?? []);
+        setGameProviders(providerData.gameProviders ?? []);
+        setLicenses(licenseData.licenses ?? []);
+      })
+      .catch((err) => message.error(err instanceof ApiError ? err.message : "Could not load form options."))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -33,7 +42,7 @@ export default function NewCasinoPage() {
         </Link>
       </div>
       <h1 className="text-2xl font-bold text-text dark:text-text-dark">Add Casino</h1>
-      {!loading && <CasinoForm target={null} regions={regions} />}
+      {!loading && <CasinoForm target={null} regions={regions} gameProviders={gameProviders} licenses={licenses} />}
     </section>
   );
 }

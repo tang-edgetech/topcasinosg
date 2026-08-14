@@ -14,6 +14,7 @@ const TABS: RegionTab[] = [
   { label: "Payment Methods", suffix: "/payment-methods" },
   { label: "RTP", suffix: "/rtp" },
   { label: "Guides", suffix: "/guides" },
+  { label: "Blacklist", suffix: "/blacklist" },
 ];
 
 /**

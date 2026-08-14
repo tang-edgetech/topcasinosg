@@ -125,6 +125,35 @@ func (r *RTPEntryRepo) ListPublished(ctx context.Context, regionCode string, lim
 const prefixedRTPEntryColumns = `e.id, e.region_id, e.casino_id, e.game_name, e.category, e.rtp_percentage,
 	e.status, e.publish_at, e.created_by, e.created_at, e.updated_at`
 
+// ListPublishedByCasino is the public website's read for a single casino's
+// review page (/casinos/[slug]) — every published RTP entry tied to that
+// casino, regardless of region.
+func (r *RTPEntryRepo) ListPublishedByCasino(ctx context.Context, casinoID int64, limit, offset int) ([]domain.RTPEntry, int, error) {
+	countQuery := `SELECT COUNT(*) FROM rtp_entries WHERE casino_id = ? AND ` + EffectivelyPublishedSQL
+	var total int
+	if err := r.db.QueryRowContext(ctx, countQuery, casinoID).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	listQuery := `SELECT ` + rtpEntryColumns + ` FROM rtp_entries WHERE casino_id = ? AND ` + EffectivelyPublishedSQL +
+		` ORDER BY game_name ASC LIMIT ? OFFSET ?`
+	rows, err := r.db.QueryContext(ctx, listQuery, casinoID, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var items []domain.RTPEntry
+	for rows.Next() {
+		e, err := scanRTPEntry(rows)
+		if err != nil {
+			return nil, 0, err
+		}
+		items = append(items, *e)
+	}
+	return items, total, rows.Err()
+}
+
 func (r *RTPEntryRepo) SetStatus(ctx context.Context, id int64, status domain.ContentStatus, publishAt *string) error {
 	_, err := r.db.ExecContext(ctx, `UPDATE rtp_entries SET status = ?, publish_at = ? WHERE id = ?`, status, publishAt, id)
 	return err

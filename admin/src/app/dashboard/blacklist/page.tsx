@@ -6,7 +6,7 @@ import { Table, App as AntApp } from "antd";
 import { useAuth } from "@/lib/auth-context";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { api, ApiError } from "@/lib/api";
-import type { BlacklistEntryDTO } from "@/lib/types";
+import type { BlacklistEntryDTO, RegionDTO } from "@/lib/types";
 import IconButton from "@/components/IconButton";
 import { IconEdit, IconPlus, IconTrash } from "@/components/Icons";
 import StatusBadge from "@/components/content/StatusBadge";
@@ -19,6 +19,7 @@ export default function BlacklistPage() {
   const confirm = useConfirm();
   const router = useRouter();
   const [entries, setEntries] = useState<BlacklistEntryDTO[]>([]);
+  const [regions, setRegions] = useState<RegionDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
@@ -27,11 +28,15 @@ export default function BlacklistPage() {
   async function load() {
     setLoading(true);
     try {
-      const data = await api.get<{ blacklistEntries: BlacklistEntryDTO[] | null; total: number }>(
-        `/api/admin/blacklist?page=${page}&pageSize=${pageSize}`
-      );
-      setEntries(data.blacklistEntries ?? []);
-      setTotal(data.total);
+      const [entryData, regionData] = await Promise.all([
+        api.get<{ blacklistEntries: BlacklistEntryDTO[] | null; total: number }>(
+          `/api/admin/blacklist?page=${page}&pageSize=${pageSize}`
+        ),
+        api.get<{ regions: RegionDTO[] | null }>("/api/admin/regions"),
+      ]);
+      setEntries(entryData.blacklistEntries ?? []);
+      setTotal(entryData.total);
+      setRegions(regionData.regions ?? []);
     } catch (err) {
       message.error(err instanceof ApiError ? err.message : "Could not load blacklist entries.");
     } finally {
@@ -45,6 +50,8 @@ export default function BlacklistPage() {
   }, [page, pageSize]);
 
   if (!user) return null;
+
+  const regionName = (id: number | null) => (id === null ? "Global" : regions.find((r) => r.id === id)?.name ?? id);
 
   async function handleSetStatus(entry: BlacklistEntryDTO, status: string, publishAt: string | null) {
     await api.put(`/api/admin/blacklist/${entry.id}/status`, { status, publishAt });
@@ -97,6 +104,7 @@ export default function BlacklistPage() {
         columns={[
           { title: "Name", dataIndex: "name", key: "name" },
           { title: "Reason", dataIndex: "reason", key: "reason" },
+          { title: "Region", key: "region", render: (_, e) => regionName(e.regionId) },
           { title: "Status", key: "status", render: (_, e) => <StatusBadge status={e.status} /> },
           {
             title: "Schedule",

@@ -28,6 +28,8 @@ import {
   IconMenu,
   IconLayout,
   IconCode,
+  IconDice,
+  IconCertificate,
 } from "@/components/Icons";
 
 const NAV_ITEMS = [
@@ -35,6 +37,18 @@ const NAV_ITEMS = [
   { href: "/dashboard/pages", label: "Pages", roles: ["super_admin", "admin", "editor"], icon: IconLayout },
   { href: "/dashboard/regions", label: "Regions", roles: ["super_admin", "admin"], icon: IconGlobe },
   { href: "/dashboard/casinos", label: "Casinos", roles: ["super_admin", "admin", "editor"], icon: IconTag },
+  {
+    href: "/dashboard/game-providers",
+    label: "Game Providers",
+    roles: ["super_admin", "admin"],
+    icon: IconDice,
+  },
+  {
+    href: "/dashboard/licenses",
+    label: "Licenses",
+    roles: ["super_admin", "admin"],
+    icon: IconCertificate,
+  },
   { href: "/dashboard/bonuses", label: "Bonuses", roles: ["super_admin", "admin", "editor"], icon: IconGift },
   {
     href: "/dashboard/payment-methods",

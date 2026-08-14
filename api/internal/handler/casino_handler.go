@@ -32,21 +32,34 @@ type CasinoDTO struct {
 	Content        string     `json:"content"`
 	Languages      []string   `json:"languages"`
 	PaymentMethods []string   `json:"paymentMethods"`
+	Pros           []string   `json:"pros"`
+	Cons           []string   `json:"cons"`
+	SafeIndex      *int       `json:"safeIndex"`
+	RiskStatus     *string    `json:"riskStatus"`
+	SupportedGames []string   `json:"supportedGames"`
 	PayoutSpeed    string     `json:"payoutSpeed"`
 	CTAURL         string     `json:"ctaUrl"`
 	Status         string     `json:"status"`
-	PublishAt      *time.Time `json:"publishAt"`
-	RegionIDs      []int64    `json:"regionIds"`
-	CreatedAt      time.Time  `json:"createdAt"`
-	UpdatedAt      time.Time  `json:"updatedAt"`
+	PublishAt       *time.Time `json:"publishAt"`
+	RegionIDs       []int64    `json:"regionIds"`
+	GameProviderIDs []int64    `json:"gameProviderIds"`
+	LicenseIDs      []int64    `json:"licenseIds"`
+	CreatedAt       time.Time  `json:"createdAt"`
+	UpdatedAt       time.Time  `json:"updatedAt"`
 }
 
 func toCasinoDTO(c *domain.Casino) CasinoDTO {
+	var riskStatus *string
+	if c.RiskStatus != nil {
+		s := string(*c.RiskStatus)
+		riskStatus = &s
+	}
 	return CasinoDTO{
 		ID: c.ID, Slug: c.Slug, Name: c.Name, LogoMediaID: c.LogoMediaID, Rating: c.Rating, Summary: c.Summary,
-		Content: c.Content, Languages: c.Languages, PaymentMethods: c.PaymentMethods, PayoutSpeed: c.PayoutSpeed,
+		Content: c.Content, Languages: c.Languages, PaymentMethods: c.PaymentMethods, Pros: c.Pros, Cons: c.Cons,
+		SafeIndex: c.SafeIndex, RiskStatus: riskStatus, SupportedGames: c.SupportedGames, PayoutSpeed: c.PayoutSpeed,
 		CTAURL: c.CTAURL, Status: string(c.Status), PublishAt: c.PublishAt, RegionIDs: c.RegionIDs,
-		CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
+		GameProviderIDs: c.GameProviderIDs, LicenseIDs: c.LicenseIDs, CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
 	}
 }
 
@@ -54,7 +67,9 @@ func casinoErrorStatus(err error) int {
 	switch {
 	case errors.Is(err, service.ErrAlreadyExists):
 		return http.StatusConflict
-	case errors.Is(err, service.ErrInvalidContentStatus), errors.Is(err, service.ErrPublishAtRequired):
+	case errors.Is(err, service.ErrInvalidContentStatus), errors.Is(err, service.ErrPublishAtRequired),
+		errors.Is(err, service.ErrInvalidRiskStatus), errors.Is(err, service.ErrInvalidSafeIndex),
+		errors.Is(err, service.ErrInvalidGameType):
 		return http.StatusBadRequest
 	case errors.Is(err, repository.ErrNotFound):
 		return http.StatusNotFound
@@ -72,16 +87,30 @@ type casinoRequest struct {
 	Content        string   `json:"content"`
 	Languages      []string `json:"languages"`
 	PaymentMethods []string `json:"paymentMethods"`
-	PayoutSpeed    string   `json:"payoutSpeed"`
-	CTAURL         string   `json:"ctaUrl"`
-	RegionIDs      []int64  `json:"regionIds"`
+	Pros           []string `json:"pros"`
+	Cons           []string `json:"cons"`
+	SafeIndex      *int     `json:"safeIndex"`
+	RiskStatus     *string  `json:"riskStatus"`
+	SupportedGames []string `json:"supportedGames"`
+	PayoutSpeed     string   `json:"payoutSpeed"`
+	CTAURL          string   `json:"ctaUrl"`
+	RegionIDs       []int64  `json:"regionIds"`
+	GameProviderIDs []int64  `json:"gameProviderIds"`
+	LicenseIDs      []int64  `json:"licenseIds"`
 }
 
 func (req casinoRequest) toInput() service.CasinoInput {
+	var riskStatus *domain.RiskStatus
+	if req.RiskStatus != nil {
+		rs := domain.RiskStatus(*req.RiskStatus)
+		riskStatus = &rs
+	}
 	return service.CasinoInput{
 		Slug: req.Slug, Name: req.Name, LogoMediaID: req.LogoMediaID, Rating: req.Rating, Summary: req.Summary,
-		Content: req.Content, Languages: req.Languages, PaymentMethods: req.PaymentMethods, PayoutSpeed: req.PayoutSpeed,
-		CTAURL: req.CTAURL, RegionIDs: req.RegionIDs,
+		Content: req.Content, Languages: req.Languages, PaymentMethods: req.PaymentMethods, Pros: req.Pros, Cons: req.Cons,
+		SafeIndex: req.SafeIndex, RiskStatus: riskStatus, SupportedGames: req.SupportedGames,
+		PayoutSpeed: req.PayoutSpeed, CTAURL: req.CTAURL, RegionIDs: req.RegionIDs, GameProviderIDs: req.GameProviderIDs,
+		LicenseIDs: req.LicenseIDs,
 	}
 }
 

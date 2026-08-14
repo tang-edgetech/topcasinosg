@@ -126,6 +126,35 @@ func (r *BonusRepo) ListPublished(ctx context.Context, regionCode string, limit,
 const prefixedBonusColumns = `b.id, b.region_id, b.casino_id, b.bonus_type, b.title, b.terms, b.code, b.valid_from,
 	b.valid_until, b.status, b.publish_at, b.created_by, b.created_at, b.updated_at`
 
+// ListPublishedByCasino is the public website's read for a single casino's
+// review page (/casinos/[slug]) — every published bonus tied to that casino,
+// regardless of region, since a casino page isn't region-scoped by URL.
+func (r *BonusRepo) ListPublishedByCasino(ctx context.Context, casinoID int64, limit, offset int) ([]domain.Bonus, int, error) {
+	countQuery := `SELECT COUNT(*) FROM bonuses WHERE casino_id = ? AND ` + EffectivelyPublishedSQL
+	var total int
+	if err := r.db.QueryRowContext(ctx, countQuery, casinoID).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	listQuery := `SELECT ` + bonusColumns + ` FROM bonuses WHERE casino_id = ? AND ` + EffectivelyPublishedSQL +
+		` ORDER BY created_at DESC LIMIT ? OFFSET ?`
+	rows, err := r.db.QueryContext(ctx, listQuery, casinoID, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var items []domain.Bonus
+	for rows.Next() {
+		b, err := scanBonus(rows)
+		if err != nil {
+			return nil, 0, err
+		}
+		items = append(items, *b)
+	}
+	return items, total, rows.Err()
+}
+
 func (r *BonusRepo) SetStatus(ctx context.Context, id int64, status domain.ContentStatus, publishAt *string) error {
 	_, err := r.db.ExecContext(ctx, `UPDATE bonuses SET status = ?, publish_at = ? WHERE id = ?`, status, publishAt, id)
 	return err

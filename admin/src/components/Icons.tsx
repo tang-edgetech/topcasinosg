@@ -164,6 +164,28 @@ export function IconList(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function IconDice(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="3" width="18" height="18" rx="3" />
+      <circle cx="8" cy="8" r="1" fill="currentColor" />
+      <circle cx="16" cy="8" r="1" fill="currentColor" />
+      <circle cx="8" cy="16" r="1" fill="currentColor" />
+      <circle cx="16" cy="16" r="1" fill="currentColor" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" />
+    </svg>
+  );
+}
+
+export function IconCertificate(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="8" r="6" />
+      <path d="M9 13.5 7.5 21l4.5-2.5L16.5 21 15 13.5" />
+    </svg>
+  );
+}
+
 export function IconUsers(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base(props)}>

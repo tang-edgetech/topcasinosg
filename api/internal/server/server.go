@@ -22,6 +22,8 @@ type Deps struct {
 	SiteSettingsHandler   *handler.SiteSettingsHandler
 	MediaHandler          *handler.MediaHandler
 	RegionHandler         *handler.RegionHandler
+	GameProviderHandler   *handler.GameProviderHandler
+	LicenseHandler        *handler.LicenseHandler
 	CasinoHandler         *handler.CasinoHandler
 	BonusHandler          *handler.BonusHandler
 	PaymentMethodHandler  *handler.PaymentMethodHandler
@@ -58,6 +60,8 @@ func NewRouter(deps Deps) http.Handler {
 
 	// Public content reads — no auth. This is what web/ consumes.
 	mux.HandleFunc("GET /api/regions", deps.RegionHandler.ListPublic)
+	mux.HandleFunc("GET /api/game-providers", deps.GameProviderHandler.List)
+	mux.HandleFunc("GET /api/licenses", deps.LicenseHandler.List)
 	mux.HandleFunc("GET /api/casinos", deps.CasinoHandler.ListPublic)
 	mux.HandleFunc("GET /api/casinos/{slug}", deps.CasinoHandler.GetPublic)
 	mux.HandleFunc("GET /api/bonuses", deps.BonusHandler.ListPublic)
@@ -123,6 +127,21 @@ func NewRouter(deps Deps) http.Handler {
 	mux.Handle("POST /api/admin/regions", authenticate(contentStaff(http.HandlerFunc(deps.RegionHandler.Create))))
 	mux.Handle("PUT /api/admin/regions/{id}", authenticate(contentStaff(http.HandlerFunc(deps.RegionHandler.Update))))
 	mux.Handle("PUT /api/admin/regions/{id}/active", authenticate(contentStaff(http.HandlerFunc(deps.RegionHandler.SetActive))))
+
+	// Game Providers — readable by any content-staff (Editors pick providers
+	// when editing a Casino); create/edit/delete restricted to Super
+	// Admin/Admin inside GameProviderService itself, same two-layer pattern
+	// as Regions above.
+	mux.Handle("GET /api/admin/game-providers", authenticate(contentStaff(http.HandlerFunc(deps.GameProviderHandler.List))))
+	mux.Handle("POST /api/admin/game-providers", authenticate(contentStaff(http.HandlerFunc(deps.GameProviderHandler.Create))))
+	mux.Handle("PUT /api/admin/game-providers/{id}", authenticate(contentStaff(http.HandlerFunc(deps.GameProviderHandler.Update))))
+	mux.Handle("DELETE /api/admin/game-providers/{id}", authenticate(contentStaff(http.HandlerFunc(deps.GameProviderHandler.Delete))))
+
+	// Licenses — same two-layer access pattern as Game Providers above.
+	mux.Handle("GET /api/admin/licenses", authenticate(contentStaff(http.HandlerFunc(deps.LicenseHandler.List))))
+	mux.Handle("POST /api/admin/licenses", authenticate(contentStaff(http.HandlerFunc(deps.LicenseHandler.Create))))
+	mux.Handle("PUT /api/admin/licenses/{id}", authenticate(contentStaff(http.HandlerFunc(deps.LicenseHandler.Update))))
+	mux.Handle("DELETE /api/admin/licenses/{id}", authenticate(contentStaff(http.HandlerFunc(deps.LicenseHandler.Delete))))
 
 	// Navigation (header mega-menu + footer) — Super Admin and Admin only,
 	// same tier as Regions/Site Settings; Editors have no access at all.

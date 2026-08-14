@@ -135,13 +135,36 @@ func (h *RTPEntryHandler) List(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, map[string]any{"rtpEntries": dtos, "total": total})
 }
 
+// ListPublic serves /{region}/rtp (region required) or, when a casinoId is
+// given instead, a single casino's RTP entries for its review page —
+// independent of region, since /casinos/[slug] isn't region-scoped by URL.
 func (h *RTPEntryHandler) ListPublic(w http.ResponseWriter, r *http.Request) {
-	regionCode := r.URL.Query().Get("region")
-	if regionCode == "" {
-		response.Err(w, http.StatusBadRequest, "region is required")
+	page, pageSize := parsePaging(r)
+
+	if v := r.URL.Query().Get("casinoId"); v != "" {
+		casinoID, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			response.Err(w, http.StatusBadRequest, "invalid casinoId")
+			return
+		}
+		items, total, err := h.entries.ListPublishedByCasino(r.Context(), casinoID, page, pageSize)
+		if err != nil {
+			response.Err(w, http.StatusInternalServerError, "could not load rtp entries")
+			return
+		}
+		dtos := make([]RTPEntryDTO, len(items))
+		for i := range items {
+			dtos[i] = toRTPEntryDTO(&items[i])
+		}
+		response.JSON(w, http.StatusOK, map[string]any{"rtpEntries": dtos, "total": total})
 		return
 	}
-	page, pageSize := parsePaging(r)
+
+	regionCode := r.URL.Query().Get("region")
+	if regionCode == "" {
+		response.Err(w, http.StatusBadRequest, "region or casinoId is required")
+		return
+	}
 	items, total, err := h.entries.ListPublished(r.Context(), regionCode, page, pageSize)
 	if err != nil {
 		response.Err(w, http.StatusInternalServerError, "could not load rtp entries")
