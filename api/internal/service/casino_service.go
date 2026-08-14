@@ -123,9 +123,9 @@ func (s *CasinoService) ListAdmin(ctx context.Context, page, pageSize int) ([]do
 	return s.casinos.ListAdmin(ctx, pageSize, (page-1)*pageSize)
 }
 
-func (s *CasinoService) ListPublished(ctx context.Context, regionCode *string, page, pageSize int) ([]domain.Casino, int, error) {
+func (s *CasinoService) ListPublished(ctx context.Context, regionCode *string, gameType *string, page, pageSize int) ([]domain.Casino, int, error) {
 	page, pageSize = normalizePaging(page, pageSize)
-	return s.casinos.ListPublished(ctx, regionCode, pageSize, (page-1)*pageSize)
+	return s.casinos.ListPublished(ctx, regionCode, gameType, pageSize, (page-1)*pageSize)
 }
 
 func (s *CasinoService) SetStatus(ctx context.Context, id int64, status domain.ContentStatus, publishAt *time.Time) error {

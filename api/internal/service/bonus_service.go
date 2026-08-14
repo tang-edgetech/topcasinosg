@@ -67,9 +67,9 @@ func (s *BonusService) ListAdmin(ctx context.Context, regionID *int64, page, pag
 	return s.bonuses.ListAdmin(ctx, regionID, pageSize, (page-1)*pageSize)
 }
 
-func (s *BonusService) ListPublished(ctx context.Context, regionCode string, page, pageSize int) ([]domain.Bonus, int, error) {
+func (s *BonusService) ListPublished(ctx context.Context, regionCode string, bonusType *string, page, pageSize int) ([]domain.Bonus, int, error) {
 	page, pageSize = normalizePaging(page, pageSize)
-	return s.bonuses.ListPublished(ctx, regionCode, pageSize, (page-1)*pageSize)
+	return s.bonuses.ListPublished(ctx, regionCode, bonusType, pageSize, (page-1)*pageSize)
 }
 
 func (s *BonusService) ListPublishedByCasino(ctx context.Context, casinoID int64, page, pageSize int) ([]domain.Bonus, int, error) {

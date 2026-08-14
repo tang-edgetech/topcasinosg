@@ -10,6 +10,7 @@ interface RegionTab {
 
 const TABS: RegionTab[] = [
   { label: "Overview", suffix: "" },
+  { label: "Reviews", suffix: "/reviews" },
   { label: "Bonuses", suffix: "/bonuses" },
   { label: "Payment Methods", suffix: "/payment-methods" },
   { label: "RTP", suffix: "/rtp" },

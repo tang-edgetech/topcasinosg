@@ -171,7 +171,11 @@ func (h *BonusHandler) ListPublic(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusBadRequest, "region or casinoId is required")
 		return
 	}
-	items, total, err := h.bonuses.ListPublished(r.Context(), regionCode, page, pageSize)
+	var bonusType *string
+	if v := r.URL.Query().Get("bonusType"); v != "" {
+		bonusType = &v
+	}
+	items, total, err := h.bonuses.ListPublished(r.Context(), regionCode, bonusType, page, pageSize)
 	if err != nil {
 		response.Err(w, http.StatusInternalServerError, "could not load bonuses")
 		return

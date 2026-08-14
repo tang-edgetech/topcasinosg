@@ -394,25 +394,33 @@ func (r *CasinoRepo) ListAdmin(ctx context.Context, limit, offset int) ([]domain
 }
 
 // ListPublished is the public website's listing (e.g. /sg — casinos serving
-// Singapore), optionally filtered by region code.
-func (r *CasinoRepo) ListPublished(ctx context.Context, regionCode *string, limit, offset int) ([]domain.Casino, int, error) {
+// Singapore), optionally filtered by region code and/or a single supported
+// game type (the Reviews page's "choose by playing style" filter).
+func (r *CasinoRepo) ListPublished(ctx context.Context, regionCode *string, gameType *string, limit, offset int) ([]domain.Casino, int, error) {
 	joinClause := ""
 	whereRegion := ""
+	whereGameType := ""
 	args := []any{}
 	if regionCode != nil {
 		joinClause = `JOIN casino_regions cr ON cr.casino_id = c.id JOIN regions rg ON rg.id = cr.region_id`
 		whereRegion = `AND rg.code = ?`
 		args = append(args, *regionCode)
 	}
+	if gameType != nil {
+		whereGameType = `AND JSON_CONTAINS(c.supported_games, JSON_QUOTE(?))`
+		args = append(args, *gameType)
+	}
 
-	countQuery := `SELECT COUNT(DISTINCT c.id) FROM casinos c ` + joinClause + ` WHERE ` + EffectivelyPublishedSQL + ` ` + whereRegion
+	countQuery := `SELECT COUNT(DISTINCT c.id) FROM casinos c ` + joinClause + ` WHERE ` + EffectivelyPublishedSQL +
+		` ` + whereRegion + ` ` + whereGameType
 	var total int
 	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
 	listQuery := `SELECT ` + casinoColumnsPrefixed + ` FROM casinos c ` + joinClause +
-		` WHERE ` + EffectivelyPublishedSQL + ` ` + whereRegion + ` ORDER BY c.rating DESC LIMIT ? OFFSET ?`
+		` WHERE ` + EffectivelyPublishedSQL + ` ` + whereRegion + ` ` + whereGameType +
+		` ORDER BY c.rating DESC LIMIT ? OFFSET ?`
 	rows, err := r.db.QueryContext(ctx, listQuery, append(args, limit, offset)...)
 	if err != nil {
 		return nil, 0, err

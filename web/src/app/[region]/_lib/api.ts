@@ -115,6 +115,52 @@ async function fetchData<T>(url: string): Promise<T | null> {
   }
 }
 
+// Fixed taxonomy, mirrors api/internal/domain/casino.go's GameType/AllGameTypes.
+export type GameType =
+  | "slots"
+  | "blackjack"
+  | "baccarat"
+  | "roulette"
+  | "sic_bo"
+  | "craps"
+  | "poker"
+  | "video_poker"
+  | "bingo";
+
+export const ALL_GAME_TYPES: { value: GameType; label: string }[] = [
+  { value: "slots", label: "Slots" },
+  { value: "blackjack", label: "Blackjack" },
+  { value: "baccarat", label: "Baccarat" },
+  { value: "roulette", label: "Roulette" },
+  { value: "sic_bo", label: "Sic Bo" },
+  { value: "craps", label: "Craps" },
+  { value: "poker", label: "Poker" },
+  { value: "video_poker", label: "Video Poker" },
+  { value: "bingo", label: "Bingo" },
+];
+
+// Subset of CasinoDTO actually used by the Reviews hub (comparison table) —
+// see web/src/app/casinos/lib.ts for the full shape used by /casinos/[slug].
+export interface CasinoDTO {
+  id: number;
+  slug: string;
+  name: string;
+  rating: number;
+  safeIndex: number | null;
+  riskStatus: "low" | "medium" | "high" | null;
+  ctaUrl: string;
+}
+
+/** `gameType` is optional — omit it to fetch every casino for the region. */
+export async function getCasinos(regionCode: string, gameType?: GameType): Promise<CasinoDTO[]> {
+  const params = new URLSearchParams({ region: regionCode });
+  if (gameType) params.set("gameType", gameType);
+  const data = await fetchData<{ casinos: CasinoDTO[]; total: number }>(
+    `${API_BASE_URL}/api/casinos?${params.toString()}`,
+  );
+  return data?.casinos ?? [];
+}
+
 export async function getRegions(): Promise<RegionDTO[]> {
   const data = await fetchData<{ regions: RegionDTO[] }>(`${API_BASE_URL}/api/regions`);
   return data?.regions ?? [];
@@ -126,9 +172,12 @@ export async function getActiveRegionByCode(code: string): Promise<RegionDTO | n
   return regions.find((region) => region.code === code && region.isActive) ?? null;
 }
 
-export async function getBonuses(regionCode: string): Promise<BonusDTO[]> {
+/** `bonusType` is optional — omit it to fetch every type for the region. */
+export async function getBonuses(regionCode: string, bonusType?: BonusType): Promise<BonusDTO[]> {
+  const params = new URLSearchParams({ region: regionCode });
+  if (bonusType) params.set("bonusType", bonusType);
   const data = await fetchData<{ bonuses: BonusDTO[]; total: number }>(
-    `${API_BASE_URL}/api/bonuses?region=${encodeURIComponent(regionCode)}`,
+    `${API_BASE_URL}/api/bonuses?${params.toString()}`,
   );
   return data?.bonuses ?? [];
 }

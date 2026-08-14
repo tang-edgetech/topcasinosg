@@ -8,6 +8,7 @@ import LogoStripSection from "./LogoStripSection";
 import StatsCounterSection from "./StatsCounterSection";
 import FaqSection from "./FaqSection";
 import BonusCalculatorSection from "./BonusCalculatorSection";
+import BonusListingTableSection from "./BonusListingTableSection";
 
 // Dispatches each section to its block-type component. Every instance of a
 // given blockType gets the same canonical CSS class (see sectionClassName /
@@ -39,6 +40,8 @@ export default function SectionRenderer({ sections }: { sections: PageSection[] 
             return <FaqSection key={section.id} section={section} />;
           case "bonus_calculator":
             return <BonusCalculatorSection key={section.id} section={section} />;
+          case "bonus_listing_table":
+            return <BonusListingTableSection key={section.id} section={section} />;
           default:
             return null;
         }

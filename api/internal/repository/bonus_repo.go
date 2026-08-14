@@ -95,18 +95,27 @@ func (r *BonusRepo) ListAdmin(ctx context.Context, regionID *int64, limit, offse
 	return items, total, rows.Err()
 }
 
-// ListPublished is the public website's read for /{region}/bonuses.
-func (r *BonusRepo) ListPublished(ctx context.Context, regionCode string, limit, offset int) ([]domain.Bonus, int, error) {
+// ListPublished is the public website's read for /{region}/bonuses,
+// optionally narrowed to a single bonusType for the per-type bonus pages
+// (/{region}/bonuses/{type}).
+func (r *BonusRepo) ListPublished(ctx context.Context, regionCode string, bonusType *string, limit, offset int) ([]domain.Bonus, int, error) {
+	typeClause := ""
+	args := []any{regionCode}
+	if bonusType != nil {
+		typeClause = "AND b.bonus_type = ?"
+		args = append(args, *bonusType)
+	}
+
 	countQuery := `SELECT COUNT(*) FROM bonuses b JOIN regions rg ON rg.id = b.region_id
-		WHERE rg.code = ? AND ` + EffectivelyPublishedSQL
+		WHERE rg.code = ? ` + typeClause + ` AND ` + EffectivelyPublishedSQL
 	var total int
-	if err := r.db.QueryRowContext(ctx, countQuery, regionCode).Scan(&total); err != nil {
+	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
 	listQuery := `SELECT ` + prefixedBonusColumns + ` FROM bonuses b JOIN regions rg ON rg.id = b.region_id
-		WHERE rg.code = ? AND ` + EffectivelyPublishedSQL + ` ORDER BY b.created_at DESC LIMIT ? OFFSET ?`
-	rows, err := r.db.QueryContext(ctx, listQuery, regionCode, limit, offset)
+		WHERE rg.code = ? ` + typeClause + ` AND ` + EffectivelyPublishedSQL + ` ORDER BY b.created_at DESC LIMIT ? OFFSET ?`
+	rows, err := r.db.QueryContext(ctx, listQuery, append(args, limit, offset)...)
 	if err != nil {
 		return nil, 0, err
 	}

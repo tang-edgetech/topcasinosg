@@ -197,7 +197,11 @@ func (h *CasinoHandler) ListPublic(w http.ResponseWriter, r *http.Request) {
 	if code := r.URL.Query().Get("region"); code != "" {
 		regionCode = &code
 	}
-	items, total, err := h.casinos.ListPublished(r.Context(), regionCode, page, pageSize)
+	var gameType *string
+	if gt := r.URL.Query().Get("gameType"); gt != "" {
+		gameType = &gt
+	}
+	items, total, err := h.casinos.ListPublished(r.Context(), regionCode, gameType, page, pageSize)
 	if err != nil {
 		response.Err(w, http.StatusInternalServerError, "could not load casinos")
 		return

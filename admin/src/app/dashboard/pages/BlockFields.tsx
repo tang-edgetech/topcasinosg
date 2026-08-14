@@ -39,7 +39,17 @@ export const BLOCK_TYPE_LABELS: Record<PageBlockType, string> = {
   stats_counter: "Stats Counter (Track Record)",
   faq: "FAQ",
   bonus_calculator: "Bonus Calculator",
+  bonus_listing_table: "Bonus Listing Table",
 };
+
+const BONUS_TYPE_OPTIONS = [
+  { value: "welcome", label: "Welcome" },
+  { value: "no_deposit", label: "No Deposit" },
+  { value: "free_spins", label: "Free Spins" },
+  { value: "deposit", label: "Deposit" },
+  { value: "cashback", label: "Cashback" },
+  { value: "loyalty_vip", label: "Loyalty / VIP" },
+];
 
 export type ButtonStyle = "primary" | "secondary" | "outline" | "white";
 
@@ -114,6 +124,13 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
         blankField(0, "heading", "text", 1),
         blankField(0, "subheading", "text", 2),
         blankField(0, "intro", "richtext", 3),
+      ];
+    case "bonus_listing_table":
+      return [
+        blankField(0, "heading", "text", 1),
+        blankField(0, "regionCode", "text", 2),
+        textField(0, "bonusType", "welcome", 3),
+        textField(0, "limit", "5", 4),
       ];
   }
 }
@@ -331,6 +348,8 @@ export default function BlockFieldEditor({ blockType, fields, onChange }: BlockF
       return <FaqFields fields={fields} onChange={onChange} />;
     case "bonus_calculator":
       return <BonusCalculatorFields fields={fields} onChange={onChange} />;
+    case "bonus_listing_table":
+      return <BonusListingTableFields fields={fields} onChange={onChange} />;
   }
 }
 
@@ -915,6 +934,42 @@ function BonusCalculatorFields({ fields, onChange }: { fields: EditableField[]; 
         label="Intro Text (optional)"
         value={intro?.textValue ?? ""}
         onChange={(v) => onChange(upsertField(fields, 0, "intro", "richtext", 3, { textValue: v }))}
+      />
+    </div>
+  );
+}
+
+// Live data block — no static copy beyond the heading. Pulls published
+// Bonus rows matching regionCode + bonusType at render time on the web side
+// (web/src/components/sections/BonusListingTableSection.tsx), rather than
+// storing bonus data on the page itself.
+function BonusListingTableFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const heading = getField(fields, 0, "heading");
+  const regionCode = getField(fields, 0, "regionCode");
+  const bonusType = getField(fields, 0, "bonusType")?.textValue || "welcome";
+  const limit = getField(fields, 0, "limit");
+
+  return (
+    <div className="flex flex-col gap-4">
+      <TextInputField
+        label="Heading"
+        value={heading?.textValue ?? ""}
+        placeholder="Latest Welcome Bonuses"
+        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
+      />
+      <TextInputField
+        label="Region Code"
+        value={regionCode?.textValue ?? ""}
+        placeholder="th"
+        onChange={(v) => onChange(upsertField(fields, 0, "regionCode", "text", 2, { textValue: v }))}
+      />
+      <LabeledField label="Bonus Type">
+        <Select value={bonusType} onChange={(v) => onChange(upsertField(fields, 0, "bonusType", "text", 3, { textValue: v }))} options={BONUS_TYPE_OPTIONS} />
+      </LabeledField>
+      <TextInputField
+        label="Max Rows"
+        value={limit?.textValue ?? "5"}
+        onChange={(v) => onChange(upsertField(fields, 0, "limit", "text", 4, { textValue: v }))}
       />
     </div>
   );

@@ -40,6 +40,8 @@ var KnownBlockTypes = []string{
 	"logo_strip",
 	"stats_counter",
 	"faq",
+	"bonus_calculator",
+	"bonus_listing_table",
 }
 
 // PageSection is one visual block on a page. CustomClass/CustomID are the
