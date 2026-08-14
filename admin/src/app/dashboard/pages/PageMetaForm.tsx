@@ -87,7 +87,11 @@ export default function PageMetaForm({
           name="slug"
           label="Slug"
           rules={[{ required: true, pattern: /^[a-z0-9-]+$/, message: "Lowercase letters, numbers, hyphens only" }]}
-          extra={isHome ? "The Homepage's slug must stay \"home\" — it's what the public site looks up at /." : "Used as the public URL path, e.g. \"about\" for /about."}
+          extra={
+            isHome
+              ? "The Homepage's slug must stay \"home\" — it's what the public site looks up at /."
+              : "Usually the public URL path, e.g. \"about\" for /about — except the per-region bonus-type pages (\"th-bonuses-welcome\" etc.), which are looked up by this slug but served at /{region}/bonuses/{type}."
+          }
         >
           <Input placeholder="about" disabled={isHome} />
         </Form.Item>

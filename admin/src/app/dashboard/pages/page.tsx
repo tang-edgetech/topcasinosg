@@ -21,9 +21,26 @@ import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "@/lib/pagination";
 // override is set, i.e. in production itself.
 const WEB_URL = process.env.NEXT_PUBLIC_WEB_URL;
 
+// Bonus-type-per-region pages aren't served at /{slug} — they're served by
+// the bespoke /{region}/bonuses/{type} route (web/src/app/[region]/bonuses/
+// [type]/page.tsx), which looks a page up by the computed slug
+// "{region}-bonuses-{type}" (e.g. "th-bonuses-welcome"). The slug is only
+// ever a lookup key for that route, never a literal URL path segment, so it
+// has to be decomposed back into /region/bonuses/type here rather than
+// appended directly after the domain.
+const REGION_BONUS_TYPE_SLUG = /^([a-z]{2,3})-bonuses-([a-z_]+)$/;
+
 function pagePublicUrl(base: string, page: PageDTO) {
   const root = base.replace(/\/+$/, "");
-  return page.slug === "home" ? `${root}/` : `${root}/${page.slug}`;
+  if (page.slug === "home") return `${root}/`;
+
+  const match = page.slug.match(REGION_BONUS_TYPE_SLUG);
+  if (match) {
+    const [, region, bonusType] = match;
+    return `${root}/${region}/bonuses/${bonusType}`;
+  }
+
+  return `${root}/${page.slug}`;
 }
 
 export default function PagesPage() {
