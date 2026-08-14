@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api } from "./api";
+import { api, hasSessionCookie } from "./api";
 import { useThemeContext, type Theme } from "./theme-context";
 import { useIdleSession } from "./idle-session";
 import type { AdminUserDTO } from "./types";
@@ -24,6 +24,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
+    if (!hasSessionCookie()) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
     try {
       const data = await api.get<{ user: AdminUserDTO }>("/api/admin/auth/me");
       setUser(data.user);

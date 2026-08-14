@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
-import { api, ApiError } from "@/lib/api";
+import { api, ApiError, hasSessionCookie } from "@/lib/api";
 import type { LoginResponse, OTPSetupResponse } from "@/lib/types";
 import PasswordInput from "@/components/PasswordInput";
 import BrandMark from "@/components/BrandMark";
@@ -35,6 +35,11 @@ export default function LoginPage() {
       } catch {
         // If the check itself fails, fall through to the login form rather
         // than trapping the operator on a blank screen.
+      }
+
+      if (!hasSessionCookie()) {
+        setStep("credentials");
+        return;
       }
 
       try {

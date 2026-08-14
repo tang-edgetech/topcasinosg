@@ -82,6 +82,15 @@ async function requestForm<T>(path: string, form: FormData, _retried = false): P
   return unwrap<T>(res);
 }
 
+// has_session is a plain, non-HttpOnly marker cookie the API sets alongside
+// the real session cookies (see api/internal/httpx/cookies.go) — its absence
+// means "definitely logged out," so callers can skip the /auth/me round trip
+// (and the 401 it would otherwise correctly return) instead of probing first.
+export function hasSessionCookie(): boolean {
+  if (typeof document === "undefined") return false;
+  return document.cookie.split("; ").some((c) => c.startsWith("has_session="));
+}
+
 export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, data?: unknown) =>
