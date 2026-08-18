@@ -3,16 +3,18 @@ import { field, sectionClassName, type PageSection } from "@/lib/pages";
 import { getBlacklistEntries } from "@/app/[region]/_lib/api";
 
 // "Blacklisted Casinos to Avoid" — a teaser for the full /blacklist page.
-// Global entries only (no region filter), matching how the section reads on
-// Home (not region-scoped). Reuses the same border-danger/30 styling as
+// An optional regionCode scopes this to one region's entries (e.g. on
+// /th); left blank, it shows global entries, matching how the section
+// reads on Home. Reuses the same border-danger/30 styling as
 // web/src/app/[region]/blacklist/page.tsx.
 export default async function BlacklistPreviewSection({ section }: { section: PageSection }) {
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
   const subheading = field(section.fields, 0, "subheading")?.textValue ?? "";
   const limit = Number(field(section.fields, 0, "limit")?.textValue) || 6;
   const seeAllUrl = field(section.fields, 0, "seeAllUrl")?.textValue || "/blacklist";
+  const regionCode = field(section.fields, 0, "regionCode")?.textValue || undefined;
 
-  const { entries } = await getBlacklistEntries(undefined, 1, limit);
+  const { entries } = await getBlacklistEntries(regionCode, 1, limit);
   if (entries.length === 0) return null;
 
   return (

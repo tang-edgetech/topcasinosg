@@ -34,6 +34,7 @@ type Deps struct {
 	MenuItemHandler       *handler.MenuItemHandler
 	PageHandler           *handler.PageHandler
 	SnippetHandler        *handler.SnippetHandler
+	SidebarHandler        *handler.SidebarHandler
 }
 
 func NewRouter(deps Deps) http.Handler {
@@ -62,6 +63,7 @@ func NewRouter(deps Deps) http.Handler {
 	mux.HandleFunc("GET /api/regions", deps.RegionHandler.ListPublic)
 	mux.HandleFunc("GET /api/game-providers", deps.GameProviderHandler.List)
 	mux.HandleFunc("GET /api/licenses", deps.LicenseHandler.List)
+	mux.HandleFunc("GET /api/sidebar", deps.SidebarHandler.Get)
 	mux.HandleFunc("GET /api/casinos", deps.CasinoHandler.ListPublic)
 	mux.HandleFunc("GET /api/casinos/{slug}", deps.CasinoHandler.GetPublic)
 	mux.HandleFunc("GET /api/bonuses", deps.BonusHandler.ListPublic)
@@ -142,6 +144,11 @@ func NewRouter(deps Deps) http.Handler {
 	mux.Handle("POST /api/admin/licenses", authenticate(contentStaff(http.HandlerFunc(deps.LicenseHandler.Create))))
 	mux.Handle("PUT /api/admin/licenses/{id}", authenticate(contentStaff(http.HandlerFunc(deps.LicenseHandler.Update))))
 	mux.Handle("DELETE /api/admin/licenses/{id}", authenticate(contentStaff(http.HandlerFunc(deps.LicenseHandler.Delete))))
+
+	// Sidebar — the 3 sections are fixed (never created/deleted), so there's
+	// just a read + one bulk-replace endpoint, not full CRUD.
+	mux.Handle("GET /api/admin/sidebar", authenticate(contentStaff(http.HandlerFunc(deps.SidebarHandler.Get))))
+	mux.Handle("PUT /api/admin/sidebar", authenticate(contentStaff(http.HandlerFunc(deps.SidebarHandler.Replace))))
 
 	// Navigation (header mega-menu + footer) — Super Admin and Admin only,
 	// same tier as Regions/Site Settings; Editors have no access at all.

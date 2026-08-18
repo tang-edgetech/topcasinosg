@@ -7,13 +7,44 @@ import { getRegions, getCasinos, type CasinoDTO } from "@/app/[region]/_lib/api"
 // by rating desc) and splits them into `highlightCount` highlight cards +
 // the next `moreCount` in a table, per the confirmed ranking rule ("top" =
 // highest rating, fully automatic — no admin curation).
+//
+// An optional regionCode narrows this to a single region and switches to
+// "highlight only" mode (no per-region table, no heading, no "See all"
+// link) — used on /{region} pages ("Most Popular Online Casinos Among Thai
+// Players") where a separate casino_comparison_table section already covers
+// the full ranked list.
 export default async function TopCasinosByRegionSection({ section }: { section: PageSection }) {
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
   const highlightCount = Number(field(section.fields, 0, "highlightCount")?.textValue) || 3;
   const moreCount = Number(field(section.fields, 0, "moreCount")?.textValue) || 5;
+  const onlyRegionCode = field(section.fields, 0, "regionCode")?.textValue || undefined;
 
-  const regions = (await getRegions()).filter((r) => r.isActive);
+  const allRegions = (await getRegions()).filter((r) => r.isActive);
+  const regions = onlyRegionCode ? allRegions.filter((r) => r.code === onlyRegionCode) : allRegions;
   if (regions.length === 0) return null;
+
+  if (onlyRegionCode) {
+    const casinos = await getCasinos(onlyRegionCode, undefined, highlightCount);
+    if (casinos.length === 0) return null;
+    return (
+      <section id={section.customId || undefined} className={sectionClassName("section--top-casinos-by-region", section)}>
+        <div className="section-container flex flex-col gap-6 py-16">
+          {heading && (
+            <div className="section-row">
+              <div className="section-col text-center">
+                <h2 className="section-heading text-2xl font-bold text-primary-900">{heading}</h2>
+              </div>
+            </div>
+          )}
+          <div className="section-row grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {casinos.map((casino) => (
+              <CasinoHighlightCard key={casino.id} casino={casino} />
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   const perRegionCasinos = await Promise.all(
     regions.map((region) => getCasinos(region.code, undefined, highlightCount + moreCount)),

@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { getCasinos, getRegions, type CasinoDTO } from "./lib";
 import CasinoBadge from "./CasinoBadge";
+import IntroductionSection from "@/components/IntroductionSection";
+import PageWithSidebar from "@/components/PageWithSidebar";
 
 /**
  * /casinos — all casino reviews, grid view with an optional region filter.
@@ -64,24 +66,13 @@ export default async function CasinosPage({
 
   return (
     <div id="casinos-page" className="casinos-page flex flex-1 flex-col bg-white">
-      <section id="casinos-hero" className="casinos-hero bg-surface-muted px-6 py-12">
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-3">
-          <nav aria-label="Breadcrumb" className="casinos-breadcrumb text-sm text-primary-500">
-            <Link href="/" className="cursor-pointer hover:text-secondary-600 hover:underline">
-              Home
-            </Link>
-            <span className="mx-2">/</span>
-            <span className="text-primary-900">Casino Reviews</span>
-          </nav>
-
-          <h1 className="text-3xl font-bold tracking-tight text-primary-900 sm:text-4xl">Casino Reviews</h1>
-          <p className="max-w-2xl text-base text-primary-600">
-            Independent, in-depth reviews of the top online casinos available to Singapore players — ratings,
-            payout speed, payment methods and more.
-          </p>
-        </div>
-      </section>
-
+      <IntroductionSection
+        heading="Casino Reviews"
+        highlightText="Reviews"
+        subheading="Independent, Data-Driven Ratings"
+        paragraph="<p>Independent, in-depth reviews of the top online casinos we track — ratings, payout speed, payment methods and more.</p>"
+      />
+      <PageWithSidebar>
       {activeRegions.length > 0 && (
         <section
           id="casinos-region-filter"
@@ -130,6 +121,7 @@ export default async function CasinosPage({
           )}
         </div>
       </section>
+      </PageWithSidebar>
     </div>
   );
 }

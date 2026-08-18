@@ -120,8 +120,9 @@ async function fetchData<T>(url: string): Promise<T | null> {
   }
 }
 
-// Subset of CasinoDTO actually used by the Reviews hub (comparison table) —
-// see web/src/app/casinos/lib.ts for the full shape used by /casinos/[slug].
+// Subset of CasinoDTO actually used by the Reviews hub and the region
+// homepage's comparison table — see web/src/app/casinos/lib.ts for the full
+// shape used by /casinos/[slug].
 export interface CasinoDTO {
   id: number;
   slug: string;
@@ -129,6 +130,8 @@ export interface CasinoDTO {
   rating: number;
   safeIndex: number | null;
   riskStatus: "low" | "medium" | "high" | null;
+  paymentMethods: string[] | null;
+  payoutSpeed: string;
   ctaUrl: string;
 }
 

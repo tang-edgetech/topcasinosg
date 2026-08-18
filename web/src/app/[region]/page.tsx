@@ -1,5 +1,57 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+import { getPage } from "@/lib/pages";
+import SectionRenderer from "@/components/sections/SectionRenderer";
+import RawHtmlBlock from "@/components/RawHtmlBlock";
 import { getBonuses, getGuides, getPaymentMethods, getRtpEntries } from "./_lib/api";
+
+/**
+ * /{region} — region home page. Pages-CMS-driven, looked up by slug =
+ * region code (e.g. "th"), same pattern as the Homepage/Calculator (see
+ * app/page.tsx, app/calculator/page.tsx). Falls back to a bare stat-card
+ * overview for any region that doesn't have a page authored yet.
+ */
+
+interface RegionPageParams {
+  region: string;
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<RegionPageParams>;
+}): Promise<Metadata> {
+  const { region } = await params;
+  const result = await getPage(region);
+  if (!result) return {};
+
+  const { page } = result;
+  return {
+    title: page.metaTitle || undefined,
+    description: page.metaDescription || undefined,
+  };
+}
+
+export default async function RegionOverviewPage({
+  params,
+}: {
+  params: Promise<RegionPageParams>;
+}) {
+  const { region } = await params;
+  const result = await getPage(region);
+
+  if (result && result.sections.length > 0) {
+    return (
+      <div id="region-overview-page" className="region-overview flex flex-1 flex-col">
+        <RawHtmlBlock html={`${result.page.headSnippet}${result.page.bodySnippet}`} />
+        <SectionRenderer sections={result.sections} />
+        <RawHtmlBlock html={result.page.footerSnippet} />
+      </div>
+    );
+  }
+
+  return <FallbackOverview region={region} />;
+}
 
 interface OverviewCard {
   label: string;
@@ -8,15 +60,8 @@ interface OverviewCard {
   count: number;
 }
 
-export default async function RegionOverviewPage({
-  params,
-}: {
-  params: Promise<{ region: string }>;
-}) {
-  const { region } = await params;
-
-  // The layout already validated `region` against the active regions list,
-  // so it's safe to fan these out in parallel here.
+// Used only for regions with no Pages-CMS content authored yet.
+async function FallbackOverview({ region }: { region: string }) {
   const [bonuses, paymentMethods, rtpEntries, guides] = await Promise.all([
     getBonuses(region),
     getPaymentMethods(region),

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { formatDate, getNewsArticles } from "./_lib/api";
+import IntroductionSection from "@/components/IntroductionSection";
+import PageWithSidebar from "@/components/PageWithSidebar";
 
 export const metadata: Metadata = {
   title: "News | Top Casino SG",
@@ -12,19 +14,14 @@ export default async function NewsPage() {
 
   return (
     <div id="news-page" className="news-page flex flex-1 flex-col bg-white">
-      <div id="news-page-header" className="news-page__header border-b border-primary-100 bg-primary-50">
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-3 px-6 py-10 sm:px-8">
-          <h1 className="text-2xl font-bold tracking-tight text-primary-900 sm:text-3xl">
-            Casino News
-          </h1>
-          <p className="max-w-2xl text-base text-primary-600">
-            The latest announcements, promotions, and industry updates from the Singapore online
-            casino scene.
-          </p>
-        </div>
-      </div>
-
-      <div id="news-page-content" className="news-page__content mx-auto w-full max-w-5xl flex-1 px-6 py-10 sm:px-8">
+      <IntroductionSection
+        heading="Casino News"
+        highlightText="News"
+        subheading="The Latest From the Online Casino Scene"
+        paragraph="<p>The latest announcements, promotions, and industry updates we're tracking across every region.</p>"
+      />
+      <PageWithSidebar>
+      <div id="news-page-content" className="news-page__content w-full flex-1 py-10">
         {articles.length === 0 ? (
           <div
             id="news-empty-state"
@@ -71,6 +68,7 @@ export default async function NewsPage() {
           </ul>
         )}
       </div>
+      </PageWithSidebar>
     </div>
   );
 }

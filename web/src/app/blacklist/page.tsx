@@ -3,6 +3,8 @@ import Link from "next/link";
 import { getBlacklistEntries, getActiveRegions } from "./_lib/api";
 import { sanitizeRichText } from "@/lib/sanitize-html";
 import AccordionItem from "@/components/Accordion";
+import IntroductionSection from "@/components/IntroductionSection";
+import PageWithSidebar from "@/components/PageWithSidebar";
 
 export const metadata: Metadata = {
   title: "Blacklisted Casinos | Top Casino SG",
@@ -102,51 +104,37 @@ export default async function BlacklistPage({
 
   return (
     <div id="blacklist-page" className="blacklist-page flex flex-1 flex-col bg-white">
-      <div
-        id="blacklist-page-header"
-        className="blacklist-page__header border-b border-danger/20 bg-danger/5"
-      >
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-6 py-10 sm:px-8">
-          <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-danger text-white">
-              <WarningIcon className="h-6 w-6" />
-            </span>
-            <h1 className="text-2xl font-bold tracking-tight text-primary-900 sm:text-3xl">
-              Blacklisted Casinos
-            </h1>
-          </div>
-          <p className="max-w-3xl text-base text-primary-600">
-            These operators have been flagged for scams, refusal to pay out winnings, or other
-            serious trust and safety violations. We publish this list to help you avoid them —
-            always double-check an operator here before you deposit anywhere.
-          </p>
-
-          {regions.length > 0 && (
-            <div
-              id="blacklist-region-links"
-              className="blacklist-page__region-links flex flex-wrap items-center gap-2 pt-2"
-            >
-              <span className="text-sm font-medium text-primary-500">Browse by region:</span>
-              {regions
-                .sort((a, b) => a.sortOrder - b.sortOrder)
-                .map((region) => (
-                  <Link
-                    key={region.id}
-                    href={`/${region.code}/blacklist`}
-                    className="rounded-full border border-primary-200 bg-white px-3 py-1 text-sm font-medium text-primary-700 hover:border-primary-500 hover:text-primary-900"
-                  >
-                    {region.name}
-                  </Link>
-                ))}
-            </div>
-          )}
-        </div>
-      </div>
-
+      <IntroductionSection
+        heading="Blacklisted Online Casinos"
+        highlightText="Blacklisted"
+        subheading="Avoid These Scam Sites"
+        paragraph="<p>These operators have been flagged for scams, refusal to pay out winnings, or other serious trust and safety violations — always double-check an operator here before you deposit anywhere.</p>"
+        theme="red"
+      />
+      <PageWithSidebar>
       <div
         id="blacklist-page-content"
-        className="blacklist-page__content mx-auto flex w-full max-w-5xl flex-1 flex-col gap-16 px-6 py-10 sm:px-8"
+        className="blacklist-page__content flex w-full flex-1 flex-col gap-16 py-10"
       >
+        {regions.length > 0 && (
+          <div
+            id="blacklist-region-links"
+            className="blacklist-page__region-links flex flex-wrap items-center gap-2"
+          >
+            <span className="text-sm font-medium text-primary-500">Browse by region:</span>
+            {regions
+              .sort((a, b) => a.sortOrder - b.sortOrder)
+              .map((region) => (
+                <Link
+                  key={region.id}
+                  href={`/${region.code}/blacklist`}
+                  className="rounded-full border border-primary-200 bg-white px-3 py-1 text-sm font-medium text-primary-700 hover:border-primary-500 hover:text-primary-900"
+                >
+                  {region.name}
+                </Link>
+              ))}
+          </div>
+        )}
         <section id="blacklist-entries-section" className="flex flex-col gap-6">
           {entries.length === 0 ? (
             <div
@@ -343,6 +331,7 @@ export default async function BlacklistPage({
           </div>
         </section>
       </div>
+      </PageWithSidebar>
     </div>
   );
 }

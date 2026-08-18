@@ -44,6 +44,7 @@ func main() {
 	menuItemRepo := repository.NewMenuItemRepo(conn)
 	pageRepo := repository.NewPageRepo(conn)
 	snippetRepo := repository.NewSnippetRepo(conn)
+	sidebarRepo := repository.NewSidebarRepo(conn)
 
 	jwtIssuer := security.NewJWTIssuer(cfg.JWTSecret)
 	secretbox, err := security.NewSecretbox(cfg.OTPEncryptionKey)
@@ -69,6 +70,7 @@ func main() {
 	menuItemService := service.NewMenuItemService(menuItemRepo)
 	pageService := service.NewPageService(pageRepo)
 	snippetService := service.NewSnippetService(snippetRepo)
+	sidebarService := service.NewSidebarService(sidebarRepo)
 
 	deps := server.Deps{
 		Config:                cfg,
@@ -91,6 +93,7 @@ func main() {
 		MenuItemHandler:       handler.NewMenuItemHandler(menuItemService),
 		PageHandler:           handler.NewPageHandler(pageService),
 		SnippetHandler:        handler.NewSnippetHandler(snippetService),
+		SidebarHandler:        handler.NewSidebarHandler(sidebarService),
 	}
 	router := server.NewRouter(deps)
 

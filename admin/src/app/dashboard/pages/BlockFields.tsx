@@ -45,6 +45,9 @@ export const BLOCK_TYPE_LABELS: Record<PageBlockType, string> = {
   blacklist_preview: "Blacklist Preview",
   content_carousel: "Content Carousel (Guides/News)",
   region_explorer: "Region Explorer",
+  casino_comparison_table: "Casino Comparison Table",
+  event_highlights: "Event Highlights",
+  introduction_section: "Introduction Section",
 };
 
 const BONUS_TYPE_OPTIONS = [
@@ -144,6 +147,7 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
         blankField(0, "heading", "text", 1),
         textField(0, "highlightCount", "3", 2),
         textField(0, "moreCount", "5", 3),
+        blankField(0, "regionCode", "text", 4),
       ];
     case "blacklist_preview":
       return [
@@ -151,6 +155,7 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
         blankField(0, "subheading", "text", 2),
         textField(0, "limit", "6", 3),
         textField(0, "seeAllUrl", "/blacklist", 4),
+        blankField(0, "regionCode", "text", 5),
       ];
     case "content_carousel":
       return [
@@ -162,6 +167,18 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
       ];
     case "region_explorer":
       return [blankField(0, "heading", "text", 1)];
+    case "casino_comparison_table":
+      return [blankField(0, "heading", "text", 1), blankField(0, "regionCode", "text", 2), textField(0, "limit", "5", 3)];
+    case "event_highlights":
+      return [blankField(0, "heading", "text", 1)];
+    case "introduction_section":
+      return [
+        blankField(0, "heading", "text", 1),
+        blankField(0, "highlightText", "text", 2),
+        blankField(0, "subheading", "text", 3),
+        blankField(0, "paragraph", "richtext", 4),
+        textField(0, "theme", "blue", 5),
+      ];
   }
 }
 
@@ -390,6 +407,12 @@ export default function BlockFieldEditor({ blockType, fields, onChange }: BlockF
       return <ContentCarouselFields fields={fields} onChange={onChange} />;
     case "region_explorer":
       return <RegionExplorerFields fields={fields} onChange={onChange} />;
+    case "casino_comparison_table":
+      return <CasinoComparisonTableFields fields={fields} onChange={onChange} />;
+    case "event_highlights":
+      return <EventHighlightsFields fields={fields} onChange={onChange} />;
+    case "introduction_section":
+      return <IntroductionSectionFields fields={fields} onChange={onChange} />;
   }
 }
 
@@ -1115,6 +1138,7 @@ function TopCasinosByRegionFields({ fields, onChange }: { fields: EditableField[
   const heading = getField(fields, 0, "heading");
   const highlightCount = getField(fields, 0, "highlightCount");
   const moreCount = getField(fields, 0, "moreCount");
+  const regionCode = getField(fields, 0, "regionCode");
 
   return (
     <div className="flex flex-col gap-4">
@@ -1130,9 +1154,15 @@ function TopCasinosByRegionFields({ fields, onChange }: { fields: EditableField[
         onChange={(v) => onChange(upsertField(fields, 0, "highlightCount", "text", 2, { textValue: v }))}
       />
       <TextInputField
-        label="More Casinos per Region (table rows)"
+        label="More Casinos per Region (table rows) — ignored if Region Code is set"
         value={moreCount?.textValue ?? "5"}
         onChange={(v) => onChange(upsertField(fields, 0, "moreCount", "text", 3, { textValue: v }))}
+      />
+      <TextInputField
+        label="Region Code (optional — leave blank to loop every active region)"
+        value={regionCode?.textValue ?? ""}
+        placeholder="th"
+        onChange={(v) => onChange(upsertField(fields, 0, "regionCode", "text", 4, { textValue: v }))}
       />
     </div>
   );
@@ -1146,6 +1176,7 @@ function BlacklistPreviewFields({ fields, onChange }: { fields: EditableField[];
   const subheading = getField(fields, 0, "subheading");
   const limit = getField(fields, 0, "limit");
   const seeAllUrl = getField(fields, 0, "seeAllUrl");
+  const regionCode = getField(fields, 0, "regionCode");
 
   return (
     <div className="flex flex-col gap-4">
@@ -1165,6 +1196,12 @@ function BlacklistPreviewFields({ fields, onChange }: { fields: EditableField[];
         label="Max Entries"
         value={limit?.textValue ?? "6"}
         onChange={(v) => onChange(upsertField(fields, 0, "limit", "text", 3, { textValue: v }))}
+      />
+      <TextInputField
+        label="Region Code (optional — leave blank for global entries only)"
+        value={regionCode?.textValue ?? ""}
+        placeholder="th"
+        onChange={(v) => onChange(upsertField(fields, 0, "regionCode", "text", 5, { textValue: v }))}
       />
       <TextInputField
         label={'"See All" Link'}
@@ -1295,6 +1332,236 @@ function RegionExplorerFields({ fields, onChange }: { fields: EditableField[]; o
         placeholder="Explore Online Casinos by Region"
         onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
       />
+    </div>
+  );
+}
+
+// Live data block — no per-item admin content. The web renderer fetches
+// that region's casinos (GET /api/casinos?region=X, already sorted by
+// rating desc) and shows Brand/Bonus/Payment Methods/Payout Speed/Rating
+// for the top `limit` — no per-casino admin curation needed since it's
+// always the region's own ranked list.
+function CasinoComparisonTableFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const heading = getField(fields, 0, "heading");
+  const regionCode = getField(fields, 0, "regionCode");
+  const limit = getField(fields, 0, "limit");
+
+  return (
+    <div className="flex flex-col gap-4">
+      <TextInputField
+        label="Heading"
+        value={heading?.textValue ?? ""}
+        placeholder="Comparison of Thailand Online Casino Ratings"
+        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
+      />
+      <TextInputField
+        label="Region Code"
+        value={regionCode?.textValue ?? ""}
+        placeholder="th"
+        onChange={(v) => onChange(upsertField(fields, 0, "regionCode", "text", 2, { textValue: v }))}
+      />
+      <TextInputField
+        label="Max Rows"
+        value={limit?.textValue ?? "5"}
+        onChange={(v) => onChange(upsertField(fields, 0, "limit", "text", 3, { textValue: v }))}
+      />
+    </div>
+  );
+}
+
+// Purely admin-authored promo banner cards — no backing entity (Bonus has
+// no image field), same convention as Team Grid.
+function EventHighlightsFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const heading = getField(fields, 0, "heading");
+  const items = itemIndexes(fields);
+
+  function addEvent() {
+    const idx = nextItemIndex(fields);
+    onChange([
+      ...fields,
+      blankField(idx, "image", "image", 1),
+      blankField(idx, "title", "text", 2),
+      blankField(idx, "dateRange", "text", 3),
+      blankField(idx, "button", "button", 4),
+    ]);
+  }
+
+  function removeEvent(itemIndex: number) {
+    onChange(fields.filter((f) => f.itemIndex !== itemIndex));
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <TextInputField
+        label="Section Heading"
+        value={heading?.textValue ?? ""}
+        placeholder="Event Highlights"
+        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
+      />
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {items.map((itemIndex) => {
+          const image = getField(fields, itemIndex, "image");
+          const title = getField(fields, itemIndex, "title");
+          const dateRange = getField(fields, itemIndex, "dateRange");
+          const button = getField(fields, itemIndex, "button");
+          return (
+            <div key={itemIndex} className="event-highlight-item flex flex-col gap-2 rounded-md border border-border p-3 dark:border-border-dark">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-text-muted uppercase dark:text-text-muted-dark">Event {itemIndex}</span>
+                <IconButton
+                  id={`event-highlight-${itemIndex}-remove`}
+                  title="Remove Event"
+                  onClick={() => removeEvent(itemIndex)}
+                  icon={<IconTrash width={14} height={14} />}
+                  variant="danger"
+                />
+              </div>
+              <ImagePickerField
+                label="Banner Image"
+                mediaId={image?.mediaId ?? null}
+                mediaUrl={image?.mediaUrl ?? null}
+                onChange={(mediaId, mediaUrl) => onChange(upsertField(fields, itemIndex, "image", "image", 1, { mediaId, mediaUrl }))}
+              />
+              <TextInputField
+                label="Title"
+                value={title?.textValue ?? ""}
+                placeholder="Huat Spin Giveaway"
+                onChange={(v) => onChange(upsertField(fields, itemIndex, "title", "text", 2, { textValue: v }))}
+              />
+              <TextInputField
+                label="Date Range"
+                value={dateRange?.textValue ?? ""}
+                placeholder="19 Jan - 15 Feb, 2025"
+                onChange={(v) => onChange(upsertField(fields, itemIndex, "dateRange", "text", 3, { textValue: v }))}
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <TextInputField
+                  label="Button Label"
+                  value={button?.textValue ?? ""}
+                  placeholder="Visit Site"
+                  onChange={(v) =>
+                    onChange(upsertField(fields, itemIndex, "button", "button", 4, { textValue: v, urlValue: button?.urlValue ?? "" }))
+                  }
+                />
+                <TextInputField
+                  label="Button Link"
+                  value={button?.urlValue ?? ""}
+                  onChange={(v) =>
+                    onChange(upsertField(fields, itemIndex, "button", "button", 4, { textValue: button?.textValue ?? "", urlValue: v }))
+                  }
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <button
+        type="button"
+        onClick={addEvent}
+        className="flex w-fit cursor-pointer items-center gap-2 rounded-md border border-dashed border-primary-300 px-3 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50"
+      >
+        <IconPlus width={14} height={14} />
+        Add Event
+      </button>
+    </div>
+  );
+}
+
+const INTRO_THEME_OPTIONS = [
+  { value: "blue", label: "Blue (default)" },
+  { value: "red", label: "Red (e.g. Blacklist)" },
+];
+
+// Every non-Home page's first section (Figma "Introduction Section") —
+// heading with one highlighted substring, subheading, paragraph, and an
+// optional page-menu link list (first item renders as the active tab, per
+// the Figma "Thailand 2025" example — see IntroductionSection.tsx).
+function IntroductionSectionFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const heading = getField(fields, 0, "heading");
+  const highlightText = getField(fields, 0, "highlightText");
+  const subheading = getField(fields, 0, "subheading");
+  const paragraph = getField(fields, 0, "paragraph");
+  const theme = getField(fields, 0, "theme")?.textValue || "blue";
+  const items = itemIndexes(fields);
+
+  function addMenuItem() {
+    const idx = nextItemIndex(fields);
+    onChange([...fields, blankField(idx, "label", "text", 1), blankField(idx, "url", "text", 2)]);
+  }
+
+  function removeMenuItem(itemIndex: number) {
+    onChange(fields.filter((f) => f.itemIndex !== itemIndex));
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <TextInputField
+        label="Heading"
+        value={heading?.textValue ?? ""}
+        placeholder="Online Casinos in Thailand 2025"
+        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
+      />
+      <TextInputField
+        label="Highlighted Portion of Heading (optional — must match part of the heading text)"
+        value={highlightText?.textValue ?? ""}
+        placeholder="Thailand 2025"
+        onChange={(v) => onChange(upsertField(fields, 0, "highlightText", "text", 2, { textValue: v }))}
+      />
+      <TextInputField
+        label="Subheading"
+        value={subheading?.textValue ?? ""}
+        placeholder="Real Money & Real Players"
+        onChange={(v) => onChange(upsertField(fields, 0, "subheading", "text", 3, { textValue: v }))}
+      />
+      <RichTextField
+        label="Paragraph"
+        value={paragraph?.textValue ?? ""}
+        onChange={(v) => onChange(upsertField(fields, 0, "paragraph", "richtext", 4, { textValue: v }))}
+      />
+      <LabeledField label="Color Theme">
+        <Select value={theme} onChange={(v) => onChange(upsertField(fields, 0, "theme", "text", 5, { textValue: v }))} options={INTRO_THEME_OPTIONS} />
+      </LabeledField>
+
+      <div className="flex flex-col gap-3">
+        <label className="text-xs font-semibold tracking-wide text-text-muted uppercase dark:text-text-muted-dark">
+          Page Menu (optional — first item shows as the active tab)
+        </label>
+        {items.map((itemIndex) => {
+          const label = getField(fields, itemIndex, "label");
+          const url = getField(fields, itemIndex, "url");
+          return (
+            <div key={itemIndex} className="flex items-center gap-2">
+              <Input
+                placeholder="Label"
+                value={label?.textValue ?? ""}
+                onChange={(e) => onChange(upsertField(fields, itemIndex, "label", "text", 1, { textValue: e.target.value }))}
+              />
+              <Input
+                placeholder="/th/bonuses"
+                value={url?.textValue ?? ""}
+                onChange={(e) => onChange(upsertField(fields, itemIndex, "url", "text", 2, { textValue: e.target.value }))}
+              />
+              <IconButton
+                id={`intro-menu-${itemIndex}-remove`}
+                title="Remove Item"
+                onClick={() => removeMenuItem(itemIndex)}
+                icon={<IconTrash width={14} height={14} />}
+                variant="danger"
+              />
+            </div>
+          );
+        })}
+        <button
+          type="button"
+          onClick={addMenuItem}
+          className="flex w-fit cursor-pointer items-center gap-2 rounded-md border border-dashed border-primary-300 px-3 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50"
+        >
+          <IconPlus width={14} height={14} />
+          Add Menu Item
+        </button>
+      </div>
     </div>
   );
 }

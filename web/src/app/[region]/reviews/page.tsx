@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { getCasinos, getBlacklistEntries, ALL_GAME_TYPES, type GameType } from "../_lib/api";
+import { getCasinos, getBlacklistEntries, getActiveRegionByCode, ALL_GAME_TYPES, type GameType } from "../_lib/api";
+import { buildPageMenu } from "../_lib/pageMenu";
 import AccordionItem from "@/components/Accordion";
+import IntroductionSection from "@/components/IntroductionSection";
 
 /**
  * /{region}/reviews — region-scoped casino review hub (Figma "TH/Reviews").
@@ -40,10 +42,12 @@ export default async function RegionReviewsPage({
   const { game } = await searchParams;
   const activeGame = ALL_GAME_TYPES.find((g) => g.value === game)?.value as GameType | undefined;
 
-  const [casinos, { entries: blacklistEntries }] = await Promise.all([
+  const [casinos, { entries: blacklistEntries }, regionData] = await Promise.all([
     getCasinos(region, activeGame),
     getBlacklistEntries(region, 1, 4),
+    getActiveRegionByCode(region),
   ]);
+  const regionName = regionData?.name ?? region.toUpperCase();
 
   const featured = casinos.slice(0, 3);
 
@@ -57,7 +61,16 @@ export default async function RegionReviewsPage({
           : "bg-primary-100 text-primary-500";
 
   return (
-    <div id="region-reviews-page" className="region-reviews-page flex flex-col gap-14">
+    <div id="region-reviews-page" className="region-reviews-page flex flex-col">
+      <IntroductionSection
+        heading={`Best Online Casino Reviews in ${regionName}`}
+        highlightText={regionName}
+        subheading="Compare Ratings & Safe Index"
+        paragraph={`<p>Every casino we list for ${regionName} is scored on licensing, payout speed, game fairness, and real player feedback — so you can compare with confidence before you sign up.</p>`}
+        pageMenu={buildPageMenu(region, `${regionName} 2025`, "reviews")}
+      />
+
+      <div className="flex flex-col gap-14 py-14">
       <section id="region-reviews-top-rated" className="flex flex-col gap-4">
         <h2 className="text-xl font-bold text-primary-900">Top-Rated Online Casinos</h2>
         {featured.length === 0 ? (
@@ -224,6 +237,7 @@ export default async function RegionReviewsPage({
           </Link>
         </div>
       </section>
+      </div>
     </div>
   );
 }

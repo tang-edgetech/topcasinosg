@@ -47,6 +47,9 @@ var KnownBlockTypes = []string{
 	"blacklist_preview",
 	"content_carousel",
 	"region_explorer",
+	"casino_comparison_table",
+	"event_highlights",
+	"introduction_section",
 }
 
 // PageSection is one visual block on a page. CustomClass/CustomID are the

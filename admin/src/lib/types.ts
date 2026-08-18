@@ -223,6 +223,24 @@ export interface MenuItemDTO {
   sortOrder: number;
 }
 
+export type SidebarSectionKey = "most_popular_topics" | "region_casino_games" | "casino_bonuses";
+
+export interface SidebarLinkDTO {
+  id: number;
+  label: string;
+  url: string;
+  hasDropdown: boolean;
+  sortOrder: number;
+}
+
+export interface SidebarSectionDTO {
+  id: number;
+  key: SidebarSectionKey;
+  heading: string;
+  sortOrder: number;
+  links: SidebarLinkDTO[];
+}
+
 export interface NewsArticleDTO {
   id: number;
   title: string;
@@ -309,7 +327,10 @@ export type PageBlockType =
   | "top_casinos_by_region"
   | "blacklist_preview"
   | "content_carousel"
-  | "region_explorer";
+  | "region_explorer"
+  | "casino_comparison_table"
+  | "event_highlights"
+  | "introduction_section";
 
 export interface PageSectionDTO {
   id: number;

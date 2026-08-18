@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getPage } from "@/lib/pages";
 import SectionRenderer from "@/components/sections/SectionRenderer";
 import RawHtmlBlock from "@/components/RawHtmlBlock";
+import PageWithSidebar from "@/components/PageWithSidebar";
 
 /**
  * /calculator — standalone Bonus Calculator page. Same Pages-CMS-driven
@@ -26,7 +27,9 @@ export default async function CalculatorPage() {
     <div id="calculator-page" className="calculator-page flex flex-1 flex-col">
       {result && <RawHtmlBlock html={`${result.page.headSnippet}${result.page.bodySnippet}`} />}
       {result && result.sections.length > 0 ? (
-        <SectionRenderer sections={result.sections} />
+        <PageWithSidebar>
+          <SectionRenderer sections={result.sections} />
+        </PageWithSidebar>
       ) : (
         <p className="mx-auto max-w-2xl px-6 py-24 text-center text-primary-500">
           Calculator content hasn&apos;t been set up yet — add sections from the admin dashboard&apos;s Pages

@@ -33,6 +33,10 @@ var (
 	ErrInvalidGameType   = errors.New("supportedGames contains an unknown game type")
 )
 
+// SidebarService validation — the 3 sections are fixed at the schema level;
+// a save can only update them, never add/remove/rename one.
+var ErrInvalidSidebarSections = errors.New("sidebar sections must match the existing fixed set of sections")
+
 // SnippetService validation.
 var (
 	ErrInvalidSnippetLocation  = errors.New("location must be 'head', 'body', or 'footer'")

@@ -14,6 +14,9 @@ import TopCasinosByRegionSection from "./TopCasinosByRegionSection";
 import BlacklistPreviewSection from "./BlacklistPreviewSection";
 import ContentCarouselSection from "./ContentCarouselSection";
 import RegionExplorerSection from "./RegionExplorerSection";
+import CasinoComparisonTableSection from "./CasinoComparisonTableSection";
+import EventHighlightsSection from "./EventHighlightsSection";
+import IntroductionSectionBlock from "./IntroductionSectionBlock";
 
 // Dispatches each section to its block-type component. Every instance of a
 // given blockType gets the same canonical CSS class (see sectionClassName /
@@ -57,6 +60,12 @@ export default function SectionRenderer({ sections }: { sections: PageSection[] 
             return <ContentCarouselSection key={section.id} section={section} />;
           case "region_explorer":
             return <RegionExplorerSection key={section.id} section={section} />;
+          case "casino_comparison_table":
+            return <CasinoComparisonTableSection key={section.id} section={section} />;
+          case "event_highlights":
+            return <EventHighlightsSection key={section.id} section={section} />;
+          case "introduction_section":
+            return <IntroductionSectionBlock key={section.id} section={section} />;
           default:
             return null;
         }

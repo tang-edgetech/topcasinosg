@@ -41,7 +41,10 @@ export type PageBlockType =
   | "top_casinos_by_region"
   | "blacklist_preview"
   | "content_carousel"
-  | "region_explorer";
+  | "region_explorer"
+  | "casino_comparison_table"
+  | "event_highlights"
+  | "introduction_section";
 
 export interface PageSection {
   id: number;

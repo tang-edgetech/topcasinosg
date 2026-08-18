@@ -1,4 +1,6 @@
 import Link from "next/link";
+import IntroductionSection from "@/components/IntroductionSection";
+import PageWithSidebar from "@/components/PageWithSidebar";
 
 /**
  * Public guides list — all published guides (global or region-scoped),
@@ -110,22 +112,14 @@ export default async function GuidesPage() {
 
   return (
     <div id="guides-page" className="flex flex-1 flex-col bg-surface font-sans">
-      <section
-        id="guides-hero"
-        className="guides-page__hero border-b border-primary-100 bg-primary-50"
-      >
-        <div className="mx-auto w-full max-w-7xl px-6 py-12">
-          <h1 className="text-3xl font-bold tracking-tight text-primary-900 sm:text-4xl">
-            Casino Guides
-          </h1>
-          <p className="mt-2 max-w-2xl text-base text-primary-600">
-            Learn the games, bonuses, and strategy behind online casinos with our
-            independently written guides.
-          </p>
-        </div>
-      </section>
-
-      <section id="guides-list" className="guides-page__list mx-auto w-full max-w-7xl px-6 py-12">
+      <IntroductionSection
+        heading="Casino Guides"
+        highlightText="Guides"
+        subheading="Learn the Games, Bonuses, and Strategy"
+        paragraph="<p>Independently written guides covering game rules, bonus terms, and strategy for online casino players.</p>"
+      />
+      <PageWithSidebar>
+      <section id="guides-list" className="guides-page__list w-full py-12">
         {guides.length === 0 ? (
           <p
             id="guides-empty-state"
@@ -170,6 +164,7 @@ export default async function GuidesPage() {
           </div>
         )}
       </section>
+      </PageWithSidebar>
     </div>
   );
 }

@@ -30,6 +30,7 @@ import {
   IconCode,
   IconDice,
   IconCertificate,
+  IconList,
 } from "@/components/Icons";
 
 const NAV_ITEMS = [
@@ -63,6 +64,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/media", label: "Media Library", roles: ["super_admin", "admin", "editor"], icon: IconPhoto },
   { href: "/dashboard/users", label: "Users", roles: ["super_admin", "admin"], icon: IconUsers },
   { href: "/dashboard/navigation", label: "Navigation", roles: ["super_admin", "admin"], icon: IconMenu },
+  { href: "/dashboard/sidebar", label: "Sidebar", roles: ["super_admin", "admin"], icon: IconList },
   { href: "/dashboard/account", label: "My Account", roles: ["super_admin", "admin", "editor"], icon: IconUser },
   { href: "/dashboard/snippets", label: "Snippets", roles: ["super_admin"], icon: IconCode },
   { href: "/dashboard/settings", label: "Settings", roles: ["super_admin"], icon: IconSettings },
