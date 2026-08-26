@@ -7,6 +7,8 @@ import {
   sectionClassName,
   columnsClassName,
   colorThemeValue,
+  sectionBgStyle,
+  headingAlignClassName,
   buttonClassName,
   type PageSection,
 } from "@/lib/pages";
@@ -19,6 +21,13 @@ import AccordionItem from "@/components/Accordion";
 //   shared/theme/sections.css's .icon-box rules) rather than combinatorial classes
 // - an optional per-item CTA button, styled via the same buttonClassName as
 //   Hero/CTA buttons
+// - a bgType ("none"/"color"/"gradient"/"image") driving the same
+//   `.section--bg` bleed mechanism as IntroductionSection.tsx, so this
+//   section's background (if any) spans edge-to-edge rather than being
+//   confined to whatever narrow column it happens to render inside (e.g.
+//   next to a Sidebar) - see shared/theme/sections.css
+// - independent mobile/desktop alignment for the section's own heading and
+//   paragraph (not the individual boxes), via headingAlignClassName
 export default function IconBoxGroupSection({ section }: { section: PageSection }) {
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
   const body = field(section.fields, 0, "body")?.textValue ?? "";
@@ -28,6 +37,8 @@ export default function IconBoxGroupSection({ section }: { section: PageSection 
   const colorNormal = field(section.fields, 0, "colorNormal")?.textValue;
   const colorHover = field(section.fields, 0, "colorHover")?.textValue;
   const colorActive = field(section.fields, 0, "colorActive")?.textValue;
+  const headingAlignMobile = field(section.fields, 0, "headingAlignMobile")?.textValue;
+  const headingAlignDesktop = field(section.fields, 0, "headingAlignDesktop")?.textValue;
   const items = itemIndexes(section.fields);
 
   const colorStyle = {
@@ -36,12 +47,18 @@ export default function IconBoxGroupSection({ section }: { section: PageSection 
     "--iconbox-color-active": colorThemeValue(colorActive),
   } as CSSProperties;
 
+  const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields, { bgType: "color", bgFrom: "surface-muted" });
+
   return (
-    <section id={section.customId || undefined} className={sectionClassName("section--icon-box-group", section)}>
-      <div className="section-container flex flex-col gap-10 py-16">
+    <section
+      id={section.customId || undefined}
+      className={sectionClassName(hasBleedBg ? "section--icon-box-group section--bg" : "section--icon-box-group", section)}
+      style={bgStyle as CSSProperties}
+    >
+      <div className="section-container relative z-10 flex flex-col gap-10 py-16">
         {(heading || body) && (
           <div className="section-row">
-            <div className="section-col flex flex-col items-center gap-4 text-center">
+            <div className={`section-col flex flex-col gap-4 ${headingAlignClassName(headingAlignMobile, headingAlignDesktop)}`}>
               {heading && <h2 className="section-heading text-2xl font-bold text-primary-900">{heading}</h2>}
               {body && (
                 <div

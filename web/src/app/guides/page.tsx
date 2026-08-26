@@ -1,6 +1,6 @@
 import Link from "next/link";
 import IntroductionSection from "@/components/IntroductionSection";
-import PageWithSidebar from "@/components/PageWithSidebar";
+import PageGrid from "@/components/PageGrid";
 
 /**
  * Public guides list — all published guides (global or region-scoped),
@@ -112,13 +112,13 @@ export default async function GuidesPage() {
 
   return (
     <div id="guides-page" className="flex flex-1 flex-col bg-surface font-sans">
+      <PageGrid>
       <IntroductionSection
         heading="Casino Guides"
         highlightText="Guides"
         subheading="Learn the Games, Bonuses, and Strategy"
         paragraph="<p>Independently written guides covering game rules, bonus terms, and strategy for online casino players.</p>"
       />
-      <PageWithSidebar>
       <section id="guides-list" className="guides-page__list w-full py-12">
         {guides.length === 0 ? (
           <p
@@ -164,7 +164,7 @@ export default async function GuidesPage() {
           </div>
         )}
       </section>
-      </PageWithSidebar>
+      </PageGrid>
     </div>
   );
 }

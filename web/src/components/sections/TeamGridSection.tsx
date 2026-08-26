@@ -1,16 +1,22 @@
-import { field, itemIndexes, mediaUrl, sectionClassName, type PageSection } from "@/lib/pages";
+import type { CSSProperties } from "react";
+import { field, itemIndexes, mediaUrl, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 
 // "Expert Team Behind the Reviews" — purely admin-authored (photo/name/
 // title/quote per member), mirrors LogoStripSection's item shape.
 export default function TeamGridSection({ section }: { section: PageSection }) {
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
   const items = itemIndexes(section.fields);
+  const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
 
   if (items.length === 0) return null;
 
   return (
-    <section id={section.customId || undefined} className={sectionClassName("section--team-grid", section)}>
-      <div className="section-container flex flex-col gap-10 py-16">
+    <section
+      id={section.customId || undefined}
+      className={sectionClassName(hasBleedBg ? "section--team-grid section--bg" : "section--team-grid", section)}
+      style={bgStyle as CSSProperties}
+    >
+      <div className="section-container relative z-10 flex flex-col gap-10 py-16">
         {heading && (
           <div className="section-row">
             <div className="section-col text-center">

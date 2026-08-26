@@ -4,7 +4,8 @@ import { getBlacklistEntries, getActiveRegions } from "./_lib/api";
 import { sanitizeRichText } from "@/lib/sanitize-html";
 import AccordionItem from "@/components/Accordion";
 import IntroductionSection from "@/components/IntroductionSection";
-import PageWithSidebar from "@/components/PageWithSidebar";
+import PageGrid from "@/components/PageGrid";
+import { sectionBgColorValue } from "@/lib/pages";
 
 export const metadata: Metadata = {
   title: "Blacklisted Casinos | Top Casino SG",
@@ -104,14 +105,15 @@ export default async function BlacklistPage({
 
   return (
     <div id="blacklist-page" className="blacklist-page flex flex-1 flex-col bg-white">
+      <PageGrid>
       <IntroductionSection
         heading="Blacklisted Online Casinos"
         highlightText="Blacklisted"
         subheading="Avoid These Scam Sites"
         paragraph="<p>These operators have been flagged for scams, refusal to pay out winnings, or other serious trust and safety violations — always double-check an operator here before you deposit anywhere.</p>"
-        theme="red"
+        bgFrom={sectionBgColorValue("primary-900")}
+        bgTo={sectionBgColorValue("danger")}
       />
-      <PageWithSidebar>
       <div
         id="blacklist-page-content"
         className="blacklist-page__content flex w-full flex-1 flex-col gap-16 py-10"
@@ -331,7 +333,7 @@ export default async function BlacklistPage({
           </div>
         </section>
       </div>
-      </PageWithSidebar>
+      </PageGrid>
     </div>
   );
 }

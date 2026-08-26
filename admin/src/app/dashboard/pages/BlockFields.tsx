@@ -75,6 +75,38 @@ export const COLOR_THEME_OPTIONS = [
   { value: "muted", label: "Muted" },
 ];
 
+// Gradient-stop palette for Introduction Section's bleed background (see
+// IntroductionSectionFields below and web/src/lib/pages.ts's
+// sectionBgColorValue, which resolves these same token values on render) -
+// a separate token set from COLOR_THEME_OPTIONS since a background wants
+// stops (e.g. "Danger red") that wouldn't make sense as icon/text colors.
+export const SECTION_BG_COLOR_OPTIONS = [
+  { value: "primary-900", label: "Primary (indigo)" },
+  { value: "primary-glow", label: "Primary Glow (blue)" },
+  { value: "secondary-600", label: "Secondary (gold)" },
+  { value: "danger", label: "Danger (red)" },
+  { value: "white", label: "White" },
+  { value: "surface-muted", label: "Muted (grey)" },
+];
+
+// Background mode for a `.section--bg` bleed background (see
+// IconBoxGroupSection.tsx): "none" skips the bleed entirely (transparent
+// section, e.g. Homepage's "Our Review Process"), "color" renders a flat
+// fill (bgFrom used for both gradient stops), "gradient" uses bgFrom/bgTo as
+// distinct stops, "image" uses a media-picked cover image instead.
+export const SECTION_BG_TYPE_OPTIONS = [
+  { value: "none", label: "None" },
+  { value: "color", label: "Solid Color" },
+  { value: "gradient", label: "Gradient" },
+  { value: "image", label: "Image" },
+];
+
+export const HEADING_ALIGN_OPTIONS = [
+  { value: "left", label: "Left" },
+  { value: "center", label: "Center" },
+  { value: "right", label: "Right" },
+];
+
 const DISPLAY_MODE_OPTIONS = [
   { value: "default", label: "Default" },
   { value: "dropdown", label: "Dropdown" },
@@ -98,9 +130,21 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
         blankField(0, "image", "image", 3),
         blankField(0, "button", "button", 4),
         textField(0, "buttonStyle", "primary", 5),
+        textField(0, "bgType", "gradient", 6),
+        textField(0, "bgFrom", "primary-900", 7),
+        textField(0, "bgTo", "primary-glow", 8),
+        blankField(0, "bgImage", "image", 9),
       ];
     case "rich_text":
-      return [blankField(0, "heading", "text", 1), blankField(0, "body", "richtext", 2), blankField(0, "image", "image", 3)];
+      return [
+        blankField(0, "heading", "text", 1),
+        blankField(0, "body", "richtext", 2),
+        blankField(0, "image", "image", 3),
+        textField(0, "bgType", "none", 4),
+        textField(0, "bgFrom", "primary-900", 5),
+        textField(0, "bgTo", "primary-glow", 6),
+        blankField(0, "bgImage", "image", 7),
+      ];
     case "icon_box_group":
       return [
         blankField(0, "heading", "text", 1),
@@ -111,27 +155,65 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
         textField(0, "colorHover", "secondary", 6),
         textField(0, "colorActive", "primary", 7),
         blankField(0, "body", "richtext", 8),
+        textField(0, "headingAlignMobile", "left", 9),
+        textField(0, "headingAlignDesktop", "left", 10),
+        textField(0, "bgType", "color", 11),
+        textField(0, "bgFrom", "surface-muted", 12),
+        textField(0, "bgTo", "surface-muted", 13),
+        blankField(0, "bgImage", "image", 14),
       ];
     case "image_gallery":
-      return [blankField(0, "heading", "text", 1)];
+      return [
+        blankField(0, "heading", "text", 1),
+        textField(0, "bgType", "none", 2),
+        textField(0, "bgFrom", "primary-900", 3),
+        textField(0, "bgTo", "primary-glow", 4),
+        blankField(0, "bgImage", "image", 5),
+      ];
     case "cta":
       return [
         blankField(0, "heading", "text", 1),
         blankField(0, "body", "richtext", 2),
         blankField(0, "button", "button", 3),
         textField(0, "buttonStyle", "white", 4),
+        textField(0, "bgType", "color", 5),
+        textField(0, "bgFrom", "primary-900", 6),
+        textField(0, "bgTo", "primary-glow", 7),
+        blankField(0, "bgImage", "image", 8),
       ];
     case "logo_strip":
-      return [blankField(0, "heading", "text", 1)];
+      return [
+        blankField(0, "heading", "text", 1),
+        textField(0, "bgType", "none", 2),
+        textField(0, "bgFrom", "primary-900", 3),
+        textField(0, "bgTo", "primary-glow", 4),
+        blankField(0, "bgImage", "image", 5),
+      ];
     case "stats_counter":
-      return [blankField(0, "heading", "text", 1)];
+      return [
+        blankField(0, "heading", "text", 1),
+        textField(0, "bgType", "color", 2),
+        textField(0, "bgFrom", "surface-muted", 3),
+        textField(0, "bgTo", "surface-muted", 4),
+        blankField(0, "bgImage", "image", 5),
+      ];
     case "faq":
-      return [blankField(0, "heading", "text", 1)];
+      return [
+        blankField(0, "heading", "text", 1),
+        textField(0, "bgType", "none", 2),
+        textField(0, "bgFrom", "primary-900", 3),
+        textField(0, "bgTo", "primary-glow", 4),
+        blankField(0, "bgImage", "image", 5),
+      ];
     case "bonus_calculator":
       return [
         blankField(0, "heading", "text", 1),
         blankField(0, "subheading", "text", 2),
         blankField(0, "intro", "richtext", 3),
+        textField(0, "bgType", "none", 4),
+        textField(0, "bgFrom", "primary-900", 5),
+        textField(0, "bgTo", "primary-glow", 6),
+        blankField(0, "bgImage", "image", 7),
       ];
     case "bonus_listing_table":
       return [
@@ -139,15 +221,29 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
         blankField(0, "regionCode", "text", 2),
         textField(0, "bonusType", "welcome", 3),
         textField(0, "limit", "5", 4),
+        textField(0, "bgType", "none", 5),
+        textField(0, "bgFrom", "primary-900", 6),
+        textField(0, "bgTo", "primary-glow", 7),
+        blankField(0, "bgImage", "image", 8),
       ];
     case "team_grid":
-      return [blankField(0, "heading", "text", 1)];
+      return [
+        blankField(0, "heading", "text", 1),
+        textField(0, "bgType", "none", 2),
+        textField(0, "bgFrom", "primary-900", 3),
+        textField(0, "bgTo", "primary-glow", 4),
+        blankField(0, "bgImage", "image", 5),
+      ];
     case "top_casinos_by_region":
       return [
         blankField(0, "heading", "text", 1),
         textField(0, "highlightCount", "3", 2),
         textField(0, "moreCount", "5", 3),
         blankField(0, "regionCode", "text", 4),
+        textField(0, "bgType", "none", 5),
+        textField(0, "bgFrom", "primary-900", 6),
+        textField(0, "bgTo", "primary-glow", 7),
+        blankField(0, "bgImage", "image", 8),
       ];
     case "blacklist_preview":
       return [
@@ -156,6 +252,10 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
         textField(0, "limit", "6", 3),
         textField(0, "seeAllUrl", "/blacklist", 4),
         blankField(0, "regionCode", "text", 5),
+        textField(0, "bgType", "none", 6),
+        textField(0, "bgFrom", "primary-900", 7),
+        textField(0, "bgTo", "primary-glow", 8),
+        blankField(0, "bgImage", "image", 9),
       ];
     case "content_carousel":
       return [
@@ -164,20 +264,45 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
         textField(0, "mode", "manual", 3),
         textField(0, "limit", "4", 4),
         blankField(0, "seeAllUrl", "text", 5),
+        textField(0, "bgType", "none", 6),
+        textField(0, "bgFrom", "primary-900", 7),
+        textField(0, "bgTo", "primary-glow", 8),
+        blankField(0, "bgImage", "image", 9),
       ];
     case "region_explorer":
-      return [blankField(0, "heading", "text", 1)];
+      return [
+        blankField(0, "heading", "text", 1),
+        textField(0, "bgType", "none", 2),
+        textField(0, "bgFrom", "primary-900", 3),
+        textField(0, "bgTo", "primary-glow", 4),
+        blankField(0, "bgImage", "image", 5),
+      ];
     case "casino_comparison_table":
-      return [blankField(0, "heading", "text", 1), blankField(0, "regionCode", "text", 2), textField(0, "limit", "5", 3)];
+      return [
+        blankField(0, "heading", "text", 1),
+        blankField(0, "regionCode", "text", 2),
+        textField(0, "limit", "5", 3),
+        textField(0, "bgType", "none", 4),
+        textField(0, "bgFrom", "primary-900", 5),
+        textField(0, "bgTo", "primary-glow", 6),
+        blankField(0, "bgImage", "image", 7),
+      ];
     case "event_highlights":
-      return [blankField(0, "heading", "text", 1)];
+      return [
+        blankField(0, "heading", "text", 1),
+        textField(0, "bgType", "none", 2),
+        textField(0, "bgFrom", "primary-900", 3),
+        textField(0, "bgTo", "primary-glow", 4),
+        blankField(0, "bgImage", "image", 5),
+      ];
     case "introduction_section":
       return [
         blankField(0, "heading", "text", 1),
         blankField(0, "highlightText", "text", 2),
         blankField(0, "subheading", "text", 3),
         blankField(0, "paragraph", "richtext", 4),
-        textField(0, "theme", "blue", 5),
+        textField(0, "bgFrom", "primary-900", 5),
+        textField(0, "bgTo", "primary-glow", 6),
       ];
   }
 }
@@ -343,6 +468,71 @@ function ImagePickerField({
   );
 }
 
+// Reusable background control for any block type - None / Solid Color /
+// Gradient / Image, mirroring web/src/lib/pages.ts's sectionBgStyle (which
+// resolves these same field keys back into the `.section--bg` bleed
+// background's CSS custom properties on render, see shared/theme/
+// sections.css). Each caller passes its own default* props matching
+// whatever fixed look that block type had before this field existed, so
+// existing un-migrated sections keep rendering the same way, and its own
+// sortOrders since different block types have different numbers of fields
+// ahead of these four.
+function SectionBackgroundFields({
+  fields,
+  onChange,
+  sortOrders,
+  defaultBgType = "none",
+  defaultBgFrom = "primary-900",
+  defaultBgTo = "primary-glow",
+}: {
+  fields: EditableField[];
+  onChange: (f: EditableField[]) => void;
+  sortOrders: { bgType: number; bgFrom: number; bgTo: number; bgImage: number };
+  defaultBgType?: string;
+  defaultBgFrom?: string;
+  defaultBgTo?: string;
+}) {
+  const bgType = getField(fields, 0, "bgType")?.textValue || defaultBgType;
+  const bgFrom = getField(fields, 0, "bgFrom")?.textValue || defaultBgFrom;
+  const bgTo = getField(fields, 0, "bgTo")?.textValue || defaultBgTo;
+  const bgImage = getField(fields, 0, "bgImage");
+
+  function setStyleField(key: string, sortOrder: number, value: string) {
+    onChange(upsertField(fields, 0, key, "text", sortOrder, { textValue: value }));
+  }
+
+  return (
+    <div className="section-bg-fields flex flex-col gap-3 rounded-md bg-surface-muted p-4 dark:bg-surface-muted-dark">
+      <LabeledField label="Section Background">
+        <Select value={bgType} onChange={(v) => setStyleField("bgType", sortOrders.bgType, v)} options={SECTION_BG_TYPE_OPTIONS} />
+      </LabeledField>
+      {bgType === "color" && (
+        <LabeledField label="Color">
+          <Select value={bgFrom} onChange={(v) => setStyleField("bgFrom", sortOrders.bgFrom, v)} options={SECTION_BG_COLOR_OPTIONS} />
+        </LabeledField>
+      )}
+      {bgType === "gradient" && (
+        <div className="flex gap-3">
+          <LabeledField label="From">
+            <Select value={bgFrom} onChange={(v) => setStyleField("bgFrom", sortOrders.bgFrom, v)} options={SECTION_BG_COLOR_OPTIONS} />
+          </LabeledField>
+          <LabeledField label="To">
+            <Select value={bgTo} onChange={(v) => setStyleField("bgTo", sortOrders.bgTo, v)} options={SECTION_BG_COLOR_OPTIONS} />
+          </LabeledField>
+        </div>
+      )}
+      {bgType === "image" && (
+        <ImagePickerField
+          label="Background Image"
+          mediaId={bgImage?.mediaId ?? null}
+          mediaUrl={bgImage?.mediaUrl ?? null}
+          onChange={(mediaId, mediaUrl) => onChange(upsertField(fields, 0, "bgImage", "image", sortOrders.bgImage, { mediaId, mediaUrl }))}
+        />
+      )}
+    </div>
+  );
+}
+
 function ButtonField({
   label,
   textValue,
@@ -459,6 +649,14 @@ function HeroFields({ fields, onChange }: { fields: EditableField[]; onChange: (
           )
         }
       />
+      <SectionBackgroundFields
+        fields={fields}
+        onChange={onChange}
+        sortOrders={{ bgType: 6, bgFrom: 7, bgTo: 8, bgImage: 9 }}
+        defaultBgType="gradient"
+        defaultBgFrom="primary-900"
+        defaultBgTo="primary-glow"
+      />
     </div>
   );
 }
@@ -485,6 +683,7 @@ function RichTextBlockFields({ fields, onChange }: { fields: EditableField[]; on
         mediaUrl={image?.mediaUrl ?? null}
         onChange={(mediaId, mediaUrl) => onChange(upsertField(fields, 0, "image", "image", 3, { mediaId, mediaUrl }))}
       />
+      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 4, bgFrom: 5, bgTo: 6, bgImage: 7 }} />
     </div>
   );
 }
@@ -525,6 +724,14 @@ function CTAFields({ fields, onChange }: { fields: EditableField[]; onChange: (f
           )
         }
       />
+      <SectionBackgroundFields
+        fields={fields}
+        onChange={onChange}
+        sortOrders={{ bgType: 5, bgFrom: 6, bgTo: 7, bgImage: 8 }}
+        defaultBgType="color"
+        defaultBgFrom="primary-900"
+        defaultBgTo="primary-glow"
+      />
     </div>
   );
 }
@@ -538,6 +745,8 @@ function IconBoxGroupFields({ fields, onChange }: { fields: EditableField[]; onC
   const colorNormal = getField(fields, 0, "colorNormal")?.textValue || "primary";
   const colorHover = getField(fields, 0, "colorHover")?.textValue || "secondary";
   const colorActive = getField(fields, 0, "colorActive")?.textValue || "primary";
+  const headingAlignMobile = getField(fields, 0, "headingAlignMobile")?.textValue || "left";
+  const headingAlignDesktop = getField(fields, 0, "headingAlignDesktop")?.textValue || "left";
   const items = itemIndexes(fields);
 
   function setStyleField(key: string, sortOrder: number, value: string) {
@@ -591,7 +800,22 @@ function IconBoxGroupFields({ fields, onChange }: { fields: EditableField[]; onC
         <LabeledField label={displayMode === "dropdown" ? "Active (Open) Color" : "Active Color"}>
           <Select value={colorActive} onChange={(v) => setStyleField("colorActive", 7, v)} options={COLOR_THEME_OPTIONS} />
         </LabeledField>
+        <LabeledField label="Heading Alignment (Mobile)">
+          <Select value={headingAlignMobile} onChange={(v) => setStyleField("headingAlignMobile", 9, v)} options={HEADING_ALIGN_OPTIONS} />
+        </LabeledField>
+        <LabeledField label="Heading Alignment (Desktop)">
+          <Select value={headingAlignDesktop} onChange={(v) => setStyleField("headingAlignDesktop", 10, v)} options={HEADING_ALIGN_OPTIONS} />
+        </LabeledField>
       </div>
+
+      <SectionBackgroundFields
+        fields={fields}
+        onChange={onChange}
+        sortOrders={{ bgType: 11, bgFrom: 12, bgTo: 13, bgImage: 14 }}
+        defaultBgType="color"
+        defaultBgFrom="surface-muted"
+        defaultBgTo="surface-muted"
+      />
 
       <div className="flex flex-col gap-3">
         {items.map((itemIndex) => {
@@ -687,6 +911,7 @@ function ImageGalleryFields({ fields, onChange }: { fields: EditableField[]; onC
         value={heading?.textValue ?? ""}
         onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
       />
+      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 2, bgFrom: 3, bgTo: 4, bgImage: 5 }} />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {items.map((itemIndex) => {
@@ -758,6 +983,7 @@ function LogoStripFields({ fields, onChange }: { fields: EditableField[]; onChan
         placeholder="Trusted & Licensed"
         onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
       />
+      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 2, bgFrom: 3, bgTo: 4, bgImage: 5 }} />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {items.map((itemIndex) => {
@@ -837,6 +1063,14 @@ function StatsCounterFields({ fields, onChange }: { fields: EditableField[]; onC
         value={heading?.textValue ?? ""}
         placeholder="Our Track Record"
         onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
+      />
+      <SectionBackgroundFields
+        fields={fields}
+        onChange={onChange}
+        sortOrders={{ bgType: 2, bgFrom: 3, bgTo: 4, bgImage: 5 }}
+        defaultBgType="color"
+        defaultBgFrom="surface-muted"
+        defaultBgTo="surface-muted"
       />
 
       <div className="flex flex-col gap-3">
@@ -930,6 +1164,7 @@ function FaqFields({ fields, onChange }: { fields: EditableField[]; onChange: (f
         placeholder="Frequently Asked Questions"
         onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
       />
+      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 2, bgFrom: 3, bgTo: 4, bgImage: 5 }} />
 
       <div className="flex flex-col gap-3">
         {items.map((itemIndex) => {
@@ -1005,6 +1240,7 @@ function BonusCalculatorFields({ fields, onChange }: { fields: EditableField[]; 
         value={intro?.textValue ?? ""}
         onChange={(v) => onChange(upsertField(fields, 0, "intro", "richtext", 3, { textValue: v }))}
       />
+      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 4, bgFrom: 5, bgTo: 6, bgImage: 7 }} />
     </div>
   );
 }
@@ -1041,6 +1277,7 @@ function BonusListingTableFields({ fields, onChange }: { fields: EditableField[]
         value={limit?.textValue ?? "5"}
         onChange={(v) => onChange(upsertField(fields, 0, "limit", "text", 4, { textValue: v }))}
       />
+      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 5, bgFrom: 6, bgTo: 7, bgImage: 8 }} />
     </div>
   );
 }
@@ -1072,6 +1309,7 @@ function TeamGridFields({ fields, onChange }: { fields: EditableField[]; onChang
         placeholder="Expert Team Behind the Reviews"
         onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
       />
+      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 2, bgFrom: 3, bgTo: 4, bgImage: 5 }} />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {items.map((itemIndex) => {
@@ -1164,6 +1402,7 @@ function TopCasinosByRegionFields({ fields, onChange }: { fields: EditableField[
         placeholder="th"
         onChange={(v) => onChange(upsertField(fields, 0, "regionCode", "text", 4, { textValue: v }))}
       />
+      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 5, bgFrom: 6, bgTo: 7, bgImage: 8 }} />
     </div>
   );
 }
@@ -1208,6 +1447,7 @@ function BlacklistPreviewFields({ fields, onChange }: { fields: EditableField[];
         value={seeAllUrl?.textValue ?? "/blacklist"}
         onChange={(v) => onChange(upsertField(fields, 0, "seeAllUrl", "text", 4, { textValue: v }))}
       />
+      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 6, bgFrom: 7, bgTo: 8, bgImage: 9 }} />
     </div>
   );
 }
@@ -1279,6 +1519,7 @@ function ContentCarouselFields({ fields, onChange }: { fields: EditableField[]; 
         placeholder="/guides"
         onChange={(v) => onChange(upsertField(fields, 0, "seeAllUrl", "text", 5, { textValue: v }))}
       />
+      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 6, bgFrom: 7, bgTo: 8, bgImage: 9 }} />
 
       {mode === "manual" && (
         <div className="flex flex-col gap-3">
@@ -1332,6 +1573,7 @@ function RegionExplorerFields({ fields, onChange }: { fields: EditableField[]; o
         placeholder="Explore Online Casinos by Region"
         onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
       />
+      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 2, bgFrom: 3, bgTo: 4, bgImage: 5 }} />
     </div>
   );
 }
@@ -1365,6 +1607,7 @@ function CasinoComparisonTableFields({ fields, onChange }: { fields: EditableFie
         value={limit?.textValue ?? "5"}
         onChange={(v) => onChange(upsertField(fields, 0, "limit", "text", 3, { textValue: v }))}
       />
+      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 4, bgFrom: 5, bgTo: 6, bgImage: 7 }} />
     </div>
   );
 }
@@ -1398,6 +1641,7 @@ function EventHighlightsFields({ fields, onChange }: { fields: EditableField[]; 
         placeholder="Event Highlights"
         onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
       />
+      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 2, bgFrom: 3, bgTo: 4, bgImage: 5 }} />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {items.map((itemIndex) => {
@@ -1469,21 +1713,21 @@ function EventHighlightsFields({ fields, onChange }: { fields: EditableField[]; 
   );
 }
 
-const INTRO_THEME_OPTIONS = [
-  { value: "blue", label: "Blue (default)" },
-  { value: "red", label: "Red (e.g. Blacklist)" },
-];
-
 // Every non-Home page's first section (Figma "Introduction Section") —
 // heading with one highlighted substring, subheading, paragraph, and an
 // optional page-menu link list (first item renders as the active tab, per
-// the Figma "Thailand 2025" example — see IntroductionSection.tsx).
+// the Figma "Thailand 2025" example — see IntroductionSection.tsx). The
+// bleed background is two independent color-stop pickers (bgFrom/bgTo, see
+// SECTION_BG_COLOR_OPTIONS above) rather than a single "theme" preset, so
+// the admin can combine any two stops instead of picking from a fixed
+// blue/red enum the component used to hardcode.
 function IntroductionSectionFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
   const heading = getField(fields, 0, "heading");
   const highlightText = getField(fields, 0, "highlightText");
   const subheading = getField(fields, 0, "subheading");
   const paragraph = getField(fields, 0, "paragraph");
-  const theme = getField(fields, 0, "theme")?.textValue || "blue";
+  const bgFrom = getField(fields, 0, "bgFrom")?.textValue || "primary-900";
+  const bgTo = getField(fields, 0, "bgTo")?.textValue || "primary-glow";
   const items = itemIndexes(fields);
 
   function addMenuItem() {
@@ -1520,9 +1764,22 @@ function IntroductionSectionFields({ fields, onChange }: { fields: EditableField
         value={paragraph?.textValue ?? ""}
         onChange={(v) => onChange(upsertField(fields, 0, "paragraph", "richtext", 4, { textValue: v }))}
       />
-      <LabeledField label="Color Theme">
-        <Select value={theme} onChange={(v) => onChange(upsertField(fields, 0, "theme", "text", 5, { textValue: v }))} options={INTRO_THEME_OPTIONS} />
-      </LabeledField>
+      <div className="flex gap-4">
+        <LabeledField label="Background — From">
+          <Select
+            value={bgFrom}
+            onChange={(v) => onChange(upsertField(fields, 0, "bgFrom", "text", 5, { textValue: v }))}
+            options={SECTION_BG_COLOR_OPTIONS}
+          />
+        </LabeledField>
+        <LabeledField label="Background — To">
+          <Select
+            value={bgTo}
+            onChange={(v) => onChange(upsertField(fields, 0, "bgTo", "text", 6, { textValue: v }))}
+            options={SECTION_BG_COLOR_OPTIONS}
+          />
+        </LabeledField>
+      </div>
 
       <div className="flex flex-col gap-3">
         <label className="text-xs font-semibold tracking-wide text-text-muted uppercase dark:text-text-muted-dark">

@@ -1,5 +1,6 @@
+import type { CSSProperties } from "react";
 import Link from "next/link";
-import { field, mediaUrl, sectionClassName, buttonClassName, type PageSection } from "@/lib/pages";
+import { field, mediaUrl, sectionClassName, sectionBgStyle, buttonClassName, type PageSection } from "@/lib/pages";
 
 export default function HeroSection({ section }: { section: PageSection }) {
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
@@ -7,18 +8,23 @@ export default function HeroSection({ section }: { section: PageSection }) {
   const image = mediaUrl(field(section.fields, 0, "image")?.mediaUrl);
   const button = field(section.fields, 0, "button");
   const buttonStyle = field(section.fields, 0, "buttonStyle")?.textValue;
+  const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields, { bgType: "gradient", bgFrom: "primary-900", bgTo: "primary-glow" });
 
-  const sectionClasses = [sectionClassName("section--hero", section), "relative", image && "has-hero-image"]
+  const sectionClasses = [
+    sectionClassName(hasBleedBg ? "section--hero section--bg" : "section--hero", section),
+    "relative",
+    image && "has-hero-image",
+  ]
     .filter(Boolean)
     .join(" ");
 
   return (
-    <section id={section.customId || undefined} className={sectionClasses}>
+    <section id={section.customId || undefined} className={sectionClasses} style={bgStyle as CSSProperties}>
       {/* section > container > row > column(s), matching the same nesting
           every section follows. Columns default to grid's stretch alignment
           (no items-center override) so the image column gets a real,
           non-zero height to position against — see .hero__image-col below. */}
-      <div className="section-container py-20">
+      <div className="section-container relative z-10 py-20">
         <div className="section-row grid gap-6 lg:grid-cols-2 lg:gap-10">
           <div className="section-col flex flex-col items-start gap-6">
             {heading && <h1 className="section-heading text-4xl font-bold tracking-tight text-white sm:text-5xl">{heading}</h1>}

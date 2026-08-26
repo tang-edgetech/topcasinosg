@@ -22,9 +22,9 @@
   padding-inline: 25px;
 }
 
-.section--hero {
-  background: linear-gradient(135deg, var(--color-primary-900), var(--color-primary-glow));
-}
+/* Hero's background (default: indigo -> blue-glow) is admin-authored data
+   now, via the same bgType/bgFrom/bgTo fields and `.section--bg` bleed
+   mechanism every other block type uses - see HeroSection.tsx. */
 
 /*
  * Hero's image (when set) is allowed to overlap 50% into whichever section
@@ -68,32 +68,25 @@
   }
 }
 
-/* Our Review Process (icon box group): no card-like background, and pulled
-   up so the gap from the Rich Text section above it is exactly 50px instead
-   of the two sections' combined 64px+64px padding. */
+/* Our Review Process (icon box group): pulled up so the gap from the Rich
+   Text section above it is exactly 50px instead of the two sections'
+   combined 64px+64px padding. Its background (none, by default, on this
+   particular instance) is admin-authored data now - see
+   IconBoxGroupSection.tsx's bgType field - not a hardcoded override here. */
 #our-review-process {
-  background: none;
   margin-top: -78px;
-}
-
-.section--icon-box-group {
-  background: var(--color-surface-muted);
 }
 
 .section--image-gallery {
   background: transparent;
 }
 
-.section--cta {
-  background: var(--color-primary-900);
-}
+/* CTA's background (default: solid indigo) and Stats Counter's (default:
+   muted grey) are admin-authored data now, same as Hero above - see
+   CTASection.tsx / StatsCounterSection.tsx. */
 
 .section--logo-strip {
   background: transparent;
-}
-
-.section--stats-counter {
-  background: var(--color-surface-muted);
 }
 
 .section--faq {
@@ -126,4 +119,205 @@
 }
 .accordion-item__chevron {
   color: var(--color-text-muted);
+}
+
+/*
+ * Page layout: the container for every non-Home page's body (see
+ * web/src/components/PageGrid.tsx) - a plain flexbox row, not a grid.
+ * `.main` is the page container itself (1300px max, centered, 15px gutter).
+ * Below it, `.primary` (the stacked sections) and `.sidebar` are ordinary
+ * flex siblings with `align-items: flex-start`, which is what makes the
+ * Sidebar start flush with `.primary`'s top "for free" - no row-counting or
+ * JS measurement needed, unlike the grid-row-span approach this replaced.
+ * `.sidebar` is `position: sticky`, so it floats alongside `.primary` for
+ * however tall that turns out to be, again with no need to know its height
+ * up front.
+ *
+ * Below 1200px, an explicit `flex-direction: column` switches `.main` to a
+ * single stacked column instead of relying on `flex-wrap` to drop the
+ * Sidebar onto its own line naturally - `.primary`'s `flex: 1 1 0%` basis
+ * (see below) is deliberately near-zero, which means the two items' combined
+ * hypothetical size rarely exceeds the line width on its own, so wrapping
+ * needs to be forced at the same breakpoint every other responsive rule in
+ * this file uses instead of left to occur organically.
+ *
+ * `--primary-w` describes `.primary`'s width when `.main` sits at its own
+ * max-width, used by `.body-container` (re-establishing the reading width
+ * inside a bled section, which has otherwise grown past `.primary`). It's
+ * NOT used as `.primary`'s own flex-basis - flex-wrap's line-fitting test
+ * compares items' hypothetical (pre-shrink) size against the line, so a
+ * fixed-pixel basis here would force an unwanted wrap the moment the
+ * viewport (and so `.main`) narrows below 1300px, even though `.primary`
+ * has flex-shrink available to fit. `flex: 1 1 0%` avoids that: growth
+ * alone fills whatever `.main` actually has left after `.sidebar`+gap, at
+ * any width.
+ */
+:root {
+  --page-max-w: 1300px;
+  --page-gutter: 15px;
+  --sidebar-w: 280px;
+  --sidebar-gap: 2rem;
+  --primary-w: calc(var(--page-max-w) - (2 * var(--page-gutter)));
+}
+
+@media (min-width: 1200px) {
+  :root {
+    --primary-w: calc(
+      var(--page-max-w) - (2 * var(--page-gutter)) - var(--sidebar-w) - var(--sidebar-gap)
+    );
+  }
+}
+
+/*
+ * The page-wide width/centering rule on its own - shared by `.main` (which
+ * additionally needs the flex declarations below) and anything else that
+ * should span the exact same 1300px/15px-gutter measure without caring
+ * about `.main`'s sidebar-row semantics (e.g. Header.tsx's own inner bar,
+ * which just wants "same max-width, same gutter" and applies `.main` and
+ * `.page-container` together in markup rather than duplicating the values).
+ */
+.page-container {
+  width: 100%;
+  max-width: var(--page-max-w);
+  margin-inline: auto;
+  padding-inline: var(--page-gutter);
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sidebar-gap);
+}
+
+@media (min-width: 1200px) {
+  .main {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+}
+
+.main > .primary {
+  flex: 1 1 0%;
+  min-width: 0;
+}
+
+.main > .sidebar {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 var(--sidebar-w);
+  width: var(--sidebar-w);
+  padding-top: 20px;
+}
+
+@media (min-width: 1200px) {
+  .main > .sidebar {
+    position: sticky;
+    top: 24px;
+  }
+}
+
+/*
+ * A section that wants its background to bleed edge-to-edge (e.g.
+ * Introduction Section) gets `.section--bg`: a `::before` sized to 100vw and
+ * re-centered on the viewport via the classic `left: 50%; translateX(-50%)`
+ * trick. That trick alone assumes the element's own center already sits on
+ * the viewport's center - true for `.section--bg` used on its own (e.g. a
+ * region route with no Sidebar at all, where the section spans the full
+ * page width), so that's the default below.
+ *
+ * Inside `.main > .primary` specifically, that assumption breaks: `.primary`
+ * is offset to the LEFT of `.main`'s center by half the Sidebar+gap width,
+ * since the Sidebar only occupies the right side of `.main`. The >=1200px,
+ * `.primary`-scoped override adds that exact offset back in, so the bleed
+ * still lands on the true viewport edges there instead of being shifted
+ * left by ~half the Sidebar's width. This has to be scoped to `.primary`
+ * specifically (not a blanket rule on `.section--bg`) - applying it to a
+ * page with no Sidebar at all would shift the background off-center by the
+ * same amount and cause a real horizontal overflow, which is exactly what
+ * happened before this was scoped. Below 1200px, where the Sidebar (if any)
+ * has wrapped onto its own line, no correction is needed either way.
+ *
+ * The section's own children need `position: relative` (with a z-index
+ * above 0) to paint over this pseudo-element rather than under it - see
+ * IntroductionSection.tsx.
+ *
+ * The background itself is CSS custom properties, set inline by whichever
+ * component uses `.section--bg` (see IntroductionSection.tsx,
+ * IconBoxGroupSection.tsx) - not baked into this class as a fixed "theme".
+ * That's what lets the actual colors/image be admin-authored data (the
+ * Pages CMS fields, resolved via web/src/lib/pages.ts's sectionBgColorValue)
+ * instead of a hardcoded enum a component maps to specific classes.
+ * `--section-bg-image` (a `url(...)` value) takes priority when a caller
+ * sets it - `var()` only falls through to its fallback when the property is
+ * entirely unset, not merely unused - otherwise it's a `--section-bg-from`/
+ * `--section-bg-to` gradient (the same property pair also doubles as a flat
+ * color when a caller sets them equal). The defaults below (indigo ->
+ * blue-glow) only apply if a caller sets none of these.
+ */
+.section--bg {
+  position: relative;
+}
+
+.section--bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 100vw;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 0;
+  background-image: var(
+    --section-bg-image,
+    linear-gradient(to bottom, var(--section-bg-from, var(--color-primary-900)), var(--section-bg-to, var(--color-primary-glow)))
+  );
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+@media (min-width: 1200px) {
+  .main > .primary .section--bg::before {
+    transform: translateX(calc(-50% + (var(--sidebar-w) + var(--sidebar-gap)) / 2));
+  }
+}
+
+/*
+ * Introduction Section's own inner layout (see IntroductionSection.tsx) -
+ * a container/row/col hierarchy matching the rest of the site's
+ * `.section-container`/`.section-row`/`.section-col` convention, but capped
+ * at `--primary-w` (not the sitewide 1270px) so it re-aligns with
+ * `.primary`'s own width exactly, whether or not the section itself bleeds.
+ */
+.body-container {
+  width: 100%;
+  max-width: var(--primary-w);
+  margin-inline: auto;
+}
+
+.intro-row {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+@media (min-width: 1200px) {
+  .intro-row {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+}
+
+.intro-col {
+  flex: 1 1 0%;
+  min-width: 0;
+}
+
+.intro-col--menu {
+  flex: 0 0 auto;
+}
+
+@media (min-width: 1200px) {
+  .intro-col--menu {
+    flex: 0 0 280px;
+  }
 }

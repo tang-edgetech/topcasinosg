@@ -60,7 +60,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en" className={`${figtree.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col font-sans">
+      <body className="min-h-full flex flex-col overflow-x-clip font-sans">
         <RawHtmlBlock html={topOfBody} />
         <Header />
         <main id="site-main" className="flex flex-1 flex-col">

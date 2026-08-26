@@ -6,7 +6,12 @@ import "time"
 // ordered list of Sections, each holding its own ordered Fields. See
 // api/internal/db/migrations/0016_pages.sql for the full schema rationale.
 type Page struct {
-	ID              int64
+	ID     int64
+	// ParentID is nil for a root page. A page's full URL path is its own
+	// slug preceded by every ancestor's slug in order (e.g. parent "legal"
+	// + this page's slug "privacy-policy" -> "/legal/privacy-policy") -
+	// see PageService.ResolvePath and .PathsByID.
+	ParentID        *int64
 	Slug            string
 	Title           string
 	MetaTitle       string

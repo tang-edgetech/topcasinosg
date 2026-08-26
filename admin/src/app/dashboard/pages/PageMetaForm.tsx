@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Form, Input, App as AntApp } from "antd";
+import { Form, Input, Select, App as AntApp } from "antd";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { api, ApiError } from "@/lib/api";
 import type { SaveAction } from "./SaveActionBar";
@@ -31,23 +31,41 @@ export default function PageMetaForm({
   const confirm = useConfirm();
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
+  const [pages, setPages] = useState<PageDTO[]>([]);
   const isHome = target?.slug === "home";
 
-  async function handleFinish(values: { slug: string; title: string }) {
+  useEffect(() => {
+    api
+      .get<{ pages: PageDTO[] | null }>("/api/admin/pages")
+      .then((data) => setPages(data.pages ?? []))
+      .catch(() => setPages([]));
+  }, []);
+
+  // A page can't be parented under itself or under one of its own
+  // descendants (the server rejects this too, see PageService.Update's
+  // isDescendant check) — `path` already encodes the full ancestor chain,
+  // so "starts with my own path + /" is enough to spot a descendant here
+  // without re-walking the tree client-side.
+  const parentOptions = pages
+    .filter((p) => !target || (p.id !== target.id && !p.path.startsWith(`${target.path}/`)))
+    .map((p) => ({ value: p.id, label: `/${p.path}` }));
+
+  async function handleFinish(values: { slug: string; title: string; parentId?: number | null }) {
     const ok = await confirm({
       title: target ? "Save Changes" : "Add Page",
       message: target ? `Update "${values.title}"?` : `Create page "${values.title}"?`,
     });
     if (!ok) return;
 
+    const payload = { ...values, parentId: values.parentId ?? null };
     setSubmitting(true);
     try {
       if (target) {
-        await api.put(`/api/admin/pages/${target.id}`, values);
+        await api.put(`/api/admin/pages/${target.id}`, payload);
         message.success("Saved.");
-        onSaved?.({ ...target, ...values });
+        onSaved?.({ ...target, ...payload });
       } else {
-        const res = await api.post<{ page: PageDTO }>("/api/admin/pages", values);
+        const res = await api.post<{ page: PageDTO }>("/api/admin/pages", payload);
         message.success("Page created. Now add content sections below.");
         router.push(`/dashboard/pages/${res.page.id}`);
       }
@@ -78,10 +96,29 @@ export default function PageMetaForm({
         initialValues={{
           slug: target?.slug ?? "",
           title: target?.title ?? "",
+          parentId: target?.parentId ?? undefined,
         }}
       >
         <Form.Item name="title" label="Page Title" rules={[{ required: true }]} extra="Admin-facing label, e.g. 'Homepage'.">
           <Input />
+        </Form.Item>
+        <Form.Item
+          name="parentId"
+          label="Parent Page"
+          extra={
+            isHome
+              ? "The Homepage stays at the root — it can't have a parent."
+              : "Optional. Nesting a page under another builds its URL from both — e.g. parent \"legal\" + this page's slug \"privacy-policy\" -> /legal/privacy-policy."
+          }
+        >
+          <Select
+            allowClear
+            placeholder="No parent (top-level page)"
+            disabled={isHome}
+            options={parentOptions}
+            showSearch
+            optionFilterProp="label"
+          />
         </Form.Item>
         <Form.Item
           name="slug"
@@ -90,7 +127,7 @@ export default function PageMetaForm({
           extra={
             isHome
               ? "The Homepage's slug must stay \"home\" — it's what the public site looks up at /."
-              : "Usually the public URL path, e.g. \"about\" for /about — except the per-region bonus-type pages (\"th-bonuses-welcome\" etc.), which are looked up by this slug but served at /{region}/bonuses/{type}."
+              : "One path segment, e.g. \"about\" — combined with any Parent Page above to form the full URL. Must be unique among sibling pages (same parent), not site-wide. Exception: the per-region bonus-type pages (\"th-bonuses-welcome\" etc.), which are looked up by this slug but served at /{region}/bonuses/{type}."
           }
         >
           <Input placeholder="about" disabled={isHome} />

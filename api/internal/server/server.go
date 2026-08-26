@@ -75,7 +75,7 @@ func NewRouter(deps Deps) http.Handler {
 	mux.HandleFunc("GET /api/news", deps.NewsArticleHandler.ListPublic)
 	mux.HandleFunc("GET /api/news/{slug}", deps.NewsArticleHandler.GetPublic)
 	mux.HandleFunc("GET /api/menus", deps.MenuItemHandler.ListPublic)
-	mux.HandleFunc("GET /api/pages/{slug}", deps.PageHandler.GetPublic)
+	mux.HandleFunc("GET /api/pages/{path...}", deps.PageHandler.GetPublic)
 	mux.HandleFunc("GET /api/snippets", deps.SnippetHandler.GetPublic)
 
 	authenticate := middleware.Authenticate(deps.JWT, deps.Users)

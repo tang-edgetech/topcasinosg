@@ -1,5 +1,6 @@
+import type { CSSProperties } from "react";
 import Link from "next/link";
-import { field, sectionClassName, type PageSection } from "@/lib/pages";
+import { field, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { getRegions, getCasinos, type CasinoDTO } from "@/app/[region]/_lib/api";
 
 // "Top Rated Casino of the Month by Country" — for every active region,
@@ -23,12 +24,15 @@ export default async function TopCasinosByRegionSection({ section }: { section: 
   const regions = onlyRegionCode ? allRegions.filter((r) => r.code === onlyRegionCode) : allRegions;
   if (regions.length === 0) return null;
 
+  const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
+  const sectionClasses = sectionClassName(hasBleedBg ? "section--top-casinos-by-region section--bg" : "section--top-casinos-by-region", section);
+
   if (onlyRegionCode) {
     const casinos = await getCasinos(onlyRegionCode, undefined, highlightCount);
     if (casinos.length === 0) return null;
     return (
-      <section id={section.customId || undefined} className={sectionClassName("section--top-casinos-by-region", section)}>
-        <div className="section-container flex flex-col gap-6 py-16">
+      <section id={section.customId || undefined} className={sectionClasses} style={bgStyle as CSSProperties}>
+        <div className="section-container relative z-10 flex flex-col gap-6 py-16">
           {heading && (
             <div className="section-row">
               <div className="section-col text-center">
@@ -51,8 +55,8 @@ export default async function TopCasinosByRegionSection({ section }: { section: 
   );
 
   return (
-    <section id={section.customId || undefined} className={sectionClassName("section--top-casinos-by-region", section)}>
-      <div className="section-container flex flex-col gap-12 py-16">
+    <section id={section.customId || undefined} className={sectionClasses} style={bgStyle as CSSProperties}>
+      <div className="section-container relative z-10 flex flex-col gap-12 py-16">
         {heading && (
           <div className="section-row">
             <div className="section-col text-center">

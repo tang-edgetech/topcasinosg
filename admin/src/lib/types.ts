@@ -256,7 +256,13 @@ export interface NewsArticleDTO {
 
 export interface PageDTO {
   id: number;
+  parentId: number | null;
   slug: string;
+  // Full URL path (every ancestor's slug, root-first, then this page's own)
+  // — computed server-side, not stored; see api/internal/service/page_service.go's
+  // PathsByID. Empty string only on responses that don't compute it (there are
+  // none from the admin API today — every admin page endpoint includes it).
+  path: string;
   title: string;
   metaTitle: string;
   metaDescription: string;

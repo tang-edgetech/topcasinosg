@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { getCasinos, getRegions, type CasinoDTO } from "./lib";
 import CasinoBadge from "./CasinoBadge";
 import IntroductionSection from "@/components/IntroductionSection";
-import PageWithSidebar from "@/components/PageWithSidebar";
+import PageGrid from "@/components/PageGrid";
 
 /**
  * /casinos — all casino reviews, grid view with an optional region filter.
@@ -66,13 +66,13 @@ export default async function CasinosPage({
 
   return (
     <div id="casinos-page" className="casinos-page flex flex-1 flex-col bg-white">
+      <PageGrid>
       <IntroductionSection
         heading="Casino Reviews"
         highlightText="Reviews"
         subheading="Independent, Data-Driven Ratings"
         paragraph="<p>Independent, in-depth reviews of the top online casinos we track — ratings, payout speed, payment methods and more.</p>"
       />
-      <PageWithSidebar>
       {activeRegions.length > 0 && (
         <section
           id="casinos-region-filter"
@@ -121,7 +121,7 @@ export default async function CasinosPage({
           )}
         </div>
       </section>
-      </PageWithSidebar>
+      </PageGrid>
     </div>
   );
 }

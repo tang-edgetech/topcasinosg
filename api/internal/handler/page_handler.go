@@ -23,7 +23,13 @@ func NewPageHandler(pages *service.PageService) *PageHandler {
 
 type PageDTO struct {
 	ID              int64      `json:"id"`
+	ParentID        *int64     `json:"parentId"`
 	Slug            string     `json:"slug"`
+	// Path is the page's full URL path (every ancestor's slug, root-first,
+	// then this page's own) - computed, not stored; see PageService.PathsByID.
+	// Empty when the DTO is built without a paths map (e.g. GetPublic, which
+	// only ever needs the single resolved page, not the whole tree).
+	Path            string     `json:"path"`
 	Title           string     `json:"title"`
 	MetaTitle       string     `json:"metaTitle"`
 	MetaDescription string     `json:"metaDescription"`
@@ -36,9 +42,10 @@ type PageDTO struct {
 	UpdatedAt       time.Time  `json:"updatedAt"`
 }
 
-func toPageDTO(p *domain.Page) PageDTO {
+func toPageDTO(p *domain.Page, paths map[int64]string) PageDTO {
 	return PageDTO{
-		ID: p.ID, Slug: p.Slug, Title: p.Title, MetaTitle: p.MetaTitle, MetaDescription: p.MetaDescription,
+		ID: p.ID, ParentID: p.ParentID, Slug: p.Slug, Path: paths[p.ID], Title: p.Title,
+		MetaTitle: p.MetaTitle, MetaDescription: p.MetaDescription,
 		HeadSnippet: p.HeadSnippet, BodySnippet: p.BodySnippet, FooterSnippet: p.FooterSnippet,
 		Status: string(p.Status), PublishAt: p.PublishAt, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
 	}
@@ -90,7 +97,7 @@ func pageErrorStatus(err error) int {
 		return http.StatusConflict
 	case errors.Is(err, service.ErrInvalidContentStatus), errors.Is(err, service.ErrPublishAtRequired),
 		errors.Is(err, service.ErrInvalidBlockType), errors.Is(err, service.ErrInvalidFieldType),
-		errors.Is(err, service.ErrHomeSlugLocked):
+		errors.Is(err, service.ErrHomeSlugLocked), errors.Is(err, service.ErrInvalidParent):
 		return http.StatusBadRequest
 	default:
 		return http.StatusInternalServerError
@@ -103,9 +110,14 @@ func (h *PageHandler) List(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusInternalServerError, "could not load pages")
 		return
 	}
+	paths, err := h.pages.PathsByID(r.Context())
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "could not compute page paths")
+		return
+	}
 	dtos := make([]PageDTO, len(pages))
 	for i := range pages {
-		dtos[i] = toPageDTO(&pages[i])
+		dtos[i] = toPageDTO(&pages[i], paths)
 	}
 	response.JSON(w, http.StatusOK, map[string]any{"pages": dtos})
 }
@@ -126,14 +138,21 @@ func (h *PageHandler) Get(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusInternalServerError, "could not load page sections")
 		return
 	}
-	response.JSON(w, http.StatusOK, map[string]any{"page": toPageDTO(page), "sections": toSectionDTOs(sections)})
+	paths, err := h.pages.PathsByID(r.Context())
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "could not compute page paths")
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]any{"page": toPageDTO(page, paths), "sections": toSectionDTOs(sections)})
 }
 
-// GetPublic — the public website's read. No auth; only effectively
-// published pages are visible.
+// GetPublic — the public website's read. No auth; only the resolved leaf
+// page's own status is checked (see PageService.ResolvePath) — a page one
+// or more levels deep is looked up by its FULL path (e.g. "legal/privacy-
+// policy"), a root page by its own slug alone, same mechanism either way.
 func (h *PageHandler) GetPublic(w http.ResponseWriter, r *http.Request) {
-	slug := r.PathValue("slug")
-	page, err := h.pages.GetPublishedBySlug(r.Context(), slug)
+	path := r.PathValue("path")
+	page, err := h.pages.ResolvePath(r.Context(), path)
 	if err != nil {
 		response.Err(w, pageErrorStatus(err), "page not found")
 		return
@@ -143,10 +162,11 @@ func (h *PageHandler) GetPublic(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusInternalServerError, "could not load page sections")
 		return
 	}
-	response.JSON(w, http.StatusOK, map[string]any{"page": toPageDTO(page), "sections": toSectionDTOs(sections)})
+	response.JSON(w, http.StatusOK, map[string]any{"page": toPageDTO(page, nil), "sections": toSectionDTOs(sections)})
 }
 
 type pageRequest struct {
+	ParentID        *int64 `json:"parentId"`
 	Slug            string `json:"slug"`
 	Title           string `json:"title"`
 	MetaTitle       string `json:"metaTitle"`
@@ -160,13 +180,18 @@ func (h *PageHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	page, err := h.pages.Create(r.Context(), service.PageInput{
-		Slug: req.Slug, Title: req.Title, MetaTitle: req.MetaTitle, MetaDescription: req.MetaDescription,
+		ParentID: req.ParentID, Slug: req.Slug, Title: req.Title, MetaTitle: req.MetaTitle, MetaDescription: req.MetaDescription,
 	})
 	if err != nil {
 		response.Err(w, pageErrorStatus(err), err.Error())
 		return
 	}
-	response.JSON(w, http.StatusCreated, map[string]any{"page": toPageDTO(page)})
+	paths, err := h.pages.PathsByID(r.Context())
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "could not compute page paths")
+		return
+	}
+	response.JSON(w, http.StatusCreated, map[string]any{"page": toPageDTO(page, paths)})
 }
 
 func (h *PageHandler) Update(w http.ResponseWriter, r *http.Request) {
@@ -181,7 +206,7 @@ func (h *PageHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.pages.Update(r.Context(), id, service.PageInput{
-		Slug: req.Slug, Title: req.Title, MetaTitle: req.MetaTitle, MetaDescription: req.MetaDescription,
+		ParentID: req.ParentID, Slug: req.Slug, Title: req.Title, MetaTitle: req.MetaTitle, MetaDescription: req.MetaDescription,
 	}); err != nil {
 		response.Err(w, pageErrorStatus(err), err.Error())
 		return

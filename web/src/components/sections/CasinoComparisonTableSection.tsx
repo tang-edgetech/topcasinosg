@@ -1,5 +1,6 @@
+import type { CSSProperties } from "react";
 import Link from "next/link";
-import { field, sectionClassName, type PageSection } from "@/lib/pages";
+import { field, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { getCasinos, getBonuses } from "@/app/[region]/_lib/api";
 
 // "Comparison of Thailand Online Casino Ratings" — a region-scoped ranked
@@ -25,9 +26,15 @@ export default async function CasinoComparisonTableSection({ section }: { sectio
     }
   }
 
+  const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
+
   return (
-    <section id={section.customId || undefined} className={sectionClassName("section--casino-comparison-table", section)}>
-      <div className="section-container flex flex-col gap-6 py-16">
+    <section
+      id={section.customId || undefined}
+      className={sectionClassName(hasBleedBg ? "section--casino-comparison-table section--bg" : "section--casino-comparison-table", section)}
+      style={bgStyle as CSSProperties}
+    >
+      <div className="section-container relative z-10 flex flex-col gap-6 py-16">
         {heading && (
           <div className="section-row">
             <div className="section-col text-center">

@@ -1,4 +1,4 @@
-import { field, itemIndexes, type PageSection } from "@/lib/pages";
+import { field, itemIndexes, sectionBgColorValue, type PageSection } from "@/lib/pages";
 import IntroductionSection from "@/components/IntroductionSection";
 
 export default function IntroductionSectionBlock({ section }: { section: PageSection }) {
@@ -6,7 +6,8 @@ export default function IntroductionSectionBlock({ section }: { section: PageSec
   const highlightText = field(section.fields, 0, "highlightText")?.textValue ?? "";
   const subheading = field(section.fields, 0, "subheading")?.textValue ?? "";
   const paragraph = field(section.fields, 0, "paragraph")?.textValue ?? "";
-  const theme = (field(section.fields, 0, "theme")?.textValue || "blue") as "blue" | "red";
+  const bgFrom = sectionBgColorValue(field(section.fields, 0, "bgFrom")?.textValue || "primary-900");
+  const bgTo = sectionBgColorValue(field(section.fields, 0, "bgTo")?.textValue || "primary-glow");
 
   const pageMenu = itemIndexes(section.fields)
     .map((itemIndex) => ({
@@ -21,7 +22,8 @@ export default function IntroductionSectionBlock({ section }: { section: PageSec
       highlightText={highlightText}
       subheading={subheading}
       paragraph={paragraph}
-      theme={theme}
+      bgFrom={bgFrom}
+      bgTo={bgTo}
       pageMenu={pageMenu}
     />
   );

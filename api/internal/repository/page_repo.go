@@ -17,13 +17,13 @@ func NewPageRepo(db *sql.DB) *PageRepo {
 	return &PageRepo{db: db}
 }
 
-const pageColumns = `id, slug, title, meta_title, meta_description,
+const pageColumns = `id, parent_id, slug, title, meta_title, meta_description,
 	head_snippet, body_snippet, footer_snippet, status, publish_at, created_at, updated_at`
 
 func scanPage(row interface{ Scan(...any) error }) (*domain.Page, error) {
 	var p domain.Page
 	if err := row.Scan(
-		&p.ID, &p.Slug, &p.Title, &p.MetaTitle, &p.MetaDescription,
+		&p.ID, &p.ParentID, &p.Slug, &p.Title, &p.MetaTitle, &p.MetaDescription,
 		&p.HeadSnippet, &p.BodySnippet, &p.FooterSnippet, &p.Status, &p.PublishAt, &p.CreatedAt, &p.UpdatedAt,
 	); err != nil {
 		return nil, err
@@ -58,11 +58,13 @@ func (r *PageRepo) GetByID(ctx context.Context, id int64) (*domain.Page, error) 
 	return p, err
 }
 
-// GetPublishedBySlug is the public website's read — only effectively
-// published pages are visible, computed live (see EffectivelyPublishedSQL).
+// GetPublishedBySlug is the public website's read for a ROOT page (no
+// parent) — only effectively published pages are visible, computed live
+// (see EffectivelyPublishedSQL). Kept for the single-segment case; deeper
+// paths resolve via ResolvePath/PathNodes below instead.
 func (r *PageRepo) GetPublishedBySlug(ctx context.Context, slug string) (*domain.Page, error) {
 	row := r.db.QueryRowContext(ctx,
-		`SELECT `+pageColumns+` FROM pages WHERE slug = ? AND `+EffectivelyPublishedSQL, slug,
+		`SELECT `+pageColumns+` FROM pages WHERE slug = ? AND parent_id IS NULL AND `+EffectivelyPublishedSQL, slug,
 	)
 	p, err := scanPage(row)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -71,16 +73,68 @@ func (r *PageRepo) GetPublishedBySlug(ctx context.Context, slug string) (*domain
 	return p, err
 }
 
-func (r *PageRepo) ExistsSlug(ctx context.Context, slug string, excludeID int64) (bool, error) {
+// GetPublishedByID mirrors GetPublishedBySlug but by primary key - used once
+// a full path has already been resolved to a leaf page id (see
+// PageService.ResolvePath), since the walk itself only needs slug/parent_id,
+// not full row data, for every ancestor along the way.
+func (r *PageRepo) GetPublishedByID(ctx context.Context, id int64) (*domain.Page, error) {
+	row := r.db.QueryRowContext(ctx,
+		`SELECT `+pageColumns+` FROM pages WHERE id = ? AND `+EffectivelyPublishedSQL, id,
+	)
+	p, err := scanPage(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	return p, err
+}
+
+// ExistsSlugUnderParent checks sibling-uniqueness (same parent, including
+// two root pages both having a nil parent) rather than global uniqueness -
+// see the 0028 migration's parent_key column for why a plain nullable
+// parent_id can't be compared with `=` here (NULL never equals NULL in SQL).
+func (r *PageRepo) ExistsSlugUnderParent(ctx context.Context, slug string, parentID *int64, excludeID int64) (bool, error) {
 	var count int
-	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM pages WHERE slug = ? AND id != ?`, slug, excludeID).Scan(&count)
+	err := r.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM pages WHERE slug = ? AND parent_key = COALESCE(?, 0) AND id != ?`,
+		slug, parentID, excludeID,
+	).Scan(&count)
 	return count > 0, err
+}
+
+// PathNode is the minimal shape needed to resolve a URL path to a page id
+// (or to compute every page's full path for the admin list) - deliberately
+// not the full domain.Page, since this is fetched for every page at once
+// regardless of publish status (an unpublished page can still be a real
+// ancestor segment; its own leaf-page visibility is checked separately via
+// GetPublishedByID once resolution finds it).
+type PathNode struct {
+	ID       int64
+	ParentID *int64
+	Slug     string
+}
+
+func (r *PageRepo) ListPathNodes(ctx context.Context) ([]PathNode, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT id, parent_id, slug FROM pages`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var nodes []PathNode
+	for rows.Next() {
+		var n PathNode
+		if err := rows.Scan(&n.ID, &n.ParentID, &n.Slug); err != nil {
+			return nil, err
+		}
+		nodes = append(nodes, n)
+	}
+	return nodes, rows.Err()
 }
 
 func (r *PageRepo) Create(ctx context.Context, p *domain.Page) (int64, error) {
 	res, err := r.db.ExecContext(ctx,
-		`INSERT INTO pages (slug, title, meta_title, meta_description, status, publish_at) VALUES (?, ?, ?, ?, ?, ?)`,
-		p.Slug, p.Title, p.MetaTitle, p.MetaDescription, p.Status, p.PublishAt,
+		`INSERT INTO pages (parent_id, slug, title, meta_title, meta_description, status, publish_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		p.ParentID, p.Slug, p.Title, p.MetaTitle, p.MetaDescription, p.Status, p.PublishAt,
 	)
 	if err != nil {
 		return 0, err
@@ -88,12 +142,12 @@ func (r *PageRepo) Create(ctx context.Context, p *domain.Page) (int64, error) {
 	return res.LastInsertId()
 }
 
-// UpdateDetails is the "Page Details" tab's save — title + slug only. Split
-// out from SEO/snippet fields so those two other tabs (different admin
+// UpdateDetails is the "Page Details" tab's save — title + slug + parent.
+// Split out from SEO/snippet fields so those two other tabs (different admin
 // forms, and for snippets a different permission tier) never clobber each
 // other's columns by round-tripping stale values.
-func (r *PageRepo) UpdateDetails(ctx context.Context, id int64, title, slug string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE pages SET title = ?, slug = ? WHERE id = ?`, title, slug, id)
+func (r *PageRepo) UpdateDetails(ctx context.Context, id int64, title, slug string, parentID *int64) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE pages SET title = ?, slug = ?, parent_id = ? WHERE id = ?`, title, slug, parentID, id)
 	return err
 }
 

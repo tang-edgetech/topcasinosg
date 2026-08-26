@@ -188,7 +188,7 @@ export default function Header() {
       id="site-header"
       className="site-header relative z-50 w-full bg-gradient-to-r from-primary-900 to-primary-glow"
     >
-      <div className="site-header__bar mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+      <div className="site-header__bar page-container flex items-center justify-between gap-4 py-3">
         <Link
           href="/"
           className="site-header__logo-link flex cursor-pointer items-center gap-2"

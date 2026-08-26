@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { formatDate, getNewsArticles } from "./_lib/api";
 import IntroductionSection from "@/components/IntroductionSection";
-import PageWithSidebar from "@/components/PageWithSidebar";
+import PageGrid from "@/components/PageGrid";
 
 export const metadata: Metadata = {
   title: "News | Top Casino SG",
@@ -14,13 +14,13 @@ export default async function NewsPage() {
 
   return (
     <div id="news-page" className="news-page flex flex-1 flex-col bg-white">
+      <PageGrid>
       <IntroductionSection
         heading="Casino News"
         highlightText="News"
         subheading="The Latest From the Online Casino Scene"
         paragraph="<p>The latest announcements, promotions, and industry updates we're tracking across every region.</p>"
       />
-      <PageWithSidebar>
       <div id="news-page-content" className="news-page__content w-full flex-1 py-10">
         {articles.length === 0 ? (
           <div
@@ -68,7 +68,7 @@ export default async function NewsPage() {
           </ul>
         )}
       </div>
-      </PageWithSidebar>
+      </PageGrid>
     </div>
   );
 }

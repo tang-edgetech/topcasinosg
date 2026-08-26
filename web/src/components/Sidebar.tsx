@@ -3,7 +3,7 @@ import { getSidebarSections } from "@/lib/sidebar";
 
 // Figma "Comp / Header / Sidebar" — shown on every non-Home page, floating
 // top-right of the Introduction Section (see IntroductionSection.tsx) and
-// staying sticky as the page scrolls (see PageWithSidebar's layout wrapper
+// staying sticky as the page scrolls (see PageGrid.tsx's layout wrapper
 // for the sticky/width/gap mechanics — this component only renders content).
 export default async function Sidebar() {
   const sections = await getSidebarSections();

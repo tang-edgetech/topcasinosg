@@ -1,6 +1,7 @@
 import { getBlacklistEntries, getActiveRegionByCode } from "../_lib/api";
 import { buildPageMenu } from "../_lib/pageMenu";
 import IntroductionSection from "@/components/IntroductionSection";
+import { sectionBgColorValue } from "@/lib/pages";
 
 export default async function RegionBlacklistPage({
   params,
@@ -17,7 +18,8 @@ export default async function RegionBlacklistPage({
       highlightText="Blacklisted"
       subheading="Avoid These Scam Sites"
       paragraph={`<p>Operators flagged for withheld withdrawals, rigged games, or fake licences targeting ${regionName} players.</p>`}
-      theme="red"
+      bgFrom={sectionBgColorValue("primary-900")}
+      bgTo={sectionBgColorValue("danger")}
       pageMenu={buildPageMenu(region, `${regionName} 2025`, "blacklist")}
     />
   );

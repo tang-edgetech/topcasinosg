@@ -1,5 +1,6 @@
+import type { CSSProperties } from "react";
 import Link from "next/link";
-import { field, sectionClassName, type PageSection } from "@/lib/pages";
+import { field, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { getBlacklistEntries } from "@/app/[region]/_lib/api";
 
 // "Blacklisted Casinos to Avoid" — a teaser for the full /blacklist page.
@@ -17,9 +18,15 @@ export default async function BlacklistPreviewSection({ section }: { section: Pa
   const { entries } = await getBlacklistEntries(regionCode, 1, limit);
   if (entries.length === 0) return null;
 
+  const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
+
   return (
-    <section id={section.customId || undefined} className={sectionClassName("section--blacklist-preview", section)}>
-      <div className="section-container flex flex-col gap-8 py-16">
+    <section
+      id={section.customId || undefined}
+      className={sectionClassName(hasBleedBg ? "section--blacklist-preview section--bg" : "section--blacklist-preview", section)}
+      style={bgStyle as CSSProperties}
+    >
+      <div className="section-container relative z-10 flex flex-col gap-8 py-16">
         <div className="section-row flex flex-col items-center gap-2 text-center">
           {heading && <h2 className="section-heading text-2xl font-bold text-primary-900">{heading}</h2>}
           {subheading && <p className="text-base text-primary-600">{subheading}</p>}

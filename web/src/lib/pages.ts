@@ -57,7 +57,9 @@ export interface PageSection {
 
 export interface PageMeta {
   id: number;
+  parentId: number | null;
   slug: string;
+  path: string;
   title: string;
   metaTitle: string;
   metaDescription: string;
@@ -76,9 +78,16 @@ interface ApiEnvelope<T> {
   data?: T;
 }
 
-export async function getPage(slug: string): Promise<PageWithSections | null> {
+// `path` can be a single slug ("home") or a full hierarchical path
+// ("legal/privacy-policy") - the API resolves either the same way (see
+// api/internal/service/page_service.go's ResolvePath). Each segment is
+// encoded individually rather than the whole string, since encoding the "/"
+// separators themselves would turn a multi-segment path into one that no
+// longer matches the API's `{path...}` route.
+export async function getPage(path: string): Promise<PageWithSections | null> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/pages/${encodeURIComponent(slug)}`, {
+    const encodedPath = path.split("/").map(encodeURIComponent).join("/");
+    const res = await fetch(`${API_BASE_URL}/api/pages/${encodedPath}`, {
       next: { revalidate: REVALIDATE_SECONDS },
     });
     if (!res.ok) return null;
@@ -146,4 +155,90 @@ const COLOR_THEME_VALUES: Record<string, string> = {
 
 export function colorThemeValue(token: string | undefined): string {
   return COLOR_THEME_VALUES[token ?? ""] ?? COLOR_THEME_VALUES.primary;
+}
+
+// Palette for a `.section--bg` bleed background's gradient stops (see
+// IntroductionSection.tsx) - a separate token set from COLOR_THEME_VALUES
+// since a background gradient reasonably wants stops (e.g. "danger") that
+// wouldn't make sense as icon/text color options. Resolved to a CSS custom
+// property rather than a className, exactly like colorThemeValue, so the
+// admin-picked color is data the component renders rather than a
+// component-owned "theme" it maps from a hardcoded enum.
+const SECTION_BG_COLOR_VALUES: Record<string, string> = {
+  "primary-900": "var(--color-primary-900)",
+  "primary-glow": "var(--color-primary-glow)",
+  "secondary-600": "var(--color-secondary-600)",
+  danger: "var(--color-danger)",
+  white: "#ffffff",
+  "surface-muted": "var(--color-surface-muted)",
+};
+
+export function sectionBgColorValue(token: string | undefined): string {
+  return SECTION_BG_COLOR_VALUES[token ?? ""] ?? SECTION_BG_COLOR_VALUES["primary-900"];
+}
+
+export interface SectionBg {
+  hasBleedBg: boolean;
+  style: Record<string, string>;
+}
+
+// Reads the admin-authored bgType/bgFrom/bgTo/bgImage fields any block type
+// can opt into (see admin/src/app/dashboard/pages/BlockFields.tsx's
+// SectionBackgroundFields) and turns them into what a component needs to
+// render `.section--bg`'s bleed background (shared/theme/sections.css):
+// whether to add the `section--bg` class at all, and the inline style
+// carrying its `--section-bg-*` custom properties. `defaults` lets each
+// block type preserve whatever fixed look it had before this field existed
+// (e.g. CTA defaulting to a solid indigo fill) for section rows saved
+// before the field was added, rather than every un-migrated section
+// suddenly going transparent.
+export function sectionBgStyle(
+  fields: PageSectionField[],
+  defaults: { bgType?: string; bgFrom?: string; bgTo?: string } = {}
+): SectionBg {
+  const bgType = field(fields, 0, "bgType")?.textValue || defaults.bgType || "none";
+  if (bgType === "none") return { hasBleedBg: false, style: {} };
+
+  const bgFrom = field(fields, 0, "bgFrom")?.textValue || defaults.bgFrom || "primary-900";
+  const bgTo = field(fields, 0, "bgTo")?.textValue || defaults.bgTo || "primary-glow";
+  const bgImageUrl = mediaUrl(field(fields, 0, "bgImage")?.mediaUrl);
+
+  if (bgType === "image" && bgImageUrl) {
+    return { hasBleedBg: true, style: { "--section-bg-image": `url(${bgImageUrl})` } };
+  }
+  if (bgType === "gradient") {
+    return {
+      hasBleedBg: true,
+      style: { "--section-bg-from": sectionBgColorValue(bgFrom), "--section-bg-to": sectionBgColorValue(bgTo) },
+    };
+  }
+  if (bgType === "color") {
+    const value = sectionBgColorValue(bgFrom);
+    return { hasBleedBg: true, style: { "--section-bg-from": value, "--section-bg-to": value } };
+  }
+  return { hasBleedBg: false, style: {} };
+}
+
+const ALIGN_ITEMS_CLASSES: Record<string, string> = {
+  left: "items-start",
+  center: "items-center",
+  right: "items-end",
+};
+
+const ALIGN_TEXT_CLASSES: Record<string, string> = {
+  left: "text-left",
+  center: "text-center",
+  right: "text-right",
+};
+
+// Independent mobile/desktop alignment for a heading+paragraph block (see
+// IconBoxGroupSection.tsx) - two admin-picked tokens ("left"/"center"/
+// "right") rather than one, since the same block can reasonably want to
+// read centered on a narrow mobile column but left-align once it has room
+// on desktop. "sm" (640px) is the split, matching the same breakpoint
+// columnsClassName already treats as "no longer mobile" above.
+export function headingAlignClassName(mobile: string | undefined, desktop: string | undefined): string {
+  const m = ALIGN_ITEMS_CLASSES[mobile ?? ""] ? mobile! : "left";
+  const d = ALIGN_ITEMS_CLASSES[desktop ?? ""] ? desktop! : "left";
+  return `${ALIGN_ITEMS_CLASSES[m]} ${ALIGN_TEXT_CLASSES[m]} sm:${ALIGN_ITEMS_CLASSES[d]} sm:${ALIGN_TEXT_CLASSES[d]}`;
 }

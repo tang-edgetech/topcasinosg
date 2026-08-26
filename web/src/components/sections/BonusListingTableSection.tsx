@@ -1,5 +1,6 @@
+import type { CSSProperties } from "react";
 import Link from "next/link";
-import { field, sectionClassName, type PageSection } from "@/lib/pages";
+import { field, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { getBonuses, getCasinos, type BonusType } from "@/app/[region]/_lib/api";
 
 // Mirrors api/internal/service/pagination.go's maxPageSize — passed
@@ -22,11 +23,13 @@ export default async function BonusListingTableSection({ section }: { section: P
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
   const regionCode = field(section.fields, 0, "regionCode")?.textValue ?? "";
   const bonusType = (field(section.fields, 0, "bonusType")?.textValue || "welcome") as BonusType;
+  const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
+  const sectionClasses = sectionClassName(hasBleedBg ? "section--bonus-listing-table section--bg" : "section--bonus-listing-table", section);
 
   if (!regionCode) {
     return (
-      <section id={section.customId || undefined} className={sectionClassName("section--bonus-listing-table", section)}>
-        <div className="section-container py-16">
+      <section id={section.customId || undefined} className={sectionClasses} style={bgStyle as CSSProperties}>
+        <div className="section-container relative z-10 py-16">
           <p className="text-sm text-primary-500">Bonus Listing Table: no region code configured.</p>
         </div>
       </section>
@@ -51,8 +54,8 @@ export default async function BonusListingTableSection({ section }: { section: P
   const casinoById = new Map(casinos.map((c) => [c.id, c]));
 
   return (
-    <section id={section.customId || undefined} className={sectionClassName("section--bonus-listing-table", section)}>
-      <div className="section-container flex flex-col gap-4 py-16">
+    <section id={section.customId || undefined} className={sectionClasses} style={bgStyle as CSSProperties}>
+      <div className="section-container relative z-10 flex flex-col gap-4 py-16">
         <div className="section-row">
           <div className="section-col">
             {heading && <h2 className="section-heading text-2xl font-bold text-primary-900">{heading}</h2>}

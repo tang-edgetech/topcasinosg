@@ -1,12 +1,18 @@
-import { field, itemIndexes, mediaUrl, sectionClassName, type PageSection } from "@/lib/pages";
+import type { CSSProperties } from "react";
+import { field, itemIndexes, mediaUrl, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 
 export default function LogoStripSection({ section }: { section: PageSection }) {
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
   const items = itemIndexes(section.fields);
+  const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
 
   return (
-    <section id={section.customId || undefined} className={sectionClassName("section--logo-strip", section)}>
-      <div className="section-container flex flex-col gap-8 py-14">
+    <section
+      id={section.customId || undefined}
+      className={sectionClassName(hasBleedBg ? "section--logo-strip section--bg" : "section--logo-strip", section)}
+      style={bgStyle as CSSProperties}
+    >
+      <div className="section-container relative z-10 flex flex-col gap-8 py-14">
         {heading && (
           <div className="section-row">
             <div className="section-col">

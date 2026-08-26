@@ -21,13 +21,14 @@ import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "@/lib/pagination";
 // override is set, i.e. in production itself.
 const WEB_URL = process.env.NEXT_PUBLIC_WEB_URL;
 
-// Bonus-type-per-region pages aren't served at /{slug} — they're served by
-// the bespoke /{region}/bonuses/{type} route (web/src/app/[region]/bonuses/
-// [type]/page.tsx), which looks a page up by the computed slug
+// Bonus-type-per-region pages aren't served at their path — they're served
+// by the bespoke /{region}/bonuses/{type} route (web/src/app/[region]/
+// bonuses/[type]/page.tsx), which looks a page up by the computed slug
 // "{region}-bonuses-{type}" (e.g. "th-bonuses-welcome"). The slug is only
 // ever a lookup key for that route, never a literal URL path segment, so it
 // has to be decomposed back into /region/bonuses/type here rather than
-// appended directly after the domain.
+// appended directly after the domain — these pages are also kept as root
+// pages (no parent) precisely so their slug alone still means this.
 const REGION_BONUS_TYPE_SLUG = /^([a-z]{2,3})-bonuses-([a-z_]+)$/;
 
 function pagePublicUrl(base: string, page: PageDTO) {
@@ -40,7 +41,29 @@ function pagePublicUrl(base: string, page: PageDTO) {
     return `${root}/${region}/bonuses/${bonusType}`;
   }
 
-  return `${root}/${page.slug}`;
+  return `${root}/${page.path}`;
+}
+
+// Ant Design's Table renders a tree (expand/collapse arrows, indentation)
+// automatically when a row has a `children` array — building that structure
+// from the flat parentId list here is simpler than teaching the table
+// component itself about hierarchy.
+interface PageTreeRow extends PageDTO {
+  children?: PageTreeRow[];
+}
+
+function buildPageTree(pages: PageDTO[]): PageTreeRow[] {
+  const byId = new Map<number, PageTreeRow>(pages.map((p) => [p.id, { ...p }]));
+  const roots: PageTreeRow[] = [];
+  for (const page of byId.values()) {
+    if (page.parentId != null && byId.has(page.parentId)) {
+      const parent = byId.get(page.parentId)!;
+      (parent.children ??= []).push(page);
+    } else {
+      roots.push(page);
+    }
+  }
+  return roots;
 }
 
 export default function PagesPage() {
@@ -91,6 +114,10 @@ export default function PagesPage() {
       message.error("The Homepage can't be deleted.");
       return;
     }
+    if (pages.some((p) => p.parentId === page.id)) {
+      message.error("Delete or move this page's child pages first.");
+      return;
+    }
     const ok = await confirm({
       title: "Delete Page",
       message: `Delete "${page.title}"? This cannot be undone.`,
@@ -118,7 +145,7 @@ export default function PagesPage() {
         id="pages-table"
         rowKey="id"
         loading={loading}
-        dataSource={pages}
+        dataSource={buildPageTree(pages)}
         pagination={{
           defaultPageSize: DEFAULT_PAGE_SIZE,
           pageSizeOptions: PAGE_SIZE_OPTIONS,
@@ -157,6 +184,11 @@ export default function PagesPage() {
             },
           },
           { title: "Slug", dataIndex: "slug", key: "slug" },
+          {
+            title: "URL Path",
+            key: "path",
+            render: (_, p) => <code className="text-xs text-text-muted dark:text-text-muted-dark">/{p.path}</code>,
+          },
           { title: "Status", key: "status", render: (_, p) => <StatusBadge status={p.status} /> },
           {
             title: "Schedule",
@@ -184,11 +216,11 @@ export default function PagesPage() {
                 />
                 <IconButton
                   id={`page-${p.id}-delete`}
-                  title="Delete Page"
+                  title={pages.some((c) => c.parentId === p.id) ? "Delete or move child pages first" : "Delete Page"}
                   onClick={() => handleDelete(p)}
                   icon={<IconTrash />}
                   variant="danger"
-                  disabled={p.slug === "home"}
+                  disabled={p.slug === "home" || pages.some((c) => c.parentId === p.id)}
                 />
               </div>
             ),

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { field, sectionClassName, type PageSection } from "@/lib/pages";
+import { useState, type CSSProperties } from "react";
+import { field, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { sanitizeRichText } from "@/lib/sanitize-html";
 
 interface CalculatorInputs {
@@ -85,9 +85,15 @@ export default function BonusCalculatorSection({ section }: { section: PageSecti
     setResult(null);
   }
 
+  const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
+
   return (
-    <section id={section.customId || undefined} className={sectionClassName("section--bonus-calculator", section)}>
-      <div className="section-container flex flex-col gap-8 py-16">
+    <section
+      id={section.customId || undefined}
+      className={sectionClassName(hasBleedBg ? "section--bonus-calculator section--bg" : "section--bonus-calculator", section)}
+      style={bgStyle as CSSProperties}
+    >
+      <div className="section-container relative z-10 flex flex-col gap-8 py-16">
         <div className="section-row flex flex-col">
           <div className="section-col mx-auto flex w-full max-w-3xl flex-col gap-4 text-center">
             {heading && <h2 className="section-heading text-2xl font-bold text-primary-900 sm:text-3xl">{heading}</h2>}

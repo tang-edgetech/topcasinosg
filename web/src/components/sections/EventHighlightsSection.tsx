@@ -1,4 +1,5 @@
-import { field, itemIndexes, mediaUrl, sectionClassName, type PageSection } from "@/lib/pages";
+import type { CSSProperties } from "react";
+import { field, itemIndexes, mediaUrl, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 
 // "Event Highlights" — purely admin-authored promo banner cards (image,
 // title, date range, CTA). No backing entity (Bonus has no image field),
@@ -9,9 +10,15 @@ export default function EventHighlightsSection({ section }: { section: PageSecti
 
   if (items.length === 0) return null;
 
+  const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
+
   return (
-    <section id={section.customId || undefined} className={sectionClassName("section--event-highlights", section)}>
-      <div className="section-container flex flex-col gap-6 py-16">
+    <section
+      id={section.customId || undefined}
+      className={sectionClassName(hasBleedBg ? "section--event-highlights section--bg" : "section--event-highlights", section)}
+      style={bgStyle as CSSProperties}
+    >
+      <div className="section-container relative z-10 flex flex-col gap-6 py-16">
         {heading && (
           <div className="section-row">
             <h2 className="section-heading text-2xl font-bold text-primary-900">{heading}</h2>

@@ -1,5 +1,6 @@
+import type { CSSProperties } from "react";
 import Link from "next/link";
-import { field, itemIndexes, sectionClassName, type PageSection } from "@/lib/pages";
+import { field, itemIndexes, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { getGuides } from "@/app/[region]/_lib/api";
 import { getNewsArticles } from "@/app/news/_lib/api";
 
@@ -30,9 +31,15 @@ export default async function ContentCarouselSection({ section }: { section: Pag
   const cards = await loadCards(sourceType, mode, limit, manualSlugs);
   if (cards.length === 0) return null;
 
+  const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
+
   return (
-    <section id={section.customId || undefined} className={sectionClassName("section--content-carousel", section)}>
-      <div className="section-container flex flex-col gap-6 py-16">
+    <section
+      id={section.customId || undefined}
+      className={sectionClassName(hasBleedBg ? "section--content-carousel section--bg" : "section--content-carousel", section)}
+      style={bgStyle as CSSProperties}
+    >
+      <div className="section-container relative z-10 flex flex-col gap-6 py-16">
         <div className="section-row flex items-center justify-between">
           {heading && <h2 className="section-heading text-2xl font-bold text-primary-900">{heading}</h2>}
           {seeAllUrl && (

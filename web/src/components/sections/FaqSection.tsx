@@ -1,14 +1,20 @@
-import { field, itemIndexes, sectionClassName, type PageSection } from "@/lib/pages";
+import type { CSSProperties } from "react";
+import { field, itemIndexes, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { sanitizeRichText } from "@/lib/sanitize-html";
 import AccordionItem from "@/components/Accordion";
 
 export default function FaqSection({ section }: { section: PageSection }) {
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
   const items = itemIndexes(section.fields);
+  const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
 
   return (
-    <section id={section.customId || undefined} className={sectionClassName("section--faq", section)}>
-      <div className="section-container py-16">
+    <section
+      id={section.customId || undefined}
+      className={sectionClassName(hasBleedBg ? "section--faq section--bg" : "section--faq", section)}
+      style={bgStyle as CSSProperties}
+    >
+      <div className="section-container relative z-10 py-16">
         <div className="section-row flex flex-col">
           <div className="section-col mx-auto flex w-full max-w-3xl flex-col gap-8">
             {heading && <h2 className="section-heading text-center text-2xl font-bold text-primary-900">{heading}</h2>}

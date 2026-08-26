@@ -1,13 +1,19 @@
-import { field, itemIndexes, sectionClassName, type PageSection } from "@/lib/pages";
+import type { CSSProperties } from "react";
+import { field, itemIndexes, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import CountUpNumber from "./CountUpNumber";
 
 export default function StatsCounterSection({ section }: { section: PageSection }) {
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
   const items = itemIndexes(section.fields);
+  const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields, { bgType: "color", bgFrom: "surface-muted" });
 
   return (
-    <section id={section.customId || undefined} className={sectionClassName("section--stats-counter", section)}>
-      <div className="section-container flex flex-col gap-10 py-16">
+    <section
+      id={section.customId || undefined}
+      className={sectionClassName(hasBleedBg ? "section--stats-counter section--bg" : "section--stats-counter", section)}
+      style={bgStyle as CSSProperties}
+    >
+      <div className="section-container relative z-10 flex flex-col gap-10 py-16">
         {heading && (
           <div className="section-row">
             <div className="section-col">
