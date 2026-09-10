@@ -39,7 +39,7 @@ export async function generateMetadata({
 
   const { page } = result;
   return {
-    title: page.metaTitle || undefined,
+    title: page.metaTitle || page.title || undefined,
     description: page.metaDescription || undefined,
   };
 }

@@ -17,13 +17,13 @@ func NewPageRepo(db *sql.DB) *PageRepo {
 	return &PageRepo{db: db}
 }
 
-const pageColumns = `id, parent_id, slug, title, meta_title, meta_description,
+const pageColumns = `id, parent_id, sort_order, slug, title, meta_title, meta_description,
 	head_snippet, body_snippet, footer_snippet, status, publish_at, created_at, updated_at`
 
 func scanPage(row interface{ Scan(...any) error }) (*domain.Page, error) {
 	var p domain.Page
 	if err := row.Scan(
-		&p.ID, &p.ParentID, &p.Slug, &p.Title, &p.MetaTitle, &p.MetaDescription,
+		&p.ID, &p.ParentID, &p.SortOrder, &p.Slug, &p.Title, &p.MetaTitle, &p.MetaDescription,
 		&p.HeadSnippet, &p.BodySnippet, &p.FooterSnippet, &p.Status, &p.PublishAt, &p.CreatedAt, &p.UpdatedAt,
 	); err != nil {
 		return nil, err
@@ -31,8 +31,12 @@ func scanPage(row interface{ Scan(...any) error }) (*domain.Page, error) {
 	return &p, nil
 }
 
+// List orders by each page's position among its siblings (see SortOrder),
+// not flat across the whole table - the admin's tree view groups by parent
+// anyway, so a global ORDER BY only needs to keep siblings in the right
+// relative order, which parent_key + sort_order does directly.
 func (r *PageRepo) List(ctx context.Context) ([]domain.Page, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT `+pageColumns+` FROM pages ORDER BY title`)
+	rows, err := r.db.QueryContext(ctx, `SELECT `+pageColumns+` FROM pages ORDER BY parent_key, sort_order, id`)
 	if err != nil {
 		return nil, err
 	}
@@ -131,10 +135,28 @@ func (r *PageRepo) ListPathNodes(ctx context.Context) ([]PathNode, error) {
 	return nodes, rows.Err()
 }
 
+// NextSortOrder places a brand-new page at the end of its sibling group
+// (one past whatever the highest sort_order among those siblings already
+// is) rather than defaulting to 0 and jumping to the front of a
+// since-reordered list.
+func (r *PageRepo) NextSortOrder(ctx context.Context, parentID *int64) (int, error) {
+	var max sql.NullInt64
+	err := r.db.QueryRowContext(ctx,
+		`SELECT MAX(sort_order) FROM pages WHERE parent_key = COALESCE(?, 0)`, parentID,
+	).Scan(&max)
+	if err != nil {
+		return 0, err
+	}
+	if !max.Valid {
+		return 0, nil
+	}
+	return int(max.Int64) + 1, nil
+}
+
 func (r *PageRepo) Create(ctx context.Context, p *domain.Page) (int64, error) {
 	res, err := r.db.ExecContext(ctx,
-		`INSERT INTO pages (parent_id, slug, title, meta_title, meta_description, status, publish_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		p.ParentID, p.Slug, p.Title, p.MetaTitle, p.MetaDescription, p.Status, p.PublishAt,
+		`INSERT INTO pages (parent_id, sort_order, slug, title, meta_title, meta_description, status, publish_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		p.ParentID, p.SortOrder, p.Slug, p.Title, p.MetaTitle, p.MetaDescription, p.Status, p.PublishAt,
 	)
 	if err != nil {
 		return 0, err
@@ -145,10 +167,37 @@ func (r *PageRepo) Create(ctx context.Context, p *domain.Page) (int64, error) {
 // UpdateDetails is the "Page Details" tab's save — title + slug + parent.
 // Split out from SEO/snippet fields so those two other tabs (different admin
 // forms, and for snippets a different permission tier) never clobber each
-// other's columns by round-tripping stale values.
+// other's columns by round-tripping stale values. Moving a page to a new
+// parent here doesn't touch sort_order - it lands at whatever position it
+// already had, among whichever siblings it's now grouped with; reordering
+// within a level is Reorder's job, not this one's.
 func (r *PageRepo) UpdateDetails(ctx context.Context, id int64, title, slug string, parentID *int64) error {
 	_, err := r.db.ExecContext(ctx, `UPDATE pages SET title = ?, slug = ?, parent_id = ? WHERE id = ?`, title, slug, parentID, id)
 	return err
+}
+
+// Reorder persists a full sibling order in one transaction - every id in
+// orderedIDs gets sort_order set to its index, but ONLY if it's actually a
+// child of parentID (the `parent_key` guard on the UPDATE); an id that
+// doesn't belong there is silently skipped (0 rows affected) rather than
+// erroring, since a stale client sending a slightly-out-of-date list is a
+// no-op for those entries, not data corruption.
+func (r *PageRepo) Reorder(ctx context.Context, parentID *int64, orderedIDs []int64) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	for i, id := range orderedIDs {
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE pages SET sort_order = ? WHERE id = ? AND parent_key = COALESCE(?, 0)`,
+			i, id, parentID,
+		); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 func (r *PageRepo) UpdateSEO(ctx context.Context, id int64, metaTitle, metaDescription string) error {

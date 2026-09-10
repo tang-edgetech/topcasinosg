@@ -119,6 +119,14 @@ func (r *UserRepo) UpdateProfile(ctx context.Context, id int64, email, fullName 
 	return err
 }
 
+// UpdateFullName is the self-service rename (see UserService.SelfUpdateProfile)
+// — a single-column update rather than reusing UpdateProfile's email+fullName
+// pair, so a self-rename can never accidentally touch the email column.
+func (r *UserRepo) UpdateFullName(ctx context.Context, id int64, fullName string) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE admin_users SET full_name = ? WHERE id = ?`, fullName, id)
+	return err
+}
+
 func (r *UserRepo) UpdateStatus(ctx context.Context, id int64, status domain.Status) error {
 	_, err := r.db.ExecContext(ctx, `UPDATE admin_users SET status = ? WHERE id = ?`, status, id)
 	return err

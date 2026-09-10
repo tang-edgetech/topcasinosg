@@ -13,7 +13,7 @@ export default function RichTextSection({ section }: { section: PageSection }) {
       {heading && <h2 className="section-heading text-2xl font-bold text-primary-900">{heading}</h2>}
       {body && (
         <div
-          className="rich-text-content text-base leading-relaxed text-primary-600"
+          className="rich-text-content caret-list text-base leading-relaxed text-primary-600"
           dangerouslySetInnerHTML={{ __html: sanitizeRichText(body) }}
         />
       )}

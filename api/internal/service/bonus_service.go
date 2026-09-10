@@ -26,6 +26,7 @@ type BonusInput struct {
 	CasinoID   *int64
 	BonusType  domain.BonusType
 	Title      string
+	Slug       string
 	Terms      string
 	Code       *string
 	ValidFrom  *time.Time
@@ -36,9 +37,16 @@ func (s *BonusService) Create(ctx context.Context, actor *domain.AdminUser, in B
 	if !in.BonusType.Valid() {
 		return nil, ErrInvalidBonusType
 	}
+	exists, err := s.bonuses.ExistsSlug(ctx, in.Slug, 0)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, ErrAlreadyExists
+	}
 	actorID := actor.ID
 	b := &domain.Bonus{
-		RegionID: in.RegionID, CasinoID: in.CasinoID, BonusType: in.BonusType, Title: in.Title, Terms: in.Terms,
+		RegionID: in.RegionID, CasinoID: in.CasinoID, BonusType: in.BonusType, Title: in.Title, Slug: in.Slug, Terms: in.Terms,
 		Code: in.Code, ValidFrom: in.ValidFrom, ValidUntil: in.ValidUntil, Status: domain.ContentStatusDraft, CreatedBy: &actorID,
 	}
 	id, err := s.bonuses.Create(ctx, b)
@@ -52,14 +60,25 @@ func (s *BonusService) Update(ctx context.Context, id int64, in BonusInput) erro
 	if !in.BonusType.Valid() {
 		return ErrInvalidBonusType
 	}
+	exists, err := s.bonuses.ExistsSlug(ctx, in.Slug, id)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return ErrAlreadyExists
+	}
 	return s.bonuses.Update(ctx, &domain.Bonus{
-		ID: id, RegionID: in.RegionID, CasinoID: in.CasinoID, BonusType: in.BonusType, Title: in.Title,
+		ID: id, RegionID: in.RegionID, CasinoID: in.CasinoID, BonusType: in.BonusType, Title: in.Title, Slug: in.Slug,
 		Terms: in.Terms, Code: in.Code, ValidFrom: in.ValidFrom, ValidUntil: in.ValidUntil,
 	})
 }
 
 func (s *BonusService) Get(ctx context.Context, id int64) (*domain.Bonus, error) {
 	return s.bonuses.GetByID(ctx, id)
+}
+
+func (s *BonusService) GetPublishedBySlug(ctx context.Context, slug string) (*domain.Bonus, error) {
+	return s.bonuses.GetPublishedBySlug(ctx, slug)
 }
 
 func (s *BonusService) ListAdmin(ctx context.Context, regionID *int64, page, pageSize int) ([]domain.Bonus, int, error) {

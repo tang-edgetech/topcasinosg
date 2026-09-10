@@ -16,13 +16,13 @@ func NewBonusRepo(db *sql.DB) *BonusRepo {
 	return &BonusRepo{db: db}
 }
 
-const bonusColumns = `id, region_id, casino_id, bonus_type, title, terms, code, valid_from, valid_until,
+const bonusColumns = `id, region_id, casino_id, bonus_type, title, slug, terms, code, valid_from, valid_until,
 	status, publish_at, created_by, created_at, updated_at`
 
 func scanBonus(row interface{ Scan(...any) error }) (*domain.Bonus, error) {
 	var b domain.Bonus
 	if err := row.Scan(
-		&b.ID, &b.RegionID, &b.CasinoID, &b.BonusType, &b.Title, &b.Terms, &b.Code, &b.ValidFrom, &b.ValidUntil,
+		&b.ID, &b.RegionID, &b.CasinoID, &b.BonusType, &b.Title, &b.Slug, &b.Terms, &b.Code, &b.ValidFrom, &b.ValidUntil,
 		&b.Status, &b.PublishAt, &b.CreatedBy, &b.CreatedAt, &b.UpdatedAt,
 	); err != nil {
 		return nil, err
@@ -32,10 +32,10 @@ func scanBonus(row interface{ Scan(...any) error }) (*domain.Bonus, error) {
 
 func (r *BonusRepo) Create(ctx context.Context, b *domain.Bonus) (int64, error) {
 	res, err := r.db.ExecContext(ctx, `
-		INSERT INTO bonuses (region_id, casino_id, bonus_type, title, terms, code, valid_from, valid_until,
+		INSERT INTO bonuses (region_id, casino_id, bonus_type, title, slug, terms, code, valid_from, valid_until,
 			status, publish_at, created_by)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		b.RegionID, b.CasinoID, b.BonusType, b.Title, b.Terms, b.Code, b.ValidFrom, b.ValidUntil,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		b.RegionID, b.CasinoID, b.BonusType, b.Title, b.Slug, b.Terms, b.Code, b.ValidFrom, b.ValidUntil,
 		b.Status, b.PublishAt, b.CreatedBy,
 	)
 	if err != nil {
@@ -46,12 +46,30 @@ func (r *BonusRepo) Create(ctx context.Context, b *domain.Bonus) (int64, error) 
 
 func (r *BonusRepo) Update(ctx context.Context, b *domain.Bonus) error {
 	_, err := r.db.ExecContext(ctx, `
-		UPDATE bonuses SET region_id = ?, casino_id = ?, bonus_type = ?, title = ?, terms = ?, code = ?,
+		UPDATE bonuses SET region_id = ?, casino_id = ?, bonus_type = ?, title = ?, slug = ?, terms = ?, code = ?,
 			valid_from = ?, valid_until = ?
 		WHERE id = ?`,
-		b.RegionID, b.CasinoID, b.BonusType, b.Title, b.Terms, b.Code, b.ValidFrom, b.ValidUntil, b.ID,
+		b.RegionID, b.CasinoID, b.BonusType, b.Title, b.Slug, b.Terms, b.Code, b.ValidFrom, b.ValidUntil, b.ID,
 	)
 	return err
+}
+
+// ExistsSlug checks global slug uniqueness, same as GuideRepo.ExistsSlug.
+func (r *BonusRepo) ExistsSlug(ctx context.Context, slug string, excludeID int64) (bool, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM bonuses WHERE slug = ? AND id != ?`, slug, excludeID).Scan(&count)
+	return count > 0, err
+}
+
+// GetPublishedBySlug is the public website's read for a single bonus's
+// detail page (/bonuses/{slug}).
+func (r *BonusRepo) GetPublishedBySlug(ctx context.Context, slug string) (*domain.Bonus, error) {
+	row := r.db.QueryRowContext(ctx, `SELECT `+bonusColumns+` FROM bonuses WHERE slug = ? AND `+EffectivelyPublishedSQL, slug)
+	b, err := scanBonus(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	return b, err
 }
 
 func (r *BonusRepo) GetByID(ctx context.Context, id int64) (*domain.Bonus, error) {
@@ -132,7 +150,7 @@ func (r *BonusRepo) ListPublished(ctx context.Context, regionCode string, bonusT
 	return items, total, rows.Err()
 }
 
-const prefixedBonusColumns = `b.id, b.region_id, b.casino_id, b.bonus_type, b.title, b.terms, b.code, b.valid_from,
+const prefixedBonusColumns = `b.id, b.region_id, b.casino_id, b.bonus_type, b.title, b.slug, b.terms, b.code, b.valid_from,
 	b.valid_until, b.status, b.publish_at, b.created_by, b.created_at, b.updated_at`
 
 // ListPublishedByCasino is the public website's read for a single casino's

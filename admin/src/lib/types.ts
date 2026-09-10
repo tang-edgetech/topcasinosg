@@ -147,6 +147,7 @@ export interface BonusDTO {
   casinoId: number | null;
   bonusType: BonusType;
   title: string;
+  slug: string;
   terms: string;
   code: string | null;
   validFrom: string | null;
@@ -257,6 +258,9 @@ export interface NewsArticleDTO {
 export interface PageDTO {
   id: number;
   parentId: number | null;
+  // Display order among siblings (same parentId) — lower first. Set by
+  // dragging in the admin Pages tree; see PUT /api/admin/pages/reorder.
+  sortOrder: number;
   slug: string;
   // Full URL path (every ancestor's slug, root-first, then this page's own)
   // — computed server-side, not stored; see api/internal/service/page_service.go's
@@ -336,7 +340,13 @@ export type PageBlockType =
   | "region_explorer"
   | "casino_comparison_table"
   | "event_highlights"
-  | "introduction_section";
+  | "introduction_section"
+  | "comparison_table"
+  | "numbered_steps"
+  | "feature_cards"
+  | "checklist_callout"
+  | "game_rtp_carousel"
+  | "highlight_panel";
 
 export interface PageSectionDTO {
   id: number;

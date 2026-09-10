@@ -6,10 +6,16 @@ import RawHtmlBlock from "@/components/RawHtmlBlock";
 
 /**
  * /{region}/bonuses/{type} — per-bonus-type landing page (Welcome, No
- * Deposit, Free Spins, Deposit, Cashback, Loyalty). Same Pages-CMS-driven
- * pattern as the Homepage and /calculator — each region+type combination is
- * its own admin-authored page, addressed by a computed slug
- * "{region}-bonuses-{type}" (e.g. "th-bonuses-welcome"), not hardcoded here.
+ * Deposit, Free Spins, Deposit, Cashback, Loyalty). Pages-CMS-driven, and
+ * genuinely nested in the Pages tree (not a computed flat slug): a real
+ * "bonuses" hub page sits as a child of each region root page (e.g. "th"),
+ * and each type page is a child of that hub - so the URL
+ * /th/bonuses/welcome and the admin Pages tree /th -> bonuses -> welcome
+ * actually match, and the hub/type pages show up as real rows an admin can
+ * manage (rename, reorder, delete) like any other nested page. See
+ * api/internal/db/migrations/0032_nest_bonus_type_pages.sql for the
+ * one-time migration that moved the old flat "{region}-bonuses-{type}"
+ * pages into this shape.
  */
 
 const VALID_TYPES = ["welcome", "no_deposit", "free_spins", "deposit", "cashback", "loyalty_vip"] as const;
@@ -32,12 +38,12 @@ export async function generateMetadata({
   const { region, type } = await params;
   if (!isValidType(type)) return {};
 
-  const result = await getPage(`${region}-bonuses-${type}`);
+  const result = await getPage(`${region}/bonuses/${type}`);
   if (!result) return {};
 
   const { page } = result;
   return {
-    title: page.metaTitle || undefined,
+    title: page.metaTitle || page.title || undefined,
     description: page.metaDescription || undefined,
   };
 }
@@ -52,7 +58,7 @@ export default async function RegionBonusTypePage({
     notFound();
   }
 
-  const result = await getPage(`${region}-bonuses-${type}`);
+  const result = await getPage(`${region}/bonuses/${type}`);
 
   return (
     <div id="region-bonus-type-page" className="region-bonus-type-page flex flex-1 flex-col">

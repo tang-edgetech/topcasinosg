@@ -1,6 +1,39 @@
-import { getRtpEntries, getActiveRegionByCode, toTitleCase } from "../_lib/api";
+import type { Metadata } from "next";
+import { getActiveRegionByCode } from "../_lib/api";
 import { buildPageMenu } from "../_lib/pageMenu";
+import { getPage } from "@/lib/pages";
 import IntroductionSection from "@/components/IntroductionSection";
+import SectionRenderer from "@/components/sections/SectionRenderer";
+import PageGrid from "@/components/PageGrid";
+import RawHtmlBlock from "@/components/RawHtmlBlock";
+
+/**
+ * /{region}/rtp — a real "rtp" page nested under each region root page in
+ * the Pages tree (see api/internal/db/migrations/
+ * 0035_nest_rtp_guides_blacklist_pages.sql), same pattern as the
+ * "payment-methods"/"bonuses" hubs. All content below the intro is
+ * CMS-authored (Top RTP game carousels, how-the-tracker-works copy, the
+ * live Bonus Tracker table, watch-outs, suggestions, FAQs, ...) via
+ * SectionRenderer - there's no bespoke live-data RTP table on this route
+ * (see Figma "D / Country / TH / RTP", which replaces the older plain
+ * game/category/RTP% grid with curated carousels and a live bonus table).
+ */
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ region: string }>;
+}): Promise<Metadata> {
+  const { region } = await params;
+  const result = await getPage(`${region}/rtp`);
+  if (!result) return {};
+
+  const { page } = result;
+  return {
+    title: page.metaTitle || page.title || undefined,
+    description: page.metaDescription || undefined,
+  };
+}
 
 export default async function RegionRtpPage({
   params,
@@ -8,64 +41,27 @@ export default async function RegionRtpPage({
   params: Promise<{ region: string }>;
 }) {
   const { region } = await params;
-  const [rtpEntries, regionData] = await Promise.all([getRtpEntries(region), getActiveRegionByCode(region)]);
+  const [regionData, result] = await Promise.all([getActiveRegionByCode(region), getPage(`${region}/rtp`)]);
   const regionName = regionData?.name ?? region.toUpperCase();
 
   const intro = (
     <IntroductionSection
-      heading={`${regionName} RTP & Live Bonus Tracker`}
-      highlightText={regionName}
-      subheading="Play Smarter With Real Payout Data"
-      paragraph={`<p>Up-to-date Return to Player figures for popular games played by ${regionName} players — check a game's RTP before you spend real money.</p>`}
+      heading={`${regionName} Real-Time RTP & Live Casino Bonus Trackers`}
+      highlightText="Real-Time RTP"
+      subheading="Top Casino Updated"
+      paragraph={`<p>Want to play smarter and win more? We give you access to real-time RTP stats and live casino bonus updates tailored just for players in ${regionName}. Whether you're chasing high-payout slots or exclusive limited-time offers, this is your go-to hub.</p>`}
       pageMenu={buildPageMenu(region, `${regionName} 2025`, "rtp")}
     />
   );
 
-  if (rtpEntries.length === 0) {
-    return (
-      <div id="region-rtp-page" className="region-rtp flex flex-col">
-        {intro}
-        <div className="py-14">
-          <h2 className="mb-4 text-xl font-semibold text-primary-900">RTP (Return to Player)</h2>
-          <p className="region-rtp__empty text-sm text-primary-500">
-            No RTP entries available for this region yet.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  const sortedEntries = [...rtpEntries].sort((a, b) => b.rtpPercentage - a.rtpPercentage);
-
   return (
-    <div id="region-rtp-page" className="region-rtp flex flex-col">
-      {intro}
-      <div className="flex flex-col gap-6 py-14">
-      <h2 className="text-xl font-semibold text-primary-900">RTP (Return to Player)</h2>
-
-      <div className="region-rtp__table-wrapper overflow-x-auto rounded-lg border border-primary-100">
-        <table className="region-rtp__table w-full min-w-[480px] border-collapse text-left text-sm">
-          <thead>
-            <tr className="bg-primary-50">
-              <th className="px-4 py-3 font-semibold text-primary-900">Game</th>
-              <th className="px-4 py-3 font-semibold text-primary-900">Category</th>
-              <th className="px-4 py-3 text-right font-semibold text-primary-900">RTP %</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedEntries.map((entry) => (
-              <tr key={entry.id} className="region-rtp__row border-t border-primary-100">
-                <td className="px-4 py-3 text-primary-900">{entry.gameName}</td>
-                <td className="px-4 py-3 text-primary-600">{toTitleCase(entry.category)}</td>
-                <td className="px-4 py-3 text-right font-semibold text-primary-900">
-                  {entry.rtpPercentage.toFixed(2)}%
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      </div>
+    <div id="region-rtp-page" className="region-rtp flex flex-1 flex-col">
+      {result && <RawHtmlBlock html={`${result.page.headSnippet}${result.page.bodySnippet}`} />}
+      <PageGrid>
+        {intro}
+        {result && result.sections.length > 0 && <SectionRenderer sections={result.sections} />}
+      </PageGrid>
+      {result && <RawHtmlBlock html={result.page.footerSnippet} />}
     </div>
   );
 }

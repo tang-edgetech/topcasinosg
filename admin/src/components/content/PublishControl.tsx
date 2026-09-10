@@ -5,7 +5,7 @@ import { Modal, Select, DatePicker } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
 import { useConfirm } from "@/components/ConfirmDialog";
 import IconButton from "@/components/IconButton";
-import { IconCalendar, IconEdit, IconClose } from "@/components/Icons";
+import { IconCalendar } from "@/components/Icons";
 import { titleCase } from "@/lib/format";
 import type { ContentStatus } from "@/lib/types";
 
@@ -19,11 +19,12 @@ interface PublishControlProps {
 const STATUS_OPTIONS: ContentStatus[] = ["draft", "scheduled", "published"];
 
 // Reused by every content type (Casinos, Bonuses, Payment Methods, RTP,
-// Guides, Blacklist, News). "Scheduled" becomes effectively published the
-// moment its time passes; there's no cron job flipping the stored status,
-// so the dashboard just shows what was set. When already scheduled, the
-// trigger becomes an inline detail (date + edit + cancel) instead of a bare
-// calendar icon, so the schedule is visible without opening the modal.
+// Guides, Blacklist, News, Pages). "Scheduled" becomes effectively published
+// the moment its time passes; there's no cron job flipping the stored
+// status, so the dashboard just shows what was set. The trigger is always
+// the same calendar icon (a small dot badges it when a schedule is already
+// set) - the actual date/time only ever shows inside the modal, opened on
+// click, to keep the Actions column compact.
 export default function PublishControl({ id, status, publishAt, onSave }: PublishControlProps) {
   const confirm = useConfirm();
   const [open, setOpen] = useState(false);
@@ -68,25 +69,25 @@ export default function PublishControl({ id, status, publishAt, onSave }: Publis
     await onSave("draft", null);
   }
 
+  const isScheduled = status === "scheduled" && !!publishAt;
+
   return (
     <>
-      {status === "scheduled" && publishAt ? (
-        <div id={`${id}-schedule-detail`} className="publish-control__schedule flex items-center gap-2">
-          <span className="whitespace-nowrap text-xs text-text dark:text-text-dark">
-            {dayjs(publishAt).format("MMM D, YYYY h:mm A")}
-          </span>
-          <IconButton id={`${id}-edit`} title="Edit Schedule" onClick={openModal} icon={<IconEdit width={14} height={14} />} variant="muted" />
-          <IconButton
-            id={`${id}-cancel`}
-            title="Cancel Schedule"
-            onClick={handleCancelSchedule}
-            icon={<IconClose width={14} height={14} />}
-            variant="danger"
+      <div className="publish-control relative inline-flex">
+        <IconButton
+          id={id}
+          title={isScheduled ? `Scheduled for ${dayjs(publishAt).format("MMM D, YYYY h:mm A")}` : "Publish Settings"}
+          onClick={openModal}
+          icon={<IconCalendar />}
+          variant="muted"
+        />
+        {isScheduled && (
+          <span
+            aria-hidden="true"
+            className="publish-control__badge pointer-events-none absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-secondary-500"
           />
-        </div>
-      ) : (
-        <IconButton id={id} title="Publish Settings" onClick={openModal} icon={<IconCalendar />} variant="muted" />
-      )}
+        )}
+      </div>
       <Modal
         title="Publish Settings"
         open={open}
@@ -95,8 +96,29 @@ export default function PublishControl({ id, status, publishAt, onSave }: Publis
         confirmLoading={saving}
         okText="Save"
         okButtonProps={{ disabled: nextStatus === "scheduled" && !nextPublishAt }}
+        footer={(originalFooter) => (
+          <div className="flex items-center justify-between">
+            {isScheduled ? (
+              <button
+                type="button"
+                onClick={handleCancelSchedule}
+                className="cursor-pointer text-sm font-medium text-danger hover:underline"
+              >
+                Cancel Schedule
+              </button>
+            ) : (
+              <span />
+            )}
+            <div className="flex gap-2">{originalFooter}</div>
+          </div>
+        )}
       >
         <div className="flex flex-col gap-4 py-2">
+          {isScheduled && (
+            <p className="text-sm text-text-muted dark:text-text-muted-dark">
+              Currently scheduled for <strong className="text-text dark:text-text-dark">{dayjs(publishAt).format("MMM D, YYYY h:mm A")}</strong>.
+            </p>
+          )}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-text dark:text-text-dark">Status</label>
             <Select

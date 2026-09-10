@@ -99,8 +99,8 @@ export default function RegionsPage() {
               </div>
             ),
           },
-          { title: "Code", dataIndex: "code", key: "code" },
-          { title: "Name", dataIndex: "name", key: "name" },
+          { title: "Code", dataIndex: "code", key: "code", sorter: (a, b) => a.code.localeCompare(b.code) },
+          { title: "Name", dataIndex: "name", key: "name", sorter: (a, b) => a.name.localeCompare(b.name) },
           { title: "Sort Order", dataIndex: "sortOrder", key: "sortOrder" },
           {
             title: "Active",

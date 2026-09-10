@@ -201,6 +201,24 @@
   min-width: 0;
 }
 
+/*
+ * `.section-container` (the generic per-block-type container every CMS
+ * section uses) carries its own 25px `padding-inline` for pages that render
+ * it directly against the viewport with no Sidebar at all (e.g. Home).
+ * Inside `.main > .primary`, that's a second, redundant inset stacked on
+ * top of `.primary`'s own edge - unlike `.body-container` (Introduction
+ * Section, above), which has none - so every CMS section's content sits
+ * ~25px further right/left than the page's own heading/sidebar-menu
+ * column. Zeroing it here re-aligns every section flush with `.primary`'s
+ * edge (and so with Introduction Section) the same way `.section--bg::before`
+ * is corrected for `.primary` above - scoped to `.primary` specifically so
+ * pages with no Sidebar (which rely on the 25px gutter directly) are
+ * unaffected.
+ */
+.main > .primary .section-container {
+  padding-inline: 0;
+}
+
 .main > .sidebar {
   display: flex;
   flex-direction: column;
@@ -320,4 +338,84 @@
   .intro-col--menu {
     flex: 0 0 280px;
   }
+}
+
+/*
+ * Feature Cards ("Most Trusted Payment Methods") and Checklist Callout
+ * ("Trust Factors"/"Safety Tips"/"Your Role") - see FeatureCardsSection.tsx
+ * and ChecklistCalloutSection.tsx. Checklist Callout keeps its own
+ * background so it visually reads as an extension of the cards above it
+ * rather than a separate section (the x-gutter these two share with every
+ * other CMS section comes from the general `.main > .primary
+ * .section-container` rule above, not a block-specific override).
+ */
+.checklist-callout {
+  background-color: rgba(0, 187, 158, 0.1);
+}
+
+.checklist-callout__label h3 {
+  color: #00bb9e;
+}
+
+.checklist-callout__items svg {
+  color: #00bb9e;
+}
+
+/*
+ * Reusable caret-bullet list, used wherever a rich-text list should read as
+ * a checklist rather than a browser default disc (Fees table's tips column,
+ * Numbered Steps' body text) - see .comparison-table__tips and
+ * .numbered-step__body.
+ */
+.caret-list ul {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  list-style: none;
+  padding-left: 0;
+}
+
+.caret-list li {
+  position: relative;
+  padding-left: 1.25rem;
+}
+
+.caret-list li::before {
+  content: "▸";
+  position: absolute;
+  left: 0;
+  font-weight: bold;
+  color: var(--color-primary-700);
+}
+
+.diamond-list ul {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  list-style: none;
+  padding-left: 0;
+}
+
+.diamond-list li {
+  position: relative;
+  padding-left: 1.25rem;
+}
+
+.diamond-list li::before {
+  content: "◆";
+  position: absolute;
+  left: 0;
+  font-size: 0.7em;
+  top: 0.35em;
+  color: var(--color-primary-700);
+}
+
+/*
+ * Admin-editable escape hatch (see custom_class on page_sections,
+ * 0016_pages.sql) for a section directly following another section whose
+ * own bottom padding already provides enough gap - avoids doubled vertical
+ * space when two independently-padded generic sections sit back to back.
+ */
+.section--tight-top .section-container {
+  padding-top: 0;
 }

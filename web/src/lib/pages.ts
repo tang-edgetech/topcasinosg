@@ -44,7 +44,13 @@ export type PageBlockType =
   | "region_explorer"
   | "casino_comparison_table"
   | "event_highlights"
-  | "introduction_section";
+  | "introduction_section"
+  | "comparison_table"
+  | "numbered_steps"
+  | "feature_cards"
+  | "checklist_callout"
+  | "game_rtp_carousel"
+  | "highlight_panel";
 
 export interface PageSection {
   id: number;

@@ -35,6 +35,9 @@ type Bonus struct {
 	CasinoID   *int64
 	BonusType  BonusType
 	Title      string
+	// Slug is a unique, admin-set identifier for the bonus's public detail
+	// page (/bonuses/{slug}) - same pattern as domain.Guide.Slug.
+	Slug       string
 	Terms      string
 	Code       *string
 	ValidFrom  *time.Time

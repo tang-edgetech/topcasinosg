@@ -70,8 +70,7 @@ export default async function BonusListingTableSection({ section }: { section: P
                 <thead className="bg-primary-900 text-white">
                   <tr>
                     <th className="px-4 py-3 font-semibold">Brand</th>
-                    <th className="px-4 py-3 font-semibold">Bonus</th>
-                    <th className="px-4 py-3 font-semibold">Code</th>
+                    <th className="px-4 py-3 font-semibold">Bonus Details</th>
                     <th className="px-4 py-3 font-semibold"></th>
                   </tr>
                 </thead>
@@ -82,8 +81,20 @@ export default async function BonusListingTableSection({ section }: { section: P
                       <tr key={bonus.id} className="border-t border-primary-100">
                         <td className="px-4 py-3 font-medium text-primary-900">
                           {casino ? (
-                            <Link href={`/casinos/${casino.slug}`} className="cursor-pointer hover:text-secondary-600 hover:underline">
-                              {casino.name}
+                            <Link
+                              href={`/casinos/${casino.slug}`}
+                              className="flex cursor-pointer flex-col items-center gap-1 text-center hover:text-secondary-600"
+                            >
+                              {casino.logoUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={casino.logoUrl} alt="" className="h-8 w-20 object-contain" />
+                              ) : (
+                                <div
+                                  aria-hidden="true"
+                                  className="h-8 w-20 rounded bg-[repeating-conic-gradient(#e5e7eb_0%_25%,transparent_0%_50%)] bg-[length:10px_10px]"
+                                />
+                              )}
+                              <span className="text-xs font-semibold whitespace-nowrap hover:underline">{casino.name}</span>
                             </Link>
                           ) : (
                             "—"
@@ -92,13 +103,13 @@ export default async function BonusListingTableSection({ section }: { section: P
                         <td className="px-4 py-3 text-primary-600">
                           <div className="font-semibold text-primary-900">{bonus.title}</div>
                           <div className="text-xs">{bonus.terms}</div>
+                          {bonus.code && <div className="text-xs">Code: {bonus.code}</div>}
                         </td>
-                        <td className="px-4 py-3 text-primary-600">{bonus.code ?? "—"}</td>
                         <td className="px-4 py-3">
                           {casino && (
                             <Link
                               href={`/casinos/${casino.slug}`}
-                              className="cursor-pointer rounded-md bg-secondary-600 px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-primary-900 hover:bg-secondary-700"
+                              className="cursor-pointer rounded-md bg-primary-900 px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-white hover:bg-primary-800"
                             >
                               Claim Here
                             </Link>

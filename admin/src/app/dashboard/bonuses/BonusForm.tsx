@@ -33,6 +33,7 @@ export default function BonusForm({
     casinoId?: number;
     bonusType: BonusType;
     title: string;
+    slug: string;
     terms: string;
     code?: string;
     validRange?: [dayjs.Dayjs, dayjs.Dayjs];
@@ -49,6 +50,7 @@ export default function BonusForm({
       casinoId: values.casinoId ?? null,
       bonusType: values.bonusType,
       title: values.title,
+      slug: values.slug,
       terms: values.terms,
       code: values.code ?? null,
       validFrom: values.validRange?.[0]?.toISOString() ?? null,
@@ -81,6 +83,7 @@ export default function BonusForm({
           casinoId: target?.casinoId ?? undefined,
           bonusType: target?.bonusType ?? "welcome",
           title: target?.title ?? "",
+          slug: target?.slug ?? "",
           terms: target?.terms ?? "",
           code: target?.code ?? "",
           validRange:
@@ -89,6 +92,14 @@ export default function BonusForm({
       >
         <Form.Item name="title" label="Title" rules={[{ required: true }]}>
           <Input />
+        </Form.Item>
+        <Form.Item
+          name="slug"
+          label="Slug"
+          rules={[{ required: true, pattern: /^[a-z0-9-]+$/, message: "Lowercase letters, numbers, hyphens only" }]}
+          extra="Used for this bonus's public detail page: /bonuses/{slug}. Must be unique."
+        >
+          <Input placeholder="welcome-100-bonus" />
         </Form.Item>
         <Form.Item name="bonusType" label="Bonus Type" rules={[{ required: true }]}>
           <Select options={BONUS_TYPES.map((t) => ({ value: t, label: titleCase(t) }))} />

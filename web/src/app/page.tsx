@@ -12,7 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
   const { page } = result;
   return {
-    title: page.metaTitle || undefined,
+    title: page.metaTitle || page.title || undefined,
     description: page.metaDescription || undefined,
   };
 }

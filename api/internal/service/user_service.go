@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/tang-edgetech/topcasinosg/api/internal/domain"
 	"github.com/tang-edgetech/topcasinosg/api/internal/repository"
@@ -16,6 +17,7 @@ var (
 	ErrCannotActOnSelf      = errors.New("cannot perform this action on your own account")
 	ErrWrongCurrentPassword = errors.New("current password is incorrect")
 	ErrInvalidTheme         = errors.New("theme must be 'light' or 'dark'")
+	ErrFullNameRequired     = errors.New("display name cannot be empty")
 )
 
 type UserService struct {
@@ -193,4 +195,17 @@ func (s *UserService) SetTheme(ctx context.Context, actor *domain.AdminUser, the
 		return ErrInvalidTheme
 	}
 	return s.users.UpdateTheme(ctx, actor.ID, theme)
+}
+
+// SelfUpdateProfile lets any authenticated user rename themselves — unlike
+// UpdateProfile (which goes through requireManage and so, by domain.CanManage's
+// rules, can't ever target the actor's own row for admin/editor), this is
+// always self, so no manage-permission check applies. Email intentionally
+// isn't editable here — that's still an admin-managed field via UpdateProfile.
+func (s *UserService) SelfUpdateProfile(ctx context.Context, actor *domain.AdminUser, fullName string) error {
+	fullName = strings.TrimSpace(fullName)
+	if fullName == "" {
+		return ErrFullNameRequired
+	}
+	return s.users.UpdateFullName(ctx, actor.ID, fullName)
 }

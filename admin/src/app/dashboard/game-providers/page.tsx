@@ -9,6 +9,8 @@ import { api, ApiError } from "@/lib/api";
 import type { GameProviderDTO } from "@/lib/types";
 import IconButton from "@/components/IconButton";
 import { IconEdit, IconPlus, IconTrash, IconDice } from "@/components/Icons";
+import BulkActionBar from "@/components/content/BulkActionBar";
+import { runBulkAction, bulkResultMessage } from "@/lib/bulk";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "@/lib/pagination";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
@@ -24,6 +26,7 @@ export default function GameProvidersPage() {
   const router = useRouter();
   const [providers, setProviders] = useState<GameProviderDTO[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   async function load() {
     setLoading(true);
@@ -44,6 +47,7 @@ export default function GameProvidersPage() {
 
   if (!user) return null;
   const canManage = user.role === "super_admin" || user.role === "admin";
+  const selectedProviders = providers.filter((p) => selectedRowKeys.includes(p.id));
 
   async function handleDelete(provider: GameProviderDTO) {
     const ok = await confirm({
@@ -62,6 +66,20 @@ export default function GameProvidersPage() {
     }
   }
 
+  async function handleBulkDelete() {
+    const ok = await confirm({
+      title: "Delete Game Providers",
+      message: `Delete ${selectedProviders.length} game provider(s)? Casinos using them will no longer show them. This cannot be undone.`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
+    const { succeeded, failed } = await runBulkAction(selectedProviders, (p) => api.del(`/api/admin/game-providers/${p.id}`));
+    message[failed > 0 ? "warning" : "success"](bulkResultMessage(succeeded, failed, "deleted"));
+    setSelectedRowKeys([]);
+    load();
+  }
+
   return (
     <section id="game-providers-page" className="game-providers-page flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -76,6 +94,12 @@ export default function GameProvidersPage() {
         )}
       </div>
 
+      <BulkActionBar
+        count={selectedRowKeys.length}
+        onClear={() => setSelectedRowKeys([])}
+        actions={[...(canManage ? [{ id: "game-providers-bulk-delete", label: "Delete", onClick: handleBulkDelete, danger: true }] : [])]}
+      />
+
       <Table
         id="game-providers-table"
         rowKey="id"
@@ -87,6 +111,7 @@ export default function GameProvidersPage() {
           showSizeChanger: true,
           showTotal: (t) => `${t} total`,
         }}
+        rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys }}
         columns={[
           {
             title: "Logo",
@@ -102,7 +127,7 @@ export default function GameProvidersPage() {
               </div>
             ),
           },
-          { title: "Name", dataIndex: "name", key: "name" },
+          { title: "Name", dataIndex: "name", key: "name", sorter: (a, b) => a.name.localeCompare(b.name) },
           { title: "Sort Order", dataIndex: "sortOrder", key: "sortOrder" },
           ...(canManage
             ? [

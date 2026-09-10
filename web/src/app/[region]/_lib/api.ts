@@ -127,6 +127,7 @@ export interface CasinoDTO {
   id: number;
   slug: string;
   name: string;
+  logoUrl: string | null;
   rating: number;
   safeIndex: number | null;
   riskStatus: "low" | "medium" | "high" | null;

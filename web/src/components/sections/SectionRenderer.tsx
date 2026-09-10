@@ -17,6 +17,12 @@ import RegionExplorerSection from "./RegionExplorerSection";
 import CasinoComparisonTableSection from "./CasinoComparisonTableSection";
 import EventHighlightsSection from "./EventHighlightsSection";
 import IntroductionSectionBlock from "./IntroductionSectionBlock";
+import ComparisonTableSection from "./ComparisonTableSection";
+import NumberedStepsSection from "./NumberedStepsSection";
+import FeatureCardsSection from "./FeatureCardsSection";
+import ChecklistCalloutSection from "./ChecklistCalloutSection";
+import GameRtpCarouselSection from "./GameRtpCarouselSection";
+import HighlightPanelSection from "./HighlightPanelSection";
 
 // Dispatches each section to its block-type component. Every instance of a
 // given blockType gets the same canonical CSS class (see sectionClassName /
@@ -66,6 +72,18 @@ export default function SectionRenderer({ sections }: { sections: PageSection[] 
             return <EventHighlightsSection key={section.id} section={section} />;
           case "introduction_section":
             return <IntroductionSectionBlock key={section.id} section={section} />;
+          case "comparison_table":
+            return <ComparisonTableSection key={section.id} section={section} />;
+          case "numbered_steps":
+            return <NumberedStepsSection key={section.id} section={section} />;
+          case "feature_cards":
+            return <FeatureCardsSection key={section.id} section={section} />;
+          case "checklist_callout":
+            return <ChecklistCalloutSection key={section.id} section={section} />;
+          case "game_rtp_carousel":
+            return <GameRtpCarouselSection key={section.id} section={section} />;
+          case "highlight_panel":
+            return <HighlightPanelSection key={section.id} section={section} />;
           default:
             return null;
         }

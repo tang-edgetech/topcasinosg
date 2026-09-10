@@ -1,6 +1,42 @@
-import { getPaymentMethods, getActiveRegionByCode } from "../_lib/api";
+import type { Metadata } from "next";
+import { getActiveRegionByCode } from "../_lib/api";
 import { buildPageMenu } from "../_lib/pageMenu";
+import { getPage } from "@/lib/pages";
 import IntroductionSection from "@/components/IntroductionSection";
+import SectionRenderer from "@/components/sections/SectionRenderer";
+import PageGrid from "@/components/PageGrid";
+import RawHtmlBlock from "@/components/RawHtmlBlock";
+
+/**
+ * /{region}/payment-methods — a real "payment-methods" page nested under
+ * each region root page in the Pages tree (see api/internal/db/migrations/
+ * 0033_nest_payment_methods_pages.sql), same pattern as the "bonuses" hub
+ * (see /{region}/bonuses/page.tsx). All content below the intro is
+ * CMS-authored (Most Trusted Payment Methods, Fees & Limits, How to
+ * Deposit/Withdraw, Security Standards, FAQs, ...) via SectionRenderer -
+ * there's no bespoke live-data grid on this route.
+ *
+ * Wrapped in PageGrid (unlike its /{region}/bonuses, /rtp, /guides,
+ * /blacklist siblings) so `--primary-w` - which every page assumes is offset
+ * for a real Sidebar (see shared/theme/sections.css) - actually matches the
+ * rendered width here instead of squeezing content to a phantom reservation.
+ */
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ region: string }>;
+}): Promise<Metadata> {
+  const { region } = await params;
+  const result = await getPage(`${region}/payment-methods`);
+  if (!result) return {};
+
+  const { page } = result;
+  return {
+    title: page.metaTitle || page.title || undefined,
+    description: page.metaDescription || undefined,
+  };
+}
 
 export default async function RegionPaymentMethodsPage({
   params,
@@ -8,55 +44,27 @@ export default async function RegionPaymentMethodsPage({
   params: Promise<{ region: string }>;
 }) {
   const { region } = await params;
-  const [paymentMethods, regionData] = await Promise.all([getPaymentMethods(region), getActiveRegionByCode(region)]);
+  const [regionData, result] = await Promise.all([getActiveRegionByCode(region), getPage(`${region}/payment-methods`)]);
   const regionName = regionData?.name ?? region.toUpperCase();
 
   const intro = (
     <IntroductionSection
-      heading={`Trusted Payment Methods in ${regionName}`}
+      heading={`Online Casino Payment Methods in ${regionName}`}
       highlightText={regionName}
-      subheading="Fund Your Account With Peace of Mind"
-      paragraph={`<p>We only highlight payment methods that are reliable, secure, and casino-approved for players in ${regionName}.</p>`}
+      subheading="Secure Deposit & Withdrawal"
+      paragraph={`<p>When it comes to online gambling, having secure, fast, and convenient payment options is just as important as choosing the right casino. This guide breaks down the top payment methods available to players in ${regionName}, helping you deposit and withdraw with confidence.</p>`}
       pageMenu={buildPageMenu(region, `${regionName} 2025`, "payment-methods")}
     />
   );
 
-  if (paymentMethods.length === 0) {
-    return (
-      <div id="region-payment-methods-page" className="region-payment-methods flex flex-col">
-        {intro}
-        <div className="py-14">
-          <h2 className="mb-4 text-xl font-semibold text-primary-900">Payment Methods</h2>
-          <p className="region-payment-methods__empty text-sm text-primary-500">
-            No payment methods available for this region yet.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div id="region-payment-methods-page" className="region-payment-methods flex flex-col">
-      {intro}
-      <div className="flex flex-col gap-6 py-14">
-      <h2 className="text-xl font-semibold text-primary-900">Payment Methods</h2>
-
-      <div className="region-payment-methods__grid grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {paymentMethods.map((method) => (
-          <article
-            key={method.id}
-            className="region-payment-method-card flex flex-col gap-2 rounded-lg border border-primary-100 bg-surface-muted p-6"
-          >
-            <h3 className="region-payment-method-card__name text-base font-semibold text-primary-900">
-              {method.name}
-            </h3>
-            <p className="region-payment-method-card__description text-sm text-primary-600">
-              {method.description}
-            </p>
-          </article>
-        ))}
-      </div>
-      </div>
+    <div id="region-payment-methods-page" className="region-payment-methods flex flex-1 flex-col">
+      {result && <RawHtmlBlock html={`${result.page.headSnippet}${result.page.bodySnippet}`} />}
+      <PageGrid>
+        {intro}
+        {result && result.sections.length > 0 && <SectionRenderer sections={result.sections} />}
+      </PageGrid>
+      {result && <RawHtmlBlock html={result.page.footerSnippet} />}
     </div>
   );
 }

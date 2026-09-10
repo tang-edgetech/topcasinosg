@@ -29,7 +29,7 @@ func scanRegion(row interface{ Scan(...any) error }) (*domain.Region, error) {
 
 // List returns every region (including inactive) for the dashboard.
 func (r *RegionRepo) List(ctx context.Context) ([]domain.Region, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT `+regionColumns+` FROM `+regionFromClause+` ORDER BY regions.sort_order, regions.name`)
+	rows, err := r.db.QueryContext(ctx, `SELECT `+regionColumns+` FROM `+regionFromClause+` ORDER BY regions.sort_order, regions.id`)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +48,7 @@ func (r *RegionRepo) List(ctx context.Context) ([]domain.Region, error) {
 
 // ListActive is what the public website uses to render nav/region switchers.
 func (r *RegionRepo) ListActive(ctx context.Context) ([]domain.Region, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT `+regionColumns+` FROM `+regionFromClause+` WHERE regions.is_active = TRUE ORDER BY regions.sort_order, regions.name`)
+	rows, err := r.db.QueryContext(ctx, `SELECT `+regionColumns+` FROM `+regionFromClause+` WHERE regions.is_active = TRUE ORDER BY regions.sort_order, regions.id`)
 	if err != nil {
 		return nil, err
 	}

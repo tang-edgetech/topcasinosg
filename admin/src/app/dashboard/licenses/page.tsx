@@ -9,6 +9,8 @@ import { api, ApiError } from "@/lib/api";
 import type { LicenseDTO } from "@/lib/types";
 import IconButton from "@/components/IconButton";
 import { IconEdit, IconPlus, IconTrash, IconCertificate } from "@/components/Icons";
+import BulkActionBar from "@/components/content/BulkActionBar";
+import { runBulkAction, bulkResultMessage } from "@/lib/bulk";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "@/lib/pagination";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
@@ -24,6 +26,7 @@ export default function LicensesPage() {
   const router = useRouter();
   const [licenses, setLicenses] = useState<LicenseDTO[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   async function load() {
     setLoading(true);
@@ -44,6 +47,7 @@ export default function LicensesPage() {
 
   if (!user) return null;
   const canManage = user.role === "super_admin" || user.role === "admin";
+  const selectedLicenses = licenses.filter((l) => selectedRowKeys.includes(l.id));
 
   async function handleDelete(license: LicenseDTO) {
     const ok = await confirm({
@@ -62,6 +66,20 @@ export default function LicensesPage() {
     }
   }
 
+  async function handleBulkDelete() {
+    const ok = await confirm({
+      title: "Delete Licenses",
+      message: `Delete ${selectedLicenses.length} license(s)? Casinos holding them will no longer show them. This cannot be undone.`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
+    const { succeeded, failed } = await runBulkAction(selectedLicenses, (l) => api.del(`/api/admin/licenses/${l.id}`));
+    message[failed > 0 ? "warning" : "success"](bulkResultMessage(succeeded, failed, "deleted"));
+    setSelectedRowKeys([]);
+    load();
+  }
+
   return (
     <section id="licenses-page" className="licenses-page flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -76,6 +94,12 @@ export default function LicensesPage() {
         )}
       </div>
 
+      <BulkActionBar
+        count={selectedRowKeys.length}
+        onClear={() => setSelectedRowKeys([])}
+        actions={[...(canManage ? [{ id: "licenses-bulk-delete", label: "Delete", onClick: handleBulkDelete, danger: true }] : [])]}
+      />
+
       <Table
         id="licenses-table"
         rowKey="id"
@@ -87,6 +111,7 @@ export default function LicensesPage() {
           showSizeChanger: true,
           showTotal: (t) => `${t} total`,
         }}
+        rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys }}
         columns={[
           {
             title: "Logo",
@@ -102,7 +127,7 @@ export default function LicensesPage() {
               </div>
             ),
           },
-          { title: "Name", dataIndex: "name", key: "name" },
+          { title: "Name", dataIndex: "name", key: "name", sorter: (a, b) => a.name.localeCompare(b.name) },
           { title: "Sort Order", dataIndex: "sortOrder", key: "sortOrder" },
           ...(canManage
             ? [

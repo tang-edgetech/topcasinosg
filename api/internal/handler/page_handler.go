@@ -24,6 +24,7 @@ func NewPageHandler(pages *service.PageService) *PageHandler {
 type PageDTO struct {
 	ID              int64      `json:"id"`
 	ParentID        *int64     `json:"parentId"`
+	SortOrder       int        `json:"sortOrder"`
 	Slug            string     `json:"slug"`
 	// Path is the page's full URL path (every ancestor's slug, root-first,
 	// then this page's own) - computed, not stored; see PageService.PathsByID.
@@ -44,7 +45,7 @@ type PageDTO struct {
 
 func toPageDTO(p *domain.Page, paths map[int64]string) PageDTO {
 	return PageDTO{
-		ID: p.ID, ParentID: p.ParentID, Slug: p.Slug, Path: paths[p.ID], Title: p.Title,
+		ID: p.ID, ParentID: p.ParentID, SortOrder: p.SortOrder, Slug: p.Slug, Path: paths[p.ID], Title: p.Title,
 		MetaTitle: p.MetaTitle, MetaDescription: p.MetaDescription,
 		HeadSnippet: p.HeadSnippet, BodySnippet: p.BodySnippet, FooterSnippet: p.FooterSnippet,
 		Status: string(p.Status), PublishAt: p.PublishAt, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
@@ -283,6 +284,28 @@ func (h *PageHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.pages.SetStatus(r.Context(), id, domain.ContentStatus(req.Status), req.PublishAt); err != nil {
 		response.Err(w, pageErrorStatus(err), err.Error())
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]bool{"updated": true})
+}
+
+type reorderRequest struct {
+	ParentID *int64  `json:"parentId"`
+	PageIDs  []int64 `json:"pageIds"`
+}
+
+// Reorder — drag-and-drop persistence for the admin Pages tree. The request
+// always carries the FULL ordered list of one parent's children (nil
+// parentId for the root level), never a single moved item, mirroring
+// ReplaceSections' "send the whole tree" contract below.
+func (h *PageHandler) Reorder(w http.ResponseWriter, r *http.Request) {
+	var req reorderRequest
+	if err := httpx.DecodeJSON(r, &req); err != nil {
+		response.Err(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if err := h.pages.Reorder(r.Context(), req.ParentID, req.PageIDs); err != nil {
+		response.Err(w, http.StatusInternalServerError, "could not reorder pages")
 		return
 	}
 	response.JSON(w, http.StatusOK, map[string]bool{"updated": true})

@@ -11,7 +11,10 @@ import IconButton from "@/components/IconButton";
 import { IconEdit, IconPlus, IconTrash } from "@/components/Icons";
 import StatusBadge from "@/components/content/StatusBadge";
 import PublishControl from "@/components/content/PublishControl";
-import { DEFAULT_PAGE_SIZE, tablePagination } from "@/lib/pagination";
+import StatusFilter, { type StatusFilterValue } from "@/components/content/StatusFilter";
+import BulkActionBar from "@/components/content/BulkActionBar";
+import { runBulkAction, bulkResultMessage } from "@/lib/bulk";
+import { CLIENT_TABLE_PAGINATION, FETCH_ALL_PAGE_SIZE } from "@/lib/pagination";
 
 export default function BlacklistPage() {
   const { user } = useAuth();
@@ -21,21 +24,19 @@ export default function BlacklistPage() {
   const [entries, setEntries] = useState<BlacklistEntryDTO[]>([]);
   const [regions, setRegions] = useState<RegionDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
-  const [total, setTotal] = useState(0);
+  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("all");
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   async function load() {
     setLoading(true);
     try {
       const [entryData, regionData] = await Promise.all([
         api.get<{ blacklistEntries: BlacklistEntryDTO[] | null; total: number }>(
-          `/api/admin/blacklist?page=${page}&pageSize=${pageSize}`
+          `/api/admin/blacklist?pageSize=${FETCH_ALL_PAGE_SIZE}`
         ),
         api.get<{ regions: RegionDTO[] | null }>("/api/admin/regions"),
       ]);
       setEntries(entryData.blacklistEntries ?? []);
-      setTotal(entryData.total);
       setRegions(regionData.regions ?? []);
     } catch (err) {
       message.error(err instanceof ApiError ? err.message : "Could not load blacklist entries.");
@@ -47,9 +48,12 @@ export default function BlacklistPage() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize]);
+  }, []);
 
   if (!user) return null;
+
+  const filtered = statusFilter === "all" ? entries : entries.filter((e) => e.status === statusFilter);
+  const selectedEntries = entries.filter((e) => selectedRowKeys.includes(e.id));
 
   const regionName = (id: number | null) => (id === null ? "Global" : regions.find((r) => r.id === id)?.name ?? id);
 
@@ -76,6 +80,35 @@ export default function BlacklistPage() {
     }
   }
 
+  async function handleBulkStatus(status: "published" | "draft") {
+    const ok = await confirm({
+      title: status === "published" ? "Publish Blacklist Entries" : "Set Blacklist Entries to Draft",
+      message: `${status === "published" ? "Publish" : "Set to draft"} ${selectedEntries.length} entry(ies)?`,
+      confirmLabel: status === "published" ? "Publish" : "Set to Draft",
+    });
+    if (!ok) return;
+    const { succeeded, failed } = await runBulkAction(selectedEntries, (e) =>
+      api.put(`/api/admin/blacklist/${e.id}/status`, { status, publishAt: null })
+    );
+    message[failed > 0 ? "warning" : "success"](bulkResultMessage(succeeded, failed, "updated"));
+    setSelectedRowKeys([]);
+    load();
+  }
+
+  async function handleBulkDelete() {
+    const ok = await confirm({
+      title: "Delete Blacklist Entries",
+      message: `Delete ${selectedEntries.length} entry(ies)? This cannot be undone.`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
+    const { succeeded, failed } = await runBulkAction(selectedEntries, (e) => api.del(`/api/admin/blacklist/${e.id}`));
+    message[failed > 0 ? "warning" : "success"](bulkResultMessage(succeeded, failed, "deleted"));
+    setSelectedRowKeys([]);
+    load();
+  }
+
   return (
     <section id="blacklist-page" className="blacklist-page flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -88,41 +121,50 @@ export default function BlacklistPage() {
         />
       </div>
 
+      <div className="flex items-center gap-3">
+        <StatusFilter id="blacklist-status-filter" value={statusFilter} onChange={setStatusFilter} />
+      </div>
+
+      <BulkActionBar
+        count={selectedRowKeys.length}
+        onClear={() => setSelectedRowKeys([])}
+        actions={[
+          { id: "blacklist-bulk-publish", label: "Publish", onClick: () => handleBulkStatus("published") },
+          { id: "blacklist-bulk-draft", label: "Set to Draft", onClick: () => handleBulkStatus("draft") },
+          { id: "blacklist-bulk-delete", label: "Delete", onClick: handleBulkDelete, danger: true },
+        ]}
+      />
+
       <Table
         id="blacklist-table"
         rowKey="id"
         loading={loading}
-        dataSource={entries}
-        pagination={tablePagination(page, pageSize, total, (p, ps) => {
-          if (ps !== pageSize) {
-            setPageSize(ps);
-            setPage(1);
-          } else {
-            setPage(p);
-          }
-        })}
+        dataSource={filtered}
+        pagination={CLIENT_TABLE_PAGINATION}
+        rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys }}
         columns={[
-          { title: "Name", dataIndex: "name", key: "name" },
+          { title: "Name", dataIndex: "name", key: "name", sorter: (a, b) => a.name.localeCompare(b.name) },
           { title: "Reason", dataIndex: "reason", key: "reason" },
           { title: "Region", key: "region", render: (_, e) => regionName(e.regionId) },
-          { title: "Status", key: "status", render: (_, e) => <StatusBadge status={e.status} /> },
           {
-            title: "Schedule",
-            key: "schedule",
-            render: (_, e) => (
-              <PublishControl
-                id={`blacklist-${e.id}-publish`}
-                status={e.status}
-                publishAt={e.publishAt}
-                onSave={(status, publishAt) => handleSetStatus(e, status, publishAt)}
-              />
-            ),
+            title: "Status",
+            key: "status",
+            render: (_, e) => <StatusBadge status={e.status} />,
+            sorter: (a, b) => a.status.localeCompare(b.status),
           },
           {
             title: "Actions",
             key: "actions",
             render: (_, e) => (
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
+                {e.status !== "published" && (
+                  <PublishControl
+                    id={`blacklist-${e.id}-publish`}
+                    status={e.status}
+                    publishAt={e.publishAt}
+                    onSave={(status, publishAt) => handleSetStatus(e, status, publishAt)}
+                  />
+                )}
                 <IconButton
                   id={`blacklist-${e.id}-edit`}
                   title="Edit Blacklist Entry"

@@ -2,16 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Table } from "antd";
 import { useAuth } from "@/lib/auth-context";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { api, ApiError } from "@/lib/api";
 import type { AdminUserDTO } from "@/lib/types";
 import { canManage } from "@/lib/roles";
 import { titleCase } from "@/lib/format";
+import { runBulkAction, bulkResultMessage } from "@/lib/bulk";
 import PasswordInput from "@/components/PasswordInput";
+import BulkActionBar from "@/components/content/BulkActionBar";
 import IconButton from "@/components/IconButton";
 import { IconEdit, IconKey, IconShieldReset, IconPause, IconPlay, IconTrash, IconPlus, IconCrown } from "@/components/Icons";
-import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "@/lib/pagination";
+import { CLIENT_TABLE_PAGINATION } from "@/lib/pagination";
+
+type UserStatusFilter = "all" | "active" | "disabled";
 
 export default function UsersPage() {
   const { user: actor } = useAuth();
@@ -21,8 +26,8 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [resetPasswordTarget, setResetPasswordTarget] = useState<AdminUserDTO | null>(null);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [statusFilter, setStatusFilter] = useState<UserStatusFilter>("all");
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   async function loadUsers() {
     setLoading(true);
@@ -50,6 +55,14 @@ export default function UsersPage() {
       </section>
     );
   }
+
+  // Bulk actions can only ever apply to rows the actor is individually
+  // allowed to manage (see canManage/isSelf below, same rule the per-row
+  // Actions column already enforces) — filtering happens once here so both
+  // the checkbox `getCheckboxProps` and the bulk handlers agree on it.
+  const isManageable = (target: AdminUserDTO) => target.id !== actor.id && canManage(actor, target);
+  const filtered = statusFilter === "all" ? users : users.filter((u) => u.status === statusFilter);
+  const selectedUsers = users.filter((u) => selectedRowKeys.includes(u.id) && isManageable(u));
 
   async function handleSetStatus(target: AdminUserDTO, status: "active" | "disabled" | "deleted") {
     const copy = {
@@ -104,6 +117,25 @@ export default function UsersPage() {
     }
   }
 
+  async function handleBulkSetStatus(status: "active" | "disabled" | "deleted") {
+    const copy = {
+      active: "Enable",
+      disabled: "Disable",
+      deleted: "Delete",
+    }[status];
+    const ok = await confirm({
+      title: `${copy} Users`,
+      message: `${copy} ${selectedUsers.length} user(s)?`,
+      confirmLabel: copy,
+      danger: status !== "active",
+    });
+    if (!ok) return;
+    const { succeeded, failed } = await runBulkAction(selectedUsers, (u) => api.put(`/api/admin/users/${u.id}/status`, { status }));
+    setError(failed > 0 ? bulkResultMessage(succeeded, failed, "updated") : "");
+    setSelectedRowKeys([]);
+    loadUsers();
+  }
+
   return (
     <section id="users-page" className="users-page flex flex-col gap-6">
       <div className="users-page__header flex items-center justify-between">
@@ -113,92 +145,166 @@ export default function UsersPage() {
 
       {error && <p className="form-error text-sm text-danger">{error}</p>}
 
-      {loading ? (
-        <p className="text-text-muted dark:text-text-muted-dark">Loading…</p>
-      ) : (
-        <>
-          <div className="users-table overflow-x-auto rounded-lg border border-border dark:border-border-dark">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-surface-muted text-text dark:bg-surface-muted-dark dark:text-text-dark">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">Name</th>
-                  <th className="px-4 py-3 font-semibold">Role</th>
-                  <th className="px-4 py-3 font-semibold">Status</th>
-                  <th className="px-4 py-3 font-semibold">2FA</th>
-                  <th className="px-4 py-3 font-semibold">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.slice((page - 1) * pageSize, page * pageSize).map((target) => (
-                  <UserRow
-                    key={target.id}
-                    actor={actor}
-                    target={target}
-                    onEdit={() => router.push(`/dashboard/users/${target.id}`)}
-                    onSetStatus={handleSetStatus}
-                    onToggleCrown={handleToggleCrown}
-                    onResetOtp={handleResetOtp}
-                    onResetPassword={() => setResetPasswordTarget(target)}
-                  />
-                ))}
-                {users.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-6 text-center text-text-muted dark:text-text-muted-dark">
-                      No users to show.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+      <div className="flex items-center gap-3">
+        <select
+          id="users-status-filter"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as UserStatusFilter)}
+          className="cursor-pointer rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-text outline-none focus:border-primary-500 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark"
+        >
+          <option value="all">All Statuses</option>
+          <option value="active">Active</option>
+          <option value="disabled">Disabled</option>
+        </select>
+      </div>
 
-          {users.length > 0 && (
-            <div id="users-pagination" className="users-pagination flex items-center justify-between text-sm text-text-muted dark:text-text-muted-dark">
-              <div className="flex items-center gap-2">
-                <span>Rows per page</span>
-                <select
-                  id="users-page-size"
-                  value={pageSize}
-                  onChange={(e) => {
-                    setPageSize(Number(e.target.value));
-                    setPage(1);
-                  }}
-                  className="cursor-pointer rounded-md border border-border bg-surface px-2 py-1 text-text outline-none focus:border-primary-500 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark"
-                >
-                  {PAGE_SIZE_OPTIONS.map((size) => (
-                    <option key={size} value={size}>
-                      {size}
-                    </option>
-                  ))}
-                </select>
-                <span>
-                  {Math.min((page - 1) * pageSize + 1, users.length)}–{Math.min(page * pageSize, users.length)} of {users.length}
-                </span>
+      <BulkActionBar
+        count={selectedRowKeys.length}
+        onClear={() => setSelectedRowKeys([])}
+        actions={[
+          { id: "users-bulk-enable", label: "Enable", onClick: () => handleBulkSetStatus("active") },
+          { id: "users-bulk-disable", label: "Disable", onClick: () => handleBulkSetStatus("disabled") },
+          { id: "users-bulk-delete", label: "Delete", onClick: () => handleBulkSetStatus("deleted"), danger: true },
+        ]}
+      />
+
+      <Table
+        id="users-table"
+        rowKey="id"
+        loading={loading}
+        dataSource={filtered}
+        pagination={CLIENT_TABLE_PAGINATION}
+        rowSelection={{
+          selectedRowKeys,
+          onChange: setSelectedRowKeys,
+          getCheckboxProps: (target: AdminUserDTO) => ({ disabled: !isManageable(target) }),
+        }}
+        columns={[
+          {
+            title: "Name",
+            key: "name",
+            sorter: (a, b) => a.fullName.localeCompare(b.fullName),
+            render: (_, target) => (
+              <div>
+                <div className="user-row__name-wrap relative inline-block">
+                  {target.canManageAdmins && (
+                    <span
+                      id={`user-row-${target.id}-crown-badge`}
+                      title="Can Manage Admins"
+                      className="user-row__crown-badge absolute -right-4 -top-2 text-yellow-400"
+                    >
+                      <IconCrown width={14} height={14} />
+                    </span>
+                  )}
+                  <p className="user-row__name text-[15px] font-semibold leading-tight text-text dark:text-text-dark">{target.fullName}</p>
+                </div>
+                <p className="user-row__email text-[13px] font-normal leading-tight text-text-muted dark:text-text-muted-dark">{target.email}</p>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  id="users-page-prev"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="cursor-pointer rounded-md border border-border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50 dark:border-border-dark"
-                >
-                  Prev
-                </button>
-                <button
-                  type="button"
-                  id="users-page-next"
-                  disabled={page * pageSize >= users.length}
-                  onClick={() => setPage((p) => p + 1)}
-                  className="cursor-pointer rounded-md border border-border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50 dark:border-border-dark"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
-        </>
-      )}
+            ),
+          },
+          {
+            title: "Role",
+            key: "role",
+            sorter: (a, b) => a.role.localeCompare(b.role),
+            render: (_, target) => (
+              <>
+                <span className="text-text dark:text-text-dark">{titleCase(target.role)}</span>
+                {target.role === "admin" && actor.role === "super_admin" && (
+                  <span className="ml-2 inline-flex align-middle">
+                    <IconButton
+                      id={`user-row-${target.id}-crown`}
+                      title={target.canManageAdmins ? "Remove Crown" : "Grant Crown"}
+                      onClick={() => handleToggleCrown(target)}
+                      variant={target.canManageAdmins ? "primary" : "muted"}
+                      icon={<IconCrown width={14} height={14} />}
+                    />
+                  </span>
+                )}
+              </>
+            ),
+          },
+          {
+            title: "Status",
+            key: "status",
+            sorter: (a, b) => a.status.localeCompare(b.status),
+            render: (_, target) => (
+              <span
+                className={`user-row__status rounded-full px-2 py-0.5 text-xs font-medium ${
+                  target.status === "active"
+                    ? "bg-success-subtle text-success"
+                    : "bg-surface-muted text-text-muted dark:bg-surface-muted-dark dark:text-text-muted-dark"
+                }`}
+              >
+                {titleCase(target.status)}
+              </span>
+            ),
+          },
+          {
+            title: "2FA",
+            key: "otp",
+            render: (_, target) => <span className="text-text-muted dark:text-text-muted-dark">{target.otpEnrolled ? "Enrolled" : "Not Enrolled"}</span>,
+          },
+          {
+            title: "Actions",
+            key: "actions",
+            render: (_, target) => {
+              const isSelf = target.id === actor.id;
+              const manageable = isManageable(target);
+              if (isSelf) return <span className="text-xs text-text-muted dark:text-text-muted-dark">You</span>;
+              if (!manageable) return <span className="text-xs text-text-muted dark:text-text-muted-dark">Not Manageable</span>;
+              return (
+                <div className="user-row__actions flex flex-wrap gap-2">
+                  <IconButton
+                    id={`user-row-${target.id}-edit`}
+                    title="Edit User"
+                    onClick={() => router.push(`/dashboard/users/${target.id}`)}
+                    icon={<IconEdit />}
+                    variant="muted"
+                  />
+                  <IconButton
+                    id={`user-row-${target.id}-reset-password`}
+                    title="Reset Password"
+                    onClick={() => setResetPasswordTarget(target)}
+                    icon={<IconKey />}
+                    variant="muted"
+                  />
+                  <IconButton
+                    id={`user-row-${target.id}-reset-otp`}
+                    title="Reset 2FA"
+                    onClick={() => handleResetOtp(target)}
+                    icon={<IconShieldReset />}
+                    variant="muted"
+                  />
+                  {target.status === "active" ? (
+                    <IconButton
+                      id={`user-row-${target.id}-disable`}
+                      title="Disable User"
+                      onClick={() => handleSetStatus(target, "disabled")}
+                      icon={<IconPause />}
+                      variant="muted"
+                    />
+                  ) : (
+                    <IconButton
+                      id={`user-row-${target.id}-enable`}
+                      title="Enable User"
+                      onClick={() => handleSetStatus(target, "active")}
+                      icon={<IconPlay />}
+                      variant="muted"
+                    />
+                  )}
+                  <IconButton
+                    id={`user-row-${target.id}-delete`}
+                    title="Delete User"
+                    onClick={() => handleSetStatus(target, "deleted")}
+                    icon={<IconTrash />}
+                    variant="danger"
+                  />
+                </div>
+              );
+            },
+          },
+        ]}
+      />
 
       {resetPasswordTarget && (
         <ResetPasswordPanel
@@ -208,133 +314,6 @@ export default function UsersPage() {
         />
       )}
     </section>
-  );
-}
-
-function UserRow({
-  actor,
-  target,
-  onEdit,
-  onSetStatus,
-  onToggleCrown,
-  onResetOtp,
-  onResetPassword,
-}: {
-  actor: AdminUserDTO;
-  target: AdminUserDTO;
-  onEdit: () => void;
-  onSetStatus: (target: AdminUserDTO, status: "active" | "disabled" | "deleted") => void;
-  onToggleCrown: (target: AdminUserDTO) => void;
-  onResetOtp: (target: AdminUserDTO) => void;
-  onResetPassword: () => void;
-}) {
-  const isSelf = target.id === actor.id;
-  const manageable = !isSelf && canManage(actor, target);
-
-  return (
-    <tr
-      id={`user-row-${target.id}`}
-      className={`user-row border-t border-border dark:border-border-dark ${
-        target.status !== "active" ? "bg-surface-muted dark:bg-surface-muted-dark" : ""
-      }`}
-    >
-      <td className="px-4 py-3">
-        <div className="user-row__name-wrap relative inline-block">
-          {target.canManageAdmins && (
-            <span
-              id={`user-row-${target.id}-crown-badge`}
-              title="Can Manage Admins"
-              className="user-row__crown-badge absolute -right-4 -top-2 text-yellow-400"
-            >
-              <IconCrown width={14} height={14} />
-            </span>
-          )}
-          <p className="user-row__name text-[15px] font-semibold leading-tight text-text dark:text-text-dark">
-            {target.fullName}
-          </p>
-        </div>
-        <p className="user-row__email text-[13px] font-normal leading-tight text-text-muted dark:text-text-muted-dark">
-          {target.email}
-        </p>
-      </td>
-      <td className="px-4 py-3">
-        <span className="text-text dark:text-text-dark">{titleCase(target.role)}</span>
-        {target.role === "admin" && actor.role === "super_admin" && (
-          <span className="ml-2 inline-flex align-middle">
-            <IconButton
-              id={`user-row-${target.id}-crown`}
-              title={target.canManageAdmins ? "Remove Crown" : "Grant Crown"}
-              onClick={() => onToggleCrown(target)}
-              variant={target.canManageAdmins ? "primary" : "muted"}
-              icon={<IconCrown width={14} height={14} />}
-            />
-          </span>
-        )}
-      </td>
-      <td className="px-4 py-3">
-        <span
-          className={`user-row__status rounded-full px-2 py-0.5 text-xs font-medium ${
-            target.status === "active"
-              ? "bg-success-subtle text-success"
-              : "bg-surface-muted text-text-muted dark:bg-surface-muted-dark dark:text-text-muted-dark"
-          }`}
-        >
-          {titleCase(target.status)}
-        </span>
-      </td>
-      <td className="px-4 py-3 text-text-muted dark:text-text-muted-dark">
-        {target.otpEnrolled ? "Enrolled" : "Not Enrolled"}
-      </td>
-      <td className="px-4 py-3">
-        {isSelf ? (
-          <span className="text-xs text-text-muted dark:text-text-muted-dark">You</span>
-        ) : manageable ? (
-          <div className="user-row__actions flex flex-wrap gap-2">
-            <IconButton id={`user-row-${target.id}-edit`} title="Edit User" onClick={onEdit} icon={<IconEdit />} variant="muted" />
-            <IconButton
-              id={`user-row-${target.id}-reset-password`}
-              title="Reset Password"
-              onClick={onResetPassword}
-              icon={<IconKey />}
-              variant="muted"
-            />
-            <IconButton
-              id={`user-row-${target.id}-reset-otp`}
-              title="Reset 2FA"
-              onClick={() => onResetOtp(target)}
-              icon={<IconShieldReset />}
-              variant="muted"
-            />
-            {target.status === "active" ? (
-              <IconButton
-                id={`user-row-${target.id}-disable`}
-                title="Disable User"
-                onClick={() => onSetStatus(target, "disabled")}
-                icon={<IconPause />}
-                variant="muted"
-              />
-            ) : (
-              <IconButton
-                id={`user-row-${target.id}-enable`}
-                title="Enable User"
-                onClick={() => onSetStatus(target, "active")}
-                icon={<IconPlay />}
-                variant="muted"
-              />
-            )}
-            <IconButton
-              id={`user-row-${target.id}-delete`}
-              title="Delete User"
-              onClick={() => onSetStatus(target, "deleted")}
-              icon={<IconTrash />}
-              variant="danger"
-            />
-          </div>
-        ) : (
-          <span className="text-xs text-text-muted dark:text-text-muted-dark">Not Manageable</span>
-        )}
-      </td>
-    </tr>
   );
 }
 

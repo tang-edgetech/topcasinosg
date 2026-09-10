@@ -127,7 +127,7 @@ export default function PageMetaForm({
           extra={
             isHome
               ? "The Homepage's slug must stay \"home\" — it's what the public site looks up at /."
-              : "One path segment, e.g. \"about\" — combined with any Parent Page above to form the full URL. Must be unique among sibling pages (same parent), not site-wide. Exception: the per-region bonus-type pages (\"th-bonuses-welcome\" etc.), which are looked up by this slug but served at /{region}/bonuses/{type}."
+              : "One path segment, e.g. \"about\" — combined with any Parent Page above to form the full URL. Must be unique among sibling pages (same parent), not site-wide."
           }
         >
           <Input placeholder="about" disabled={isHome} />

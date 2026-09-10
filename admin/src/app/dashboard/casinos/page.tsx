@@ -11,7 +11,10 @@ import IconButton from "@/components/IconButton";
 import { IconEdit, IconPlus, IconTrash } from "@/components/Icons";
 import StatusBadge from "@/components/content/StatusBadge";
 import PublishControl from "@/components/content/PublishControl";
-import { DEFAULT_PAGE_SIZE, tablePagination } from "@/lib/pagination";
+import StatusFilter, { type StatusFilterValue } from "@/components/content/StatusFilter";
+import BulkActionBar from "@/components/content/BulkActionBar";
+import { runBulkAction, bulkResultMessage } from "@/lib/bulk";
+import { CLIENT_TABLE_PAGINATION, FETCH_ALL_PAGE_SIZE } from "@/lib/pagination";
 
 export default function CasinosPage() {
   const { user } = useAuth();
@@ -21,19 +24,17 @@ export default function CasinosPage() {
   const [casinos, setCasinos] = useState<CasinoDTO[]>([]);
   const [regions, setRegions] = useState<RegionDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
-  const [total, setTotal] = useState(0);
+  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("all");
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   async function load() {
     setLoading(true);
     try {
       const [casinoData, regionData] = await Promise.all([
-        api.get<{ casinos: CasinoDTO[] | null; total: number }>(`/api/admin/casinos?page=${page}&pageSize=${pageSize}`),
+        api.get<{ casinos: CasinoDTO[] | null; total: number }>(`/api/admin/casinos?pageSize=${FETCH_ALL_PAGE_SIZE}`),
         api.get<{ regions: RegionDTO[] | null }>("/api/admin/regions"),
       ]);
       setCasinos(casinoData.casinos ?? []);
-      setTotal(casinoData.total);
       setRegions(regionData.regions ?? []);
     } catch (err) {
       message.error(err instanceof ApiError ? err.message : "Could not load casinos.");
@@ -45,9 +46,12 @@ export default function CasinosPage() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize]);
+  }, []);
 
   if (!user) return null;
+
+  const filtered = statusFilter === "all" ? casinos : casinos.filter((c) => c.status === statusFilter);
+  const selectedCasinos = casinos.filter((c) => selectedRowKeys.includes(c.id));
 
   async function handleSetStatus(casino: CasinoDTO, status: string, publishAt: string | null) {
     await api.put(`/api/admin/casinos/${casino.id}/status`, { status, publishAt });
@@ -72,6 +76,35 @@ export default function CasinosPage() {
     }
   }
 
+  async function handleBulkStatus(status: "published" | "draft") {
+    const ok = await confirm({
+      title: status === "published" ? "Publish Casinos" : "Set Casinos to Draft",
+      message: `${status === "published" ? "Publish" : "Set to draft"} ${selectedCasinos.length} casino(s)?`,
+      confirmLabel: status === "published" ? "Publish" : "Set to Draft",
+    });
+    if (!ok) return;
+    const { succeeded, failed } = await runBulkAction(selectedCasinos, (c) =>
+      api.put(`/api/admin/casinos/${c.id}/status`, { status, publishAt: null })
+    );
+    message[failed > 0 ? "warning" : "success"](bulkResultMessage(succeeded, failed, "updated"));
+    setSelectedRowKeys([]);
+    load();
+  }
+
+  async function handleBulkDelete() {
+    const ok = await confirm({
+      title: "Delete Casinos",
+      message: `Delete ${selectedCasinos.length} casino(s)? This cannot be undone.`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
+    const { succeeded, failed } = await runBulkAction(selectedCasinos, (c) => api.del(`/api/admin/casinos/${c.id}`));
+    message[failed > 0 ? "warning" : "success"](bulkResultMessage(succeeded, failed, "deleted"));
+    setSelectedRowKeys([]);
+    load();
+  }
+
   const regionName = (id: number) => regions.find((r) => r.id === id)?.name ?? id;
 
   return (
@@ -81,46 +114,55 @@ export default function CasinosPage() {
         <IconButton id="casinos-add-button" title="Add Casino" onClick={() => router.push("/dashboard/casinos/new")} icon={<IconPlus />} />
       </div>
 
+      <div className="flex items-center gap-3">
+        <StatusFilter id="casinos-status-filter" value={statusFilter} onChange={setStatusFilter} />
+      </div>
+
+      <BulkActionBar
+        count={selectedRowKeys.length}
+        onClear={() => setSelectedRowKeys([])}
+        actions={[
+          { id: "casinos-bulk-publish", label: "Publish", onClick: () => handleBulkStatus("published") },
+          { id: "casinos-bulk-draft", label: "Set to Draft", onClick: () => handleBulkStatus("draft") },
+          { id: "casinos-bulk-delete", label: "Delete", onClick: handleBulkDelete, danger: true },
+        ]}
+      />
+
       <Table
         id="casinos-table"
         rowKey="id"
         loading={loading}
-        dataSource={casinos}
-        pagination={tablePagination(page, pageSize, total, (p, ps) => {
-          if (ps !== pageSize) {
-            setPageSize(ps);
-            setPage(1);
-          } else {
-            setPage(p);
-          }
-        })}
+        dataSource={filtered}
+        pagination={CLIENT_TABLE_PAGINATION}
+        rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys }}
         columns={[
-          { title: "Name", dataIndex: "name", key: "name" },
+          { title: "Name", dataIndex: "name", key: "name", sorter: (a, b) => a.name.localeCompare(b.name) },
           { title: "Slug", dataIndex: "slug", key: "slug" },
-          { title: "Rating", dataIndex: "rating", key: "rating" },
+          { title: "Rating", dataIndex: "rating", key: "rating", sorter: (a, b) => a.rating - b.rating },
           {
             title: "Regions",
             key: "regions",
             render: (_, c) => (c.regionIds ?? []).map(regionName).join(", "),
           },
-          { title: "Status", key: "status", render: (_, c) => <StatusBadge status={c.status} /> },
           {
-            title: "Schedule",
-            key: "schedule",
-            render: (_, c) => (
-              <PublishControl
-                id={`casino-${c.id}-publish`}
-                status={c.status}
-                publishAt={c.publishAt}
-                onSave={(status, publishAt) => handleSetStatus(c, status, publishAt)}
-              />
-            ),
+            title: "Status",
+            key: "status",
+            render: (_, c) => <StatusBadge status={c.status} />,
+            sorter: (a, b) => a.status.localeCompare(b.status),
           },
           {
             title: "Actions",
             key: "actions",
             render: (_, c) => (
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
+                {c.status !== "published" && (
+                  <PublishControl
+                    id={`casino-${c.id}-publish`}
+                    status={c.status}
+                    publishAt={c.publishAt}
+                    onSave={(status, publishAt) => handleSetStatus(c, status, publishAt)}
+                  />
+                )}
                 <IconButton
                   id={`casino-${c.id}-edit`}
                   title="Edit Casino"

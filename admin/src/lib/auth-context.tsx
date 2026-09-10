@@ -13,6 +13,7 @@ interface AuthContextValue {
   refresh: () => Promise<void>;
   logout: () => Promise<void>;
   setTheme: (theme: Theme) => Promise<void>;
+  setFullName: (fullName: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -67,7 +68,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [setLocalTheme],
   );
 
-  return <AuthContext.Provider value={{ user, loading, refresh, logout, setTheme }}>{children}</AuthContext.Provider>;
+  const setFullName = useCallback(async (fullName: string) => {
+    await api.put("/api/admin/account/profile", { fullName });
+    setUser((prev) => (prev ? { ...prev, fullName } : prev));
+  }, []);
+
+  return (
+    <AuthContext.Provider value={{ user, loading, refresh, logout, setTheme, setFullName }}>{children}</AuthContext.Provider>
+  );
 }
 
 export function useAuth() {

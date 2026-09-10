@@ -162,14 +162,27 @@ func (s *PageService) Create(ctx context.Context, in PageInput) (*domain.Page, e
 			return nil, err
 		}
 	}
+	sortOrder, err := s.pages.NextSortOrder(ctx, in.ParentID)
+	if err != nil {
+		return nil, err
+	}
 	id, err := s.pages.Create(ctx, &domain.Page{
-		ParentID: in.ParentID, Slug: in.Slug, Title: in.Title, MetaTitle: in.MetaTitle, MetaDescription: in.MetaDescription,
+		ParentID: in.ParentID, SortOrder: sortOrder, Slug: in.Slug, Title: in.Title,
+		MetaTitle: in.MetaTitle, MetaDescription: in.MetaDescription,
 		Status: domain.ContentStatusDraft,
 	})
 	if err != nil {
 		return nil, err
 	}
 	return s.pages.GetByID(ctx, id)
+}
+
+// Reorder persists a drag-and-drop reorder of one parent's children (nil
+// parentID means the root level) - the admin always sends the FULL sibling
+// order, not a moved-item/target-index pair, same "replace the whole
+// ordered list" contract ReplaceSections already uses for page_sections.
+func (s *PageService) Reorder(ctx context.Context, parentID *int64, orderedIDs []int64) error {
+	return s.pages.Reorder(ctx, parentID, orderedIDs)
 }
 
 // Update is the "Page Details" tab's save — title + slug + parent. The

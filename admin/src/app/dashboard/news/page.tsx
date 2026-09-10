@@ -11,7 +11,10 @@ import IconButton from "@/components/IconButton";
 import { IconEdit, IconPlus, IconTrash } from "@/components/Icons";
 import StatusBadge from "@/components/content/StatusBadge";
 import PublishControl from "@/components/content/PublishControl";
-import { DEFAULT_PAGE_SIZE, tablePagination } from "@/lib/pagination";
+import StatusFilter, { type StatusFilterValue } from "@/components/content/StatusFilter";
+import BulkActionBar from "@/components/content/BulkActionBar";
+import { runBulkAction, bulkResultMessage } from "@/lib/bulk";
+import { CLIENT_TABLE_PAGINATION, FETCH_ALL_PAGE_SIZE } from "@/lib/pagination";
 
 export default function NewsPage() {
   const { user } = useAuth();
@@ -20,18 +23,16 @@ export default function NewsPage() {
   const router = useRouter();
   const [articles, setArticles] = useState<NewsArticleDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
-  const [total, setTotal] = useState(0);
+  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("all");
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   async function load() {
     setLoading(true);
     try {
       const data = await api.get<{ newsArticles: NewsArticleDTO[] | null; total: number }>(
-        `/api/admin/news?page=${page}&pageSize=${pageSize}`
+        `/api/admin/news?pageSize=${FETCH_ALL_PAGE_SIZE}`
       );
       setArticles(data.newsArticles ?? []);
-      setTotal(data.total);
     } catch (err) {
       message.error(err instanceof ApiError ? err.message : "Could not load news articles.");
     } finally {
@@ -42,9 +43,12 @@ export default function NewsPage() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize]);
+  }, []);
 
   if (!user) return null;
+
+  const filtered = statusFilter === "all" ? articles : articles.filter((a) => a.status === statusFilter);
+  const selectedArticles = articles.filter((a) => selectedRowKeys.includes(a.id));
 
   async function handleSetStatus(article: NewsArticleDTO, status: string, publishAt: string | null) {
     await api.put(`/api/admin/news/${article.id}/status`, { status, publishAt });
@@ -69,6 +73,35 @@ export default function NewsPage() {
     }
   }
 
+  async function handleBulkStatus(status: "published" | "draft") {
+    const ok = await confirm({
+      title: status === "published" ? "Publish News Articles" : "Set News Articles to Draft",
+      message: `${status === "published" ? "Publish" : "Set to draft"} ${selectedArticles.length} article(s)?`,
+      confirmLabel: status === "published" ? "Publish" : "Set to Draft",
+    });
+    if (!ok) return;
+    const { succeeded, failed } = await runBulkAction(selectedArticles, (a) =>
+      api.put(`/api/admin/news/${a.id}/status`, { status, publishAt: null })
+    );
+    message[failed > 0 ? "warning" : "success"](bulkResultMessage(succeeded, failed, "updated"));
+    setSelectedRowKeys([]);
+    load();
+  }
+
+  async function handleBulkDelete() {
+    const ok = await confirm({
+      title: "Delete News Articles",
+      message: `Delete ${selectedArticles.length} article(s)? This cannot be undone.`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
+    const { succeeded, failed } = await runBulkAction(selectedArticles, (a) => api.del(`/api/admin/news/${a.id}`));
+    message[failed > 0 ? "warning" : "success"](bulkResultMessage(succeeded, failed, "deleted"));
+    setSelectedRowKeys([]);
+    load();
+  }
+
   return (
     <section id="news-page" className="news-page flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -76,40 +109,49 @@ export default function NewsPage() {
         <IconButton id="news-add-button" title="Add News Article" onClick={() => router.push("/dashboard/news/new")} icon={<IconPlus />} />
       </div>
 
+      <div className="flex items-center gap-3">
+        <StatusFilter id="news-status-filter" value={statusFilter} onChange={setStatusFilter} />
+      </div>
+
+      <BulkActionBar
+        count={selectedRowKeys.length}
+        onClear={() => setSelectedRowKeys([])}
+        actions={[
+          { id: "news-bulk-publish", label: "Publish", onClick: () => handleBulkStatus("published") },
+          { id: "news-bulk-draft", label: "Set to Draft", onClick: () => handleBulkStatus("draft") },
+          { id: "news-bulk-delete", label: "Delete", onClick: handleBulkDelete, danger: true },
+        ]}
+      />
+
       <Table
         id="news-table"
         rowKey="id"
         loading={loading}
-        dataSource={articles}
-        pagination={tablePagination(page, pageSize, total, (p, ps) => {
-          if (ps !== pageSize) {
-            setPageSize(ps);
-            setPage(1);
-          } else {
-            setPage(p);
-          }
-        })}
+        dataSource={filtered}
+        pagination={CLIENT_TABLE_PAGINATION}
+        rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys }}
         columns={[
-          { title: "Title", dataIndex: "title", key: "title" },
+          { title: "Title", dataIndex: "title", key: "title", sorter: (a, b) => a.title.localeCompare(b.title) },
           { title: "Slug", dataIndex: "slug", key: "slug" },
-          { title: "Status", key: "status", render: (_, a) => <StatusBadge status={a.status} /> },
           {
-            title: "Schedule",
-            key: "schedule",
-            render: (_, a) => (
-              <PublishControl
-                id={`news-${a.id}-publish`}
-                status={a.status}
-                publishAt={a.publishAt}
-                onSave={(status, publishAt) => handleSetStatus(a, status, publishAt)}
-              />
-            ),
+            title: "Status",
+            key: "status",
+            render: (_, a) => <StatusBadge status={a.status} />,
+            sorter: (a, b) => a.status.localeCompare(b.status),
           },
           {
             title: "Actions",
             key: "actions",
             render: (_, a) => (
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
+                {a.status !== "published" && (
+                  <PublishControl
+                    id={`news-${a.id}-publish`}
+                    status={a.status}
+                    publishAt={a.publishAt}
+                    onSave={(status, publishAt) => handleSetStatus(a, status, publishAt)}
+                  />
+                )}
                 <IconButton
                   id={`news-${a.id}-edit`}
                   title="Edit News Article"

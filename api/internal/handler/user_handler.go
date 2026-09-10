@@ -28,7 +28,7 @@ func userErrorStatus(err error) int {
 		return http.StatusConflict
 	case errors.Is(err, service.ErrWrongCurrentPassword):
 		return http.StatusUnauthorized
-	case errors.Is(err, service.ErrInvalidTheme):
+	case errors.Is(err, service.ErrInvalidTheme), errors.Is(err, service.ErrFullNameRequired):
 		return http.StatusBadRequest
 	default:
 		return http.StatusInternalServerError
@@ -209,6 +209,24 @@ func (h *UserHandler) SelfChangePassword(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if err := h.users.SelfChangePassword(r.Context(), actor, req.CurrentPassword, req.NewPassword); err != nil {
+		response.Err(w, userErrorStatus(err), err.Error())
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]bool{"updated": true})
+}
+
+type selfUpdateProfileRequest struct {
+	FullName string `json:"fullName"`
+}
+
+func (h *UserHandler) SelfUpdateProfile(w http.ResponseWriter, r *http.Request) {
+	actor := middleware.UserFromContext(r.Context())
+	var req selfUpdateProfileRequest
+	if err := httpx.DecodeJSON(r, &req); err != nil {
+		response.Err(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if err := h.users.SelfUpdateProfile(r.Context(), actor, req.FullName); err != nil {
 		response.Err(w, userErrorStatus(err), err.Error())
 		return
 	}

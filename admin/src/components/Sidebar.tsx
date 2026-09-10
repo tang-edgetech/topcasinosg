@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -10,7 +11,6 @@ import BrandMark from "@/components/BrandMark";
 import {
   IconGrid,
   IconUsers,
-  IconUser,
   IconSettings,
   IconSun,
   IconMoon,
@@ -31,9 +31,40 @@ import {
   IconDice,
   IconCertificate,
   IconList,
+  IconEdit,
+  IconChevronDown,
 } from "@/components/Icons";
 
-const NAV_ITEMS = [
+// One color scheme for every clickable sidebar item, main nav or footer:
+// white by default, theme yellow on hover, and yellow+bold+highlighted when
+// it's the active route. `#sidebar-theme-toggle` (an action, not a route)
+// only ever uses the hover half of this — there's no "active" state for it.
+const SIDEBAR_ITEM_BASE =
+  "flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white! transition-colors hover:font-bold! hover:text-yellow-400!";
+const SIDEBAR_ITEM_ACTIVE = "bg-sidebar-active font-bold! text-yellow-400!";
+
+// A nav entry is either a direct link (`href`) or an expandable group
+// (`children` — a flat array of links, one level deep; add more entries to
+// a group's `children` to grow it, no structural changes needed elsewhere).
+interface NavLink {
+  href: string;
+  label: string;
+  roles: string[];
+  icon: (props: { width?: number; height?: number; className?: string }) => React.ReactElement;
+}
+interface NavGroup {
+  label: string;
+  roles: string[];
+  icon: NavLink["icon"];
+  children: NavLink[];
+}
+type NavEntry = NavLink | NavGroup;
+
+function isNavGroup(entry: NavEntry): entry is NavGroup {
+  return "children" in entry;
+}
+
+const NAV_ITEMS: NavEntry[] = [
   { href: "/dashboard", label: "Overview", roles: ["super_admin", "admin", "editor"], icon: IconGrid },
   { href: "/dashboard/pages", label: "Pages", roles: ["super_admin", "admin", "editor"], icon: IconLayout },
   { href: "/dashboard/regions", label: "Regions", roles: ["super_admin", "admin"], icon: IconGlobe },
@@ -63,11 +94,16 @@ const NAV_ITEMS = [
   { href: "/dashboard/news", label: "News", roles: ["super_admin", "admin", "editor"], icon: IconNewspaper },
   { href: "/dashboard/media", label: "Media Library", roles: ["super_admin", "admin", "editor"], icon: IconPhoto },
   { href: "/dashboard/users", label: "Users", roles: ["super_admin", "admin"], icon: IconUsers },
-  { href: "/dashboard/navigation", label: "Navigation", roles: ["super_admin", "admin"], icon: IconMenu },
-  { href: "/dashboard/sidebar", label: "Sidebar", roles: ["super_admin", "admin"], icon: IconList },
-  { href: "/dashboard/account", label: "My Account", roles: ["super_admin", "admin", "editor"], icon: IconUser },
+  {
+    label: "Menu",
+    roles: ["super_admin", "admin"],
+    icon: IconMenu,
+    children: [
+      { href: "/dashboard/navigation", label: "Navigation", roles: ["super_admin", "admin"], icon: IconMenu },
+      { href: "/dashboard/sidebar", label: "Sidebar", roles: ["super_admin", "admin"], icon: IconList },
+    ],
+  },
   { href: "/dashboard/snippets", label: "Snippets", roles: ["super_admin"], icon: IconCode },
-  { href: "/dashboard/settings", label: "Settings", roles: ["super_admin"], icon: IconSettings },
 ];
 
 export default function Sidebar({ onNavigate, onClose }: { onNavigate?: () => void; onClose?: () => void }) {
@@ -76,6 +112,20 @@ export default function Sidebar({ onNavigate, onClose }: { onNavigate?: () => vo
   const confirm = useConfirm();
   const pathname = usePathname();
   const router = useRouter();
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  function isLinkActive(href: string) {
+    return href === "/dashboard" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  function toggleGroup(label: string) {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+  }
 
   async function handleLogout() {
     const ok = await confirm({
@@ -118,25 +168,59 @@ export default function Sidebar({ onNavigate, onClose }: { onNavigate?: () => vo
 
       <div className="nav-wrapper flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
         {NAV_ITEMS.filter((item) => !user || item.roles.includes(user.role)).map((item) => {
+          const Icon = item.icon;
+
+          if (isNavGroup(item)) {
+            const children = item.children.filter((c) => !user || c.roles.includes(user.role));
+            if (children.length === 0) return null;
+            const hasActiveChild = children.some((c) => isLinkActive(c.href));
+            const expanded = expandedGroups.has(item.label) || hasActiveChild;
+            return (
+              <div key={item.label} className="sidebar__group flex flex-col gap-1">
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(item.label)}
+                  aria-expanded={expanded}
+                  className={`sidebar__group-toggle ${SIDEBAR_ITEM_BASE} w-full ${hasActiveChild ? SIDEBAR_ITEM_ACTIVE : ""}`}
+                >
+                  <Icon width={18} height={18} />
+                  <span className="flex-1 text-left">{item.label}</span>
+                  <IconChevronDown width={14} height={14} className={`shrink-0 transition-transform ${expanded ? "" : "-rotate-90"}`} />
+                </button>
+                {expanded && (
+                  <div className="sidebar__group-children flex flex-col gap-1 pl-6">
+                    {children.map((child) => {
+                      const ChildIcon = child.icon;
+                      const active = isLinkActive(child.href);
+                      return (
+                        <Link
+                          key={child.href}
+                          href={child.href}
+                          onClick={onNavigate}
+                          className={`sidebar__link ${SIDEBAR_ITEM_BASE} ${active ? SIDEBAR_ITEM_ACTIVE : ""}`}
+                        >
+                          <ChildIcon width={16} height={16} />
+                          {child.label}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
           // Overview ("/dashboard") only matches exactly, or every other
           // item would also light it up. Every other item also matches
           // its own sub-routes (e.g. /dashboard/casinos/new, /dashboard/casinos/123)
           // so the parent stays highlighted while creating/editing.
-          const active =
-            item.href === "/dashboard"
-              ? pathname === item.href
-              : pathname === item.href || pathname.startsWith(`${item.href}/`);
-          const Icon = item.icon;
+          const active = isLinkActive(item.href);
           return (
             <Link
               key={item.href}
               href={item.href}
               onClick={onNavigate}
-              className={`sidebar__link flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
-                active
-                  ? "bg-sidebar-active font-bold! text-yellow-400!"
-                  : "font-medium text-white! hover:font-bold! hover:text-yellow-400!"
-              }`}
+              className={`sidebar__link ${SIDEBAR_ITEM_BASE} ${active ? SIDEBAR_ITEM_ACTIVE : ""}`}
             >
               <Icon width={18} height={18} />
               {item.label}
@@ -151,21 +235,39 @@ export default function Sidebar({ onNavigate, onClose }: { onNavigate?: () => vo
           id="sidebar-theme-toggle"
           title={user?.themePreference === "dark" ? "Switch To Light Theme" : "Switch To Dark Theme"}
           onClick={handleToggleTheme}
-          className="sidebar__theme-toggle flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-white/75 transition-colors hover:bg-white/10 hover:text-white"
+          className={`sidebar__theme-toggle ${SIDEBAR_ITEM_BASE}`}
         >
           {user?.themePreference === "dark" ? <IconSun width={18} height={18} /> : <IconMoon width={18} height={18} />}
           {user?.themePreference === "dark" ? "Light Theme" : "Dark Theme"}
         </button>
 
+        {user?.role === "super_admin" && (
+          <Link
+            href="/dashboard/settings"
+            onClick={onNavigate}
+            className={`sidebar__settings-link ${SIDEBAR_ITEM_BASE} ${
+              pathname === "/dashboard/settings" || pathname.startsWith("/dashboard/settings/") ? SIDEBAR_ITEM_ACTIVE : ""
+            }`}
+          >
+            <IconSettings width={18} height={18} />
+            Settings
+          </Link>
+        )}
+
         {user && (
-          <div className="sidebar__user flex items-center gap-2 px-2">
+          <Link
+            href="/dashboard/account"
+            onClick={onNavigate}
+            id="sidebar-user-link"
+            className="sidebar__user flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-white/10"
+          >
             <span
               id="sidebar-user-avatar"
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary-600 text-sm font-bold text-primary-900"
             >
               {user.fullName.charAt(0).toUpperCase()}
             </span>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="sidebar__user-name truncate text-[15px] font-semibold leading-tight text-white">
                 {user.fullName}
               </p>
@@ -173,16 +275,11 @@ export default function Sidebar({ onNavigate, onClose }: { onNavigate?: () => vo
                 {titleCase(user.role)}
               </p>
             </div>
-          </div>
+            <IconEdit width={14} height={14} className="shrink-0 text-white/50" />
+          </Link>
         )}
 
-        <button
-          type="button"
-          id="sidebar-logout"
-          title="Log Out"
-          onClick={handleLogout}
-          className="sidebar__logout flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-white/75 transition-colors hover:bg-white/10 hover:text-white"
-        >
+        <button type="button" id="sidebar-logout" title="Log Out" onClick={handleLogout} className={`sidebar__logout ${SIDEBAR_ITEM_BASE}`}>
           <IconLogout width={18} height={18} />
           Log Out
         </button>

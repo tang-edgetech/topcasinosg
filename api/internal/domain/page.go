@@ -11,7 +11,11 @@ type Page struct {
 	// slug preceded by every ancestor's slug in order (e.g. parent "legal"
 	// + this page's slug "privacy-policy" -> "/legal/privacy-policy") -
 	// see PageService.ResolvePath and .PathsByID.
-	ParentID        *int64
+	ParentID *int64
+	// SortOrder is display order among siblings (same ParentID) - lower
+	// first, ties broken by id. Set via PageService.Reorder, never by
+	// Create/Update directly (see PageRepo.NextSortOrder).
+	SortOrder       int
 	Slug            string
 	Title           string
 	MetaTitle       string
@@ -55,6 +59,12 @@ var KnownBlockTypes = []string{
 	"casino_comparison_table",
 	"event_highlights",
 	"introduction_section",
+	"comparison_table",
+	"numbered_steps",
+	"feature_cards",
+	"checklist_callout",
+	"game_rtp_carousel",
+	"highlight_panel",
 }
 
 // PageSection is one visual block on a page. CustomClass/CustomID are the

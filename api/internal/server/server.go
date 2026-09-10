@@ -67,6 +67,7 @@ func NewRouter(deps Deps) http.Handler {
 	mux.HandleFunc("GET /api/casinos", deps.CasinoHandler.ListPublic)
 	mux.HandleFunc("GET /api/casinos/{slug}", deps.CasinoHandler.GetPublic)
 	mux.HandleFunc("GET /api/bonuses", deps.BonusHandler.ListPublic)
+	mux.HandleFunc("GET /api/bonuses/{slug}", deps.BonusHandler.GetPublic)
 	mux.HandleFunc("GET /api/payment-methods", deps.PaymentMethodHandler.ListPublic)
 	mux.HandleFunc("GET /api/rtp", deps.RTPEntryHandler.ListPublic)
 	mux.HandleFunc("GET /api/guides", deps.GuideHandler.ListPublic)
@@ -90,6 +91,7 @@ func NewRouter(deps Deps) http.Handler {
 	// Account — any authenticated admin user, self-service only.
 	mux.Handle("POST /api/admin/account/password", authenticate(http.HandlerFunc(deps.UserHandler.SelfChangePassword)))
 	mux.Handle("PUT /api/admin/account/theme", authenticate(http.HandlerFunc(deps.UserHandler.SetTheme)))
+	mux.Handle("PUT /api/admin/account/profile", authenticate(http.HandlerFunc(deps.UserHandler.SelfUpdateProfile)))
 
 	// Users — Super Admin and Admin only; Editors have no access at all.
 	mux.Handle("GET /api/admin/users", authenticate(staffOnly(http.HandlerFunc(deps.UserHandler.List))))
@@ -200,6 +202,7 @@ func NewRouter(deps Deps) http.Handler {
 	mux.Handle("PUT /api/admin/pages/{id}/snippets", authenticate(superAdminOnly(http.HandlerFunc(deps.PageHandler.UpdateSnippets))))
 	mux.Handle("PUT /api/admin/pages/{id}/status", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.SetStatus))))
 	mux.Handle("PUT /api/admin/pages/{id}/sections", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.ReplaceSections))))
+	mux.Handle("PUT /api/admin/pages/reorder", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.Reorder))))
 	mux.Handle("DELETE /api/admin/pages/{id}", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.Delete))))
 
 	// Guides.

@@ -27,6 +27,7 @@ type BonusDTO struct {
 	CasinoID   *int64     `json:"casinoId"`
 	BonusType  string     `json:"bonusType"`
 	Title      string     `json:"title"`
+	Slug       string     `json:"slug"`
 	Terms      string     `json:"terms"`
 	Code       *string    `json:"code"`
 	ValidFrom  *time.Time `json:"validFrom"`
@@ -40,13 +41,15 @@ type BonusDTO struct {
 func toBonusDTO(b *domain.Bonus) BonusDTO {
 	return BonusDTO{
 		ID: b.ID, RegionID: b.RegionID, CasinoID: b.CasinoID, BonusType: string(b.BonusType), Title: b.Title,
-		Terms: b.Terms, Code: b.Code, ValidFrom: b.ValidFrom, ValidUntil: b.ValidUntil, Status: string(b.Status),
+		Slug: b.Slug, Terms: b.Terms, Code: b.Code, ValidFrom: b.ValidFrom, ValidUntil: b.ValidUntil, Status: string(b.Status),
 		PublishAt: b.PublishAt, CreatedAt: b.CreatedAt, UpdatedAt: b.UpdatedAt,
 	}
 }
 
 func bonusErrorStatus(err error) int {
 	switch {
+	case errors.Is(err, service.ErrAlreadyExists):
+		return http.StatusConflict
 	case errors.Is(err, service.ErrInvalidBonusType), errors.Is(err, service.ErrInvalidContentStatus), errors.Is(err, service.ErrPublishAtRequired):
 		return http.StatusBadRequest
 	case errors.Is(err, repository.ErrNotFound):
@@ -61,6 +64,7 @@ type bonusRequest struct {
 	CasinoID   *int64     `json:"casinoId"`
 	BonusType  string     `json:"bonusType"`
 	Title      string     `json:"title"`
+	Slug       string     `json:"slug"`
 	Terms      string     `json:"terms"`
 	Code       *string    `json:"code"`
 	ValidFrom  *time.Time `json:"validFrom"`
@@ -70,7 +74,7 @@ type bonusRequest struct {
 func (req bonusRequest) toInput() service.BonusInput {
 	return service.BonusInput{
 		RegionID: req.RegionID, CasinoID: req.CasinoID, BonusType: domain.BonusType(req.BonusType), Title: req.Title,
-		Terms: req.Terms, Code: req.Code, ValidFrom: req.ValidFrom, ValidUntil: req.ValidUntil,
+		Slug: req.Slug, Terms: req.Terms, Code: req.Code, ValidFrom: req.ValidFrom, ValidUntil: req.ValidUntil,
 	}
 }
 
@@ -185,6 +189,17 @@ func (h *BonusHandler) ListPublic(w http.ResponseWriter, r *http.Request) {
 		dtos[i] = toBonusDTO(&items[i])
 	}
 	response.JSON(w, http.StatusOK, map[string]any{"bonuses": dtos, "total": total})
+}
+
+// GetPublic serves a single bonus's public detail page (/bonuses/{slug}).
+func (h *BonusHandler) GetPublic(w http.ResponseWriter, r *http.Request) {
+	slug := r.PathValue("slug")
+	bonus, err := h.bonuses.GetPublishedBySlug(r.Context(), slug)
+	if err != nil {
+		response.Err(w, bonusErrorStatus(err), "bonus not found")
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]any{"bonus": toBonusDTO(bonus)})
 }
 
 type setBonusStatusRequest struct {

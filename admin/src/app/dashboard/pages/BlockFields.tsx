@@ -48,6 +48,12 @@ export const BLOCK_TYPE_LABELS: Record<PageBlockType, string> = {
   casino_comparison_table: "Casino Comparison Table",
   event_highlights: "Event Highlights",
   introduction_section: "Introduction Section",
+  comparison_table: "Comparison Table",
+  numbered_steps: "Numbered Steps",
+  feature_cards: "Feature Cards",
+  checklist_callout: "Checklist Callout",
+  game_rtp_carousel: "Game RTP Carousel",
+  highlight_panel: "Highlight Panel (Two-Tone Heading)",
 };
 
 const BONUS_TYPE_OPTIONS = [
@@ -303,6 +309,73 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
         blankField(0, "paragraph", "richtext", 4),
         textField(0, "bgFrom", "primary-900", 5),
         textField(0, "bgTo", "primary-glow", 6),
+      ];
+    case "comparison_table":
+      return [
+        blankField(0, "heading", "text", 1),
+        blankField(0, "intro", "richtext", 2),
+        blankField(0, "tipHeading", "text", 3),
+        blankField(0, "tipBody", "richtext", 4),
+        blankField(0, "recommendation", "richtext", 5),
+        textField(0, "bgType", "none", 6),
+        textField(0, "bgFrom", "primary-900", 7),
+        textField(0, "bgTo", "primary-glow", 8),
+        blankField(0, "bgImage", "image", 9),
+      ];
+    case "numbered_steps":
+      return [
+        blankField(0, "heading", "text", 1),
+        blankField(0, "subheading", "text", 2),
+        blankField(0, "intro", "richtext", 3),
+        textField(0, "bgType", "color", 4),
+        textField(0, "bgFrom", "surface-muted", 5),
+        textField(0, "bgTo", "surface-muted", 6),
+        blankField(0, "bgImage", "image", 7),
+      ];
+    case "feature_cards":
+      return [
+        blankField(0, "heading", "text", 1),
+        textField(0, "bgType", "none", 2),
+        textField(0, "bgFrom", "primary-900", 3),
+        textField(0, "bgTo", "primary-glow", 4),
+        blankField(0, "bgImage", "image", 5),
+      ];
+    case "checklist_callout":
+      return [
+        blankField(0, "heading", "text", 1),
+        blankField(0, "subtext", "text", 2),
+        textField(0, "bgType", "color", 3),
+        textField(0, "bgFrom", "secondary-600", 4),
+        textField(0, "bgTo", "secondary-600", 5),
+        blankField(0, "bgImage", "image", 6),
+      ];
+    case "game_rtp_carousel":
+      return [
+        blankField(0, "heading", "text", 1),
+        blankField(0, "seeAllUrl", "text", 2),
+        textField(0, "bgType", "color", 3),
+        textField(0, "bgFrom", "surface-muted", 4),
+        textField(0, "bgTo", "surface-muted", 5),
+        blankField(0, "bgImage", "image", 6),
+      ];
+    case "highlight_panel":
+      return [
+        blankField(0, "headingLine1", "text", 1),
+        textField(0, "headingLine1Color", "primary", 2),
+        blankField(0, "headingLine2", "text", 3),
+        textField(0, "headingLine2Color", "danger", 4),
+        blankField(0, "intro", "richtext", 5),
+        blankField(0, "box1Heading", "text", 6),
+        blankField(0, "box1Body", "richtext", 7),
+        blankField(0, "box2Heading", "text", 8),
+        blankField(0, "box2Body", "richtext", 9),
+        blankField(0, "noteText", "text", 10),
+        blankField(0, "noteLinkUrl", "text", 11),
+        blankField(0, "noteLinkLabel", "text", 12),
+        textField(0, "bgType", "none", 13),
+        textField(0, "bgFrom", "primary-900", 14),
+        textField(0, "bgTo", "primary-glow", 15),
+        blankField(0, "bgImage", "image", 16),
       ];
   }
 }
@@ -603,6 +676,18 @@ export default function BlockFieldEditor({ blockType, fields, onChange }: BlockF
       return <EventHighlightsFields fields={fields} onChange={onChange} />;
     case "introduction_section":
       return <IntroductionSectionFields fields={fields} onChange={onChange} />;
+    case "comparison_table":
+      return <ComparisonTableFields fields={fields} onChange={onChange} />;
+    case "numbered_steps":
+      return <NumberedStepsFields fields={fields} onChange={onChange} />;
+    case "feature_cards":
+      return <FeatureCardsFields fields={fields} onChange={onChange} />;
+    case "checklist_callout":
+      return <ChecklistCalloutFields fields={fields} onChange={onChange} />;
+    case "game_rtp_carousel":
+      return <GameRtpCarouselFields fields={fields} onChange={onChange} />;
+    case "highlight_panel":
+      return <HighlightPanelFields fields={fields} onChange={onChange} />;
   }
 }
 
@@ -1819,6 +1904,698 @@ function IntroductionSectionFields({ fields, onChange }: { fields: EditableField
           Add Menu Item
         </button>
       </div>
+    </div>
+  );
+}
+
+// Columns 1-3 keep their original field keys (label/options/processingTime)
+// so table data seeded before columns became configurable still edits
+// unchanged; only their header labels are editable. Columns 4-6 are purely
+// admin-added extras (col4..col6) for comparing more brands/attributes as
+// more data comes in - see ComparisonTableSection.tsx on the web side for
+// the matching render logic.
+const COMPARISON_BASE_COLUMNS = [
+  { key: "label", labelField: "col1Label", placeholder: "Brand" },
+  { key: "options", labelField: "col2Label", placeholder: "Options" },
+  { key: "processingTime", labelField: "col3Label", placeholder: "Processing Time" },
+] as const;
+const COMPARISON_EXTRA_COLUMN_NUMBERS = [4, 5, 6] as const;
+const COMPARISON_OPTION_ICON_COUNT = 5;
+
+function ComparisonTableFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const heading = getField(fields, 0, "heading");
+  const intro = getField(fields, 0, "intro");
+  const tipHeading = getField(fields, 0, "tipHeading");
+  const tipBody = getField(fields, 0, "tipBody");
+  const recommendation = getField(fields, 0, "recommendation");
+  const items = itemIndexes(fields);
+  const extraColumns = COMPARISON_EXTRA_COLUMN_NUMBERS.filter((n) => getField(fields, 0, `col${n}Label`)?.textValue);
+
+  function addRow() {
+    const idx = nextItemIndex(fields);
+    onChange([
+      ...fields,
+      blankField(idx, "brandName", "text", 1),
+      blankField(idx, "logo", "image", 2),
+      blankField(idx, "processingTime", "text", 3),
+    ]);
+  }
+
+  function addColumn() {
+    const nextN = COMPARISON_EXTRA_COLUMN_NUMBERS.find((n) => !getField(fields, 0, `col${n}Label`)?.textValue);
+    if (!nextN) return;
+    onChange(upsertField(fields, 0, `col${nextN}Label`, "text", 20 + nextN, { textValue: `Column ${nextN}` }));
+  }
+
+  function removeColumn(n: number) {
+    onChange(
+      fields.filter((f) => !(f.itemIndex === 0 && f.fieldKey === `col${n}Label`) && !(f.itemIndex > 0 && f.fieldKey === `col${n}`))
+    );
+  }
+
+  function removeRow(itemIndex: number) {
+    onChange(fields.filter((f) => f.itemIndex !== itemIndex));
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <TextInputField
+        label="Section Heading"
+        value={heading?.textValue ?? ""}
+        placeholder="Fees, Processing Time & Limits"
+        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
+      />
+      <RichTextField
+        label="Intro (optional)"
+        value={intro?.textValue ?? ""}
+        onChange={(v) => onChange(upsertField(fields, 0, "intro", "richtext", 2, { textValue: v }))}
+      />
+      <TextInputField
+        label="Tips Box Heading (optional)"
+        value={tipHeading?.textValue ?? ""}
+        placeholder="Use this table to:"
+        onChange={(v) => onChange(upsertField(fields, 0, "tipHeading", "text", 3, { textValue: v }))}
+      />
+      <RichTextField
+        label="Tips Box Body (optional)"
+        value={tipBody?.textValue ?? ""}
+        onChange={(v) => onChange(upsertField(fields, 0, "tipBody", "richtext", 4, { textValue: v }))}
+      />
+      <RichTextField
+        label="Recommendation Box (optional)"
+        value={recommendation?.textValue ?? ""}
+        onChange={(v) => onChange(upsertField(fields, 0, "recommendation", "richtext", 5, { textValue: v }))}
+      />
+      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 6, bgFrom: 7, bgTo: 8, bgImage: 9 }} />
+
+      <div className="flex flex-col gap-3 rounded-md border border-border p-4 dark:border-border-dark">
+        <span className="text-xs font-semibold text-text-muted uppercase dark:text-text-muted-dark">Table Columns</span>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {COMPARISON_BASE_COLUMNS.map((col) => (
+            <TextInputField
+              key={col.key}
+              label={col.placeholder}
+              value={getField(fields, 0, col.labelField)?.textValue ?? ""}
+              placeholder={col.placeholder}
+              onChange={(v) => onChange(upsertField(fields, 0, col.labelField, "text", 10, { textValue: v }))}
+            />
+          ))}
+        </div>
+        {extraColumns.length > 0 && (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {extraColumns.map((n) => (
+              <div key={n} className="flex items-end gap-2">
+                <div className="flex-1">
+                  <TextInputField
+                    label={`Column ${n}`}
+                    value={getField(fields, 0, `col${n}Label`)?.textValue ?? ""}
+                    onChange={(v) => onChange(upsertField(fields, 0, `col${n}Label`, "text", 20 + n, { textValue: v }))}
+                  />
+                </div>
+                <IconButton
+                  id={`comparison-column-${n}-remove`}
+                  title="Remove Column"
+                  onClick={() => removeColumn(n)}
+                  icon={<IconTrash width={14} height={14} />}
+                  variant="danger"
+                />
+              </div>
+            ))}
+          </div>
+        )}
+        {extraColumns.length < COMPARISON_EXTRA_COLUMN_NUMBERS.length && (
+          <button
+            type="button"
+            onClick={addColumn}
+            className="flex w-fit cursor-pointer items-center gap-2 rounded-md border border-dashed border-primary-300 px-3 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50"
+          >
+            <IconPlus width={14} height={14} />
+            Add Column
+          </button>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-3">
+        {items.map((itemIndex) => {
+          const brandName = getField(fields, itemIndex, "brandName");
+          const legacyLabel = getField(fields, itemIndex, "label");
+          const logo = getField(fields, itemIndex, "logo");
+          const options = getField(fields, itemIndex, "options");
+          const processingTime = getField(fields, itemIndex, "processingTime");
+          return (
+            <div key={itemIndex} className="comparison-row flex flex-col gap-3 rounded-md border border-border p-4 dark:border-border-dark">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-text-muted uppercase dark:text-text-muted-dark">Row {itemIndex}</span>
+                <IconButton
+                  id={`comparison-row-${itemIndex}-remove`}
+                  title="Remove Row"
+                  onClick={() => removeRow(itemIndex)}
+                  icon={<IconTrash width={14} height={14} />}
+                  variant="danger"
+                />
+              </div>
+              <ImagePickerField
+                label="Logo"
+                mediaId={logo?.mediaId ?? null}
+                mediaUrl={logo?.mediaUrl ?? null}
+                onChange={(mediaId, mediaUrl) => onChange(upsertField(fields, itemIndex, "logo", "image", 1, { mediaId, mediaUrl }))}
+              />
+              <TextInputField
+                label={getField(fields, 0, "col1Label")?.textValue || "Brand Name"}
+                value={brandName?.textValue ?? legacyLabel?.textValue ?? ""}
+                onChange={(v) => onChange(upsertField(fields, itemIndex, "brandName", "text", 2, { textValue: v }))}
+              />
+              <LabeledField label={`${getField(fields, 0, "col2Label")?.textValue || "Options"} — Payment Method Icons`}>
+                <div className="grid grid-cols-5 gap-2">
+                  {Array.from({ length: COMPARISON_OPTION_ICON_COUNT }, (_, i) => i + 1).map((n) => {
+                    const icon = getField(fields, itemIndex, `icon${n}`);
+                    return (
+                      <ImagePickerField
+                        key={n}
+                        label={`Icon ${n}`}
+                        mediaId={icon?.mediaId ?? null}
+                        mediaUrl={icon?.mediaUrl ?? null}
+                        onChange={(mediaId, mediaUrl) => onChange(upsertField(fields, itemIndex, `icon${n}`, "image", 3 + n, { mediaId, mediaUrl }))}
+                      />
+                    );
+                  })}
+                </div>
+              </LabeledField>
+              <TextInputField
+                label="Options (fallback text, used only if no icons are set)"
+                value={options?.textValue ?? ""}
+                placeholder="E-wallet · Instant top-up"
+                onChange={(v) => onChange(upsertField(fields, itemIndex, "options", "text", 2, { textValue: v }))}
+              />
+              <TextInputField
+                label={getField(fields, 0, "col3Label")?.textValue || "Processing Time"}
+                value={processingTime?.textValue ?? ""}
+                placeholder="Instant to 6 Hours"
+                onChange={(v) => onChange(upsertField(fields, itemIndex, "processingTime", "text", 3, { textValue: v }))}
+              />
+              {extraColumns.map((n) => {
+                const cell = getField(fields, itemIndex, `col${n}`);
+                return (
+                  <TextInputField
+                    key={n}
+                    label={getField(fields, 0, `col${n}Label`)?.textValue ?? `Column ${n}`}
+                    value={cell?.textValue ?? ""}
+                    onChange={(v) => onChange(upsertField(fields, itemIndex, `col${n}`, "text", 3 + n, { textValue: v }))}
+                  />
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+
+      <button
+        type="button"
+        onClick={addRow}
+        className="flex w-fit cursor-pointer items-center gap-2 rounded-md border border-dashed border-primary-300 px-3 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50"
+      >
+        <IconPlus width={14} height={14} />
+        Add Row
+      </button>
+    </div>
+  );
+}
+
+function NumberedStepsFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const heading = getField(fields, 0, "heading");
+  const subheading = getField(fields, 0, "subheading");
+  const intro = getField(fields, 0, "intro");
+  const items = itemIndexes(fields);
+
+  function addStep() {
+    const idx = nextItemIndex(fields);
+    onChange([...fields, blankField(idx, "title", "text", 1), blankField(idx, "body", "richtext", 2)]);
+  }
+
+  function removeStep(itemIndex: number) {
+    onChange(fields.filter((f) => f.itemIndex !== itemIndex));
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <TextInputField
+        label="Heading"
+        value={heading?.textValue ?? ""}
+        placeholder="How to Make a Deposit"
+        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
+      />
+      <TextInputField
+        label="Heading — second line (optional)"
+        value={subheading?.textValue ?? ""}
+        placeholder="at Online Casinos in Thailand"
+        onChange={(v) => onChange(upsertField(fields, 0, "subheading", "text", 2, { textValue: v }))}
+      />
+      <RichTextField
+        label="Intro (optional)"
+        value={intro?.textValue ?? ""}
+        onChange={(v) => onChange(upsertField(fields, 0, "intro", "richtext", 3, { textValue: v }))}
+      />
+      <SectionBackgroundFields
+        fields={fields}
+        onChange={onChange}
+        sortOrders={{ bgType: 4, bgFrom: 5, bgTo: 6, bgImage: 7 }}
+        defaultBgType="color"
+        defaultBgFrom="surface-muted"
+        defaultBgTo="surface-muted"
+      />
+
+      <div className="flex flex-col gap-3">
+        {items.map((itemIndex, i) => {
+          const title = getField(fields, itemIndex, "title");
+          const body = getField(fields, itemIndex, "body");
+          return (
+            <div key={itemIndex} className="numbered-step-item flex flex-col gap-3 rounded-md border border-border p-4 dark:border-border-dark">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-text-muted uppercase dark:text-text-muted-dark">Step {i + 1}</span>
+                <IconButton
+                  id={`numbered-step-${itemIndex}-remove`}
+                  title="Remove Step"
+                  onClick={() => removeStep(itemIndex)}
+                  icon={<IconTrash width={14} height={14} />}
+                  variant="danger"
+                />
+              </div>
+              <TextInputField
+                label="Title"
+                value={title?.textValue ?? ""}
+                onChange={(v) => onChange(upsertField(fields, itemIndex, "title", "text", 1, { textValue: v }))}
+              />
+              <RichTextField
+                label="Body"
+                value={body?.textValue ?? ""}
+                onChange={(v) => onChange(upsertField(fields, itemIndex, "body", "richtext", 2, { textValue: v }))}
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      <button
+        type="button"
+        onClick={addStep}
+        className="flex w-fit cursor-pointer items-center gap-2 rounded-md border border-dashed border-primary-300 px-3 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50"
+      >
+        <IconPlus width={14} height={14} />
+        Add Step
+      </button>
+    </div>
+  );
+}
+
+function FeatureCardsFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const heading = getField(fields, 0, "heading");
+  const items = itemIndexes(fields);
+
+  function addCard() {
+    const idx = nextItemIndex(fields);
+    onChange([
+      ...fields,
+      blankField(idx, "heading", "text", 1),
+      blankField(idx, "description", "richtext", 2),
+      blankField(idx, "image", "image", 3),
+      blankField(idx, "detail1Heading", "text", 4),
+      blankField(idx, "detail1Body", "richtext", 5),
+      blankField(idx, "detail2Heading", "text", 6),
+      blankField(idx, "detail2Body", "richtext", 7),
+    ]);
+  }
+
+  function removeCard(itemIndex: number) {
+    onChange(fields.filter((f) => f.itemIndex !== itemIndex));
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <TextInputField
+        label="Section Heading"
+        value={heading?.textValue ?? ""}
+        placeholder="Most Trusted Payment Methods in Thailand"
+        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
+      />
+      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 2, bgFrom: 3, bgTo: 4, bgImage: 5 }} />
+
+      <div className="flex flex-col gap-3">
+        {items.map((itemIndex) => {
+          const cardHeading = getField(fields, itemIndex, "heading");
+          const description = getField(fields, itemIndex, "description");
+          const image = getField(fields, itemIndex, "image");
+          const detail1Heading = getField(fields, itemIndex, "detail1Heading");
+          const detail1Body = getField(fields, itemIndex, "detail1Body");
+          const detail2Heading = getField(fields, itemIndex, "detail2Heading");
+          const detail2Body = getField(fields, itemIndex, "detail2Body");
+          return (
+            <div key={itemIndex} className="feature-card-item flex flex-col gap-3 rounded-md border border-border p-4 dark:border-border-dark">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-text-muted uppercase dark:text-text-muted-dark">Card {itemIndex}</span>
+                <IconButton
+                  id={`feature-card-${itemIndex}-remove`}
+                  title="Remove Card"
+                  onClick={() => removeCard(itemIndex)}
+                  icon={<IconTrash width={14} height={14} />}
+                  variant="danger"
+                />
+              </div>
+              <TextInputField
+                label="Heading"
+                value={cardHeading?.textValue ?? ""}
+                placeholder="Local Bank Transfers"
+                onChange={(v) => onChange(upsertField(fields, itemIndex, "heading", "text", 1, { textValue: v }))}
+              />
+              <RichTextField
+                label="Description"
+                value={description?.textValue ?? ""}
+                onChange={(v) => onChange(upsertField(fields, itemIndex, "description", "richtext", 2, { textValue: v }))}
+              />
+              <ImagePickerField
+                label="Image (optional)"
+                mediaId={image?.mediaId ?? null}
+                mediaUrl={image?.mediaUrl ?? null}
+                onChange={(mediaId, mediaUrl) => onChange(upsertField(fields, itemIndex, "image", "image", 3, { mediaId, mediaUrl }))}
+              />
+              <TextInputField
+                label="Detail 1 Heading"
+                value={detail1Heading?.textValue ?? ""}
+                placeholder="Supported Banks May Include:"
+                onChange={(v) => onChange(upsertField(fields, itemIndex, "detail1Heading", "text", 4, { textValue: v }))}
+              />
+              <RichTextField
+                label="Detail 1 Body"
+                value={detail1Body?.textValue ?? ""}
+                onChange={(v) => onChange(upsertField(fields, itemIndex, "detail1Body", "richtext", 5, { textValue: v }))}
+              />
+              <TextInputField
+                label="Detail 2 Heading"
+                value={detail2Heading?.textValue ?? ""}
+                placeholder="Why Players Use It:"
+                onChange={(v) => onChange(upsertField(fields, itemIndex, "detail2Heading", "text", 6, { textValue: v }))}
+              />
+              <RichTextField
+                label="Detail 2 Body"
+                value={detail2Body?.textValue ?? ""}
+                onChange={(v) => onChange(upsertField(fields, itemIndex, "detail2Body", "richtext", 7, { textValue: v }))}
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      <button
+        type="button"
+        onClick={addCard}
+        className="flex w-fit cursor-pointer items-center gap-2 rounded-md border border-dashed border-primary-300 px-3 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50"
+      >
+        <IconPlus width={14} height={14} />
+        Add Card
+      </button>
+    </div>
+  );
+}
+
+function ChecklistCalloutFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const heading = getField(fields, 0, "heading");
+  const subtext = getField(fields, 0, "subtext");
+  const items = itemIndexes(fields);
+
+  function addItem() {
+    const idx = nextItemIndex(fields);
+    onChange([...fields, blankField(idx, "text", "text", 1)]);
+  }
+
+  function removeItem(itemIndex: number) {
+    onChange(fields.filter((f) => f.itemIndex !== itemIndex));
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <TextInputField
+        label="Heading"
+        value={heading?.textValue ?? ""}
+        placeholder="Trust Factors"
+        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
+      />
+      <TextInputField
+        label="Subtext"
+        value={subtext?.textValue ?? ""}
+        placeholder="You Should Look for in Online Casinos"
+        onChange={(v) => onChange(upsertField(fields, 0, "subtext", "text", 2, { textValue: v }))}
+      />
+
+      <div className="flex flex-col gap-3">
+        {items.map((itemIndex) => {
+          const text = getField(fields, itemIndex, "text");
+          return (
+            <div key={itemIndex} className="flex items-center gap-2">
+              <Input
+                placeholder="SSL encryption on checkout pages"
+                value={text?.textValue ?? ""}
+                onChange={(e) => onChange(upsertField(fields, itemIndex, "text", "text", 1, { textValue: e.target.value }))}
+              />
+              <IconButton
+                id={`checklist-item-${itemIndex}-remove`}
+                title="Remove Item"
+                onClick={() => removeItem(itemIndex)}
+                icon={<IconTrash width={14} height={14} />}
+                variant="danger"
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      <button
+        type="button"
+        onClick={addItem}
+        className="flex w-fit cursor-pointer items-center gap-2 rounded-md border border-dashed border-primary-300 px-3 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50"
+      >
+        <IconPlus width={14} height={14} />
+        Add Item
+      </button>
+    </div>
+  );
+}
+
+function GameRtpCarouselFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const heading = getField(fields, 0, "heading");
+  const seeAllUrl = getField(fields, 0, "seeAllUrl");
+  const items = itemIndexes(fields);
+
+  function addCard() {
+    const idx = nextItemIndex(fields);
+    onChange([
+      ...fields,
+      blankField(idx, "image", "image", 1),
+      blankField(idx, "name", "text", 2),
+      blankField(idx, "provider", "text", 3),
+      blankField(idx, "rtp", "text", 4),
+      blankField(idx, "ctaUrl", "text", 5),
+      blankField(idx, "ctaLabel", "text", 6),
+    ]);
+  }
+
+  function removeCard(itemIndex: number) {
+    onChange(fields.filter((f) => f.itemIndex !== itemIndex));
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <TextInputField
+        label="Heading"
+        value={heading?.textValue ?? ""}
+        placeholder="Top High RTP Slot Games (Updated Weekly)"
+        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
+      />
+      <TextInputField
+        label="See All URL (optional)"
+        value={seeAllUrl?.textValue ?? ""}
+        onChange={(v) => onChange(upsertField(fields, 0, "seeAllUrl", "text", 2, { textValue: v }))}
+      />
+      <SectionBackgroundFields
+        fields={fields}
+        onChange={onChange}
+        sortOrders={{ bgType: 3, bgFrom: 4, bgTo: 5, bgImage: 6 }}
+        defaultBgType="color"
+        defaultBgFrom="surface-muted"
+        defaultBgTo="surface-muted"
+      />
+
+      <div className="flex flex-col gap-3">
+        {items.map((itemIndex) => {
+          const image = getField(fields, itemIndex, "image");
+          const name = getField(fields, itemIndex, "name");
+          const provider = getField(fields, itemIndex, "provider");
+          const rtp = getField(fields, itemIndex, "rtp");
+          const ctaUrl = getField(fields, itemIndex, "ctaUrl");
+          const ctaLabel = getField(fields, itemIndex, "ctaLabel");
+          return (
+            <div key={itemIndex} className="game-rtp-card flex flex-col gap-3 rounded-md border border-border p-4 dark:border-border-dark">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-text-muted uppercase dark:text-text-muted-dark">Card {itemIndex}</span>
+                <IconButton
+                  id={`game-rtp-card-${itemIndex}-remove`}
+                  title="Remove Card"
+                  onClick={() => removeCard(itemIndex)}
+                  icon={<IconTrash width={14} height={14} />}
+                  variant="danger"
+                />
+              </div>
+              <ImagePickerField
+                label="Image"
+                mediaId={image?.mediaId ?? null}
+                mediaUrl={image?.mediaUrl ?? null}
+                onChange={(mediaId, mediaUrl) => onChange(upsertField(fields, itemIndex, "image", "image", 1, { mediaId, mediaUrl }))}
+              />
+              <TextInputField
+                label="Game Name"
+                value={name?.textValue ?? ""}
+                placeholder="Wisdom of Athena"
+                onChange={(v) => onChange(upsertField(fields, itemIndex, "name", "text", 2, { textValue: v }))}
+              />
+              <TextInputField
+                label="Provider"
+                value={provider?.textValue ?? ""}
+                placeholder="Pragmatic Play"
+                onChange={(v) => onChange(upsertField(fields, itemIndex, "provider", "text", 3, { textValue: v }))}
+              />
+              <TextInputField
+                label="RTP %"
+                value={rtp?.textValue ?? ""}
+                placeholder="98.00%"
+                onChange={(v) => onChange(upsertField(fields, itemIndex, "rtp", "text", 4, { textValue: v }))}
+              />
+              <TextInputField
+                label="Visit Site URL"
+                value={ctaUrl?.textValue ?? ""}
+                onChange={(v) => onChange(upsertField(fields, itemIndex, "ctaUrl", "text", 5, { textValue: v }))}
+              />
+              <TextInputField
+                label="Button Label (optional)"
+                value={ctaLabel?.textValue ?? ""}
+                placeholder="Visit Site"
+                onChange={(v) => onChange(upsertField(fields, itemIndex, "ctaLabel", "text", 6, { textValue: v }))}
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      <button
+        type="button"
+        onClick={addCard}
+        className="flex w-fit cursor-pointer items-center gap-2 rounded-md border border-dashed border-primary-300 px-3 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50"
+      >
+        <IconPlus width={14} height={14} />
+        Add Card
+      </button>
+    </div>
+  );
+}
+
+const HIGHLIGHT_HEADING_COLOR_OPTIONS = [
+  { value: "primary", label: "Primary (navy)" },
+  { value: "danger", label: "Danger (red)" },
+  { value: "success", label: "Success (teal)" },
+  { value: "secondary", label: "Secondary (gold)" },
+];
+
+function HighlightPanelFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const headingLine1 = getField(fields, 0, "headingLine1");
+  const headingLine1Color = getField(fields, 0, "headingLine1Color");
+  const headingLine2 = getField(fields, 0, "headingLine2");
+  const headingLine2Color = getField(fields, 0, "headingLine2Color");
+  const intro = getField(fields, 0, "intro");
+  const box1Heading = getField(fields, 0, "box1Heading");
+  const box1Body = getField(fields, 0, "box1Body");
+  const box2Heading = getField(fields, 0, "box2Heading");
+  const box2Body = getField(fields, 0, "box2Body");
+  const noteText = getField(fields, 0, "noteText");
+  const noteLinkUrl = getField(fields, 0, "noteLinkUrl");
+  const noteLinkLabel = getField(fields, 0, "noteLinkLabel");
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <TextInputField
+          label="Heading — Line 1"
+          value={headingLine1?.textValue ?? ""}
+          placeholder="Things you should watch out for"
+          onChange={(v) => onChange(upsertField(fields, 0, "headingLine1", "text", 1, { textValue: v }))}
+        />
+        <LabeledField label="Line 1 Color">
+          <Select
+            value={headingLine1Color?.textValue || "primary"}
+            onChange={(v) => onChange(upsertField(fields, 0, "headingLine1Color", "text", 2, { textValue: v }))}
+            options={HIGHLIGHT_HEADING_COLOR_OPTIONS}
+          />
+        </LabeledField>
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <TextInputField
+          label="Heading — Line 2 (optional)"
+          value={headingLine2?.textValue ?? ""}
+          placeholder="Fake RTP & Bonus Claims"
+          onChange={(v) => onChange(upsertField(fields, 0, "headingLine2", "text", 3, { textValue: v }))}
+        />
+        <LabeledField label="Line 2 Color">
+          <Select
+            value={headingLine2Color?.textValue || "danger"}
+            onChange={(v) => onChange(upsertField(fields, 0, "headingLine2Color", "text", 4, { textValue: v }))}
+            options={HIGHLIGHT_HEADING_COLOR_OPTIONS}
+          />
+        </LabeledField>
+      </div>
+      <RichTextField
+        label="Intro (optional)"
+        value={intro?.textValue ?? ""}
+        onChange={(v) => onChange(upsertField(fields, 0, "intro", "richtext", 5, { textValue: v }))}
+      />
+      <TextInputField
+        label="Box 1 Heading (optional)"
+        value={box1Heading?.textValue ?? ""}
+        placeholder="To verify real RTP data"
+        onChange={(v) => onChange(upsertField(fields, 0, "box1Heading", "text", 6, { textValue: v }))}
+      />
+      <RichTextField
+        label="Box 1 Body (optional, bullet list)"
+        value={box1Body?.textValue ?? ""}
+        onChange={(v) => onChange(upsertField(fields, 0, "box1Body", "richtext", 7, { textValue: v }))}
+      />
+      <TextInputField
+        label="Box 2 Heading (optional)"
+        value={box2Heading?.textValue ?? ""}
+        placeholder="To identify high chance fake bonus pages"
+        onChange={(v) => onChange(upsertField(fields, 0, "box2Heading", "text", 8, { textValue: v }))}
+      />
+      <RichTextField
+        label="Box 2 Body (optional, bullet list)"
+        value={box2Body?.textValue ?? ""}
+        onChange={(v) => onChange(upsertField(fields, 0, "box2Body", "richtext", 9, { textValue: v }))}
+      />
+      <TextInputField
+        label="Note Text (optional)"
+        value={noteText?.textValue ?? ""}
+        placeholder="You can check out the "
+        onChange={(v) => onChange(upsertField(fields, 0, "noteText", "text", 10, { textValue: v }))}
+      />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <TextInputField
+          label="Note Link URL (optional)"
+          value={noteLinkUrl?.textValue ?? ""}
+          placeholder="/th/blacklist"
+          onChange={(v) => onChange(upsertField(fields, 0, "noteLinkUrl", "text", 11, { textValue: v }))}
+        />
+        <TextInputField
+          label="Note Link Label (optional)"
+          value={noteLinkLabel?.textValue ?? ""}
+          placeholder="blacklisted casinos here."
+          onChange={(v) => onChange(upsertField(fields, 0, "noteLinkLabel", "text", 12, { textValue: v }))}
+        />
+      </div>
+      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 13, bgFrom: 14, bgTo: 15, bgImage: 16 }} />
     </div>
   );
 }
