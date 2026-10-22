@@ -29,10 +29,14 @@ var (
 
 // CasinoService validation.
 var (
-	ErrInvalidRiskStatus = errors.New("riskStatus must be 'low', 'medium', or 'high'")
-	ErrInvalidSafeIndex  = errors.New("safeIndex must be between 0 and 100")
-	ErrInvalidGameType   = errors.New("supportedGames contains an unknown game type")
+	ErrInvalidRiskStatus    = errors.New("riskStatus must be 'low', 'medium', or 'high'")
+	ErrInvalidSafeIndex     = errors.New("safeIndex must be between 0 and 100")
+	ErrInvalidGameType      = errors.New("supportedGames contains an unknown game type")
+	ErrInvalidRTPPercentage = errors.New("rtpPercentage must be between 0 and 100")
 )
+
+// BlacklistEntryService validation.
+var ErrInvalidBlacklistRating = errors.New("rating must be between 0 and 10")
 
 // SidebarService validation — the 3 sections are fixed at the schema level;
 // a save can only update them, never add/remove/rename one.

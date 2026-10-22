@@ -11,6 +11,7 @@ import { IconUpload, IconPhoto } from "@/components/Icons";
 import type { MediaDTO } from "@/lib/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
+const FOOTER_DESCRIPTION_MAX_LENGTH = 300;
 
 function assetUrl(url: string) {
   return url.startsWith("http") ? url : `${API_URL}${url}`;
@@ -27,6 +28,11 @@ export default function SettingsPage() {
   const [seoFollow, setSeoFollow] = useState(false);
   const [timezone, setTimezone] = useState("+08:00");
   const [language, setLanguage] = useState("en");
+  const [footerDescription, setFooterDescription] = useState("");
+  const [contactAddress, setContactAddress] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [facebookUrl, setFacebookUrl] = useState("");
+  const [skypeUrl, setSkypeUrl] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -44,6 +50,11 @@ export default function SettingsPage() {
     setSeoFollow(settings.seoFollow);
     setTimezone(settings.timezone);
     setLanguage(settings.language);
+    setFooterDescription(settings.footerDescription ?? "");
+    setContactAddress(settings.contactAddress ?? "");
+    setContactEmail(settings.contactEmail ?? "");
+    setFacebookUrl(settings.facebookUrl ?? "");
+    setSkypeUrl(settings.skypeUrl ?? "");
   }, [settings]);
 
   if (!user) return null;
@@ -69,7 +80,19 @@ export default function SettingsPage() {
     setSuccess(false);
     setSubmitting(true);
     try {
-      await api.put("/api/admin/settings/site", { siteUrl, siteTitle, seoIndex, seoFollow, timezone, language });
+      await api.put("/api/admin/settings/site", {
+        siteUrl,
+        siteTitle,
+        seoIndex,
+        seoFollow,
+        timezone,
+        language,
+        footerDescription,
+        contactAddress,
+        contactEmail,
+        facebookUrl,
+        skypeUrl,
+      });
       await refresh();
       setSuccess(true);
     } catch (err) {
@@ -306,6 +329,98 @@ export default function SettingsPage() {
             Allow Search Engines To Follow Links
           </label>
         </div>
+
+        <fieldset
+          id="settings-footer-contact"
+          className="settings-footer-contact mt-4 flex flex-col gap-4 rounded-md border border-border p-4 dark:border-border-dark"
+        >
+          <legend className="px-1 text-lg font-bold text-text dark:text-text-dark">Footer &amp; Contact</legend>
+          <p className="text-sm text-text-muted dark:text-text-muted-dark">
+            Everything in this box appears in the footer at the bottom of every page on the public site. Leave a field
+            empty to hide it.
+          </p>
+
+          <div className="form-field flex flex-col gap-1">
+            <label htmlFor="settings-footer-description" className="text-sm font-medium text-text dark:text-text-dark">
+              Footer Description
+            </label>
+            <textarea
+              id="settings-footer-description"
+              rows={3}
+              maxLength={FOOTER_DESCRIPTION_MAX_LENGTH}
+              value={footerDescription}
+              onChange={(e) => setFooterDescription(e.target.value)}
+              className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-primary-500 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark"
+            />
+            <div className="flex justify-between gap-2 text-xs text-text-muted dark:text-text-muted-dark">
+              <span>A short sentence about the site, shown under the footer logo.</span>
+              <span>
+                {footerDescription.length} / {FOOTER_DESCRIPTION_MAX_LENGTH}
+              </span>
+            </div>
+          </div>
+
+          <div className="form-field flex flex-col gap-1">
+            <label htmlFor="settings-contact-address" className="text-sm font-medium text-text dark:text-text-dark">
+              Address
+            </label>
+            <input
+              id="settings-contact-address"
+              value={contactAddress}
+              onChange={(e) => setContactAddress(e.target.value)}
+              placeholder="Blk 123 Example Street, #01-23 123456"
+              className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-primary-500 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark"
+            />
+            <p className="text-xs text-text-muted dark:text-text-muted-dark">Postal address shown in the footer.</p>
+          </div>
+
+          <div className="form-field flex flex-col gap-1">
+            <label htmlFor="settings-contact-email" className="text-sm font-medium text-text dark:text-text-dark">
+              Contact Email
+            </label>
+            <input
+              id="settings-contact-email"
+              type="email"
+              value={contactEmail}
+              onChange={(e) => setContactEmail(e.target.value)}
+              placeholder="hello@example.com"
+              className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-primary-500 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark"
+            />
+            <p className="text-xs text-text-muted dark:text-text-muted-dark">
+              Visitors can click this in the footer to email you.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="form-field flex flex-col gap-1">
+              <label htmlFor="settings-facebook-url" className="text-sm font-medium text-text dark:text-text-dark">
+                Facebook URL
+              </label>
+              <input
+                id="settings-facebook-url"
+                type="url"
+                value={facebookUrl}
+                onChange={(e) => setFacebookUrl(e.target.value)}
+                placeholder="https://facebook.com/yourpage"
+                className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-primary-500 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark"
+              />
+              <p className="text-xs text-text-muted dark:text-text-muted-dark">Link for the footer Facebook icon.</p>
+            </div>
+            <div className="form-field flex flex-col gap-1">
+              <label htmlFor="settings-skype-url" className="text-sm font-medium text-text dark:text-text-dark">
+                Skype URL
+              </label>
+              <input
+                id="settings-skype-url"
+                value={skypeUrl}
+                onChange={(e) => setSkypeUrl(e.target.value)}
+                placeholder="https://join.skype.com/invite/… or skype:yourname?chat"
+                className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-primary-500 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark"
+              />
+              <p className="text-xs text-text-muted dark:text-text-muted-dark">Link for the footer Skype icon.</p>
+            </div>
+          </div>
+        </fieldset>
 
         {error && <p className="form-error text-sm text-danger">{error}</p>}
         {success && <p className="text-sm text-success">Settings saved.</p>}

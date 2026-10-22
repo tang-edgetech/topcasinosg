@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getCasinos, getBlacklistEntries, getActiveRegionByCode, ALL_GAME_TYPES, type GameType } from "../_lib/api";
-import { buildPageMenu } from "../_lib/pageMenu";
+import { buildPageMenu, regionMenuLabel } from "../_lib/pageMenu";
 import AccordionItem from "@/components/Accordion";
 import IntroductionSection from "@/components/IntroductionSection";
 
@@ -67,7 +67,7 @@ export default async function RegionReviewsPage({
         highlightText={regionName}
         subheading="Compare Ratings & Safe Index"
         paragraph={`<p>Every casino we list for ${regionName} is scored on licensing, payout speed, game fairness, and real player feedback — so you can compare with confidence before you sign up.</p>`}
-        pageMenu={buildPageMenu(region, `${regionName} 2025`, "reviews")}
+        pageMenu={buildPageMenu(region, regionMenuLabel(regionName), "reviews")}
       />
 
       <div className="flex flex-col gap-14 py-14">

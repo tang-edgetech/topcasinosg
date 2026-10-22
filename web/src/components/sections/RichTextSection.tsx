@@ -37,7 +37,7 @@ export default function RichTextSection({ section }: { section: PageSection }) {
           </div>
         ) : (
           <div className="section-row flex flex-col">
-            <div className="mx-auto w-full max-w-3xl">{textCol}</div>
+            <div className="rich-text__measure mx-auto w-full max-w-3xl">{textCol}</div>
           </div>
         )}
       </div>

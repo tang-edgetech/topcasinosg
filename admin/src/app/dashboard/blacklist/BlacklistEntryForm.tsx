@@ -2,13 +2,19 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Form, Input, Select, App as AntApp } from "antd";
+import { Form, Input, InputNumber, Select, App as AntApp } from "antd";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { api, ApiError } from "@/lib/api";
-import type { BlacklistEntryDTO, RegionDTO } from "@/lib/types";
+import type { BlacklistEntryDTO, MediaDTO, RegionDTO } from "@/lib/types";
+import { IconPhoto } from "@/components/Icons";
+import MediaPicker from "@/components/media/MediaPicker";
 import RichTextEditor from "@/components/content/RichTextEditor";
 
 const { TextArea } = Input;
+
+function mediaUrl(url: string) {
+  return url.startsWith("http") ? url : `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090"}${url}`;
+}
 
 export default function BlacklistEntryForm({
   target,
@@ -22,8 +28,18 @@ export default function BlacklistEntryForm({
   const confirm = useConfirm();
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
+  const [logoMediaId, setLogoMediaId] = useState<number | null>(target?.logoMediaId ?? null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(target?.logoUrl ? mediaUrl(target.logoUrl) : null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
-  async function handleFinish(values: { name: string; reason: string; details: string; regionId?: number }) {
+  async function handleFinish(values: {
+    name: string;
+    reason: string;
+    reasons?: string[];
+    rating?: number | null;
+    details: string;
+    regionId?: number;
+  }) {
     const ok = await confirm({
       title: target ? "Save Changes" : "Add Blacklist Entry",
       message: target ? `Update "${values.name}"?` : `Create blacklist entry "${values.name}"?`,
@@ -34,6 +50,9 @@ export default function BlacklistEntryForm({
     const body = {
       name: values.name,
       reason: values.reason,
+      reasons: values.reasons ?? [],
+      rating: values.rating ?? null,
+      logoMediaId,
       details: values.details,
       regionId: values.regionId ?? null,
     };
@@ -60,15 +79,44 @@ export default function BlacklistEntryForm({
         initialValues={{
           name: target?.name ?? "",
           reason: target?.reason ?? "",
+          reasons: target?.reasons ?? [],
+          rating: target?.rating ?? undefined,
           details: target?.details ?? "",
           regionId: target?.regionId ?? undefined,
         }}
       >
+        <div className="mb-4 flex flex-col gap-2">
+          <label className="text-sm font-medium text-text dark:text-text-dark">Logo</label>
+          <div className="flex items-center gap-3">
+            <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-md bg-surface-muted dark:bg-surface-muted-dark">
+              {logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={logoUrl} alt="Logo" className="h-full w-full object-cover" />
+              ) : (
+                <IconPhoto width={22} height={22} className="text-primary-400" />
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              className="cursor-pointer text-sm font-medium text-primary-600 hover:text-primary-900"
+            >
+              Choose From Media Library
+            </button>
+          </div>
+        </div>
+
         <Form.Item name="name" label="Name" rules={[{ required: true }]}>
           <Input placeholder="Operator or site name" />
         </Form.Item>
         <Form.Item name="reason" label="Reason" rules={[{ required: true }]}>
           <TextArea rows={2} placeholder="Short summary of why this operator is blacklisted" />
+        </Form.Item>
+        <Form.Item name="reasons" label="Reasons (Card List)" extra="Short labels shown on the region page's blacklist slider cards.">
+          <Select mode="tags" placeholder="Payment Issues, No Licensing, Rigged Games..." />
+        </Form.Item>
+        <Form.Item name="rating" label="Rating (0-10)">
+          <InputNumber min={0} max={10} step={0.1} precision={1} className="w-full" placeholder="1.6" />
         </Form.Item>
         <Form.Item
           name="regionId"
@@ -100,6 +148,15 @@ export default function BlacklistEntryForm({
           </button>
         </div>
       </Form>
+
+      <MediaPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelect={(media: MediaDTO) => {
+          setLogoMediaId(media.id);
+          setLogoUrl(mediaUrl(media.url));
+        }}
+      />
     </div>
   );
 }

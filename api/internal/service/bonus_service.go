@@ -31,6 +31,7 @@ type BonusInput struct {
 	Code       *string
 	ValidFrom  *time.Time
 	ValidUntil *time.Time
+	domain.BonusDetails
 }
 
 func (s *BonusService) Create(ctx context.Context, actor *domain.AdminUser, in BonusInput) (*domain.Bonus, error) {
@@ -47,7 +48,8 @@ func (s *BonusService) Create(ctx context.Context, actor *domain.AdminUser, in B
 	actorID := actor.ID
 	b := &domain.Bonus{
 		RegionID: in.RegionID, CasinoID: in.CasinoID, BonusType: in.BonusType, Title: in.Title, Slug: in.Slug, Terms: in.Terms,
-		Code: in.Code, ValidFrom: in.ValidFrom, ValidUntil: in.ValidUntil, Status: domain.ContentStatusDraft, CreatedBy: &actorID,
+		Code: in.Code, ValidFrom: in.ValidFrom, ValidUntil: in.ValidUntil, BonusDetails: in.BonusDetails, Status: domain.ContentStatusDraft,
+		CreatedBy: &actorID,
 	}
 	id, err := s.bonuses.Create(ctx, b)
 	if err != nil {
@@ -69,7 +71,7 @@ func (s *BonusService) Update(ctx context.Context, id int64, in BonusInput) erro
 	}
 	return s.bonuses.Update(ctx, &domain.Bonus{
 		ID: id, RegionID: in.RegionID, CasinoID: in.CasinoID, BonusType: in.BonusType, Title: in.Title, Slug: in.Slug,
-		Terms: in.Terms, Code: in.Code, ValidFrom: in.ValidFrom, ValidUntil: in.ValidUntil,
+		Terms: in.Terms, Code: in.Code, ValidFrom: in.ValidFrom, ValidUntil: in.ValidUntil, BonusDetails: in.BonusDetails,
 	})
 }
 

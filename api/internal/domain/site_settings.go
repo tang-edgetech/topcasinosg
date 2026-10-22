@@ -26,5 +26,15 @@ type SiteSettings struct {
 	LogoURL          *string
 	FaviconURL       *string
 	TwoFactorEnabled bool
-	UpdatedAt        time.Time
+	FooterContact
+	UpdatedAt time.Time
+}
+
+// FooterContact is the public site footer's description and contact block.
+type FooterContact struct {
+	FooterDescription string
+	ContactAddress    string
+	ContactEmail      string
+	FacebookURL       string
+	SkypeURL          string
 }

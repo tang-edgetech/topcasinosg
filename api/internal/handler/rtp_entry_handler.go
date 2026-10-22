@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/tang-edgetech/topcasinosg/api/internal/domain"
@@ -22,29 +23,39 @@ func NewRTPEntryHandler(entries *service.RTPEntryService) *RTPEntryHandler {
 }
 
 type RTPEntryDTO struct {
-	ID            int64      `json:"id"`
-	RegionID      int64      `json:"regionId"`
-	CasinoID      *int64     `json:"casinoId"`
-	GameName      string     `json:"gameName"`
-	Category      string     `json:"category"`
-	RTPPercentage float64    `json:"rtpPercentage"`
-	Status        string     `json:"status"`
-	PublishAt     *time.Time `json:"publishAt"`
-	CreatedAt     time.Time  `json:"createdAt"`
-	UpdatedAt     time.Time  `json:"updatedAt"`
+	ID               int64      `json:"id"`
+	RegionID         int64      `json:"regionId"`
+	CasinoID         *int64     `json:"casinoId"`
+	GameProviderID   *int64     `json:"gameProviderId"`
+	ImageMediaID     *int64     `json:"imageMediaId"`
+	GameName         string     `json:"gameName"`
+	Category         string     `json:"category"`
+	RTPPercentage    float64    `json:"rtpPercentage"`
+	Status           string     `json:"status"`
+	PublishAt        *time.Time `json:"publishAt"`
+	CreatedAt        time.Time  `json:"createdAt"`
+	UpdatedAt        time.Time  `json:"updatedAt"`
+	GameProviderName *string    `json:"gameProviderName"`
+	ImageURL         *string    `json:"imageUrl"`
+	CasinoName       *string    `json:"casinoName"`
+	CasinoSlug       *string    `json:"casinoSlug"`
+	CasinoCTAURL     *string    `json:"casinoCtaUrl"`
 }
 
 func toRTPEntryDTO(e *domain.RTPEntry) RTPEntryDTO {
 	return RTPEntryDTO{
-		ID: e.ID, RegionID: e.RegionID, CasinoID: e.CasinoID, GameName: e.GameName, Category: string(e.Category),
-		RTPPercentage: e.RTPPercentage, Status: string(e.Status), PublishAt: e.PublishAt,
-		CreatedAt: e.CreatedAt, UpdatedAt: e.UpdatedAt,
+		ID: e.ID, RegionID: e.RegionID, CasinoID: e.CasinoID, GameProviderID: e.GameProviderID, ImageMediaID: e.ImageMediaID,
+		GameName: e.GameName, Category: string(e.Category), RTPPercentage: e.RTPPercentage, Status: string(e.Status),
+		PublishAt: e.PublishAt, CreatedAt: e.CreatedAt, UpdatedAt: e.UpdatedAt,
+		GameProviderName: e.GameProviderName, ImageURL: e.ImageURL,
+		CasinoName: e.CasinoName, CasinoSlug: e.CasinoSlug, CasinoCTAURL: e.CasinoCTAURL,
 	}
 }
 
 func rtpEntryErrorStatus(err error) int {
 	switch {
-	case errors.Is(err, service.ErrInvalidRTPCategory), errors.Is(err, service.ErrInvalidContentStatus), errors.Is(err, service.ErrPublishAtRequired):
+	case errors.Is(err, service.ErrInvalidRTPCategory), errors.Is(err, service.ErrInvalidContentStatus), errors.Is(err, service.ErrPublishAtRequired),
+		errors.Is(err, service.ErrRTPGameNameRequired), errors.Is(err, service.ErrRTPPercentageInvalid):
 		return http.StatusBadRequest
 	case errors.Is(err, repository.ErrNotFound):
 		return http.StatusNotFound
@@ -54,18 +65,30 @@ func rtpEntryErrorStatus(err error) int {
 }
 
 type rtpEntryRequest struct {
-	RegionID      int64   `json:"regionId"`
-	CasinoID      *int64  `json:"casinoId"`
-	GameName      string  `json:"gameName"`
-	Category      string  `json:"category"`
-	RTPPercentage float64 `json:"rtpPercentage"`
+	RegionID       int64   `json:"regionId"`
+	CasinoID       *int64  `json:"casinoId"`
+	GameProviderID *int64  `json:"gameProviderId"`
+	ImageMediaID   *int64  `json:"imageMediaId"`
+	GameName       string  `json:"gameName"`
+	Category       string  `json:"category"`
+	RTPPercentage  float64 `json:"rtpPercentage"`
 }
 
 func (req rtpEntryRequest) toInput() service.RTPEntryInput {
 	return service.RTPEntryInput{
-		RegionID: req.RegionID, CasinoID: req.CasinoID, GameName: req.GameName,
-		Category: domain.RTPCategory(req.Category), RTPPercentage: req.RTPPercentage,
+		RegionID: req.RegionID, CasinoID: req.CasinoID, GameProviderID: req.GameProviderID, ImageMediaID: req.ImageMediaID,
+		GameName: req.GameName, Category: domain.RTPCategory(req.Category), RTPPercentage: req.RTPPercentage,
 	}
+}
+
+func parseRTPCategories(raw string) []domain.RTPCategory {
+	var categories []domain.RTPCategory
+	for _, part := range strings.Split(raw, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			categories = append(categories, domain.RTPCategory(part))
+		}
+	}
+	return categories
 }
 
 func (h *RTPEntryHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -135,9 +158,10 @@ func (h *RTPEntryHandler) List(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, map[string]any{"rtpEntries": dtos, "total": total})
 }
 
-// ListPublic serves /{region}/rtp (region required) or, when a casinoId is
-// given instead, a single casino's RTP entries for its review page —
-// independent of region, since /casinos/[slug] isn't region-scoped by URL.
+// ListPublic serves /{region}/rtp (region required, optional comma-separated
+// category filter) or, when a casinoId is given instead, a single casino's
+// RTP entries for its review page — independent of region, since
+// /casinos/[slug] isn't region-scoped by URL.
 func (h *RTPEntryHandler) ListPublic(w http.ResponseWriter, r *http.Request) {
 	page, pageSize := parsePaging(r)
 
@@ -165,7 +189,8 @@ func (h *RTPEntryHandler) ListPublic(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusBadRequest, "region or casinoId is required")
 		return
 	}
-	items, total, err := h.entries.ListPublished(r.Context(), regionCode, page, pageSize)
+	categories := parseRTPCategories(r.URL.Query().Get("category"))
+	items, total, err := h.entries.ListPublished(r.Context(), regionCode, categories, page, pageSize)
 	if err != nil {
 		response.Err(w, http.StatusInternalServerError, "could not load rtp entries")
 		return

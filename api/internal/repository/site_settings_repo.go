@@ -16,13 +16,15 @@ func NewSiteSettingsRepo(db *sql.DB) *SiteSettingsRepo {
 }
 
 const siteSettingsColumns = `site_url, site_title, seo_index, seo_follow, timezone, language,
-	logo_url, favicon_url, two_factor_enabled, updated_at`
+	logo_url, favicon_url, two_factor_enabled,
+	footer_description, contact_address, contact_email, facebook_url, skype_url, updated_at`
 
 func (r *SiteSettingsRepo) Get(ctx context.Context) (*domain.SiteSettings, error) {
 	var s domain.SiteSettings
 	err := r.db.QueryRowContext(ctx, `SELECT `+siteSettingsColumns+` FROM site_settings WHERE id = 1`).Scan(
 		&s.SiteURL, &s.SiteTitle, &s.SEOIndex, &s.SEOFollow, &s.Timezone, &s.Language,
-		&s.LogoURL, &s.FaviconURL, &s.TwoFactorEnabled, &s.UpdatedAt,
+		&s.LogoURL, &s.FaviconURL, &s.TwoFactorEnabled,
+		&s.FooterDescription, &s.ContactAddress, &s.ContactEmail, &s.FacebookURL, &s.SkypeURL, &s.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -37,6 +39,19 @@ func (r *SiteSettingsRepo) Update(ctx context.Context, s *domain.SiteSettings) e
 			timezone = ?, language = ?
 		WHERE id = 1`,
 		s.SiteURL, s.SiteTitle, s.SEOIndex, s.SEOFollow, s.Timezone, s.Language,
+	)
+	return err
+}
+
+// UpdateFooterContact is separate from Update so the setup wizard, which only
+// knows the general fields, never blanks the seeded footer values.
+func (r *SiteSettingsRepo) UpdateFooterContact(ctx context.Context, fc domain.FooterContact) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE site_settings SET
+			footer_description = ?, contact_address = ?, contact_email = ?,
+			facebook_url = ?, skype_url = ?
+		WHERE id = 1`,
+		fc.FooterDescription, fc.ContactAddress, fc.ContactEmail, fc.FacebookURL, fc.SkypeURL,
 	)
 	return err
 }

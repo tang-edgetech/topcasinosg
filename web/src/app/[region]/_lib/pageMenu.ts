@@ -20,6 +20,12 @@ const ITEMS: Record<PageKey, (region: string, regionLabel: string) => Introducti
 
 const ORDER: PageKey[] = ["overview", "bonuses", "payment-methods", "rtp", "guides", "reviews", "blacklist"];
 
+// The region-home tab reads e.g. "Thailand 2026" — the year follows the
+// calendar so the menu never goes stale.
+export function regionMenuLabel(regionName: string): string {
+  return `${regionName} ${new Date().getFullYear()}`;
+}
+
 export function buildPageMenu(region: string, regionLabel: string, current: PageKey): IntroductionPageMenuItem[] {
   const ordered = [current, ...ORDER.filter((k) => k !== current)];
   return ordered.map((key) => ITEMS[key](region, regionLabel));

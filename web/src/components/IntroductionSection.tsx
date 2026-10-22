@@ -82,7 +82,7 @@ export default function IntroductionSection({
           {pageMenu.length > 0 && (
             <nav
               aria-label="Page menu"
-              className="intro-col--menu mt-6 flex flex-col gap-2 border-t border-white/20 pt-4 min-[1200px]:mt-0 min-[1200px]:border-t-0 min-[1200px]:border-l min-[1200px]:pt-0 min-[1200px]:pl-6"
+              className="intro-col--menu mt-6 hidden flex-col md:flex gap-2 border-t border-white/20 pt-4 min-[1200px]:mt-0 min-[1200px]:border-t-0 min-[1200px]:border-l min-[1200px]:pt-0 min-[1200px]:pl-6"
             >
               {pageMenu.map((item, i) => (
                 <a

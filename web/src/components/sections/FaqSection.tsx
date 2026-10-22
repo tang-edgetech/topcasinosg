@@ -16,7 +16,7 @@ export default function FaqSection({ section }: { section: PageSection }) {
     >
       <div className="section-container relative z-10 py-16">
         <div className="section-row flex flex-col">
-          <div className="section-col mx-auto flex w-full max-w-3xl flex-col gap-8">
+          <div className="section-col section-col--centered mx-auto flex w-full max-w-3xl flex-col gap-8">
             {heading && <h2 className="section-heading text-center text-2xl font-bold text-primary-900">{heading}</h2>}
             <div className="flex flex-col gap-3">
               {items.map((itemIndex) => {
@@ -25,7 +25,7 @@ export default function FaqSection({ section }: { section: PageSection }) {
                 return (
                   <AccordionItem
                     key={itemIndex}
-                    className="faq-item rounded-lg border border-primary-100 p-4"
+                    className="faq-item rounded-md bg-surface-muted px-4 py-3"
                     header={<span className="faq-item__question text-base font-semibold text-primary-900">{question}</span>}
                   >
                     <div

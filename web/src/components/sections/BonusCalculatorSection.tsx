@@ -2,7 +2,6 @@
 
 import { useState, type CSSProperties } from "react";
 import { field, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
-import { sanitizeRichText } from "@/lib/sanitize-html";
 
 interface CalculatorInputs {
   depositAmount: string;
@@ -64,10 +63,11 @@ function calculateBonusResult(inputs: CalculatorInputs): ResultRow[] | null {
   ];
 }
 
-export default function BonusCalculatorSection({ section }: { section: PageSection }) {
+// introHtml arrives already sanitized from the server (SectionRenderer), so
+// the HTML sanitizer never ships in this client component's bundle.
+export default function BonusCalculatorSection({ section, introHtml }: { section: PageSection; introHtml: string }) {
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
   const subheading = field(section.fields, 0, "subheading")?.textValue ?? "";
-  const intro = field(section.fields, 0, "intro")?.textValue ?? "";
 
   const [inputs, setInputs] = useState<CalculatorInputs>(BLANK_INPUTS);
   const [result, setResult] = useState<ResultRow[] | null>(null);
@@ -95,13 +95,13 @@ export default function BonusCalculatorSection({ section }: { section: PageSecti
     >
       <div className="section-container relative z-10 flex flex-col gap-8 py-16">
         <div className="section-row flex flex-col">
-          <div className="section-col mx-auto flex w-full max-w-3xl flex-col gap-4 text-center">
+          <div className="section-col section-col--centered mx-auto flex w-full max-w-3xl flex-col gap-4 text-center">
             {heading && <h2 className="section-heading text-2xl font-bold text-primary-900 sm:text-3xl">{heading}</h2>}
             {subheading && <p className="text-lg text-primary-600">{subheading}</p>}
-            {intro && (
+            {introHtml && (
               <div
                 className="rich-text-content text-left text-base leading-relaxed text-primary-600"
-                dangerouslySetInnerHTML={{ __html: sanitizeRichText(intro) }}
+                dangerouslySetInnerHTML={{ __html: introHtml }}
               />
             )}
           </div>
@@ -110,7 +110,7 @@ export default function BonusCalculatorSection({ section }: { section: PageSecti
         <div className="section-row flex flex-col">
           <div
             id="bonus-calculator-widget"
-            className="section-col mx-auto flex w-full max-w-md flex-col gap-4 rounded-lg bg-primary-900 p-6 text-white"
+            className="section-col section-col--centered mx-auto flex w-full max-w-md flex-col gap-4 rounded-lg bg-primary-900 p-6 text-white"
           >
             <CalculatorField
               label="Deposit Amount ($)"

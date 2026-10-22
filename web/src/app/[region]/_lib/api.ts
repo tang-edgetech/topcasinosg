@@ -25,6 +25,7 @@ export interface RegionDTO {
   id: number;
   code: string;
   name: string;
+  flagUrl: string | null;
   isActive: boolean;
   sortOrder: number;
   createdAt: string;
@@ -48,6 +49,15 @@ export interface BonusDTO {
   code: string | null;
   validFrom: string | null;
   validUntil: string | null;
+  turnoverRequirement: string;
+  maxClaim: string;
+  withdrawalLimit: string;
+  minDeposit: string;
+  paymentFrequency: string;
+  upgradeBonus: string;
+  maxRebate: string;
+  perks: string;
+  eligibleProviderId: number | null;
   status: string;
   publishAt: string | null;
   createdAt: string;
@@ -60,6 +70,7 @@ export interface PaymentMethodDTO {
   name: string;
   description: string;
   iconMediaId: number | null;
+  iconUrl: string | null;
   status: string;
   publishAt: string | null;
   createdAt: string;
@@ -72,6 +83,8 @@ export interface RTPEntryDTO {
   id: number;
   regionId: number;
   casinoId: number | null;
+  gameProviderId: number | null;
+  imageMediaId: number | null;
   gameName: string;
   category: RTPCategory;
   rtpPercentage: number;
@@ -79,6 +92,11 @@ export interface RTPEntryDTO {
   publishAt: string | null;
   createdAt: string;
   updatedAt: string;
+  gameProviderName: string | null;
+  imageUrl: string | null;
+  casinoName: string | null;
+  casinoSlug: string | null;
+  casinoCtaUrl: string | null;
 }
 
 export interface GuideDTO {
@@ -99,7 +117,10 @@ export interface BlacklistEntryDTO {
   id: number;
   regionId: number | null;
   name: string;
+  logoUrl: string | null;
+  rating: number | null;
   reason: string;
+  reasons: string[] | null;
   details: string;
   status: string;
   publishAt: string | null;
@@ -133,7 +154,22 @@ export interface CasinoDTO {
   riskStatus: "low" | "medium" | "high" | null;
   paymentMethods: string[] | null;
   payoutSpeed: string;
+  pros: string[] | null;
   ctaUrl: string;
+  rtpPercentage: number | null;
+  cryptoSupported: boolean;
+  localBankingSpeed: string;
+}
+
+export interface GameProviderDTO {
+  id: number;
+  name: string;
+  logoUrl: string | null;
+}
+
+export async function getGameProviders(): Promise<GameProviderDTO[]> {
+  const data = await fetchData<{ gameProviders: GameProviderDTO[] | null }>(`${API_BASE_URL}/api/game-providers`);
+  return data?.gameProviders ?? [];
 }
 
 /**
@@ -149,6 +185,12 @@ export async function getCasinos(regionCode: string, gameType?: GameType, pageSi
   const data = await fetchData<{ casinos: CasinoDTO[]; total: number }>(
     `${API_BASE_URL}/api/casinos?${params.toString()}`,
   );
+  return data?.casinos ?? [];
+}
+
+/** Every published casino regardless of region, for resolving a casino picked by id in a page section. */
+export async function getAllCasinos(): Promise<CasinoDTO[]> {
+  const data = await fetchData<{ casinos: CasinoDTO[]; total: number }>(`${API_BASE_URL}/api/casinos?pageSize=100`);
   return data?.casinos ?? [];
 }
 
@@ -181,9 +223,16 @@ export async function getPaymentMethods(regionCode: string): Promise<PaymentMeth
   return data?.paymentMethods ?? [];
 }
 
-export async function getRtpEntries(regionCode: string): Promise<RTPEntryDTO[]> {
+/**
+ * Highest RTP first. `categories` narrows to e.g. ["table", "live"]; omit it
+ * for every category. `pageSize` defaults to the API's own default (25).
+ */
+export async function getRtpEntries(regionCode: string, categories?: RTPCategory[], pageSize?: number): Promise<RTPEntryDTO[]> {
+  const params = new URLSearchParams({ region: regionCode });
+  if (categories && categories.length > 0) params.set("category", categories.join(","));
+  if (pageSize) params.set("pageSize", String(pageSize));
   const data = await fetchData<{ rtpEntries: RTPEntryDTO[]; total: number }>(
-    `${API_BASE_URL}/api/rtp?region=${encodeURIComponent(regionCode)}`,
+    `${API_BASE_URL}/api/rtp?${params.toString()}`,
   );
   return data?.rtpEntries ?? [];
 }

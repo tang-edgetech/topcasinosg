@@ -19,17 +19,30 @@ func NewBlacklistEntryService(entries *repository.BlacklistEntryRepo) *Blacklist
 }
 
 type BlacklistEntryInput struct {
-	RegionID *int64
-	Name     string
-	Reason   string
-	Details  string
+	RegionID    *int64
+	Name        string
+	LogoMediaID *int64
+	Rating      *float64
+	Reason      string
+	Reasons     []string
+	Details     string
+}
+
+func validateBlacklistRating(rating *float64) error {
+	if rating != nil && (*rating < 0 || *rating > 10) {
+		return ErrInvalidBlacklistRating
+	}
+	return nil
 }
 
 func (s *BlacklistEntryService) Create(ctx context.Context, actor *domain.AdminUser, in BlacklistEntryInput) (*domain.BlacklistEntry, error) {
+	if err := validateBlacklistRating(in.Rating); err != nil {
+		return nil, err
+	}
 	actorID := actor.ID
 	e := &domain.BlacklistEntry{
-		RegionID: in.RegionID, Name: in.Name, Reason: in.Reason, Details: in.Details,
-		Status: domain.ContentStatusDraft, CreatedBy: &actorID,
+		RegionID: in.RegionID, Name: in.Name, LogoMediaID: in.LogoMediaID, Rating: in.Rating, Reason: in.Reason,
+		Reasons: in.Reasons, Details: in.Details, Status: domain.ContentStatusDraft, CreatedBy: &actorID,
 	}
 	id, err := s.entries.Create(ctx, e)
 	if err != nil {
@@ -39,8 +52,12 @@ func (s *BlacklistEntryService) Create(ctx context.Context, actor *domain.AdminU
 }
 
 func (s *BlacklistEntryService) Update(ctx context.Context, id int64, in BlacklistEntryInput) error {
+	if err := validateBlacklistRating(in.Rating); err != nil {
+		return err
+	}
 	return s.entries.Update(ctx, &domain.BlacklistEntry{
-		ID: id, RegionID: in.RegionID, Name: in.Name, Reason: in.Reason, Details: in.Details,
+		ID: id, RegionID: in.RegionID, Name: in.Name, LogoMediaID: in.LogoMediaID, Rating: in.Rating, Reason: in.Reason,
+		Reasons: in.Reasons, Details: in.Details,
 	})
 }
 

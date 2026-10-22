@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { Input, Select } from "antd";
+import { useEffect, useState } from "react";
+import { Input, Radio, Select } from "antd";
 import RichTextEditor from "@/components/content/RichTextEditor";
 import MediaPicker from "@/components/media/MediaPicker";
 import IconButton from "@/components/IconButton";
 import { IconPhoto, IconPlus, IconTrash } from "@/components/Icons";
-import type { MediaDTO, PageBlockType, PageFieldType } from "@/lib/types";
+import { api } from "@/lib/api";
+import type { CasinoDTO, MediaDTO, PageBlockType, PageFieldType, RegionDTO } from "@/lib/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
 
@@ -54,6 +55,12 @@ export const BLOCK_TYPE_LABELS: Record<PageBlockType, string> = {
   checklist_callout: "Checklist Callout",
   game_rtp_carousel: "Game RTP Carousel",
   highlight_panel: "Highlight Panel (Two-Tone Heading)",
+  link_card_grid: "Link Card Grid",
+  top_bonus_picks: "Top Bonus Picks",
+  expandable_card_grid: "Expandable Card Grid",
+  review_columns: "Player Reviews (Positive / Complaints)",
+  cta_link_list: "Link Button List",
+  info_card_columns: "Info Card Columns",
 };
 
 const BONUS_TYPE_OPTIONS = [
@@ -321,6 +328,8 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
         textField(0, "bgFrom", "primary-900", 7),
         textField(0, "bgTo", "primary-glow", 8),
         blankField(0, "bgImage", "image", 9),
+        textField(0, "source", "casinos", 30),
+        textField(0, "limit", "5", 31),
       ];
     case "numbered_steps":
       return [
@@ -357,6 +366,9 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
         textField(0, "bgFrom", "surface-muted", 4),
         textField(0, "bgTo", "surface-muted", 5),
         blankField(0, "bgImage", "image", 6),
+        textField(0, "source", "auto", 10),
+        textField(0, "category", "slot", 11),
+        textField(0, "limit", "10", 12),
       ];
     case "highlight_panel":
       return [
@@ -376,6 +388,67 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
         textField(0, "bgFrom", "primary-900", 14),
         textField(0, "bgTo", "primary-glow", 15),
         blankField(0, "bgImage", "image", 16),
+      ];
+    case "link_card_grid":
+      return [
+        blankField(0, "heading", "text", 1),
+        blankField(0, "intro", "richtext", 2),
+        textField(0, "columns", "2", 3),
+        textField(0, "bgType", "none", 4),
+        textField(0, "bgFrom", "primary-900", 5),
+        textField(0, "bgTo", "primary-glow", 6),
+        blankField(0, "bgImage", "image", 7),
+      ];
+    case "top_bonus_picks":
+      return [
+        blankField(0, "heading", "text", 1),
+        blankField(0, "intro", "richtext", 2),
+        blankField(0, "regionCode", "text", 3),
+        textField(0, "bonusType", "welcome", 4),
+        textField(0, "limit", "3", 5),
+        textField(0, "bgType", "none", 6),
+        textField(0, "bgFrom", "primary-900", 7),
+        textField(0, "bgTo", "primary-glow", 8),
+        blankField(0, "bgImage", "image", 9),
+      ];
+    case "expandable_card_grid":
+      return [
+        blankField(0, "heading", "text", 1),
+        blankField(0, "tagline", "text", 2),
+        blankField(0, "intro", "richtext", 3),
+        blankField(0, "outro", "richtext", 4),
+        textField(0, "bgType", "none", 5),
+        textField(0, "bgFrom", "primary-900", 6),
+        textField(0, "bgTo", "primary-glow", 7),
+        blankField(0, "bgImage", "image", 8),
+      ];
+    case "review_columns":
+      return [
+        blankField(0, "heading", "text", 1),
+        textField(0, "positiveLabel", "Positive Feedback Highlights", 2),
+        textField(0, "complaintLabel", "Common Complaints & How They Were Resolved", 3),
+        textField(0, "bgType", "color", 4),
+        textField(0, "bgFrom", "surface-muted", 5),
+        textField(0, "bgTo", "surface-muted", 6),
+        blankField(0, "bgImage", "image", 7),
+      ];
+    case "cta_link_list":
+      return [
+        blankField(0, "heading", "text", 1),
+        blankField(0, "intro", "richtext", 2),
+        textField(0, "bgType", "none", 3),
+        textField(0, "bgFrom", "primary-900", 4),
+        textField(0, "bgTo", "primary-glow", 5),
+        blankField(0, "bgImage", "image", 6),
+      ];
+    case "info_card_columns":
+      return [
+        blankField(0, "heading", "text", 1),
+        blankField(0, "intro", "richtext", 2),
+        textField(0, "bgType", "none", 3),
+        textField(0, "bgFrom", "primary-900", 4),
+        textField(0, "bgTo", "primary-glow", 5),
+        blankField(0, "bgImage", "image", 6),
       ];
   }
 }
@@ -688,6 +761,18 @@ export default function BlockFieldEditor({ blockType, fields, onChange }: BlockF
       return <GameRtpCarouselFields fields={fields} onChange={onChange} />;
     case "highlight_panel":
       return <HighlightPanelFields fields={fields} onChange={onChange} />;
+    case "link_card_grid":
+      return <LinkCardGridFields fields={fields} onChange={onChange} />;
+    case "top_bonus_picks":
+      return <TopBonusPicksFields fields={fields} onChange={onChange} />;
+    case "expandable_card_grid":
+      return <ExpandableCardGridFields fields={fields} onChange={onChange} />;
+    case "review_columns":
+      return <ReviewColumnsFields fields={fields} onChange={onChange} />;
+    case "cta_link_list":
+      return <CtaLinkListFields fields={fields} onChange={onChange} />;
+    case "info_card_columns":
+      return <InfoCardColumnsFields fields={fields} onChange={onChange} />;
   }
 }
 
@@ -1348,10 +1433,24 @@ function BonusListingTableFields({ fields, onChange }: { fields: EditableField[]
         placeholder="Latest Welcome Bonuses"
         onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
       />
-      <TextInputField
+      <RichTextField
+        label="Intro (optional)"
+        value={getField(fields, 0, "intro")?.textValue ?? ""}
+        onChange={(v) => onChange(upsertField(fields, 0, "intro", "richtext", 9, { textValue: v }))}
+      />
+      <LabeledField label="Table Columns">
+        <Select
+          value={getField(fields, 0, "columnsMode")?.textValue || "simple"}
+          onChange={(v) => onChange(upsertField(fields, 0, "columnsMode", "text", 10, { textValue: v }))}
+          options={[
+            { value: "simple", label: "Simple — Brand / Bonus Details / Claim" },
+            { value: "typed", label: "Typed — this bonus type's comparison columns" },
+          ]}
+        />
+      </LabeledField>
+      <RegionCodeField
         label="Region Code"
         value={regionCode?.textValue ?? ""}
-        placeholder="th"
         onChange={(v) => onChange(upsertField(fields, 0, "regionCode", "text", 2, { textValue: v }))}
       />
       <LabeledField label="Bonus Type">
@@ -1481,10 +1580,10 @@ function TopCasinosByRegionFields({ fields, onChange }: { fields: EditableField[
         value={moreCount?.textValue ?? "5"}
         onChange={(v) => onChange(upsertField(fields, 0, "moreCount", "text", 3, { textValue: v }))}
       />
-      <TextInputField
-        label="Region Code (optional — leave blank to loop every active region)"
+      <RegionCodeField
+        label="Region Code"
         value={regionCode?.textValue ?? ""}
-        placeholder="th"
+        emptyLabel="All active regions"
         onChange={(v) => onChange(upsertField(fields, 0, "regionCode", "text", 4, { textValue: v }))}
       />
       <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 5, bgFrom: 6, bgTo: 7, bgImage: 8 }} />
@@ -1511,6 +1610,12 @@ function BlacklistPreviewFields({ fields, onChange }: { fields: EditableField[];
         onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
       />
       <TextInputField
+        label="Highlight word in heading (optional, shown in red)"
+        value={getField(fields, 0, "highlightText")?.textValue ?? ""}
+        placeholder="Avoid"
+        onChange={(v) => onChange(upsertField(fields, 0, "highlightText", "text", 10, { textValue: v }))}
+      />
+      <TextInputField
         label="Subheading (optional)"
         value={subheading?.textValue ?? ""}
         placeholder="What Makes a Casino Get Blacklisted?"
@@ -1521,10 +1626,10 @@ function BlacklistPreviewFields({ fields, onChange }: { fields: EditableField[];
         value={limit?.textValue ?? "6"}
         onChange={(v) => onChange(upsertField(fields, 0, "limit", "text", 3, { textValue: v }))}
       />
-      <TextInputField
-        label="Region Code (optional — leave blank for global entries only)"
+      <RegionCodeField
+        label="Region Code"
         value={regionCode?.textValue ?? ""}
-        placeholder="th"
+        emptyLabel="Global entries only"
         onChange={(v) => onChange(upsertField(fields, 0, "regionCode", "text", 5, { textValue: v }))}
       />
       <TextInputField
@@ -1681,10 +1786,14 @@ function CasinoComparisonTableFields({ fields, onChange }: { fields: EditableFie
         placeholder="Comparison of Thailand Online Casino Ratings"
         onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
       />
-      <TextInputField
+      <RichTextField
+        label="Intro (optional)"
+        value={getField(fields, 0, "intro")?.textValue ?? ""}
+        onChange={(v) => onChange(upsertField(fields, 0, "intro", "richtext", 8, { textValue: v }))}
+      />
+      <RegionCodeField
         label="Region Code"
         value={regionCode?.textValue ?? ""}
-        placeholder="th"
         onChange={(v) => onChange(upsertField(fields, 0, "regionCode", "text", 2, { textValue: v }))}
       />
       <TextInputField
@@ -1697,8 +1806,9 @@ function CasinoComparisonTableFields({ fields, onChange }: { fields: EditableFie
   );
 }
 
-// Purely admin-authored promo banner cards — no backing entity (Bonus has
-// no image field), same convention as Team Grid.
+// Admin-authored promo banner cards. Picking a Casino fills the brand name,
+// Visit Site link and More Info link on the website; the typed fields only
+// override those.
 function EventHighlightsFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
   const heading = getField(fields, 0, "heading");
   const items = itemIndexes(fields);
@@ -1711,6 +1821,7 @@ function EventHighlightsFields({ fields, onChange }: { fields: EditableField[]; 
       blankField(idx, "title", "text", 2),
       blankField(idx, "dateRange", "text", 3),
       blankField(idx, "button", "button", 4),
+      blankField(idx, "casinoId", "text", 7),
     ]);
   }
 
@@ -1725,6 +1836,11 @@ function EventHighlightsFields({ fields, onChange }: { fields: EditableField[]; 
         value={heading?.textValue ?? ""}
         placeholder="Event Highlights"
         onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
+      />
+      <RichTextField
+        label="Intro (optional)"
+        value={getField(fields, 0, "intro")?.textValue ?? ""}
+        onChange={(v) => onChange(upsertField(fields, 0, "intro", "richtext", 6, { textValue: v }))}
       />
       <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 2, bgFrom: 3, bgTo: 4, bgImage: 5 }} />
 
@@ -1764,23 +1880,54 @@ function EventHighlightsFields({ fields, onChange }: { fields: EditableField[]; 
                 placeholder="19 Jan - 15 Feb, 2025"
                 onChange={(v) => onChange(upsertField(fields, itemIndex, "dateRange", "text", 3, { textValue: v }))}
               />
-              <div className="grid grid-cols-2 gap-2">
-                <TextInputField
-                  label="Button Label"
-                  value={button?.textValue ?? ""}
-                  placeholder="Visit Site"
-                  onChange={(v) =>
-                    onChange(upsertField(fields, itemIndex, "button", "button", 4, { textValue: v, urlValue: button?.urlValue ?? "" }))
-                  }
-                />
-                <TextInputField
-                  label="Button Link"
-                  value={button?.urlValue ?? ""}
-                  onChange={(v) =>
-                    onChange(upsertField(fields, itemIndex, "button", "button", 4, { textValue: button?.textValue ?? "", urlValue: v }))
-                  }
-                />
-              </div>
+              <CasinoPickerField
+                label="Casino"
+                value={getField(fields, itemIndex, "casinoId")?.textValue ?? ""}
+                onChange={(v) => onChange(upsertField(fields, itemIndex, "casinoId", "text", 7, { textValue: v }))}
+              />
+              {(() => {
+                const fromCasino = Boolean(getField(fields, itemIndex, "casinoId")?.textValue);
+                const auto = (fallback: string) => (fromCasino ? "From casino" : fallback);
+                return (
+                  <details className="text-sm" open={!fromCasino}>
+                    <summary className="cursor-pointer text-xs font-medium text-primary-600 select-none">
+                      {fromCasino ? "Override brand / links (optional)" : "Brand & links"}
+                    </summary>
+                    <div className="mt-2 flex flex-col gap-2">
+                      <TextInputField
+                        label="Brand"
+                        value={getField(fields, itemIndex, "brand")?.textValue ?? ""}
+                        placeholder={auto("EU9")}
+                        onChange={(v) => onChange(upsertField(fields, itemIndex, "brand", "text", 5, { textValue: v }))}
+                      />
+                      <TextInputField
+                        label="More Info Link"
+                        value={getField(fields, itemIndex, "moreInfoUrl")?.textValue ?? ""}
+                        placeholder={fromCasino ? "Casino review page" : "/casinos/eu9"}
+                        onChange={(v) => onChange(upsertField(fields, itemIndex, "moreInfoUrl", "text", 6, { textValue: v }))}
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <TextInputField
+                          label="Button Label"
+                          value={button?.textValue ?? ""}
+                          placeholder="Visit Site"
+                          onChange={(v) =>
+                            onChange(upsertField(fields, itemIndex, "button", "button", 4, { textValue: v, urlValue: button?.urlValue ?? "" }))
+                          }
+                        />
+                        <TextInputField
+                          label="Button Link"
+                          value={button?.urlValue ?? ""}
+                          placeholder={auto("https://…")}
+                          onChange={(v) =>
+                            onChange(upsertField(fields, itemIndex, "button", "button", 4, { textValue: button?.textValue ?? "", urlValue: v }))
+                          }
+                        />
+                      </div>
+                    </div>
+                  </details>
+                );
+              })()}
             </div>
           );
         })}
@@ -1868,7 +2015,8 @@ function IntroductionSectionFields({ fields, onChange }: { fields: EditableField
 
       <div className="flex flex-col gap-3">
         <label className="text-xs font-semibold tracking-wide text-text-muted uppercase dark:text-text-muted-dark">
-          Page Menu (optional — first item shows as the active tab)
+          Page Menu (optional — on region pages, leave empty to show the standard region menu automatically; first item shows as the
+          active tab)
         </label>
         {items.map((itemIndex) => {
           const label = getField(fields, itemIndex, "label");
@@ -1928,6 +2076,7 @@ function ComparisonTableFields({ fields, onChange }: { fields: EditableField[]; 
   const tipHeading = getField(fields, 0, "tipHeading");
   const tipBody = getField(fields, 0, "tipBody");
   const recommendation = getField(fields, 0, "recommendation");
+  const source = getField(fields, 0, "source")?.textValue || "manual";
   const items = itemIndexes(fields);
   const extraColumns = COMPARISON_EXTRA_COLUMN_NUMBERS.filter((n) => getField(fields, 0, `col${n}Label`)?.textValue);
 
@@ -1988,8 +2137,46 @@ function ComparisonTableFields({ fields, onChange }: { fields: EditableField[]; 
       />
       <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 6, bgFrom: 7, bgTo: 8, bgImage: 9 }} />
 
+      <SourceChoiceField
+        value={source}
+        onChange={(v) => onChange(upsertField(fields, 0, "source", "text", 30, { textValue: v }))}
+        options={[
+          { value: "casinos", label: "Automatic from Casinos", hint: "Recommended — rows update themselves" },
+          { value: "manual", label: "Type rows by hand", hint: "For a one-off comparison" },
+        ]}
+      />
+      {source === "casinos" && (
+        <div className="flex flex-col gap-4 rounded-md border border-border bg-surface-muted p-4 dark:border-border-dark dark:bg-surface-muted-dark">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <RegionCodeField
+              label="Region"
+              value={getField(fields, 0, "regionCode")?.textValue ?? ""}
+              emptyLabel="This page's region (automatic)"
+              onChange={(v) => onChange(upsertField(fields, 0, "regionCode", "text", 32, { textValue: v }))}
+            />
+            <TextInputField
+              label="Number of casinos"
+              value={getField(fields, 0, "limit")?.textValue || "5"}
+              onChange={(v) => onChange(upsertField(fields, 0, "limit", "text", 31, { textValue: v }))}
+            />
+          </div>
+          <p className="text-xs text-text-muted dark:text-text-muted-dark">
+            One row per casino in the region (top-rated first): its logo, the payment methods it accepts and its payout speed. Edit those
+            on each{" "}
+            <a href="/dashboard/casinos" target="_blank" rel="noreferrer" className="text-primary-600 hover:text-primary-900">
+              Casino
+            </a>
+            ; payment icons come from{" "}
+            <a href="/dashboard/payment-methods" target="_blank" rel="noreferrer" className="text-primary-600 hover:text-primary-900">
+              Payment Methods
+            </a>{" "}
+            with the same name.
+          </p>
+        </div>
+      )}
+
       <div className="flex flex-col gap-3 rounded-md border border-border p-4 dark:border-border-dark">
-        <span className="text-xs font-semibold text-text-muted uppercase dark:text-text-muted-dark">Table Columns</span>
+        <span className="text-xs font-semibold text-text-muted uppercase dark:text-text-muted-dark">Table Column Headings</span>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {COMPARISON_BASE_COLUMNS.map((col) => (
             <TextInputField
@@ -2001,7 +2188,7 @@ function ComparisonTableFields({ fields, onChange }: { fields: EditableField[]; 
             />
           ))}
         </div>
-        {extraColumns.length > 0 && (
+        {source === "manual" && extraColumns.length > 0 && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {extraColumns.map((n) => (
               <div key={n} className="flex items-end gap-2">
@@ -2023,7 +2210,7 @@ function ComparisonTableFields({ fields, onChange }: { fields: EditableField[]; 
             ))}
           </div>
         )}
-        {extraColumns.length < COMPARISON_EXTRA_COLUMN_NUMBERS.length && (
+        {source === "manual" && extraColumns.length < COMPARISON_EXTRA_COLUMN_NUMBERS.length && (
           <button
             type="button"
             onClick={addColumn}
@@ -2035,6 +2222,8 @@ function ComparisonTableFields({ fields, onChange }: { fields: EditableField[]; 
         )}
       </div>
 
+      {source === "manual" && (
+      <>
       <div className="flex flex-col gap-3">
         {items.map((itemIndex) => {
           const brandName = getField(fields, itemIndex, "brandName");
@@ -2117,6 +2306,8 @@ function ComparisonTableFields({ fields, onChange }: { fields: EditableField[]; 
         <IconPlus width={14} height={14} />
         Add Row
       </button>
+      </>
+      )}
     </div>
   );
 }
@@ -2150,6 +2341,24 @@ function NumberedStepsFields({ fields, onChange }: { fields: EditableField[]; on
         placeholder="at Online Casinos in Thailand"
         onChange={(v) => onChange(upsertField(fields, 0, "subheading", "text", 2, { textValue: v }))}
       />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <TextInputField
+          label="Highlighted phrase in heading (optional)"
+          value={getField(fields, 0, "highlightText")?.textValue ?? ""}
+          placeholder="Make a Deposit"
+          onChange={(v) => onChange(upsertField(fields, 0, "highlightText", "text", 8, { textValue: v }))}
+        />
+        <LabeledField label="Accent color (highlight + Step labels)">
+          <Select
+            value={getField(fields, 0, "accent")?.textValue || "primary"}
+            onChange={(v) => onChange(upsertField(fields, 0, "accent", "text", 9, { textValue: v }))}
+            options={[
+              { value: "primary", label: "Blue" },
+              { value: "success", label: "Green" },
+            ]}
+          />
+        </LabeledField>
+      </div>
       <RichTextField
         label="Intro (optional)"
         value={intro?.textValue ?? ""}
@@ -2344,6 +2553,16 @@ function ChecklistCalloutFields({ fields, onChange }: { fields: EditableField[];
         placeholder="You Should Look for in Online Casinos"
         onChange={(v) => onChange(upsertField(fields, 0, "subtext", "text", 2, { textValue: v }))}
       />
+      <LabeledField label="Layout">
+        <Select
+          value={getField(fields, 0, "layout")?.textValue || "split"}
+          onChange={(v) => onChange(upsertField(fields, 0, "layout", "text", 7, { textValue: v }))}
+          options={[
+            { value: "split", label: "Split — label left, checklist right" },
+            { value: "stacked", label: "Stacked — heading above checklist" },
+          ]}
+        />
+      </LabeledField>
 
       <div className="flex flex-col gap-3">
         {items.map((itemIndex) => {
@@ -2379,9 +2598,17 @@ function ChecklistCalloutFields({ fields, onChange }: { fields: EditableField[];
   );
 }
 
+const RTP_SLIDER_CATEGORY_OPTIONS = [
+  { value: "slot", label: "Slots" },
+  { value: "table,live", label: "Table & live games" },
+  { value: "table", label: "Table games only" },
+  { value: "live", label: "Live casino only" },
+  { value: "", label: "All games" },
+];
+
 function GameRtpCarouselFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
-  const heading = getField(fields, 0, "heading");
-  const seeAllUrl = getField(fields, 0, "seeAllUrl");
+  const text = (itemIndex: number, key: string) => getField(fields, itemIndex, key)?.textValue ?? "";
+  const source = text(0, "source") || "manual";
   const items = itemIndexes(fields);
 
   function addCard() {
@@ -2392,26 +2619,118 @@ function GameRtpCarouselFields({ fields, onChange }: { fields: EditableField[]; 
       blankField(idx, "name", "text", 2),
       blankField(idx, "provider", "text", 3),
       blankField(idx, "rtp", "text", 4),
-      blankField(idx, "ctaUrl", "text", 5),
-      blankField(idx, "ctaLabel", "text", 6),
+      blankField(idx, "casinoId", "text", 7),
     ]);
-  }
-
-  function removeCard(itemIndex: number) {
-    onChange(fields.filter((f) => f.itemIndex !== itemIndex));
   }
 
   return (
     <div className="flex flex-col gap-4">
       <TextInputField
         label="Heading"
-        value={heading?.textValue ?? ""}
+        value={text(0, "heading")}
         placeholder="Top High RTP Slot Games (Updated Weekly)"
         onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
       />
+      <SourceChoiceField
+        value={source}
+        onChange={(v) => onChange(upsertField(fields, 0, "source", "text", 10, { textValue: v }))}
+        options={[
+          { value: "auto", label: "Automatic from RTP Entries", hint: "Recommended — games update themselves" },
+          { value: "manual", label: "Pick cards by hand", hint: "For a one-off curated list" },
+        ]}
+      />
+
+      {source === "auto" ? (
+        <div className="flex flex-col gap-4 rounded-md border border-border bg-surface-muted p-4 dark:border-border-dark dark:bg-surface-muted-dark">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <LabeledField label="Which games">
+              <Select
+                value={text(0, "category")}
+                onChange={(v) => onChange(upsertField(fields, 0, "category", "text", 11, { textValue: v }))}
+                options={RTP_SLIDER_CATEGORY_OPTIONS}
+              />
+            </LabeledField>
+            <TextInputField
+              label="Number of games"
+              value={text(0, "limit") || "10"}
+              onChange={(v) => onChange(upsertField(fields, 0, "limit", "text", 12, { textValue: v }))}
+            />
+          </div>
+          <RegionCodeField
+            label="Region"
+            value={text(0, "regionCode")}
+            emptyLabel="This page's region (automatic)"
+            onChange={(v) => onChange(upsertField(fields, 0, "regionCode", "text", 13, { textValue: v }))}
+          />
+          <p className="text-xs text-text-muted dark:text-text-muted-dark">
+            Shows the region&apos;s published RTP Entries, highest RTP first. Image, provider and the Visit Site link come from each
+            entry — edit them under{" "}
+            <a href="/dashboard/rtp" target="_blank" rel="noreferrer" className="text-primary-600 hover:text-primary-900">
+              RTP Entries
+            </a>
+            .
+          </p>
+        </div>
+      ) : (
+        <RepeaterShell
+          label="Card"
+          idPrefix="game-rtp-card"
+          itemIndexes={items}
+          onRemove={(i) => onChange(fields.filter((f) => f.itemIndex !== i))}
+          onAdd={addCard}
+          addLabel="Add Card"
+          renderItem={(i) => {
+            const image = getField(fields, i, "image");
+            return (
+              <>
+                <ImagePickerField
+                  label="Image"
+                  mediaId={image?.mediaId ?? null}
+                  mediaUrl={image?.mediaUrl ?? null}
+                  onChange={(mediaId, mediaUrl) => onChange(upsertField(fields, i, "image", "image", 1, { mediaId, mediaUrl }))}
+                />
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <TextInputField
+                    label="Game Name"
+                    value={text(i, "name")}
+                    placeholder="Wisdom of Athena"
+                    onChange={(v) => onChange(upsertField(fields, i, "name", "text", 2, { textValue: v }))}
+                  />
+                  <TextInputField
+                    label="Provider"
+                    value={text(i, "provider")}
+                    placeholder="Pragmatic Play"
+                    onChange={(v) => onChange(upsertField(fields, i, "provider", "text", 3, { textValue: v }))}
+                  />
+                  <TextInputField
+                    label="RTP %"
+                    value={text(i, "rtp")}
+                    placeholder="98.00%"
+                    onChange={(v) => onChange(upsertField(fields, i, "rtp", "text", 4, { textValue: v }))}
+                  />
+                </div>
+                <CasinoPickerField
+                  label="Casino (Visit Site link)"
+                  value={text(i, "casinoId")}
+                  onChange={(v) => onChange(upsertField(fields, i, "casinoId", "text", 7, { textValue: v }))}
+                />
+                {text(i, "ctaUrl") && (
+                  <TextInputField
+                    label="Custom link (overrides the casino's link — clear it to use the casino)"
+                    value={text(i, "ctaUrl")}
+                    onChange={(v) => onChange(upsertField(fields, i, "ctaUrl", "text", 5, { textValue: v }))}
+                  />
+                )}
+              </>
+            );
+          }}
+        />
+      )}
+
       <TextInputField
-        label="See All URL (optional)"
-        value={seeAllUrl?.textValue ?? ""}
+        label="See All link (optional)"
+        value={text(0, "seeAllUrl")}
+        placeholder="/th/rtp"
         onChange={(v) => onChange(upsertField(fields, 0, "seeAllUrl", "text", 2, { textValue: v }))}
       />
       <SectionBackgroundFields
@@ -2422,75 +2741,6 @@ function GameRtpCarouselFields({ fields, onChange }: { fields: EditableField[]; 
         defaultBgFrom="surface-muted"
         defaultBgTo="surface-muted"
       />
-
-      <div className="flex flex-col gap-3">
-        {items.map((itemIndex) => {
-          const image = getField(fields, itemIndex, "image");
-          const name = getField(fields, itemIndex, "name");
-          const provider = getField(fields, itemIndex, "provider");
-          const rtp = getField(fields, itemIndex, "rtp");
-          const ctaUrl = getField(fields, itemIndex, "ctaUrl");
-          const ctaLabel = getField(fields, itemIndex, "ctaLabel");
-          return (
-            <div key={itemIndex} className="game-rtp-card flex flex-col gap-3 rounded-md border border-border p-4 dark:border-border-dark">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-text-muted uppercase dark:text-text-muted-dark">Card {itemIndex}</span>
-                <IconButton
-                  id={`game-rtp-card-${itemIndex}-remove`}
-                  title="Remove Card"
-                  onClick={() => removeCard(itemIndex)}
-                  icon={<IconTrash width={14} height={14} />}
-                  variant="danger"
-                />
-              </div>
-              <ImagePickerField
-                label="Image"
-                mediaId={image?.mediaId ?? null}
-                mediaUrl={image?.mediaUrl ?? null}
-                onChange={(mediaId, mediaUrl) => onChange(upsertField(fields, itemIndex, "image", "image", 1, { mediaId, mediaUrl }))}
-              />
-              <TextInputField
-                label="Game Name"
-                value={name?.textValue ?? ""}
-                placeholder="Wisdom of Athena"
-                onChange={(v) => onChange(upsertField(fields, itemIndex, "name", "text", 2, { textValue: v }))}
-              />
-              <TextInputField
-                label="Provider"
-                value={provider?.textValue ?? ""}
-                placeholder="Pragmatic Play"
-                onChange={(v) => onChange(upsertField(fields, itemIndex, "provider", "text", 3, { textValue: v }))}
-              />
-              <TextInputField
-                label="RTP %"
-                value={rtp?.textValue ?? ""}
-                placeholder="98.00%"
-                onChange={(v) => onChange(upsertField(fields, itemIndex, "rtp", "text", 4, { textValue: v }))}
-              />
-              <TextInputField
-                label="Visit Site URL"
-                value={ctaUrl?.textValue ?? ""}
-                onChange={(v) => onChange(upsertField(fields, itemIndex, "ctaUrl", "text", 5, { textValue: v }))}
-              />
-              <TextInputField
-                label="Button Label (optional)"
-                value={ctaLabel?.textValue ?? ""}
-                placeholder="Visit Site"
-                onChange={(v) => onChange(upsertField(fields, itemIndex, "ctaLabel", "text", 6, { textValue: v }))}
-              />
-            </div>
-          );
-        })}
-      </div>
-
-      <button
-        type="button"
-        onClick={addCard}
-        className="flex w-fit cursor-pointer items-center gap-2 rounded-md border border-dashed border-primary-300 px-3 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50"
-      >
-        <IconPlus width={14} height={14} />
-        Add Card
-      </button>
     </div>
   );
 }
@@ -2500,6 +2750,7 @@ const HIGHLIGHT_HEADING_COLOR_OPTIONS = [
   { value: "danger", label: "Danger (red)" },
   { value: "success", label: "Success (teal)" },
   { value: "secondary", label: "Secondary (gold)" },
+  { value: "white", label: "White" },
 ];
 
 function HighlightPanelFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
@@ -2548,6 +2799,31 @@ function HighlightPanelFields({ fields, onChange }: { fields: EditableField[]; o
           />
         </LabeledField>
       </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <TextInputField
+          label="Highlight word in Line 1 (optional)"
+          value={getField(fields, 0, "highlightText")?.textValue ?? ""}
+          placeholder="Avoid"
+          onChange={(v) => onChange(upsertField(fields, 0, "highlightText", "text", 17, { textValue: v }))}
+        />
+        <LabeledField label="Highlight Color">
+          <Select
+            value={getField(fields, 0, "highlightColor")?.textValue || "danger"}
+            onChange={(v) => onChange(upsertField(fields, 0, "highlightColor", "text", 18, { textValue: v }))}
+            options={HIGHLIGHT_HEADING_COLOR_OPTIONS}
+          />
+        </LabeledField>
+      </div>
+      <LabeledField label="Theme">
+        <Select
+          value={getField(fields, 0, "theme")?.textValue || "light"}
+          onChange={(v) => onChange(upsertField(fields, 0, "theme", "text", 19, { textValue: v }))}
+          options={[
+            { value: "light", label: "Light — dark text" },
+            { value: "dark", label: "Dark — white text, alert-icon lists (use with a dark background)" },
+          ]}
+        />
+      </LabeledField>
       <RichTextField
         label="Intro (optional)"
         value={intro?.textValue ?? ""}
@@ -2575,6 +2851,11 @@ function HighlightPanelFields({ fields, onChange }: { fields: EditableField[]; o
         value={box2Body?.textValue ?? ""}
         onChange={(v) => onChange(upsertField(fields, 0, "box2Body", "richtext", 9, { textValue: v }))}
       />
+      <RichTextField
+        label="Text below boxes (optional)"
+        value={getField(fields, 0, "outro")?.textValue ?? ""}
+        onChange={(v) => onChange(upsertField(fields, 0, "outro", "richtext", 20, { textValue: v }))}
+      />
       <TextInputField
         label="Note Text (optional)"
         value={noteText?.textValue ?? ""}
@@ -2597,5 +2878,568 @@ function HighlightPanelFields({ fields, onChange }: { fields: EditableField[]; o
       </div>
       <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 13, bgFrom: 14, bgTo: 15, bgImage: 16 }} />
     </div>
+  );
+}
+
+function LinkCardGridFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const items = itemIndexes(fields);
+
+  function addCard() {
+    const idx = nextItemIndex(fields);
+    onChange([...fields, blankField(idx, "title", "text", 1), blankField(idx, "description", "text", 2), blankField(idx, "url", "text", 3)]);
+  }
+
+  function removeCard(itemIndex: number) {
+    onChange(fields.filter((f) => f.itemIndex !== itemIndex));
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <TextInputField
+        label="Heading"
+        value={getField(fields, 0, "heading")?.textValue ?? ""}
+        placeholder="Types of Bonuses Explained"
+        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
+      />
+      <RichTextField
+        label="Intro (optional)"
+        value={getField(fields, 0, "intro")?.textValue ?? ""}
+        onChange={(v) => onChange(upsertField(fields, 0, "intro", "richtext", 2, { textValue: v }))}
+      />
+      <LabeledField label="Columns (desktop)">
+        <Select
+          value={getField(fields, 0, "columns")?.textValue || "2"}
+          onChange={(v) => onChange(upsertField(fields, 0, "columns", "text", 3, { textValue: v }))}
+          options={[
+            { value: "2", label: "2 columns" },
+            { value: "3", label: "3 columns" },
+          ]}
+        />
+      </LabeledField>
+      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 4, bgFrom: 5, bgTo: 6, bgImage: 7 }} />
+
+      <div className="flex flex-col gap-3">
+        {items.map((itemIndex) => (
+          <div key={itemIndex} className="link-card-item flex flex-col gap-3 rounded-md border border-border p-4 dark:border-border-dark">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-text-muted uppercase dark:text-text-muted-dark">Card {itemIndex}</span>
+              <IconButton
+                id={`link-card-${itemIndex}-remove`}
+                title="Remove Card"
+                onClick={() => removeCard(itemIndex)}
+                icon={<IconTrash width={14} height={14} />}
+                variant="danger"
+              />
+            </div>
+            <TextInputField
+              label="Title"
+              value={getField(fields, itemIndex, "title")?.textValue ?? ""}
+              placeholder="No Deposit Bonuses"
+              onChange={(v) => onChange(upsertField(fields, itemIndex, "title", "text", 1, { textValue: v }))}
+            />
+            <TextInputField
+              label="Description"
+              value={getField(fields, itemIndex, "description")?.textValue ?? ""}
+              onChange={(v) => onChange(upsertField(fields, itemIndex, "description", "text", 2, { textValue: v }))}
+            />
+            <TextInputField
+              label="Link URL (optional)"
+              value={getField(fields, itemIndex, "url")?.textValue ?? ""}
+              placeholder="/th/bonuses/no_deposit"
+              onChange={(v) => onChange(upsertField(fields, itemIndex, "url", "text", 3, { textValue: v }))}
+            />
+          </div>
+        ))}
+      </div>
+
+      <button
+        type="button"
+        onClick={addCard}
+        className="flex w-fit cursor-pointer items-center gap-2 rounded-md border border-dashed border-primary-300 px-3 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50"
+      >
+        <IconPlus width={14} height={14} />
+        Add Card
+      </button>
+    </div>
+  );
+}
+
+function TopBonusPicksFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <TextInputField
+        label="Heading"
+        value={getField(fields, 0, "heading")?.textValue ?? ""}
+        placeholder="Top Bonus Picks in Thailand 2025"
+        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
+      />
+      <RichTextField
+        label="Intro (optional)"
+        value={getField(fields, 0, "intro")?.textValue ?? ""}
+        onChange={(v) => onChange(upsertField(fields, 0, "intro", "richtext", 2, { textValue: v }))}
+      />
+      <RegionCodeField
+        label="Region Code"
+        value={getField(fields, 0, "regionCode")?.textValue ?? ""}
+        onChange={(v) => onChange(upsertField(fields, 0, "regionCode", "text", 3, { textValue: v }))}
+      />
+      <LabeledField label="Bonus Type">
+        <Select
+          value={getField(fields, 0, "bonusType")?.textValue || "welcome"}
+          onChange={(v) => onChange(upsertField(fields, 0, "bonusType", "text", 4, { textValue: v }))}
+          options={BONUS_TYPE_OPTIONS}
+        />
+      </LabeledField>
+      <LabeledField label="Which casinos">
+        <Select
+          value={getField(fields, 0, "source")?.textValue || "bonuses"}
+          onChange={(v) => onChange(upsertField(fields, 0, "source", "text", 10, { textValue: v }))}
+          options={[
+            { value: "bonuses", label: "Casinos that have a bonus of this type" },
+            { value: "casinos", label: "Top-rated casinos (show this bonus type when they have one)" },
+          ]}
+        />
+      </LabeledField>
+      <TextInputField
+        label="Number of Casinos"
+        value={getField(fields, 0, "limit")?.textValue ?? "3"}
+        onChange={(v) => onChange(upsertField(fields, 0, "limit", "text", 5, { textValue: v }))}
+      />
+      <p className="text-xs text-text-muted dark:text-text-muted-dark">
+        Cards are live data: the region&apos;s highest-rated casinos that have a published bonus of this type. Rating, logo, pros and
+        links come from each Casino; the offer text comes from its Bonus.
+      </p>
+      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 6, bgFrom: 7, bgTo: 8, bgImage: 9 }} />
+    </div>
+  );
+}
+
+function RepeaterShell({
+  label,
+  itemIndexes: indexes,
+  onRemove,
+  onAdd,
+  addLabel,
+  renderItem,
+  idPrefix,
+}: {
+  label: string;
+  itemIndexes: number[];
+  onRemove: (itemIndex: number) => void;
+  onAdd: () => void;
+  addLabel: string;
+  renderItem: (itemIndex: number) => React.ReactNode;
+  idPrefix: string;
+}) {
+  return (
+    <>
+      <div className="flex flex-col gap-3">
+        {indexes.map((itemIndex) => (
+          <div key={itemIndex} className="flex flex-col gap-3 rounded-md border border-border p-4 dark:border-border-dark">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-text-muted uppercase dark:text-text-muted-dark">
+                {label} {itemIndex}
+              </span>
+              <IconButton
+                id={`${idPrefix}-${itemIndex}-remove`}
+                title={`Remove ${label}`}
+                onClick={() => onRemove(itemIndex)}
+                icon={<IconTrash width={14} height={14} />}
+                variant="danger"
+              />
+            </div>
+            {renderItem(itemIndex)}
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={onAdd}
+        className="flex w-fit cursor-pointer items-center gap-2 rounded-md border border-dashed border-primary-300 px-3 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50"
+      >
+        <IconPlus width={14} height={14} />
+        {addLabel}
+      </button>
+    </>
+  );
+}
+
+function ExpandableCardGridFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const text = (itemIndex: number, key: string) => getField(fields, itemIndex, key)?.textValue ?? "";
+  return (
+    <div className="flex flex-col gap-4">
+      <TextInputField
+        label="Heading"
+        value={text(0, "heading")}
+        placeholder="Thailand Online Casino Bonuses You Can Claim"
+        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
+      />
+      <TextInputField
+        label="Tagline (italic, tinted box)"
+        value={text(0, "tagline")}
+        onChange={(v) => onChange(upsertField(fields, 0, "tagline", "text", 2, { textValue: v }))}
+      />
+      <RichTextField label="Intro" value={text(0, "intro")} onChange={(v) => onChange(upsertField(fields, 0, "intro", "richtext", 3, { textValue: v }))} />
+      <RichTextField
+        label="Note below cards (optional)"
+        value={text(0, "outro")}
+        onChange={(v) => onChange(upsertField(fields, 0, "outro", "richtext", 4, { textValue: v }))}
+      />
+      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 5, bgFrom: 6, bgTo: 7, bgImage: 8 }} />
+      <RepeaterShell
+        label="Card"
+        idPrefix="expandable-card"
+        itemIndexes={itemIndexes(fields)}
+        onRemove={(i) => onChange(fields.filter((f) => f.itemIndex !== i))}
+        onAdd={() => {
+          const idx = nextItemIndex(fields);
+          onChange([...fields, blankField(idx, "icon", "image", 1), blankField(idx, "title", "text", 2), blankField(idx, "text", "text", 3)]);
+        }}
+        addLabel="Add Card"
+        renderItem={(i) => {
+          const icon = getField(fields, i, "icon");
+          return (
+            <>
+              <ImagePickerField
+                label="Icon (optional)"
+                mediaId={icon?.mediaId ?? null}
+                mediaUrl={icon?.mediaUrl ?? null}
+                onChange={(mediaId, mediaUrl) => onChange(upsertField(fields, i, "icon", "image", 1, { mediaId, mediaUrl }))}
+              />
+              <TextInputField
+                label="Title"
+                value={text(i, "title")}
+                onChange={(v) => onChange(upsertField(fields, i, "title", "text", 2, { textValue: v }))}
+              />
+              <TextInputField
+                label="Text (shown when expanded)"
+                value={text(i, "text")}
+                onChange={(v) => onChange(upsertField(fields, i, "text", "text", 3, { textValue: v }))}
+              />
+            </>
+          );
+        }}
+      />
+    </div>
+  );
+}
+
+function ReviewColumnsFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const text = (itemIndex: number, key: string) => getField(fields, itemIndex, key)?.textValue ?? "";
+  return (
+    <div className="flex flex-col gap-4">
+      <TextInputField
+        label="Heading"
+        value={text(0, "heading")}
+        placeholder="Real Reviews from Thai Players"
+        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
+      />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <TextInputField
+          label="Positive group label"
+          value={text(0, "positiveLabel")}
+          onChange={(v) => onChange(upsertField(fields, 0, "positiveLabel", "text", 2, { textValue: v }))}
+        />
+        <TextInputField
+          label="Complaints group label"
+          value={text(0, "complaintLabel")}
+          onChange={(v) => onChange(upsertField(fields, 0, "complaintLabel", "text", 3, { textValue: v }))}
+        />
+      </div>
+      <SectionBackgroundFields
+        fields={fields}
+        onChange={onChange}
+        sortOrders={{ bgType: 4, bgFrom: 5, bgTo: 6, bgImage: 7 }}
+        defaultBgType="color"
+        defaultBgFrom="surface-muted"
+        defaultBgTo="surface-muted"
+      />
+      <RepeaterShell
+        label="Review"
+        idPrefix="review"
+        itemIndexes={itemIndexes(fields)}
+        onRemove={(i) => onChange(fields.filter((f) => f.itemIndex !== i))}
+        onAdd={() => {
+          const idx = nextItemIndex(fields);
+          onChange([
+            ...fields,
+            textField(idx, "column", "positive", 1),
+            blankField(idx, "name", "text", 2),
+            blankField(idx, "timeAgo", "text", 3),
+            blankField(idx, "quote", "text", 4),
+            blankField(idx, "avatar", "image", 5),
+          ]);
+        }}
+        addLabel="Add Review"
+        renderItem={(i) => {
+          const avatar = getField(fields, i, "avatar");
+          return (
+            <>
+              <LabeledField label="Group">
+                <Select
+                  value={text(i, "column") || "positive"}
+                  onChange={(v) => onChange(upsertField(fields, i, "column", "text", 1, { textValue: v }))}
+                  options={[
+                    { value: "positive", label: "Positive feedback" },
+                    { value: "complaint", label: "Complaint & resolution" },
+                  ]}
+                />
+              </LabeledField>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <TextInputField label="Name" value={text(i, "name")} onChange={(v) => onChange(upsertField(fields, i, "name", "text", 2, { textValue: v }))} />
+                <TextInputField
+                  label="When"
+                  value={text(i, "timeAgo")}
+                  placeholder="4 days ago"
+                  onChange={(v) => onChange(upsertField(fields, i, "timeAgo", "text", 3, { textValue: v }))}
+                />
+              </div>
+              <TextInputField label="Quote" value={text(i, "quote")} onChange={(v) => onChange(upsertField(fields, i, "quote", "text", 4, { textValue: v }))} />
+              <ImagePickerField
+                label="Avatar (optional)"
+                mediaId={avatar?.mediaId ?? null}
+                mediaUrl={avatar?.mediaUrl ?? null}
+                onChange={(mediaId, mediaUrl) => onChange(upsertField(fields, i, "avatar", "image", 5, { mediaId, mediaUrl }))}
+              />
+            </>
+          );
+        }}
+      />
+    </div>
+  );
+}
+
+function CtaLinkListFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const text = (itemIndex: number, key: string) => getField(fields, itemIndex, key)?.textValue ?? "";
+  return (
+    <div className="flex flex-col gap-4">
+      <TextInputField
+        label="Heading"
+        value={text(0, "heading")}
+        placeholder="Ready to Win? Start Playing Smart in Thai Casinos"
+        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
+      />
+      <RichTextField label="Intro (optional)" value={text(0, "intro")} onChange={(v) => onChange(upsertField(fields, 0, "intro", "richtext", 2, { textValue: v }))} />
+      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 3, bgFrom: 4, bgTo: 5, bgImage: 6 }} />
+      <RepeaterShell
+        label="Link"
+        idPrefix="cta-link"
+        itemIndexes={itemIndexes(fields)}
+        onRemove={(i) => onChange(fields.filter((f) => f.itemIndex !== i))}
+        onAdd={() => {
+          const idx = nextItemIndex(fields);
+          onChange([...fields, blankField(idx, "label", "text", 1), blankField(idx, "url", "text", 2)]);
+        }}
+        addLabel="Add Link"
+        renderItem={(i) => (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <TextInputField label="Label" value={text(i, "label")} onChange={(v) => onChange(upsertField(fields, i, "label", "text", 1, { textValue: v }))} />
+            <TextInputField
+              label="URL"
+              value={text(i, "url")}
+              placeholder="/th/bonuses"
+              onChange={(v) => onChange(upsertField(fields, i, "url", "text", 2, { textValue: v }))}
+            />
+          </div>
+        )}
+      />
+    </div>
+  );
+}
+
+function InfoCardColumnsFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const text = (itemIndex: number, key: string) => getField(fields, itemIndex, key)?.textValue ?? "";
+  return (
+    <div className="flex flex-col gap-4">
+      <TextInputField
+        label="Heading"
+        value={text(0, "heading")}
+        placeholder="Our Recommended Payment Security Standards to Protect You"
+        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
+      />
+      <RichTextField label="Intro (optional)" value={text(0, "intro")} onChange={(v) => onChange(upsertField(fields, 0, "intro", "richtext", 2, { textValue: v }))} />
+      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 3, bgFrom: 4, bgTo: 5, bgImage: 6 }} />
+      <RepeaterShell
+        label="Card"
+        idPrefix="info-card"
+        itemIndexes={itemIndexes(fields)}
+        onRemove={(i) => onChange(fields.filter((f) => f.itemIndex !== i))}
+        onAdd={() => {
+          const idx = nextItemIndex(fields);
+          onChange([
+            ...fields,
+            textField(idx, "column", "left", 1),
+            textField(idx, "tinted", "no", 2),
+            blankField(idx, "title", "text", 3),
+            blankField(idx, "body", "richtext", 4),
+          ]);
+        }}
+        addLabel="Add Card"
+        renderItem={(i) => (
+          <>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <LabeledField label="Column">
+                <Select
+                  value={text(i, "column") || "left"}
+                  onChange={(v) => onChange(upsertField(fields, i, "column", "text", 1, { textValue: v }))}
+                  options={[
+                    { value: "left", label: "Left" },
+                    { value: "right", label: "Right" },
+                  ]}
+                />
+              </LabeledField>
+              <LabeledField label="Style">
+                <Select
+                  value={text(i, "tinted") || "no"}
+                  onChange={(v) => onChange(upsertField(fields, i, "tinted", "text", 2, { textValue: v }))}
+                  options={[
+                    { value: "no", label: "White with border" },
+                    { value: "yes", label: "Tinted" },
+                  ]}
+                />
+              </LabeledField>
+            </div>
+            <TextInputField label="Title" value={text(i, "title")} onChange={(v) => onChange(upsertField(fields, i, "title", "text", 3, { textValue: v }))} />
+            <RichTextField label="Body" value={text(i, "body")} onChange={(v) => onChange(upsertField(fields, i, "body", "richtext", 4, { textValue: v }))} />
+          </>
+        )}
+      />
+    </div>
+  );
+}
+
+let regionsRequest: Promise<RegionDTO[]> | null = null;
+
+// One shared request per admin session - every region dropdown on the page
+// reuses it instead of each block refetching the list.
+function loadRegions(): Promise<RegionDTO[]> {
+  regionsRequest ??= api
+    .get<{ regions: RegionDTO[] | null }>("/api/admin/regions")
+    .then((data) => data.regions ?? [])
+    .catch(() => {
+      regionsRequest = null;
+      return [];
+    });
+  return regionsRequest;
+}
+
+// Region picker for blocks that pull live, region-scoped data. Stores the
+// region code (e.g. "th") exactly like the free-text field it replaces, so
+// existing content keeps working. emptyLabel offers a "no region" choice for
+// blocks where blank has a meaning (e.g. "All active regions").
+function RegionCodeField({
+  label,
+  value,
+  onChange,
+  emptyLabel,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  emptyLabel?: string;
+}) {
+  const [regions, setRegions] = useState<RegionDTO[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadRegions().then((list) => {
+      if (!cancelled) setRegions(list);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const options = [
+    ...(emptyLabel ? [{ value: "", label: emptyLabel }] : []),
+    ...regions.map((r) => ({ value: r.code, label: `${r.name} (${r.code})${r.isActive ? "" : " — inactive"}` })),
+    ...(value && !regions.some((r) => r.code === value) && regions.length > 0 ? [{ value, label: `${value} (unknown region)` }] : []),
+  ];
+
+  return (
+    <LabeledField label={label}>
+      <Select value={value} onChange={onChange} options={options} placeholder="Choose a region" loading={regions.length === 0} />
+    </LabeledField>
+  );
+}
+
+let casinosRequest: Promise<CasinoDTO[]> | null = null;
+
+// One shared request per admin session, same as loadRegions.
+function loadCasinos(): Promise<CasinoDTO[]> {
+  casinosRequest ??= api
+    .get<{ casinos: CasinoDTO[] | null }>("/api/admin/casinos?pageSize=500")
+    .then((data) => (data.casinos ?? []).slice().sort((a, b) => a.name.localeCompare(b.name)))
+    .catch(() => {
+      casinosRequest = null;
+      return [];
+    });
+  return casinosRequest;
+}
+
+// Picks a Casino by id (stored as text, like every other section field) so
+// a card's brand name, Visit Site link and review link come from the Casino
+// record instead of being retyped on every page.
+function CasinoPickerField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const [casinos, setCasinos] = useState<CasinoDTO[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadCasinos().then((list) => {
+      if (cancelled) return;
+      setCasinos(list);
+      setLoaded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const picked = casinos.find((c) => String(c.id) === value);
+
+  return (
+    <LabeledField label={label}>
+      <Select
+        allowClear
+        showSearch
+        optionFilterProp="label"
+        value={value || undefined}
+        onChange={(v) => onChange(v ?? "")}
+        placeholder="Choose a casino"
+        loading={!loaded}
+        options={casinos.map((c) => ({ value: String(c.id), label: c.name }))}
+      />
+      {picked && (
+        <span className="mt-1 block text-xs text-text-muted dark:text-text-muted-dark">
+          Links to {picked.ctaUrl || "— this casino has no link yet"}
+        </span>
+      )}
+    </LabeledField>
+  );
+}
+
+// "Where does this section's data come from" switch shown at the top of
+// blocks that can either read live records or take hand-typed items.
+function SourceChoiceField({
+  value,
+  onChange,
+  options,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string; hint: string }[];
+}) {
+  return (
+    <LabeledField label="Content source">
+      <Radio.Group value={value} onChange={(e) => onChange(e.target.value)} className="flex flex-col gap-2 sm:flex-row">
+        {options.map((option) => (
+          <Radio.Button key={option.value} value={option.value} className="!h-auto flex-1 !py-2 !leading-tight">
+            <span className="block text-sm font-semibold">{option.label}</span>
+            <span className="block text-xs opacity-75">{option.hint}</span>
+          </Radio.Button>
+        ))}
+      </Radio.Group>
+    </LabeledField>
   );
 }

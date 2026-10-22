@@ -84,7 +84,11 @@ type Casino struct {
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 
-	RegionIDs       []int64
+	RTPPercentage     *float64
+	CryptoSupported   bool
+	LocalBankingSpeed string
+
+	RegionIDs      []int64
 	GameProviderIDs []int64
 	LicenseIDs      []int64
 }

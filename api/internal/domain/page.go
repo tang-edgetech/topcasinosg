@@ -65,6 +65,12 @@ var KnownBlockTypes = []string{
 	"checklist_callout",
 	"game_rtp_carousel",
 	"highlight_panel",
+	"link_card_grid",
+	"top_bonus_picks",
+	"expandable_card_grid",
+	"review_columns",
+	"cta_link_list",
+	"info_card_columns",
 }
 
 // PageSection is one visual block on a page. CustomClass/CustomID are the

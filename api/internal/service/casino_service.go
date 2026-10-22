@@ -42,6 +42,17 @@ type CasinoInput struct {
 	// one region, so it is always fully replaced on Update.
 	GameProviderIDs *[]int64
 	LicenseIDs      *[]int64
+
+	RTPPercentage     *float64
+	CryptoSupported   bool
+	LocalBankingSpeed string
+}
+
+func validateRTPPercentage(rtp *float64) error {
+	if rtp != nil && (*rtp < 0 || *rtp > 100) {
+		return ErrInvalidRTPPercentage
+	}
+	return nil
 }
 
 func validateSafeIndexAndRisk(safeIndex *int, riskStatus *domain.RiskStatus) error {
@@ -70,6 +81,9 @@ func (s *CasinoService) Create(ctx context.Context, actor *domain.AdminUser, in 
 	if err := validateSupportedGames(in.SupportedGames); err != nil {
 		return nil, err
 	}
+	if err := validateRTPPercentage(in.RTPPercentage); err != nil {
+		return nil, err
+	}
 	exists, err := s.casinos.ExistsSlug(ctx, in.Slug, 0)
 	if err != nil {
 		return nil, err
@@ -85,6 +99,7 @@ func (s *CasinoService) Create(ctx context.Context, actor *domain.AdminUser, in 
 		SafeIndex: in.SafeIndex, RiskStatus: in.RiskStatus, SupportedGames: in.SupportedGames,
 		PayoutSpeed: in.PayoutSpeed, CTAURL: in.CTAURL, Status: domain.ContentStatusDraft, CreatedBy: &actorID,
 		RegionIDs: in.RegionIDs, GameProviderIDs: derefIDs(in.GameProviderIDs), LicenseIDs: derefIDs(in.LicenseIDs),
+		RTPPercentage: in.RTPPercentage, CryptoSupported: in.CryptoSupported, LocalBankingSpeed: in.LocalBankingSpeed,
 	}
 	id, err := s.casinos.Create(ctx, c)
 	if err != nil {
@@ -100,6 +115,9 @@ func (s *CasinoService) Update(ctx context.Context, id int64, in CasinoInput) er
 	if err := validateSupportedGames(in.SupportedGames); err != nil {
 		return err
 	}
+	if err := validateRTPPercentage(in.RTPPercentage); err != nil {
+		return err
+	}
 	exists, err := s.casinos.ExistsSlug(ctx, in.Slug, id)
 	if err != nil {
 		return err
@@ -112,7 +130,8 @@ func (s *CasinoService) Update(ctx context.Context, id int64, in CasinoInput) er
 		Content: in.Content, Languages: in.Languages, PaymentMethods: in.PaymentMethods, Pros: in.Pros, Cons: in.Cons,
 		SafeIndex: in.SafeIndex, RiskStatus: in.RiskStatus, SupportedGames: in.SupportedGames,
 		PayoutSpeed: in.PayoutSpeed, CTAURL: in.CTAURL, RegionIDs: in.RegionIDs,
-	}, in.GameProviderIDs, in.LicenseIDs)
+		RTPPercentage: in.RTPPercentage, CryptoSupported: in.CryptoSupported, LocalBankingSpeed: in.LocalBankingSpeed,
+	},in.GameProviderIDs, in.LicenseIDs)
 }
 
 // derefIDs returns an empty slice for a nil pointer — used only on Create,

@@ -3,13 +3,18 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/tang-edgetech/topcasinosg/api/internal/domain"
 	"github.com/tang-edgetech/topcasinosg/api/internal/repository"
 )
 
-var ErrInvalidRTPCategory = errors.New("invalid rtp category")
+var (
+	ErrInvalidRTPCategory   = errors.New("invalid rtp category")
+	ErrRTPGameNameRequired  = errors.New("game name is required")
+	ErrRTPPercentageInvalid = errors.New("rtp % must be between 0 and 100")
+)
 
 // RTPEntryService — any content-management role may create/edit (Editors
 // included), same as Bonuses/Casinos.
@@ -22,21 +27,37 @@ func NewRTPEntryService(entries *repository.RTPEntryRepo) *RTPEntryService {
 }
 
 type RTPEntryInput struct {
-	RegionID      int64
-	CasinoID      *int64
-	GameName      string
-	Category      domain.RTPCategory
-	RTPPercentage float64
+	RegionID       int64
+	CasinoID       *int64
+	GameProviderID *int64
+	ImageMediaID   *int64
+	GameName       string
+	Category       domain.RTPCategory
+	RTPPercentage  float64
+}
+
+func (in RTPEntryInput) validate() error {
+	if !in.Category.Valid() {
+		return ErrInvalidRTPCategory
+	}
+	if strings.TrimSpace(in.GameName) == "" {
+		return ErrRTPGameNameRequired
+	}
+	if in.RTPPercentage < 0 || in.RTPPercentage > 100 {
+		return ErrRTPPercentageInvalid
+	}
+	return nil
 }
 
 func (s *RTPEntryService) Create(ctx context.Context, actor *domain.AdminUser, in RTPEntryInput) (*domain.RTPEntry, error) {
-	if !in.Category.Valid() {
-		return nil, ErrInvalidRTPCategory
+	if err := in.validate(); err != nil {
+		return nil, err
 	}
 	actorID := actor.ID
 	e := &domain.RTPEntry{
-		RegionID: in.RegionID, CasinoID: in.CasinoID, GameName: in.GameName, Category: in.Category,
-		RTPPercentage: in.RTPPercentage, Status: domain.ContentStatusDraft, CreatedBy: &actorID,
+		RegionID: in.RegionID, CasinoID: in.CasinoID, GameProviderID: in.GameProviderID, ImageMediaID: in.ImageMediaID,
+		GameName: strings.TrimSpace(in.GameName), Category: in.Category, RTPPercentage: in.RTPPercentage,
+		Status: domain.ContentStatusDraft, CreatedBy: &actorID,
 	}
 	id, err := s.entries.Create(ctx, e)
 	if err != nil {
@@ -46,12 +67,12 @@ func (s *RTPEntryService) Create(ctx context.Context, actor *domain.AdminUser, i
 }
 
 func (s *RTPEntryService) Update(ctx context.Context, id int64, in RTPEntryInput) error {
-	if !in.Category.Valid() {
-		return ErrInvalidRTPCategory
+	if err := in.validate(); err != nil {
+		return err
 	}
 	return s.entries.Update(ctx, &domain.RTPEntry{
-		ID: id, RegionID: in.RegionID, CasinoID: in.CasinoID, GameName: in.GameName, Category: in.Category,
-		RTPPercentage: in.RTPPercentage,
+		ID: id, RegionID: in.RegionID, CasinoID: in.CasinoID, GameProviderID: in.GameProviderID, ImageMediaID: in.ImageMediaID,
+		GameName: strings.TrimSpace(in.GameName), Category: in.Category, RTPPercentage: in.RTPPercentage,
 	})
 }
 
@@ -64,9 +85,17 @@ func (s *RTPEntryService) ListAdmin(ctx context.Context, regionID *int64, page, 
 	return s.entries.ListAdmin(ctx, regionID, pageSize, (page-1)*pageSize)
 }
 
-func (s *RTPEntryService) ListPublished(ctx context.Context, regionCode string, page, pageSize int) ([]domain.RTPEntry, int, error) {
+// ListPublished ignores unknown categories rather than failing, so a stale
+// filter on a page section never blanks the slider.
+func (s *RTPEntryService) ListPublished(ctx context.Context, regionCode string, categories []domain.RTPCategory, page, pageSize int) ([]domain.RTPEntry, int, error) {
 	page, pageSize = normalizePaging(page, pageSize)
-	return s.entries.ListPublished(ctx, regionCode, pageSize, (page-1)*pageSize)
+	valid := make([]domain.RTPCategory, 0, len(categories))
+	for _, c := range categories {
+		if c.Valid() {
+			valid = append(valid, c)
+		}
+	}
+	return s.entries.ListPublished(ctx, regionCode, valid, pageSize, (page-1)*pageSize)
 }
 
 func (s *RTPEntryService) ListPublishedByCasino(ctx context.Context, casinoID int64, page, pageSize int) ([]domain.RTPEntry, int, error) {

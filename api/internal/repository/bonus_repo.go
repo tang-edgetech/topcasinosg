@@ -17,12 +17,15 @@ func NewBonusRepo(db *sql.DB) *BonusRepo {
 }
 
 const bonusColumns = `id, region_id, casino_id, bonus_type, title, slug, terms, code, valid_from, valid_until,
-	status, publish_at, created_by, created_at, updated_at`
+	turnover_requirement, max_claim, withdrawal_limit, min_deposit, payment_frequency, upgrade_bonus, max_rebate, perks,
+	eligible_provider_id, status, publish_at, created_by, created_at, updated_at`
 
 func scanBonus(row interface{ Scan(...any) error }) (*domain.Bonus, error) {
 	var b domain.Bonus
 	if err := row.Scan(
 		&b.ID, &b.RegionID, &b.CasinoID, &b.BonusType, &b.Title, &b.Slug, &b.Terms, &b.Code, &b.ValidFrom, &b.ValidUntil,
+		&b.TurnoverRequirement, &b.MaxClaim, &b.WithdrawalLimit, &b.MinDeposit, &b.PaymentFrequency, &b.UpgradeBonus,
+		&b.MaxRebate, &b.Perks, &b.EligibleProviderID,
 		&b.Status, &b.PublishAt, &b.CreatedBy, &b.CreatedAt, &b.UpdatedAt,
 	); err != nil {
 		return nil, err
@@ -33,10 +36,12 @@ func scanBonus(row interface{ Scan(...any) error }) (*domain.Bonus, error) {
 func (r *BonusRepo) Create(ctx context.Context, b *domain.Bonus) (int64, error) {
 	res, err := r.db.ExecContext(ctx, `
 		INSERT INTO bonuses (region_id, casino_id, bonus_type, title, slug, terms, code, valid_from, valid_until,
-			status, publish_at, created_by)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			turnover_requirement, max_claim, withdrawal_limit, min_deposit, payment_frequency, upgrade_bonus, max_rebate,
+			perks, eligible_provider_id, status, publish_at, created_by)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		b.RegionID, b.CasinoID, b.BonusType, b.Title, b.Slug, b.Terms, b.Code, b.ValidFrom, b.ValidUntil,
-		b.Status, b.PublishAt, b.CreatedBy,
+		b.TurnoverRequirement, b.MaxClaim, b.WithdrawalLimit, b.MinDeposit, b.PaymentFrequency, b.UpgradeBonus, b.MaxRebate,
+		b.Perks, b.EligibleProviderID, b.Status, b.PublishAt, b.CreatedBy,
 	)
 	if err != nil {
 		return 0, err
@@ -47,9 +52,12 @@ func (r *BonusRepo) Create(ctx context.Context, b *domain.Bonus) (int64, error) 
 func (r *BonusRepo) Update(ctx context.Context, b *domain.Bonus) error {
 	_, err := r.db.ExecContext(ctx, `
 		UPDATE bonuses SET region_id = ?, casino_id = ?, bonus_type = ?, title = ?, slug = ?, terms = ?, code = ?,
-			valid_from = ?, valid_until = ?
+			valid_from = ?, valid_until = ?, turnover_requirement = ?, max_claim = ?, withdrawal_limit = ?, min_deposit = ?,
+			payment_frequency = ?, upgrade_bonus = ?, max_rebate = ?, perks = ?, eligible_provider_id = ?
 		WHERE id = ?`,
-		b.RegionID, b.CasinoID, b.BonusType, b.Title, b.Slug, b.Terms, b.Code, b.ValidFrom, b.ValidUntil, b.ID,
+		b.RegionID, b.CasinoID, b.BonusType, b.Title, b.Slug, b.Terms, b.Code, b.ValidFrom, b.ValidUntil,
+		b.TurnoverRequirement, b.MaxClaim, b.WithdrawalLimit, b.MinDeposit, b.PaymentFrequency, b.UpgradeBonus, b.MaxRebate,
+		b.Perks, b.EligibleProviderID, b.ID,
 	)
 	return err
 }
@@ -151,7 +159,9 @@ func (r *BonusRepo) ListPublished(ctx context.Context, regionCode string, bonusT
 }
 
 const prefixedBonusColumns = `b.id, b.region_id, b.casino_id, b.bonus_type, b.title, b.slug, b.terms, b.code, b.valid_from,
-	b.valid_until, b.status, b.publish_at, b.created_by, b.created_at, b.updated_at`
+	b.valid_until, b.turnover_requirement, b.max_claim, b.withdrawal_limit, b.min_deposit, b.payment_frequency,
+	b.upgrade_bonus, b.max_rebate, b.perks, b.eligible_provider_id, b.status, b.publish_at, b.created_by, b.created_at,
+	b.updated_at`
 
 // ListPublishedByCasino is the public website's read for a single casino's
 // review page (/casinos/[slug]) — every published bonus tied to that casino,

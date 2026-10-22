@@ -1,7 +1,16 @@
 import { field, itemIndexes, sectionBgColorValue, type PageSection } from "@/lib/pages";
-import IntroductionSection from "@/components/IntroductionSection";
+import IntroductionSection, { type IntroductionPageMenuItem } from "@/components/IntroductionSection";
 
-export default function IntroductionSectionBlock({ section }: { section: PageSection }) {
+// fallbackPageMenu is the route's standard menu (e.g. the region page menu)
+// used when the editor leaves the section's own Page Menu empty, so most
+// pages never need a hand-maintained menu.
+export default function IntroductionSectionBlock({
+  section,
+  fallbackPageMenu = [],
+}: {
+  section: PageSection;
+  fallbackPageMenu?: IntroductionPageMenuItem[];
+}) {
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
   const highlightText = field(section.fields, 0, "highlightText")?.textValue ?? "";
   const subheading = field(section.fields, 0, "subheading")?.textValue ?? "";
@@ -9,7 +18,7 @@ export default function IntroductionSectionBlock({ section }: { section: PageSec
   const bgFrom = sectionBgColorValue(field(section.fields, 0, "bgFrom")?.textValue || "primary-900");
   const bgTo = sectionBgColorValue(field(section.fields, 0, "bgTo")?.textValue || "primary-glow");
 
-  const pageMenu = itemIndexes(section.fields)
+  const authoredMenu = itemIndexes(section.fields)
     .map((itemIndex) => ({
       label: field(section.fields, itemIndex, "label")?.textValue ?? "",
       url: field(section.fields, itemIndex, "url")?.textValue ?? "",
@@ -24,7 +33,7 @@ export default function IntroductionSectionBlock({ section }: { section: PageSec
       paragraph={paragraph}
       bgFrom={bgFrom}
       bgTo={bgTo}
-      pageMenu={pageMenu}
+      pageMenu={authoredMenu.length > 0 ? authoredMenu : fallbackPageMenu}
     />
   );
 }

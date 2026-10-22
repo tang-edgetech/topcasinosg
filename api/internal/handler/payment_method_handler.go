@@ -27,6 +27,7 @@ type PaymentMethodDTO struct {
 	Name        string     `json:"name"`
 	Description string     `json:"description"`
 	IconMediaID *int64     `json:"iconMediaId"`
+	IconURL     *string    `json:"iconUrl"`
 	Status      string     `json:"status"`
 	PublishAt   *time.Time `json:"publishAt"`
 	CreatedAt   time.Time  `json:"createdAt"`
@@ -35,7 +36,7 @@ type PaymentMethodDTO struct {
 
 func toPaymentMethodDTO(pm *domain.PaymentMethod) PaymentMethodDTO {
 	return PaymentMethodDTO{
-		ID: pm.ID, RegionID: pm.RegionID, Name: pm.Name, Description: pm.Description, IconMediaID: pm.IconMediaID,
+		ID: pm.ID, RegionID: pm.RegionID, Name: pm.Name, Description: pm.Description, IconMediaID: pm.IconMediaID, IconURL: pm.IconURL,
 		Status: string(pm.Status), PublishAt: pm.PublishAt, CreatedAt: pm.CreatedAt, UpdatedAt: pm.UpdatedAt,
 	}
 }

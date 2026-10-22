@@ -1,4 +1,5 @@
-import type { PageSection } from "@/lib/pages";
+import { field, type PageSection } from "@/lib/pages";
+import { sanitizeRichText } from "@/lib/sanitize-html";
 import HeroSection from "./HeroSection";
 import RichTextSection from "./RichTextSection";
 import IconBoxGroupSection from "./IconBoxGroupSection";
@@ -23,13 +24,21 @@ import FeatureCardsSection from "./FeatureCardsSection";
 import ChecklistCalloutSection from "./ChecklistCalloutSection";
 import GameRtpCarouselSection from "./GameRtpCarouselSection";
 import HighlightPanelSection from "./HighlightPanelSection";
+import LinkCardGridSection from "./LinkCardGridSection";
+import TopBonusPicksSection from "./TopBonusPicksSection";
+import ExpandableCardGridSection from "./ExpandableCardGridSection";
+import ReviewColumnsSection from "./ReviewColumnsSection";
+import CtaLinkListSection from "./CtaLinkListSection";
+import InfoCardColumnsSection from "./InfoCardColumnsSection";
 
 // Dispatches each section to its block-type component. Every instance of a
 // given blockType gets the same canonical CSS class (see sectionClassName /
 // shared/theme/sections.css) regardless of which page it's on — the admin's
 // optional customClass/customId only ever layers on top, it never replaces
-// the canonical look.
-export default function SectionRenderer({ sections }: { sections: PageSection[] }) {
+// the canonical look. regionCode is the page's own region (region routes
+// pass it) — live-data sections fall back to it when their own Region
+// field is left blank, so editors don't have to repeat it per section.
+export default function SectionRenderer({ sections, regionCode }: { sections: PageSection[]; regionCode?: string }) {
   const ordered = sections.slice().sort((a, b) => a.sortOrder - b.sortOrder);
 
   return (
@@ -53,7 +62,13 @@ export default function SectionRenderer({ sections }: { sections: PageSection[] 
           case "faq":
             return <FaqSection key={section.id} section={section} />;
           case "bonus_calculator":
-            return <BonusCalculatorSection key={section.id} section={section} />;
+            return (
+              <BonusCalculatorSection
+                key={section.id}
+                section={section}
+                introHtml={sanitizeRichText(field(section.fields, 0, "intro")?.textValue ?? "")}
+              />
+            );
           case "bonus_listing_table":
             return <BonusListingTableSection key={section.id} section={section} />;
           case "team_grid":
@@ -73,7 +88,7 @@ export default function SectionRenderer({ sections }: { sections: PageSection[] 
           case "introduction_section":
             return <IntroductionSectionBlock key={section.id} section={section} />;
           case "comparison_table":
-            return <ComparisonTableSection key={section.id} section={section} />;
+            return <ComparisonTableSection key={section.id} section={section} regionCode={regionCode} />;
           case "numbered_steps":
             return <NumberedStepsSection key={section.id} section={section} />;
           case "feature_cards":
@@ -81,9 +96,21 @@ export default function SectionRenderer({ sections }: { sections: PageSection[] 
           case "checklist_callout":
             return <ChecklistCalloutSection key={section.id} section={section} />;
           case "game_rtp_carousel":
-            return <GameRtpCarouselSection key={section.id} section={section} />;
+            return <GameRtpCarouselSection key={section.id} section={section} regionCode={regionCode} />;
           case "highlight_panel":
             return <HighlightPanelSection key={section.id} section={section} />;
+          case "link_card_grid":
+            return <LinkCardGridSection key={section.id} section={section} />;
+          case "top_bonus_picks":
+            return <TopBonusPicksSection key={section.id} section={section} />;
+          case "expandable_card_grid":
+            return <ExpandableCardGridSection key={section.id} section={section} />;
+          case "review_columns":
+            return <ReviewColumnsSection key={section.id} section={section} />;
+          case "cta_link_list":
+            return <CtaLinkListSection key={section.id} section={section} />;
+          case "info_card_columns":
+            return <InfoCardColumnsSection key={section.id} section={section} />;
           default:
             return null;
         }

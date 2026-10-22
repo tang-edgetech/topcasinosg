@@ -62,7 +62,7 @@ export default async function RegionOverviewPage({
         <RawHtmlBlock html={`${result.page.headSnippet}${result.page.bodySnippet}`} />
         <PageGrid>
           {hasIntro && <IntroductionSectionBlock section={first} />}
-          <SectionRenderer sections={hasIntro ? rest : ordered} />
+          <SectionRenderer sections={hasIntro ? rest : ordered} regionCode={region} />
         </PageGrid>
         <RawHtmlBlock html={result.page.footerSnippet} />
       </div>

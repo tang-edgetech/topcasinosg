@@ -11,6 +11,8 @@ type PaymentMethod struct {
 	Name        string
 	Description string
 	IconMediaID *int64
+	// IconURL is resolved via a LEFT JOIN on media at read time — never set on write.
+	IconURL     *string
 	Status      ContentStatus
 	PublishAt   *time.Time
 	CreatedBy   *int64

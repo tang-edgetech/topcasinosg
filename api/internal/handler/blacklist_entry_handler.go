@@ -22,27 +22,33 @@ func NewBlacklistEntryHandler(entries *service.BlacklistEntryService) *Blacklist
 }
 
 type BlacklistEntryDTO struct {
-	ID        int64      `json:"id"`
-	RegionID  *int64     `json:"regionId"`
-	Name      string     `json:"name"`
-	Reason    string     `json:"reason"`
-	Details   string     `json:"details"`
-	Status    string     `json:"status"`
-	PublishAt *time.Time `json:"publishAt"`
-	CreatedAt time.Time  `json:"createdAt"`
-	UpdatedAt time.Time  `json:"updatedAt"`
+	ID          int64      `json:"id"`
+	RegionID    *int64     `json:"regionId"`
+	Name        string     `json:"name"`
+	LogoMediaID *int64     `json:"logoMediaId"`
+	LogoURL     *string    `json:"logoUrl"`
+	Rating      *float64   `json:"rating"`
+	Reason      string     `json:"reason"`
+	Reasons     []string   `json:"reasons"`
+	Details     string     `json:"details"`
+	Status      string     `json:"status"`
+	PublishAt   *time.Time `json:"publishAt"`
+	CreatedAt   time.Time  `json:"createdAt"`
+	UpdatedAt   time.Time  `json:"updatedAt"`
 }
 
 func toBlacklistEntryDTO(e *domain.BlacklistEntry) BlacklistEntryDTO {
 	return BlacklistEntryDTO{
-		ID: e.ID, RegionID: e.RegionID, Name: e.Name, Reason: e.Reason, Details: e.Details, Status: string(e.Status),
+		ID: e.ID, RegionID: e.RegionID, Name: e.Name, LogoMediaID: e.LogoMediaID, LogoURL: e.LogoURL, Rating: e.Rating,
+		Reason: e.Reason, Reasons: e.Reasons, Details: e.Details, Status: string(e.Status),
 		PublishAt: e.PublishAt, CreatedAt: e.CreatedAt, UpdatedAt: e.UpdatedAt,
 	}
 }
 
 func blacklistEntryErrorStatus(err error) int {
 	switch {
-	case errors.Is(err, service.ErrInvalidContentStatus), errors.Is(err, service.ErrPublishAtRequired):
+	case errors.Is(err, service.ErrInvalidContentStatus), errors.Is(err, service.ErrPublishAtRequired),
+		errors.Is(err, service.ErrInvalidBlacklistRating):
 		return http.StatusBadRequest
 	case errors.Is(err, repository.ErrNotFound):
 		return http.StatusNotFound
@@ -52,14 +58,20 @@ func blacklistEntryErrorStatus(err error) int {
 }
 
 type blacklistEntryRequest struct {
-	RegionID *int64 `json:"regionId"`
-	Name     string `json:"name"`
-	Reason   string `json:"reason"`
-	Details  string `json:"details"`
+	RegionID    *int64   `json:"regionId"`
+	Name        string   `json:"name"`
+	LogoMediaID *int64   `json:"logoMediaId"`
+	Rating      *float64 `json:"rating"`
+	Reason      string   `json:"reason"`
+	Reasons     []string `json:"reasons"`
+	Details     string   `json:"details"`
 }
 
 func (req blacklistEntryRequest) toInput() service.BlacklistEntryInput {
-	return service.BlacklistEntryInput{RegionID: req.RegionID, Name: req.Name, Reason: req.Reason, Details: req.Details}
+	return service.BlacklistEntryInput{
+		RegionID: req.RegionID, Name: req.Name, LogoMediaID: req.LogoMediaID, Rating: req.Rating, Reason: req.Reason,
+		Reasons: req.Reasons, Details: req.Details,
+	}
 }
 
 func (h *BlacklistEntryHandler) Create(w http.ResponseWriter, r *http.Request) {

@@ -349,8 +349,9 @@
  * other CMS section comes from the general `.main > .primary
  * .section-container` rule above, not a block-specific override).
  */
+/* Solid mint (Figma #E6F9F6) rather than translucent teal, so it reads the same on white and on the tinted step band. */
 .checklist-callout {
-  background-color: rgba(0, 187, 158, 0.1);
+  background-color: var(--color-success-subtle);
 }
 
 .checklist-callout__label h3 {
@@ -418,4 +419,192 @@
  */
 .section--tight-top .section-container {
   padding-top: 0;
+}
+
+/*
+ * Checklist Callout's "stacked" layout (Bonuses hub "How We Choose the Best
+ * ... Bonuses") - same tinted box as the split layout, with a hairline
+ * success-tinted border and a navy section-style heading instead of the
+ * split layout's italic teal label.
+ */
+.checklist-callout--stacked {
+  border: 1px solid rgba(0, 187, 158, 0.2);
+}
+
+.checklist-callout__heading {
+  color: var(--color-primary-900);
+}
+
+/*
+ * Highlight Panel's dark theme (Bonuses hub "Online Casino Bonuses to Avoid"
+ * band, over a navy-to-red gradient) - white body copy, white subheadings,
+ * and intro lists marked with a circled "!" instead of a bullet.
+ */
+.section--highlight-panel-dark .highlight-panel__intro h3 {
+  margin-top: 1.5rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.section--highlight-panel-dark .highlight-panel__intro a {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.alert-list ul {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  list-style: none;
+  padding-left: 0;
+}
+
+.alert-list li {
+  position: relative;
+  padding-left: 1.25rem;
+}
+
+.alert-list li::before {
+  content: "!";
+  position: absolute;
+  left: 0;
+  top: 0.3em;
+  width: 0.8rem;
+  height: 0.8rem;
+  border: 1.5px solid currentColor;
+  border-radius: 9999px;
+  font-size: 0.55rem;
+  font-weight: 700;
+  line-height: 0.65rem;
+  text-align: center;
+}
+
+/*
+ * Rich Text centers its copy in a ~768px reading column (.rich-text__measure)
+ * on full-width pages. Inside `.main > .primary` the column is already
+ * narrowed by the Sidebar, and Figma left-aligns these sections flush with
+ * every other block (e.g. Bonuses hub "Why Online Casino's Bonuses Matter",
+ * RTP "What is RTP & Why It Matters") - so drop the centering there.
+ */
+.main > .primary .rich-text__measure {
+  max-width: none;
+  margin-inline: 0;
+}
+
+@media (min-width: 1024px) {
+  .main > .primary .section--rich-text .rich-text-content {
+    width: 100%;
+  }
+}
+
+/*
+ * FAQ and Bonus Calculator center a narrow column for full-width pages.
+ * Inside `.main > .primary` Figma left-aligns them like every other block
+ * (Bonuses hub "Online Casino Bonuses Calculator", "FAQs of Online Casino
+ * Bonuses"): FAQ items span the full column, the calculator card keeps its
+ * own width but sits at the column's left edge.
+ */
+.main > .primary .section-col--centered {
+  margin-inline: 0;
+}
+
+.main > .primary .section--faq .section-col--centered,
+.main > .primary .section--bonus-calculator .section-col--centered.text-center {
+  max-width: none;
+  text-align: left;
+}
+
+.main > .primary .section--faq .section-heading,
+.main > .primary .section--bonus-calculator .section-heading,
+.section--highlight-panel .section-heading {
+  text-align: left;
+  font-size: 36px;
+  line-height: 43px;
+}
+
+/*
+ * Mobile design (Figma "M / Country / TH") drops the Sidebar entirely;
+ * below 768px it would otherwise stack under the page content.
+ */
+@media (max-width: 767px) {
+  .main > .sidebar {
+    display: none;
+  }
+}
+
+/*
+ * Swipe rows (Figma "slider" patterns: Most Popular, Event Highlights, Real
+ * Reviews, Avoid These Casinos) scroll by touch/arrows with no visible
+ * scrollbar, matching the design.
+ */
+.horizontal-slider__track,
+.bonus-picks__track,
+.event-highlights__track,
+.review-group__track {
+  scrollbar-width: none;
+}
+
+.horizontal-slider__track::-webkit-scrollbar,
+.bonus-picks__track::-webkit-scrollbar,
+.event-highlights__track::-webkit-scrollbar,
+.review-group__track::-webkit-scrollbar {
+  display: none;
+}
+
+/* Figma "M / Country / TH": section headings are 30px on mobile (36px desktop). */
+@media (max-width: 767px) {
+  .section .section-heading,
+  .main > .primary .section .section-heading {
+    font-size: 30px;
+    line-height: 36px;
+  }
+}
+
+/* Split-layout Checklist Callout: hairline divider between label and checklist (Figma "Trust Factors" / "Safety Tips" / "Your Role"). */
+@media (min-width: 640px) {
+  .checklist-callout:not(.checklist-callout--stacked) .checklist-callout__items {
+    border-left: 1px solid var(--color-primary-100);
+    padding-left: 2rem;
+  }
+}
+
+/* Nested caret-list items (e.g. Deposit Step 5 "Follow the system prompts:") use hollow circles. */
+.caret-list li li::before {
+  content: "\25CB";
+  font-weight: normal;
+  font-size: 0.75em;
+  top: 0.2em;
+}
+
+.caret-list li ul {
+  margin-top: 0.25rem;
+}
+
+/*
+ * Admin "Divider line above" toggle (custom_class section--divider-top): the
+ * full-bleed hairline Figma draws between consecutive white sections. Same
+ * viewport-centering (and >=1200px Sidebar offset) as .section--bg::before;
+ * uses ::after so it can sit on a section that also has a bleed background.
+ */
+.section--divider-top {
+  position: relative;
+}
+
+.section--divider-top::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 100vw;
+  height: 1px;
+  background-color: var(--color-primary-50);
+  transform: translateX(-50%);
+  z-index: 1;
+}
+
+@media (min-width: 1200px) {
+  .main > .primary .section--divider-top::after {
+    transform: translateX(calc(-50% + (var(--sidebar-w) + var(--sidebar-gap)) / 2));
+  }
 }

@@ -23,7 +23,7 @@ export default function FeatureCardsSection({ section }: { section: PageSection 
         {heading && (
           <div className="section-row">
             <div className="section-col">
-              <h2 className="section-heading text-2xl font-bold text-primary-900">{heading}</h2>
+              <h2 className="section-heading text-[36px] leading-[43px] font-bold text-primary-900">{heading}</h2>
             </div>
           </div>
         )}
@@ -43,7 +43,7 @@ export default function FeatureCardsSection({ section }: { section: PageSection 
                 key={itemIndex}
                 className="feature-card section-col flex flex-col gap-4 rounded-lg border border-primary-100 p-5"
               >
-                {cardHeading && <h3 className="feature-card__heading text-xl font-bold text-secondary-700">{cardHeading}</h3>}
+                {cardHeading && <h3 className="feature-card__heading text-2xl font-bold text-primary-glow">{cardHeading}</h3>}
                 {description && (
                   <div
                     className="rich-text-content text-sm leading-relaxed text-primary-600"
@@ -68,7 +68,7 @@ export default function FeatureCardsSection({ section }: { section: PageSection 
                   <div className="flex flex-1 flex-col gap-4">
                     {(detail1Heading || detail1Body) && (
                       <div className="flex flex-col gap-1">
-                        {detail1Heading && <h4 className="text-sm font-bold text-primary-900">{detail1Heading}</h4>}
+                        {detail1Heading && <h4 className="text-lg font-bold text-primary-900">{detail1Heading}</h4>}
                         {detail1Body && (
                           <div
                             className="rich-text-content text-sm text-primary-600"
@@ -79,10 +79,10 @@ export default function FeatureCardsSection({ section }: { section: PageSection 
                     )}
                     {(detail2Heading || detail2Body) && (
                       <div className="flex flex-col gap-1">
-                        {detail2Heading && <h4 className="text-sm font-bold text-primary-900">{detail2Heading}</h4>}
+                        {detail2Heading && <h4 className="text-lg font-bold text-primary-900">{detail2Heading}</h4>}
                         {detail2Body && (
                           <div
-                            className="feature-card__list rich-text-content text-sm text-primary-600"
+                            className="feature-card__list rich-text-content caret-list text-sm text-primary-900"
                             dangerouslySetInnerHTML={{ __html: sanitizeRichText(detail2Body) }}
                           />
                         )}

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Form, Input, Select, Rate, InputNumber, App as AntApp } from "antd";
+import { Form, Input, Select, Rate, InputNumber, Switch, App as AntApp } from "antd";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { api, ApiError } from "@/lib/api";
-import type { CasinoDTO, RegionDTO, GameProviderDTO, LicenseDTO, MediaDTO, RiskStatus, GameType } from "@/lib/types";
+import type { CasinoDTO, RegionDTO, GameProviderDTO, LicenseDTO, MediaDTO, RiskStatus, GameType, PaymentMethodDTO } from "@/lib/types";
 import { GAME_TYPE_LABELS } from "@/lib/types";
 import { IconPhoto } from "@/components/Icons";
 import MediaPicker from "@/components/media/MediaPicker";
@@ -36,6 +36,14 @@ export default function CasinoForm({
   const [logoMediaId, setLogoMediaId] = useState<number | null>(target?.logoMediaId ?? null);
   const [logoUrl, setLogoUrl] = useState<string | null>(target?.logoUrl ? mediaUrl(target.logoUrl) : null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [paymentMethodNames, setPaymentMethodNames] = useState<string[]>([]);
+
+  useEffect(() => {
+    api
+      .get<{ paymentMethods: PaymentMethodDTO[] | null }>("/api/admin/payment-methods?pageSize=500")
+      .then((data) => setPaymentMethodNames([...new Set((data.paymentMethods ?? []).map((pm) => pm.name))].sort()))
+      .catch(() => setPaymentMethodNames([]));
+  }, []);
 
   async function handleFinish(values: {
     slug: string;
@@ -52,6 +60,9 @@ export default function CasinoForm({
     supportedGames?: GameType[];
     payoutSpeed: string;
     ctaUrl: string;
+    rtpPercentage?: number | null;
+    cryptoSupported: boolean;
+    localBankingSpeed: string;
     regionIds: number[];
     gameProviderIds?: number[];
     licenseIds?: number[];
@@ -63,7 +74,7 @@ export default function CasinoForm({
     if (!ok) return;
 
     setSubmitting(true);
-    const body = { ...values, logoMediaId };
+    const body = { ...values, rtpPercentage: values.rtpPercentage ?? null, logoMediaId };
     try {
       if (target) {
         await api.put(`/api/admin/casinos/${target.id}`, body);
@@ -101,6 +112,9 @@ export default function CasinoForm({
           supportedGames: target?.supportedGames ?? [],
           payoutSpeed: target?.payoutSpeed ?? "",
           ctaUrl: target?.ctaUrl ?? "",
+          rtpPercentage: target?.rtpPercentage ?? undefined,
+          cryptoSupported: target?.cryptoSupported ?? false,
+          localBankingSpeed: target?.localBankingSpeed ?? "",
           regionIds: target?.regionIds ?? [],
           gameProviderIds: target?.gameProviderIds ?? [],
           licenseIds: target?.licenseIds ?? [],
@@ -148,8 +162,16 @@ export default function CasinoForm({
         <Form.Item name="languages" label="Languages Supported">
           <Select mode="tags" placeholder="EN, CN, TH..." />
         </Form.Item>
-        <Form.Item name="paymentMethods" label="Payment Methods">
-          <Select mode="tags" placeholder="Visa, Bank Transfer..." />
+        <Form.Item
+          name="paymentMethods"
+          label="Payment Methods"
+          extra="Pick from your Payment Methods so their icons show in the Fees table, or type a new name."
+        >
+          <Select
+            mode="tags"
+            placeholder="TrueMoney Wallet, PayNow, USDT..."
+            options={paymentMethodNames.map((name) => ({ value: name, label: name }))}
+          />
         </Form.Item>
         <Form.Item name="pros" label="Positives (Pros)" extra="Comparison section on the casino review page.">
           <Select mode="tags" placeholder="Fast payouts, 24/7 support..." />
@@ -193,6 +215,15 @@ export default function CasinoForm({
         </Form.Item>
         <Form.Item name="payoutSpeed" label="Payout Speed">
           <Input placeholder="24-48 hours" />
+        </Form.Item>
+        <Form.Item name="rtpPercentage" label="RTP %" extra="Shown in the region page's casino comparison table. Leave blank if unknown.">
+          <InputNumber min={0} max={100} step={0.01} precision={2} className="w-full" placeholder="96.50" />
+        </Form.Item>
+        <Form.Item name="cryptoSupported" label="Supports Crypto Payments" valuePropName="checked">
+          <Switch />
+        </Form.Item>
+        <Form.Item name="localBankingSpeed" label="Local Banking Speed">
+          <Input placeholder="Instant" maxLength={100} />
         </Form.Item>
         <Form.Item name="ctaUrl" label="CTA / Affiliate URL">
           <Input placeholder="https://..." />

@@ -141,11 +141,36 @@ export default function RTPEntriesPage() {
         pagination={CLIENT_TABLE_PAGINATION}
         rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys }}
         columns={[
-          { title: "Game Name", dataIndex: "gameName", key: "gameName", sorter: (a, b) => a.gameName.localeCompare(b.gameName) },
+          {
+            title: "Game Name",
+            dataIndex: "gameName",
+            key: "gameName",
+            sorter: (a, b) => a.gameName.localeCompare(b.gameName),
+            render: (_, e) => (
+              <div className="flex flex-col">
+                <span>{e.gameName}</span>
+                {e.gameProviderName ? (
+                  <span className="text-xs text-text-muted dark:text-text-muted-dark">by {e.gameProviderName}</span>
+                ) : (
+                  <span className="text-xs text-text-muted italic dark:text-text-muted-dark">No provider set</span>
+                )}
+              </div>
+            ),
+          },
           { title: "Category", key: "category", render: (_, e) => titleCase(e.category) },
           { title: "Region", key: "region", render: (_, e) => regionName(e.regionId) },
           { title: "Casino", key: "casino", render: (_, e) => casinoName(e.casinoId) },
-          { title: "RTP %", key: "rtpPercentage", render: (_, e) => `${e.rtpPercentage.toFixed(2)}%` },
+          {
+            title: "RTP %",
+            key: "rtpPercentage",
+            sorter: (a, b) => a.rtpPercentage - b.rtpPercentage,
+            render: (_, e) => `${e.rtpPercentage.toFixed(2)}%`,
+          },
+          {
+            title: "Image",
+            key: "image",
+            render: (_, e) => (e.imageUrl ? "✓" : <span className="text-xs text-text-muted dark:text-text-muted-dark">Missing</span>),
+          },
           {
             title: "Status",
             key: "status",

@@ -79,7 +79,7 @@ export default function IconBoxGroupSection({ section }: { section: PageSection 
 
             const iconEl = icon && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={icon} alt="" className="h-14 w-14 shrink-0 object-contain" />
+              <img loading="lazy" decoding="async" src={icon} alt="" className="h-14 w-14 shrink-0 object-contain" />
             );
             const bodyEl = boxText && (
               <div

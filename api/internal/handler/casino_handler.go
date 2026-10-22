@@ -47,6 +47,10 @@ type CasinoDTO struct {
 	LicenseIDs      []int64    `json:"licenseIds"`
 	CreatedAt       time.Time  `json:"createdAt"`
 	UpdatedAt       time.Time  `json:"updatedAt"`
+
+	RTPPercentage     *float64 `json:"rtpPercentage"`
+	CryptoSupported   bool     `json:"cryptoSupported"`
+	LocalBankingSpeed string   `json:"localBankingSpeed"`
 }
 
 func toCasinoDTO(c *domain.Casino) CasinoDTO {
@@ -61,6 +65,7 @@ func toCasinoDTO(c *domain.Casino) CasinoDTO {
 		SafeIndex: c.SafeIndex, RiskStatus: riskStatus, SupportedGames: c.SupportedGames, PayoutSpeed: c.PayoutSpeed,
 		CTAURL: c.CTAURL, Status: string(c.Status), PublishAt: c.PublishAt, RegionIDs: c.RegionIDs,
 		GameProviderIDs: c.GameProviderIDs, LicenseIDs: c.LicenseIDs, CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
+		RTPPercentage: c.RTPPercentage, CryptoSupported: c.CryptoSupported, LocalBankingSpeed: c.LocalBankingSpeed,
 	}
 }
 
@@ -70,7 +75,7 @@ func casinoErrorStatus(err error) int {
 		return http.StatusConflict
 	case errors.Is(err, service.ErrInvalidContentStatus), errors.Is(err, service.ErrPublishAtRequired),
 		errors.Is(err, service.ErrInvalidRiskStatus), errors.Is(err, service.ErrInvalidSafeIndex),
-		errors.Is(err, service.ErrInvalidGameType):
+		errors.Is(err, service.ErrInvalidGameType), errors.Is(err, service.ErrInvalidRTPPercentage):
 		return http.StatusBadRequest
 	case errors.Is(err, repository.ErrNotFound):
 		return http.StatusNotFound
@@ -101,6 +106,10 @@ type casinoRequest struct {
 	// see CasinoInput in casino_service.go.
 	GameProviderIDs *[]int64 `json:"gameProviderIds"`
 	LicenseIDs      *[]int64 `json:"licenseIds"`
+
+	RTPPercentage     *float64 `json:"rtpPercentage"`
+	CryptoSupported   bool     `json:"cryptoSupported"`
+	LocalBankingSpeed string   `json:"localBankingSpeed"`
 }
 
 func (req casinoRequest) toInput() service.CasinoInput {
@@ -114,7 +123,8 @@ func (req casinoRequest) toInput() service.CasinoInput {
 		Content: req.Content, Languages: req.Languages, PaymentMethods: req.PaymentMethods, Pros: req.Pros, Cons: req.Cons,
 		SafeIndex: req.SafeIndex, RiskStatus: riskStatus, SupportedGames: req.SupportedGames,
 		PayoutSpeed: req.PayoutSpeed, CTAURL: req.CTAURL, RegionIDs: req.RegionIDs, GameProviderIDs: req.GameProviderIDs,
-		LicenseIDs: req.LicenseIDs,
+		LicenseIDs: req.LicenseIDs, RTPPercentage: req.RTPPercentage, CryptoSupported: req.CryptoSupported,
+		LocalBankingSpeed: req.LocalBankingSpeed,
 	}
 }
 

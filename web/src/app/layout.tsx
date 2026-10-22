@@ -4,12 +4,13 @@ import { Figtree } from "next/font/google";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import RawHtmlBlock from "@/components/RawHtmlBlock";
+import ScrollToTop from "@/components/ScrollToTop";
 import { getActiveSnippets } from "@/lib/snippets";
 import { getSiteSettings } from "@/lib/site-settings";
 import "./globals.css";
 
 const figtree = Figtree({
-  variable: "--font-figtree",
+  variable: "--font-figtree-loaded",
   subsets: ["latin"],
 });
 
@@ -67,6 +68,7 @@ export default async function RootLayout({
           {children}
         </main>
         <Footer />
+        <ScrollToTop />
         <RawHtmlBlock html={bottomOfBody} />
       </body>
     </html>

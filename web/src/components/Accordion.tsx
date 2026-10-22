@@ -25,8 +25,8 @@ export default function AccordionItem({
         onClick={() => setOpen((o) => !o)}
       >
         {header}
-        <span aria-hidden="true" className={`accordion-item__chevron shrink-0 transition-transform ${open ? "rotate-180" : ""}`}>
-          ▾
+        <span aria-hidden="true" className="accordion-item__chevron shrink-0 text-xl leading-none">
+          {open ? "−" : "+"}
         </span>
       </button>
       {/* The 0fr/1fr grid-row trick animates to the content's natural height

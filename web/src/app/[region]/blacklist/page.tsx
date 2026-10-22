@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getBlacklistEntries, getActiveRegionByCode } from "../_lib/api";
-import { buildPageMenu } from "../_lib/pageMenu";
+import { buildPageMenu, regionMenuLabel } from "../_lib/pageMenu";
 import { getPage, sectionBgColorValue } from "@/lib/pages";
 import IntroductionSection from "@/components/IntroductionSection";
 import SectionRenderer from "@/components/sections/SectionRenderer";
@@ -53,7 +53,7 @@ export default async function RegionBlacklistPage({
       paragraph={`<p>Operators flagged for withheld withdrawals, rigged games, or fake licences targeting ${regionName} players.</p>`}
       bgFrom={sectionBgColorValue("primary-900")}
       bgTo={sectionBgColorValue("danger")}
-      pageMenu={buildPageMenu(region, `${regionName} 2025`, "blacklist")}
+      pageMenu={buildPageMenu(region, regionMenuLabel(regionName), "blacklist")}
     />
   );
 

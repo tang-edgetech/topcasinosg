@@ -33,6 +33,9 @@ export interface CasinoDTO {
   supportedGames: GameType[] | null;
   payoutSpeed: string;
   ctaUrl: string;
+  rtpPercentage: number | null;
+  cryptoSupported: boolean;
+  localBankingSpeed: string;
   status: string;
   publishAt: string | null;
   regionIds: number[] | null;

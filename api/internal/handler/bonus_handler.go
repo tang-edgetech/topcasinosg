@@ -22,20 +22,29 @@ func NewBonusHandler(bonuses *service.BonusService) *BonusHandler {
 }
 
 type BonusDTO struct {
-	ID         int64      `json:"id"`
-	RegionID   int64      `json:"regionId"`
-	CasinoID   *int64     `json:"casinoId"`
-	BonusType  string     `json:"bonusType"`
-	Title      string     `json:"title"`
-	Slug       string     `json:"slug"`
-	Terms      string     `json:"terms"`
-	Code       *string    `json:"code"`
-	ValidFrom  *time.Time `json:"validFrom"`
-	ValidUntil *time.Time `json:"validUntil"`
-	Status     string     `json:"status"`
-	PublishAt  *time.Time `json:"publishAt"`
-	CreatedAt  time.Time  `json:"createdAt"`
-	UpdatedAt  time.Time  `json:"updatedAt"`
+	ID                  int64      `json:"id"`
+	RegionID            int64      `json:"regionId"`
+	CasinoID            *int64     `json:"casinoId"`
+	BonusType           string     `json:"bonusType"`
+	Title               string     `json:"title"`
+	Slug                string     `json:"slug"`
+	Terms               string     `json:"terms"`
+	Code                *string    `json:"code"`
+	ValidFrom           *time.Time `json:"validFrom"`
+	ValidUntil          *time.Time `json:"validUntil"`
+	TurnoverRequirement string     `json:"turnoverRequirement"`
+	MaxClaim            string     `json:"maxClaim"`
+	WithdrawalLimit     string     `json:"withdrawalLimit"`
+	MinDeposit          string     `json:"minDeposit"`
+	PaymentFrequency    string     `json:"paymentFrequency"`
+	UpgradeBonus        string     `json:"upgradeBonus"`
+	MaxRebate           string     `json:"maxRebate"`
+	Perks               string     `json:"perks"`
+	EligibleProviderID  *int64     `json:"eligibleProviderId"`
+	Status              string     `json:"status"`
+	PublishAt           *time.Time `json:"publishAt"`
+	CreatedAt           time.Time  `json:"createdAt"`
+	UpdatedAt           time.Time  `json:"updatedAt"`
 }
 
 func toBonusDTO(b *domain.Bonus) BonusDTO {
@@ -43,6 +52,9 @@ func toBonusDTO(b *domain.Bonus) BonusDTO {
 		ID: b.ID, RegionID: b.RegionID, CasinoID: b.CasinoID, BonusType: string(b.BonusType), Title: b.Title,
 		Slug: b.Slug, Terms: b.Terms, Code: b.Code, ValidFrom: b.ValidFrom, ValidUntil: b.ValidUntil, Status: string(b.Status),
 		PublishAt: b.PublishAt, CreatedAt: b.CreatedAt, UpdatedAt: b.UpdatedAt,
+		TurnoverRequirement: b.TurnoverRequirement, MaxClaim: b.MaxClaim, WithdrawalLimit: b.WithdrawalLimit,
+		MinDeposit: b.MinDeposit, PaymentFrequency: b.PaymentFrequency, UpgradeBonus: b.UpgradeBonus, MaxRebate: b.MaxRebate,
+		Perks: b.Perks, EligibleProviderID: b.EligibleProviderID,
 	}
 }
 
@@ -60,21 +72,35 @@ func bonusErrorStatus(err error) int {
 }
 
 type bonusRequest struct {
-	RegionID   int64      `json:"regionId"`
-	CasinoID   *int64     `json:"casinoId"`
-	BonusType  string     `json:"bonusType"`
-	Title      string     `json:"title"`
-	Slug       string     `json:"slug"`
-	Terms      string     `json:"terms"`
-	Code       *string    `json:"code"`
-	ValidFrom  *time.Time `json:"validFrom"`
-	ValidUntil *time.Time `json:"validUntil"`
+	RegionID            int64      `json:"regionId"`
+	CasinoID            *int64     `json:"casinoId"`
+	BonusType           string     `json:"bonusType"`
+	Title               string     `json:"title"`
+	Slug                string     `json:"slug"`
+	Terms               string     `json:"terms"`
+	Code                *string    `json:"code"`
+	ValidFrom           *time.Time `json:"validFrom"`
+	ValidUntil          *time.Time `json:"validUntil"`
+	TurnoverRequirement string     `json:"turnoverRequirement"`
+	MaxClaim            string     `json:"maxClaim"`
+	WithdrawalLimit     string     `json:"withdrawalLimit"`
+	MinDeposit          string     `json:"minDeposit"`
+	PaymentFrequency    string     `json:"paymentFrequency"`
+	UpgradeBonus        string     `json:"upgradeBonus"`
+	MaxRebate           string     `json:"maxRebate"`
+	Perks               string     `json:"perks"`
+	EligibleProviderID  *int64     `json:"eligibleProviderId"`
 }
 
 func (req bonusRequest) toInput() service.BonusInput {
 	return service.BonusInput{
 		RegionID: req.RegionID, CasinoID: req.CasinoID, BonusType: domain.BonusType(req.BonusType), Title: req.Title,
 		Slug: req.Slug, Terms: req.Terms, Code: req.Code, ValidFrom: req.ValidFrom, ValidUntil: req.ValidUntil,
+		BonusDetails: domain.BonusDetails{
+			TurnoverRequirement: req.TurnoverRequirement, MaxClaim: req.MaxClaim, WithdrawalLimit: req.WithdrawalLimit,
+			MinDeposit: req.MinDeposit, PaymentFrequency: req.PaymentFrequency, UpgradeBonus: req.UpgradeBonus,
+			MaxRebate: req.MaxRebate, Perks: req.Perks, EligibleProviderID: req.EligibleProviderID,
+		},
 	}
 }
 

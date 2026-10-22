@@ -22,7 +22,7 @@ export default function PaymentMethodForm({ target, regions }: { target: Payment
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [iconMediaId, setIconMediaId] = useState<number | null>(target?.iconMediaId ?? null);
-  const [iconUrl, setIconUrl] = useState<string | null>(null);
+  const [iconUrl, setIconUrl] = useState<string | null>(target?.iconUrl ? mediaUrl(target.iconUrl) : null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
   async function handleFinish(values: { regionId: number; name: string; description: string }) {
@@ -76,12 +76,17 @@ export default function PaymentMethodForm({ target, regions }: { target: Payment
               onClick={() => setPickerOpen(true)}
               className="cursor-pointer text-sm font-medium text-primary-600 hover:text-primary-900"
             >
-              Choose From Media Library
+              {iconUrl ? "Change Icon" : "Choose From Media Library"}
             </button>
           </div>
         </div>
 
-        <Form.Item name="name" label="Name" rules={[{ required: true }]}>
+        <Form.Item
+          name="name"
+          label="Name"
+          rules={[{ required: true, whitespace: true, message: "Enter the payment method name." }]}
+          extra="Casinos that list this exact name under Payment Methods show this icon in the Fees table."
+        >
           <Input placeholder="Visa, PayNow, Bank Transfer..." />
         </Form.Item>
         <Form.Item name="regionId" label="Region" rules={[{ required: true }]}>

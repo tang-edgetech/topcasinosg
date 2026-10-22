@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getGuides, getActiveRegionByCode } from "../_lib/api";
-import { buildPageMenu } from "../_lib/pageMenu";
+import { buildPageMenu, regionMenuLabel } from "../_lib/pageMenu";
 import { getPage } from "@/lib/pages";
 import IntroductionSection from "@/components/IntroductionSection";
 import SectionRenderer from "@/components/sections/SectionRenderer";
@@ -51,7 +51,7 @@ export default async function RegionGuidesPage({
       highlightText={regionName}
       subheading="Learn the Games, Strategy, and Local Know-How"
       paragraph={`<p>Step-by-step guides written for ${regionName} players — game rules, bankroll management, and how to spot a trustworthy operator.</p>`}
-      pageMenu={buildPageMenu(region, `${regionName} 2025`, "guides")}
+      pageMenu={buildPageMenu(region, regionMenuLabel(regionName), "guides")}
     />
   );
 

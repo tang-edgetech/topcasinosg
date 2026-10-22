@@ -16,14 +16,16 @@ func NewPaymentMethodRepo(db *sql.DB) *PaymentMethodRepo {
 	return &PaymentMethodRepo{db: db}
 }
 
-const paymentMethodColumns = `id, region_id, name, description, icon_media_id,
-	status, publish_at, created_by, created_at, updated_at`
+const paymentMethodColumns = `pm.id, pm.region_id, pm.name, pm.description, pm.icon_media_id,
+	pm.status, pm.publish_at, pm.created_by, pm.created_at, pm.updated_at, m.url`
+
+const paymentMethodFromClause = `payment_methods pm LEFT JOIN media m ON m.id = pm.icon_media_id`
 
 func scanPaymentMethod(row interface{ Scan(...any) error }) (*domain.PaymentMethod, error) {
 	var pm domain.PaymentMethod
 	if err := row.Scan(
 		&pm.ID, &pm.RegionID, &pm.Name, &pm.Description, &pm.IconMediaID,
-		&pm.Status, &pm.PublishAt, &pm.CreatedBy, &pm.CreatedAt, &pm.UpdatedAt,
+		&pm.Status, &pm.PublishAt, &pm.CreatedBy, &pm.CreatedAt, &pm.UpdatedAt, &pm.IconURL,
 	); err != nil {
 		return nil, err
 	}
@@ -54,7 +56,7 @@ func (r *PaymentMethodRepo) Update(ctx context.Context, pm *domain.PaymentMethod
 }
 
 func (r *PaymentMethodRepo) GetByID(ctx context.Context, id int64) (*domain.PaymentMethod, error) {
-	row := r.db.QueryRowContext(ctx, `SELECT `+paymentMethodColumns+` FROM payment_methods WHERE id = ?`, id)
+	row := r.db.QueryRowContext(ctx, `SELECT `+paymentMethodColumns+` FROM `+paymentMethodFromClause+` WHERE pm.id = ?`, id)
 	pm, err := scanPaymentMethod(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
@@ -65,17 +67,17 @@ func (r *PaymentMethodRepo) GetByID(ctx context.Context, id int64) (*domain.Paym
 func (r *PaymentMethodRepo) ListAdmin(ctx context.Context, regionID *int64, limit, offset int) ([]domain.PaymentMethod, int, error) {
 	where, args := "", []any{}
 	if regionID != nil {
-		where = "WHERE region_id = ?"
+		where = "WHERE pm.region_id = ?"
 		args = append(args, *regionID)
 	}
 
 	var total int
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM payment_methods `+where, args...).Scan(&total); err != nil {
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM payment_methods pm `+where, args...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT `+paymentMethodColumns+` FROM payment_methods `+where+` ORDER BY updated_at DESC LIMIT ? OFFSET ?`,
+		`SELECT `+paymentMethodColumns+` FROM `+paymentMethodFromClause+` `+where+` ORDER BY pm.updated_at DESC LIMIT ? OFFSET ?`,
 		append(args, limit, offset)...,
 	)
 	if err != nil {
@@ -97,14 +99,14 @@ func (r *PaymentMethodRepo) ListAdmin(ctx context.Context, regionID *int64, limi
 // ListPublished is the public website's read for /{region}/payment-methods.
 func (r *PaymentMethodRepo) ListPublished(ctx context.Context, regionCode string, limit, offset int) ([]domain.PaymentMethod, int, error) {
 	countQuery := `SELECT COUNT(*) FROM payment_methods pm JOIN regions rg ON rg.id = pm.region_id
-		WHERE rg.code = ? AND ` + EffectivelyPublishedSQL
+		WHERE rg.code = ? AND ` + EffectivelyPublishedSQLFor("pm")
 	var total int
 	if err := r.db.QueryRowContext(ctx, countQuery, regionCode).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
-	listQuery := `SELECT ` + prefixedPaymentMethodColumns + ` FROM payment_methods pm JOIN regions rg ON rg.id = pm.region_id
-		WHERE rg.code = ? AND ` + EffectivelyPublishedSQL + ` ORDER BY pm.created_at DESC LIMIT ? OFFSET ?`
+	listQuery := `SELECT ` + paymentMethodColumns + ` FROM ` + paymentMethodFromClause + ` JOIN regions rg ON rg.id = pm.region_id
+		WHERE rg.code = ? AND ` + EffectivelyPublishedSQLFor("pm") + ` ORDER BY pm.created_at DESC LIMIT ? OFFSET ?`
 	rows, err := r.db.QueryContext(ctx, listQuery, regionCode, limit, offset)
 	if err != nil {
 		return nil, 0, err
@@ -121,9 +123,6 @@ func (r *PaymentMethodRepo) ListPublished(ctx context.Context, regionCode string
 	}
 	return items, total, rows.Err()
 }
-
-const prefixedPaymentMethodColumns = `pm.id, pm.region_id, pm.name, pm.description, pm.icon_media_id,
-	pm.status, pm.publish_at, pm.created_by, pm.created_at, pm.updated_at`
 
 func (r *PaymentMethodRepo) SetStatus(ctx context.Context, id int64, status domain.ContentStatus, publishAt *string) error {
 	_, err := r.db.ExecContext(ctx, `UPDATE payment_methods SET status = ?, publish_at = ? WHERE id = ?`, status, publishAt, id)

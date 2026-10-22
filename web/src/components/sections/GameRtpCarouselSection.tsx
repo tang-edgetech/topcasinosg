@@ -1,20 +1,36 @@
 import type { CSSProperties } from "react";
 import Link from "next/link";
 import { field, itemIndexes, mediaUrl, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
+import { getAllCasinos, getRtpEntries, type RTPCategory } from "@/app/[region]/_lib/api";
+import HorizontalSlider from "@/components/HorizontalSlider";
+
+const DEFAULT_LIMIT = 10;
+const RTP_CATEGORIES: RTPCategory[] = ["slot", "table", "live", "other"];
+
+interface GameCard {
+  key: string | number;
+  image: string | null;
+  name: string;
+  provider: string;
+  rtp: string;
+  ctaUrl: string;
+  ctaLabel: string;
+}
 
 // Figma "Top High RTP Slot Games (Updated Weekly)" / "Table Games with
-// Consistently High RTP" pattern - a horizontally scrolling row of admin-
-// curated game cards (image, name, provider, RTP%, Visit Site link). Not
-// wired to domain.RTPEntry (gameName/category/rtpPercentage only, no
-// image/provider/link) since this is hand-curated marketing content, not a
-// straight data dump - same reasoning as ComparisonTableSection's rows.
-export default function GameRtpCarouselSection({ section }: { section: PageSection }) {
+// Consistently High RTP": a slider of game cards (image, name, provider,
+// RTP%, Visit Site) with See All + prev/next arrows in the heading row.
+// source "auto" (the default for new sections) reads published RTP Entries
+// for the region, highest RTP first, so editors maintain each game once in
+// the RTP Entries screen; the card links to the entry's casino. source
+// "manual" keeps hand-picked cards, where a picked casino supplies the link.
+export default async function GameRtpCarouselSection({ section, regionCode: pageRegionCode }: { section: PageSection; regionCode?: string }) {
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
   const seeAllUrl = field(section.fields, 0, "seeAllUrl")?.textValue ?? "";
-  const items = itemIndexes(section.fields);
   const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
+  const cards = await loadCards(section, pageRegionCode);
 
-  if (items.length === 0) return null;
+  if (cards.length === 0) return null;
 
   return (
     <section
@@ -22,58 +38,101 @@ export default function GameRtpCarouselSection({ section }: { section: PageSecti
       className={sectionClassName(hasBleedBg ? "section--game-rtp-carousel section--bg" : "section--game-rtp-carousel", section)}
       style={bgStyle as CSSProperties}
     >
-      <div className="section-container relative z-10 flex flex-col gap-4 py-8">
-        <div className="section-row flex items-center justify-between">
-          {heading && <h2 className="section-heading text-xl font-bold text-primary-900">{heading}</h2>}
-          {seeAllUrl && (
-            <Link href={seeAllUrl} className="cursor-pointer text-sm font-semibold text-secondary-600 hover:underline">
-              See All
-            </Link>
-          )}
-        </div>
+      <div className="section-container relative z-10 py-8">
         <div className="section-row">
-          <div className="game-rtp-carousel__track flex gap-4 overflow-x-auto pb-1">
-            {items.map((itemIndex) => {
-              const image = mediaUrl(field(section.fields, itemIndex, "image")?.mediaUrl);
-              const name = field(section.fields, itemIndex, "name")?.textValue ?? "";
-              const provider = field(section.fields, itemIndex, "provider")?.textValue ?? "";
-              const rtp = field(section.fields, itemIndex, "rtp")?.textValue ?? "";
-              const ctaUrl = field(section.fields, itemIndex, "ctaUrl")?.textValue ?? "";
-              const ctaLabel = field(section.fields, itemIndex, "ctaLabel")?.textValue || "Visit Site";
-
-              return (
-                <div
-                  key={itemIndex}
-                  className="game-rtp-carousel__card flex w-40 shrink-0 flex-col overflow-hidden rounded-lg border border-primary-100 bg-surface shadow-sm"
+          <div className="section-col">
+            <HorizontalSlider
+              label={heading}
+              showArrows
+              header={
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  {heading && <h2 className="section-heading text-2xl font-bold text-primary-900">{heading}</h2>}
+                  {seeAllUrl && (
+                    <Link
+                      href={seeAllUrl}
+                      className="cursor-pointer rounded border border-primary-100 bg-surface px-6 py-1.5 text-sm text-primary-600 hover:text-primary-900"
+                    >
+                      See All
+                    </Link>
+                  )}
+                </div>
+              }
+            >
+              {cards.map((card) => (
+                <article
+                  key={card.key}
+                  className="game-rtp-carousel__card flex w-[190px] shrink-0 snap-start flex-col overflow-hidden rounded-lg border-2 border-white bg-white shadow-sm"
                 >
-                  {image ? (
+                  {card.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={image} alt="" className="h-28 w-full object-cover" />
+                    <img loading="lazy" decoding="async" src={card.image} alt="" className="h-[130px] w-full object-cover" />
                   ) : (
                     <div
                       aria-hidden="true"
-                      className="h-28 w-full bg-[repeating-conic-gradient(#e5e7eb_0%_25%,transparent_0%_50%)] bg-[length:16px_16px]"
+                      className="h-[130px] w-full bg-[repeating-conic-gradient(#e5e7eb_0%_25%,transparent_0%_50%)] bg-[length:16px_16px]"
                     />
                   )}
-                  <div className="flex flex-1 flex-col gap-1 p-3">
-                    {name && <span className="text-sm font-semibold text-primary-900">{name}</span>}
-                    {provider && <span className="text-xs text-primary-500">by {provider}</span>}
-                    {rtp && <span className="text-lg font-bold text-primary-900">{rtp}</span>}
-                    {ctaUrl && (
-                      <Link
-                        href={ctaUrl}
-                        className="mt-auto cursor-pointer rounded-md bg-primary-900 px-3 py-1.5 text-center text-xs font-semibold text-white hover:bg-primary-800"
+                  <div className="flex flex-1 flex-col gap-0.5 px-2 pt-2 pb-2">
+                    {card.name && <span className="truncate text-sm font-semibold text-primary-900">{card.name}</span>}
+                    {card.provider && <span className="text-[10px] text-primary-500">by {card.provider}</span>}
+                    {card.rtp && <span className="text-2xl font-bold text-primary-900">{card.rtp}</span>}
+                    {card.ctaUrl && (
+                      <a
+                        href={card.ctaUrl}
+                        target="_blank"
+                        rel="noopener noreferrer sponsored"
+                        className="mt-1 cursor-pointer rounded bg-primary-900 px-3 py-1.5 text-center text-sm font-semibold text-white hover:bg-primary-800"
                       >
-                        {ctaLabel}
-                      </Link>
+                        {card.ctaLabel}
+                      </a>
                     )}
                   </div>
-                </div>
-              );
-            })}
+                </article>
+              ))}
+            </HorizontalSlider>
           </div>
         </div>
       </div>
     </section>
   );
+}
+
+async function loadCards(section: PageSection, pageRegionCode: string | undefined): Promise<GameCard[]> {
+  const text = (itemIndex: number, key: string) => field(section.fields, itemIndex, key)?.textValue ?? "";
+  const ctaLabel = text(0, "ctaLabel") || "Visit Site";
+
+  if ((text(0, "source") || "manual") === "auto") {
+    const regionCode = text(0, "regionCode") || pageRegionCode;
+    if (!regionCode) return [];
+    const categories = text(0, "category")
+      .split(",")
+      .map((c) => c.trim())
+      .filter((c): c is RTPCategory => RTP_CATEGORIES.includes(c as RTPCategory));
+    const limit = Number(text(0, "limit")) || DEFAULT_LIMIT;
+    const entries = await getRtpEntries(regionCode, categories, limit);
+    return entries.map((entry) => ({
+      key: entry.id,
+      image: mediaUrl(entry.imageUrl),
+      name: entry.gameName,
+      provider: entry.gameProviderName ?? "",
+      rtp: `${entry.rtpPercentage.toFixed(2)}%`,
+      ctaUrl: entry.casinoCtaUrl ?? "",
+      ctaLabel,
+    }));
+  }
+
+  const items = itemIndexes(section.fields);
+  const needsCasinos = items.some((i) => text(i, "casinoId"));
+  const casinos = needsCasinos ? await getAllCasinos() : [];
+  const casinoById = new Map(casinos.map((c) => [String(c.id), c]));
+
+  return items.map((itemIndex) => ({
+    key: itemIndex,
+    image: mediaUrl(field(section.fields, itemIndex, "image")?.mediaUrl),
+    name: text(itemIndex, "name"),
+    provider: text(itemIndex, "provider"),
+    rtp: text(itemIndex, "rtp"),
+    ctaUrl: text(itemIndex, "ctaUrl") || casinoById.get(text(itemIndex, "casinoId"))?.ctaUrl || "",
+    ctaLabel: text(itemIndex, "ctaLabel") || ctaLabel,
+  }));
 }

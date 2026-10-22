@@ -50,7 +50,13 @@ export type PageBlockType =
   | "feature_cards"
   | "checklist_callout"
   | "game_rtp_carousel"
-  | "highlight_panel";
+  | "highlight_panel"
+  | "link_card_grid"
+  | "top_bonus_picks"
+  | "expandable_card_grid"
+  | "review_columns"
+  | "cta_link_list"
+  | "info_card_columns";
 
 export interface PageSection {
   id: number;

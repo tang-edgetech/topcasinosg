@@ -38,6 +38,11 @@ export interface SiteSettingsDTO {
   logoUrl: string | null;
   faviconUrl: string | null;
   twoFactorEnabled: boolean;
+  footerDescription: string;
+  contactAddress: string;
+  contactEmail: string;
+  facebookUrl: string;
+  skypeUrl: string;
 }
 
 export type MediaKind = "image" | "document" | "audio" | "video";
@@ -130,6 +135,9 @@ export interface CasinoDTO {
   supportedGames: GameType[] | null;
   payoutSpeed: string;
   ctaUrl: string;
+  rtpPercentage: number | null;
+  cryptoSupported: boolean;
+  localBankingSpeed: string;
   status: ContentStatus;
   publishAt: string | null;
   regionIds: number[] | null;
@@ -152,6 +160,15 @@ export interface BonusDTO {
   code: string | null;
   validFrom: string | null;
   validUntil: string | null;
+  turnoverRequirement: string;
+  maxClaim: string;
+  withdrawalLimit: string;
+  minDeposit: string;
+  paymentFrequency: string;
+  upgradeBonus: string;
+  maxRebate: string;
+  perks: string;
+  eligibleProviderId: number | null;
   status: ContentStatus;
   publishAt: string | null;
   createdAt: string;
@@ -164,6 +181,7 @@ export interface PaymentMethodDTO {
   name: string;
   description: string;
   iconMediaId: number | null;
+  iconUrl: string | null;
   status: ContentStatus;
   publishAt: string | null;
   createdAt: string;
@@ -176,6 +194,8 @@ export interface RTPEntryDTO {
   id: number;
   regionId: number;
   casinoId: number | null;
+  gameProviderId: number | null;
+  imageMediaId: number | null;
   gameName: string;
   category: RTPCategory;
   rtpPercentage: number;
@@ -183,6 +203,11 @@ export interface RTPEntryDTO {
   publishAt: string | null;
   createdAt: string;
   updatedAt: string;
+  gameProviderName: string | null;
+  imageUrl: string | null;
+  casinoName: string | null;
+  casinoSlug: string | null;
+  casinoCtaUrl: string | null;
 }
 
 export interface GuideDTO {
@@ -203,7 +228,11 @@ export interface BlacklistEntryDTO {
   id: number;
   regionId: number | null;
   name: string;
+  logoMediaId: number | null;
+  logoUrl: string | null;
+  rating: number | null;
   reason: string;
+  reasons: string[] | null;
   details: string;
   status: ContentStatus;
   publishAt: string | null;
@@ -346,7 +375,13 @@ export type PageBlockType =
   | "feature_cards"
   | "checklist_callout"
   | "game_rtp_carousel"
-  | "highlight_panel";
+  | "highlight_panel"
+  | "link_card_grid"
+  | "top_bonus_picks"
+  | "expandable_card_grid"
+  | "review_columns"
+  | "cta_link_list"
+  | "info_card_columns";
 
 export interface PageSectionDTO {
   id: number;
