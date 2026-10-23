@@ -11,10 +11,13 @@ import IconButton from "@/components/IconButton";
 import { IconEdit, IconPlus, IconTrash } from "@/components/Icons";
 import StatusBadge from "@/components/content/StatusBadge";
 import PublishControl from "@/components/content/PublishControl";
-import StatusFilter, { type StatusFilterValue } from "@/components/content/StatusFilter";
+import ListToolbar from "@/components/content/ListToolbar";
+import { useListView } from "@/lib/useListView";
+import { statusFilter, presenceFilter } from "@/lib/listFilters";
 import BulkActionBar from "@/components/content/BulkActionBar";
 import { runBulkAction, bulkResultMessage } from "@/lib/bulk";
-import { CLIENT_TABLE_PAGINATION, FETCH_ALL_PAGE_SIZE } from "@/lib/pagination";
+import { FETCH_ALL_PAGE_SIZE } from "@/lib/pagination";
+import PageHeading from "@/components/PageHeading";
 
 export default function NewsPage() {
   const { user } = useAuth();
@@ -23,7 +26,6 @@ export default function NewsPage() {
   const router = useRouter();
   const [articles, setArticles] = useState<NewsArticleDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("all");
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   async function load() {
@@ -45,9 +47,18 @@ export default function NewsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const { filtered, pagination, toolbar } = useListView<NewsArticleDTO>({
+    storageKey: "news",
+    items: articles,
+    searchText: (a) => `${a.title} ${a.slug}`,
+    filters: [
+        statusFilter<NewsArticleDTO>(),
+        presenceFilter<NewsArticleDTO>("cover", "Cover: any", ["Has cover", "Missing cover"], (a) => Boolean(a.coverMediaId)),
+      ],
+  });
+
   if (!user) return null;
 
-  const filtered = statusFilter === "all" ? articles : articles.filter((a) => a.status === statusFilter);
   const selectedArticles = articles.filter((a) => selectedRowKeys.includes(a.id));
 
   async function handleSetStatus(article: NewsArticleDTO, status: string, publishAt: string | null) {
@@ -105,12 +116,12 @@ export default function NewsPage() {
   return (
     <section id="news-page" className="news-page flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-text dark:text-text-dark">News</h1>
+        <PageHeading title="News" help="news" />
         <IconButton id="news-add-button" title="Add News Article" onClick={() => router.push("/dashboard/news/new")} icon={<IconPlus />} />
       </div>
 
       <div className="flex items-center gap-3">
-        <StatusFilter id="news-status-filter" value={statusFilter} onChange={setStatusFilter} />
+        <ListToolbar id="news-toolbar" searchPlaceholder="Search news by title or slug" {...toolbar} />
       </div>
 
       <BulkActionBar
@@ -128,7 +139,7 @@ export default function NewsPage() {
         rowKey="id"
         loading={loading}
         dataSource={filtered}
-        pagination={CLIENT_TABLE_PAGINATION}
+        pagination={pagination}
         rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys }}
         columns={[
           { title: "Title", dataIndex: "title", key: "title", sorter: (a, b) => a.title.localeCompare(b.title) },

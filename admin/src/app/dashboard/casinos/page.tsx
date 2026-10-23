@@ -11,10 +11,13 @@ import IconButton from "@/components/IconButton";
 import { IconEdit, IconPlus, IconTrash } from "@/components/Icons";
 import StatusBadge from "@/components/content/StatusBadge";
 import PublishControl from "@/components/content/PublishControl";
-import StatusFilter, { type StatusFilterValue } from "@/components/content/StatusFilter";
+import ListToolbar from "@/components/content/ListToolbar";
+import { useListView } from "@/lib/useListView";
+import { statusFilter, regionFilter, optionFilter, titledOptions, presenceFilter } from "@/lib/listFilters";
 import BulkActionBar from "@/components/content/BulkActionBar";
 import { runBulkAction, bulkResultMessage } from "@/lib/bulk";
-import { CLIENT_TABLE_PAGINATION, FETCH_ALL_PAGE_SIZE } from "@/lib/pagination";
+import { FETCH_ALL_PAGE_SIZE } from "@/lib/pagination";
+import PageHeading from "@/components/PageHeading";
 
 export default function CasinosPage() {
   const { user } = useAuth();
@@ -24,7 +27,6 @@ export default function CasinosPage() {
   const [casinos, setCasinos] = useState<CasinoDTO[]>([]);
   const [regions, setRegions] = useState<RegionDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("all");
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   async function load() {
@@ -48,9 +50,20 @@ export default function CasinosPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const { filtered, pagination, toolbar } = useListView<CasinoDTO>({
+    storageKey: "casinos",
+    items: casinos,
+    searchText: (c) => `${c.name} ${c.slug}`,
+    filters: [
+        statusFilter<CasinoDTO>(),
+        regionFilter<CasinoDTO>(regions, (c) => c.regionIds ?? []),
+        optionFilter<CasinoDTO>("risk", "Any risk level", titledOptions(["low", "medium", "high"]), (c) => c.riskStatus),
+        presenceFilter<CasinoDTO>("logo", "Logo: any", ["Has logo", "Missing logo"], (c) => Boolean(c.logoUrl)),
+      ],
+  });
+
   if (!user) return null;
 
-  const filtered = statusFilter === "all" ? casinos : casinos.filter((c) => c.status === statusFilter);
   const selectedCasinos = casinos.filter((c) => selectedRowKeys.includes(c.id));
 
   async function handleSetStatus(casino: CasinoDTO, status: string, publishAt: string | null) {
@@ -110,12 +123,12 @@ export default function CasinosPage() {
   return (
     <section id="casinos-page" className="casinos-page flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-text dark:text-text-dark">Casinos</h1>
+        <PageHeading title="Casinos" help="casinos" />
         <IconButton id="casinos-add-button" title="Add Casino" onClick={() => router.push("/dashboard/casinos/new")} icon={<IconPlus />} />
       </div>
 
       <div className="flex items-center gap-3">
-        <StatusFilter id="casinos-status-filter" value={statusFilter} onChange={setStatusFilter} />
+        <ListToolbar id="casinos-toolbar" searchPlaceholder="Search casinos by name or slug" {...toolbar} />
       </div>
 
       <BulkActionBar
@@ -133,7 +146,7 @@ export default function CasinosPage() {
         rowKey="id"
         loading={loading}
         dataSource={filtered}
-        pagination={CLIENT_TABLE_PAGINATION}
+        pagination={pagination}
         rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys }}
         columns={[
           { title: "Name", dataIndex: "name", key: "name", sorter: (a, b) => a.name.localeCompare(b.name) },

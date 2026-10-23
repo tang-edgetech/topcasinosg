@@ -34,22 +34,17 @@ export const BLOCK_TYPE_LABELS: Record<PageBlockType, string> = {
   hero: "Hero Banner",
   rich_text: "Rich Text",
   icon_box_group: "Icon Box Group",
-  image_gallery: "Image Gallery",
-  cta: "Call To Action",
   logo_strip: "Logo Strip (Acknowledgement)",
   stats_counter: "Stats Counter (Track Record)",
   faq: "FAQ",
   bonus_calculator: "Bonus Calculator",
-  bonus_listing_table: "Bonus Listing Table",
   team_grid: "Team Grid",
   top_casinos_by_region: "Top Casinos By Region",
   blacklist_preview: "Blacklist Preview",
   content_carousel: "Content Carousel (Guides/News)",
   region_explorer: "Region Explorer",
-  casino_comparison_table: "Casino Comparison Table",
   event_highlights: "Event Highlights",
   introduction_section: "Introduction Section",
-  comparison_table: "Comparison Table",
   numbered_steps: "Numbered Steps",
   feature_cards: "Feature Cards",
   checklist_callout: "Checklist Callout",
@@ -61,8 +56,9 @@ export const BLOCK_TYPE_LABELS: Record<PageBlockType, string> = {
   review_columns: "Player Reviews (Positive / Complaints)",
   cta_link_list: "Link Button List",
   info_card_columns: "Info Card Columns",
-  casino_list_table: "Casino List Table",
   game_casino_finder: "Game Casino Finder",
+  two_column_table: "Two-Column Table",
+  data_table: "Data Table",
 };
 
 const BONUS_TYPE_OPTIONS = [
@@ -178,25 +174,6 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
         textField(0, "bgTo", "surface-muted", 13),
         blankField(0, "bgImage", "image", 14),
       ];
-    case "image_gallery":
-      return [
-        blankField(0, "heading", "text", 1),
-        textField(0, "bgType", "none", 2),
-        textField(0, "bgFrom", "primary-900", 3),
-        textField(0, "bgTo", "primary-glow", 4),
-        blankField(0, "bgImage", "image", 5),
-      ];
-    case "cta":
-      return [
-        blankField(0, "heading", "text", 1),
-        blankField(0, "body", "richtext", 2),
-        blankField(0, "button", "button", 3),
-        textField(0, "buttonStyle", "white", 4),
-        textField(0, "bgType", "color", 5),
-        textField(0, "bgFrom", "primary-900", 6),
-        textField(0, "bgTo", "primary-glow", 7),
-        blankField(0, "bgImage", "image", 8),
-      ];
     case "logo_strip":
       return [
         blankField(0, "heading", "text", 1),
@@ -230,17 +207,6 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
         textField(0, "bgFrom", "primary-900", 5),
         textField(0, "bgTo", "primary-glow", 6),
         blankField(0, "bgImage", "image", 7),
-      ];
-    case "bonus_listing_table":
-      return [
-        blankField(0, "heading", "text", 1),
-        blankField(0, "regionCode", "text", 2),
-        textField(0, "bonusType", "welcome", 3),
-        textField(0, "limit", "5", 4),
-        textField(0, "bgType", "none", 5),
-        textField(0, "bgFrom", "primary-900", 6),
-        textField(0, "bgTo", "primary-glow", 7),
-        blankField(0, "bgImage", "image", 8),
       ];
     case "team_grid":
       return [
@@ -293,16 +259,6 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
         textField(0, "bgTo", "primary-glow", 4),
         blankField(0, "bgImage", "image", 5),
       ];
-    case "casino_comparison_table":
-      return [
-        blankField(0, "heading", "text", 1),
-        blankField(0, "regionCode", "text", 2),
-        textField(0, "limit", "5", 3),
-        textField(0, "bgType", "none", 4),
-        textField(0, "bgFrom", "primary-900", 5),
-        textField(0, "bgTo", "primary-glow", 6),
-        blankField(0, "bgImage", "image", 7),
-      ];
     case "event_highlights":
       return [
         blankField(0, "heading", "text", 1),
@@ -319,20 +275,6 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
         blankField(0, "paragraph", "richtext", 4),
         textField(0, "bgFrom", "primary-900", 5),
         textField(0, "bgTo", "primary-glow", 6),
-      ];
-    case "comparison_table":
-      return [
-        blankField(0, "heading", "text", 1),
-        blankField(0, "intro", "richtext", 2),
-        blankField(0, "tipHeading", "text", 3),
-        blankField(0, "tipBody", "richtext", 4),
-        blankField(0, "recommendation", "richtext", 5),
-        textField(0, "bgType", "none", 6),
-        textField(0, "bgFrom", "primary-900", 7),
-        textField(0, "bgTo", "primary-glow", 8),
-        blankField(0, "bgImage", "image", 9),
-        textField(0, "source", "casinos", 30),
-        textField(0, "limit", "5", 31),
       ];
     case "numbered_steps":
       return [
@@ -453,12 +395,21 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
         textField(0, "bgTo", "primary-glow", 5),
         blankField(0, "bgImage", "image", 6),
       ];
-    case "casino_list_table":
+    case "data_table":
       return [
         blankField(0, "heading", "text", 1),
         blankField(0, "intro", "richtext", 2),
-        blankField(0, "regionCode", "text", 3),
-        textField(0, "limit", "10", 4),
+        textField(0, "source", "casinos", 3),
+        blankField(0, "regionCode", "text", 4),
+        textField(0, "limit", "10", 5),
+      ];
+    case "two_column_table":
+      return [
+        blankField(0, "heading", "text", 1),
+        blankField(0, "intro", "richtext", 2),
+        textField(0, "headerLeft", "Term", 3),
+        textField(0, "headerRight", "Simple Explanation", 4),
+        blankField(0, "outro", "richtext", 5),
       ];
     case "game_casino_finder":
       return [
@@ -738,10 +689,6 @@ export default function BlockFieldEditor({ blockType, fields, onChange }: BlockF
       return <RichTextBlockFields fields={fields} onChange={onChange} />;
     case "icon_box_group":
       return <IconBoxGroupFields fields={fields} onChange={onChange} />;
-    case "image_gallery":
-      return <ImageGalleryFields fields={fields} onChange={onChange} />;
-    case "cta":
-      return <CTAFields fields={fields} onChange={onChange} />;
     case "logo_strip":
       return <LogoStripFields fields={fields} onChange={onChange} />;
     case "stats_counter":
@@ -750,8 +697,6 @@ export default function BlockFieldEditor({ blockType, fields, onChange }: BlockF
       return <FaqFields fields={fields} onChange={onChange} />;
     case "bonus_calculator":
       return <BonusCalculatorFields fields={fields} onChange={onChange} />;
-    case "bonus_listing_table":
-      return <BonusListingTableFields fields={fields} onChange={onChange} />;
     case "team_grid":
       return <TeamGridFields fields={fields} onChange={onChange} />;
     case "top_casinos_by_region":
@@ -762,14 +707,10 @@ export default function BlockFieldEditor({ blockType, fields, onChange }: BlockF
       return <ContentCarouselFields fields={fields} onChange={onChange} />;
     case "region_explorer":
       return <RegionExplorerFields fields={fields} onChange={onChange} />;
-    case "casino_comparison_table":
-      return <CasinoComparisonTableFields fields={fields} onChange={onChange} />;
     case "event_highlights":
       return <EventHighlightsFields fields={fields} onChange={onChange} />;
     case "introduction_section":
       return <IntroductionSectionFields fields={fields} onChange={onChange} />;
-    case "comparison_table":
-      return <ComparisonTableFields fields={fields} onChange={onChange} />;
     case "numbered_steps":
       return <NumberedStepsFields fields={fields} onChange={onChange} />;
     case "feature_cards":
@@ -792,10 +733,12 @@ export default function BlockFieldEditor({ blockType, fields, onChange }: BlockF
       return <CtaLinkListFields fields={fields} onChange={onChange} />;
     case "info_card_columns":
       return <InfoCardColumnsFields fields={fields} onChange={onChange} />;
-    case "casino_list_table":
-      return <CasinoListTableFields fields={fields} onChange={onChange} />;
     case "game_casino_finder":
       return <GameCasinoFinderFields fields={fields} onChange={onChange} />;
+    case "two_column_table":
+      return <TwoColumnTableFields fields={fields} onChange={onChange} />;
+    case "data_table":
+      return <DataTableFields fields={fields} onChange={onChange} />;
   }
 }
 
@@ -889,54 +832,6 @@ function RichTextBlockFields({ fields, onChange }: { fields: EditableField[]; on
         </LabeledField>
       )}
       <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 4, bgFrom: 5, bgTo: 6, bgImage: 7 }} />
-    </div>
-  );
-}
-
-function CTAFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
-  const heading = getField(fields, 0, "heading");
-  const body = getField(fields, 0, "body");
-  const button = getField(fields, 0, "button");
-  const buttonStyle = getField(fields, 0, "buttonStyle");
-  return (
-    <div className="flex flex-col gap-4">
-      <TextInputField
-        label="Heading"
-        value={heading?.textValue ?? ""}
-        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
-      />
-      <RichTextField
-        label="Text"
-        value={body?.textValue ?? ""}
-        onChange={(v) => onChange(upsertField(fields, 0, "body", "richtext", 2, { textValue: v }))}
-      />
-      <ButtonField
-        label="Button"
-        textValue={button?.textValue ?? ""}
-        urlValue={button?.urlValue ?? ""}
-        styleValue={buttonStyle?.textValue ?? "white"}
-        onChange={(patch) =>
-          onChange(
-            applyButtonFieldPatch(
-              fields,
-              0,
-              "button",
-              "buttonStyle",
-              3,
-              { textValue: button?.textValue ?? "", urlValue: button?.urlValue ?? "", styleValue: buttonStyle?.textValue ?? "white" },
-              patch
-            )
-          )
-        }
-      />
-      <SectionBackgroundFields
-        fields={fields}
-        onChange={onChange}
-        sortOrders={{ bgType: 5, bgFrom: 6, bgTo: 7, bgImage: 8 }}
-        defaultBgType="color"
-        defaultBgFrom="primary-900"
-        defaultBgTo="primary-glow"
-      />
     </div>
   );
 }
@@ -1091,77 +986,6 @@ function IconBoxGroupFields({ fields, onChange }: { fields: EditableField[]; onC
       >
         <IconPlus width={14} height={14} />
         Add Box
-      </button>
-    </div>
-  );
-}
-
-function ImageGalleryFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
-  const heading = getField(fields, 0, "heading");
-  const items = itemIndexes(fields);
-
-  function addImage() {
-    const idx = nextItemIndex(fields);
-    onChange([...fields, blankField(idx, "image", "image", 1), blankField(idx, "caption", "text", 2)]);
-  }
-
-  function removeImage(itemIndex: number) {
-    onChange(fields.filter((f) => f.itemIndex !== itemIndex));
-  }
-
-  return (
-    <div className="flex flex-col gap-4">
-      <TextInputField
-        label="Section Heading (optional)"
-        value={heading?.textValue ?? ""}
-        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
-      />
-      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 2, bgFrom: 3, bgTo: 4, bgImage: 5 }} />
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {items.map((itemIndex) => {
-          const image = getField(fields, itemIndex, "image");
-          const caption = getField(fields, itemIndex, "caption");
-          return (
-            <div
-              key={itemIndex}
-              className="gallery-item flex flex-col gap-2 rounded-md border border-border p-3 dark:border-border-dark"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-text-muted uppercase dark:text-text-muted-dark">
-                  Image {itemIndex}
-                </span>
-                <IconButton
-                  id={`gallery-image-${itemIndex}-remove`}
-                  title="Remove Image"
-                  onClick={() => removeImage(itemIndex)}
-                  icon={<IconTrash width={14} height={14} />}
-                  variant="danger"
-                />
-              </div>
-              <ImagePickerField
-                label="Image"
-                mediaId={image?.mediaId ?? null}
-                mediaUrl={image?.mediaUrl ?? null}
-                onChange={(mediaId, mediaUrl) => onChange(upsertField(fields, itemIndex, "image", "image", 1, { mediaId, mediaUrl }))}
-              />
-              <TextInputField
-                label="Caption (optional)"
-                value={caption?.textValue ?? ""}
-                onChange={(v) => onChange(upsertField(fields, itemIndex, "caption", "text", 2, { textValue: v }))}
-              />
-            </div>
-          );
-        })}
-      </div>
-
-      <button
-        type="button"
-        onClick={addImage}
-        className="flex w-fit cursor-pointer items-center gap-2 rounded-md border border-dashed border-primary-300 px-3 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50"
-      >
-        <IconPlus width={14} height={14} />
-        Add Image
       </button>
     </div>
   );
@@ -1486,58 +1310,6 @@ function BonusCalculatorFields({ fields, onChange }: { fields: EditableField[]; 
   );
 }
 
-// Live data block — no static copy beyond the heading. Pulls published
-// Bonus rows matching regionCode + bonusType at render time on the web side
-// (web/src/components/sections/BonusListingTableSection.tsx), rather than
-// storing bonus data on the page itself.
-function BonusListingTableFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
-  const heading = getField(fields, 0, "heading");
-  const regionCode = getField(fields, 0, "regionCode");
-  const bonusType = getField(fields, 0, "bonusType")?.textValue || "welcome";
-  const limit = getField(fields, 0, "limit");
-
-  return (
-    <div className="flex flex-col gap-4">
-      <TextInputField
-        label="Heading"
-        value={heading?.textValue ?? ""}
-        placeholder="Latest Welcome Bonuses"
-        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
-      />
-      <RichTextField
-        label="Intro (optional)"
-        value={getField(fields, 0, "intro")?.textValue ?? ""}
-        onChange={(v) => onChange(upsertField(fields, 0, "intro", "richtext", 9, { textValue: v }))}
-      />
-      <LabeledField label="Table Columns">
-        <Select
-          value={getField(fields, 0, "columnsMode")?.textValue || "simple"}
-          onChange={(v) => onChange(upsertField(fields, 0, "columnsMode", "text", 10, { textValue: v }))}
-          options={[
-            { value: "simple", label: "Simple — Brand / Bonus Details / Claim" },
-            { value: "typed", label: "Typed — this bonus type's comparison columns" },
-          ]}
-        />
-      </LabeledField>
-      <RegionCodeField
-        label="Region Code"
-        value={regionCode?.textValue ?? ""}
-        emptyLabel="This page's region (automatic)"
-        onChange={(v) => onChange(upsertField(fields, 0, "regionCode", "text", 2, { textValue: v }))}
-      />
-      <LabeledField label="Bonus Type">
-        <Select value={bonusType} onChange={(v) => onChange(upsertField(fields, 0, "bonusType", "text", 3, { textValue: v }))} options={BONUS_TYPE_OPTIONS} />
-      </LabeledField>
-      <TextInputField
-        label="Max Rows"
-        value={limit?.textValue ?? "5"}
-        onChange={(v) => onChange(upsertField(fields, 0, "limit", "text", 4, { textValue: v }))}
-      />
-      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 5, bgFrom: 6, bgTo: 7, bgImage: 8 }} />
-    </div>
-  );
-}
-
 function TeamGridFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
   const heading = getField(fields, 0, "heading");
   const items = itemIndexes(fields);
@@ -1844,44 +1616,6 @@ function RegionExplorerFields({ fields, onChange }: { fields: EditableField[]; o
   );
 }
 
-// Live data block — no per-item admin content. The web renderer fetches
-// that region's casinos (GET /api/casinos?region=X, already sorted by
-// rating desc) and shows Brand/Bonus/Payment Methods/Payout Speed/Rating
-// for the top `limit` — no per-casino admin curation needed since it's
-// always the region's own ranked list.
-function CasinoComparisonTableFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
-  const heading = getField(fields, 0, "heading");
-  const regionCode = getField(fields, 0, "regionCode");
-  const limit = getField(fields, 0, "limit");
-
-  return (
-    <div className="flex flex-col gap-4">
-      <TextInputField
-        label="Heading"
-        value={heading?.textValue ?? ""}
-        placeholder="Comparison of Thailand Online Casino Ratings"
-        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
-      />
-      <RichTextField
-        label="Intro (optional)"
-        value={getField(fields, 0, "intro")?.textValue ?? ""}
-        onChange={(v) => onChange(upsertField(fields, 0, "intro", "richtext", 8, { textValue: v }))}
-      />
-      <RegionCodeField
-        label="Region Code"
-        value={regionCode?.textValue ?? ""}
-        onChange={(v) => onChange(upsertField(fields, 0, "regionCode", "text", 2, { textValue: v }))}
-      />
-      <TextInputField
-        label="Max Rows"
-        value={limit?.textValue ?? "5"}
-        onChange={(v) => onChange(upsertField(fields, 0, "limit", "text", 3, { textValue: v }))}
-      />
-      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 4, bgFrom: 5, bgTo: 6, bgImage: 7 }} />
-    </div>
-  );
-}
-
 // Admin-authored promo banner cards. Picking a Casino fills the brand name,
 // Visit Site link and More Info link on the website; the typed fields only
 // override those.
@@ -2128,262 +1862,6 @@ function IntroductionSectionFields({ fields, onChange }: { fields: EditableField
           Add Menu Item
         </button>
       </div>
-    </div>
-  );
-}
-
-// Columns 1-3 keep their original field keys (label/options/processingTime)
-// so table data seeded before columns became configurable still edits
-// unchanged; only their header labels are editable. Columns 4-6 are purely
-// admin-added extras (col4..col6) for comparing more brands/attributes as
-// more data comes in - see ComparisonTableSection.tsx on the web side for
-// the matching render logic.
-const COMPARISON_BASE_COLUMNS = [
-  { key: "label", labelField: "col1Label", placeholder: "Brand" },
-  { key: "options", labelField: "col2Label", placeholder: "Options" },
-  { key: "processingTime", labelField: "col3Label", placeholder: "Processing Time" },
-] as const;
-const COMPARISON_EXTRA_COLUMN_NUMBERS = [4, 5, 6] as const;
-const COMPARISON_OPTION_ICON_COUNT = 5;
-
-function ComparisonTableFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
-  const heading = getField(fields, 0, "heading");
-  const intro = getField(fields, 0, "intro");
-  const tipHeading = getField(fields, 0, "tipHeading");
-  const tipBody = getField(fields, 0, "tipBody");
-  const recommendation = getField(fields, 0, "recommendation");
-  const source = getField(fields, 0, "source")?.textValue || "manual";
-  const items = itemIndexes(fields);
-  const extraColumns = COMPARISON_EXTRA_COLUMN_NUMBERS.filter((n) => getField(fields, 0, `col${n}Label`)?.textValue);
-
-  function addRow() {
-    const idx = nextItemIndex(fields);
-    onChange([
-      ...fields,
-      blankField(idx, "brandName", "text", 1),
-      blankField(idx, "logo", "image", 2),
-      blankField(idx, "processingTime", "text", 3),
-    ]);
-  }
-
-  function addColumn() {
-    const nextN = COMPARISON_EXTRA_COLUMN_NUMBERS.find((n) => !getField(fields, 0, `col${n}Label`)?.textValue);
-    if (!nextN) return;
-    onChange(upsertField(fields, 0, `col${nextN}Label`, "text", 20 + nextN, { textValue: `Column ${nextN}` }));
-  }
-
-  function removeColumn(n: number) {
-    onChange(
-      fields.filter((f) => !(f.itemIndex === 0 && f.fieldKey === `col${n}Label`) && !(f.itemIndex > 0 && f.fieldKey === `col${n}`))
-    );
-  }
-
-  function removeRow(itemIndex: number) {
-    onChange(fields.filter((f) => f.itemIndex !== itemIndex));
-  }
-
-  return (
-    <div className="flex flex-col gap-4">
-      <TextInputField
-        label="Section Heading"
-        value={heading?.textValue ?? ""}
-        placeholder="Fees, Processing Time & Limits"
-        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
-      />
-      <RichTextField
-        label="Intro (optional)"
-        value={intro?.textValue ?? ""}
-        onChange={(v) => onChange(upsertField(fields, 0, "intro", "richtext", 2, { textValue: v }))}
-      />
-      <TextInputField
-        label="Tips Box Heading (optional)"
-        value={tipHeading?.textValue ?? ""}
-        placeholder="Use this table to:"
-        onChange={(v) => onChange(upsertField(fields, 0, "tipHeading", "text", 3, { textValue: v }))}
-      />
-      <RichTextField
-        label="Tips Box Body (optional)"
-        value={tipBody?.textValue ?? ""}
-        onChange={(v) => onChange(upsertField(fields, 0, "tipBody", "richtext", 4, { textValue: v }))}
-      />
-      <RichTextField
-        label="Recommendation Box (optional)"
-        value={recommendation?.textValue ?? ""}
-        onChange={(v) => onChange(upsertField(fields, 0, "recommendation", "richtext", 5, { textValue: v }))}
-      />
-      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 6, bgFrom: 7, bgTo: 8, bgImage: 9 }} />
-
-      <SourceChoiceField
-        value={source}
-        onChange={(v) => onChange(upsertField(fields, 0, "source", "text", 30, { textValue: v }))}
-        options={[
-          { value: "casinos", label: "Automatic from Casinos", hint: "Recommended — rows update themselves" },
-          { value: "manual", label: "Type rows by hand", hint: "For a one-off comparison" },
-        ]}
-      />
-      {source === "casinos" && (
-        <div className="flex flex-col gap-4 rounded-md border border-border bg-surface-muted p-4 dark:border-border-dark dark:bg-surface-muted-dark">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <RegionCodeField
-              label="Region"
-              value={getField(fields, 0, "regionCode")?.textValue ?? ""}
-              emptyLabel="This page's region (automatic)"
-              onChange={(v) => onChange(upsertField(fields, 0, "regionCode", "text", 32, { textValue: v }))}
-            />
-            <TextInputField
-              label="Number of casinos"
-              value={getField(fields, 0, "limit")?.textValue || "5"}
-              onChange={(v) => onChange(upsertField(fields, 0, "limit", "text", 31, { textValue: v }))}
-            />
-          </div>
-          <p className="text-xs text-text-muted dark:text-text-muted-dark">
-            One row per casino in the region (top-rated first): its logo, the payment methods it accepts and its payout speed. Edit those
-            on each{" "}
-            <a href="/dashboard/casinos" target="_blank" rel="noreferrer" className="text-primary-600 hover:text-primary-900">
-              Casino
-            </a>
-            ; payment icons come from{" "}
-            <a href="/dashboard/payment-methods" target="_blank" rel="noreferrer" className="text-primary-600 hover:text-primary-900">
-              Payment Methods
-            </a>{" "}
-            with the same name.
-          </p>
-        </div>
-      )}
-
-      <div className="flex flex-col gap-3 rounded-md border border-border p-4 dark:border-border-dark">
-        <span className="text-xs font-semibold text-text-muted uppercase dark:text-text-muted-dark">Table Column Headings</span>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {COMPARISON_BASE_COLUMNS.map((col) => (
-            <TextInputField
-              key={col.key}
-              label={col.placeholder}
-              value={getField(fields, 0, col.labelField)?.textValue ?? ""}
-              placeholder={col.placeholder}
-              onChange={(v) => onChange(upsertField(fields, 0, col.labelField, "text", 10, { textValue: v }))}
-            />
-          ))}
-        </div>
-        {source === "manual" && extraColumns.length > 0 && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            {extraColumns.map((n) => (
-              <div key={n} className="flex items-end gap-2">
-                <div className="flex-1">
-                  <TextInputField
-                    label={`Column ${n}`}
-                    value={getField(fields, 0, `col${n}Label`)?.textValue ?? ""}
-                    onChange={(v) => onChange(upsertField(fields, 0, `col${n}Label`, "text", 20 + n, { textValue: v }))}
-                  />
-                </div>
-                <IconButton
-                  id={`comparison-column-${n}-remove`}
-                  title="Remove Column"
-                  onClick={() => removeColumn(n)}
-                  icon={<IconTrash width={14} height={14} />}
-                  variant="danger"
-                />
-              </div>
-            ))}
-          </div>
-        )}
-        {source === "manual" && extraColumns.length < COMPARISON_EXTRA_COLUMN_NUMBERS.length && (
-          <button
-            type="button"
-            onClick={addColumn}
-            className="flex w-fit cursor-pointer items-center gap-2 rounded-md border border-dashed border-primary-300 px-3 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50"
-          >
-            <IconPlus width={14} height={14} />
-            Add Column
-          </button>
-        )}
-      </div>
-
-      {source === "manual" && (
-      <>
-      <div className="flex flex-col gap-3">
-        {items.map((itemIndex) => {
-          const brandName = getField(fields, itemIndex, "brandName");
-          const legacyLabel = getField(fields, itemIndex, "label");
-          const logo = getField(fields, itemIndex, "logo");
-          const options = getField(fields, itemIndex, "options");
-          const processingTime = getField(fields, itemIndex, "processingTime");
-          return (
-            <div key={itemIndex} className="comparison-row flex flex-col gap-3 rounded-md border border-border p-4 dark:border-border-dark">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-text-muted uppercase dark:text-text-muted-dark">Row {itemIndex}</span>
-                <IconButton
-                  id={`comparison-row-${itemIndex}-remove`}
-                  title="Remove Row"
-                  onClick={() => removeRow(itemIndex)}
-                  icon={<IconTrash width={14} height={14} />}
-                  variant="danger"
-                />
-              </div>
-              <ImagePickerField
-                label="Logo"
-                mediaId={logo?.mediaId ?? null}
-                mediaUrl={logo?.mediaUrl ?? null}
-                onChange={(mediaId, mediaUrl) => onChange(upsertField(fields, itemIndex, "logo", "image", 1, { mediaId, mediaUrl }))}
-              />
-              <TextInputField
-                label={getField(fields, 0, "col1Label")?.textValue || "Brand Name"}
-                value={brandName?.textValue ?? legacyLabel?.textValue ?? ""}
-                onChange={(v) => onChange(upsertField(fields, itemIndex, "brandName", "text", 2, { textValue: v }))}
-              />
-              <LabeledField label={`${getField(fields, 0, "col2Label")?.textValue || "Options"} — Payment Method Icons`}>
-                <div className="grid grid-cols-5 gap-2">
-                  {Array.from({ length: COMPARISON_OPTION_ICON_COUNT }, (_, i) => i + 1).map((n) => {
-                    const icon = getField(fields, itemIndex, `icon${n}`);
-                    return (
-                      <ImagePickerField
-                        key={n}
-                        label={`Icon ${n}`}
-                        mediaId={icon?.mediaId ?? null}
-                        mediaUrl={icon?.mediaUrl ?? null}
-                        onChange={(mediaId, mediaUrl) => onChange(upsertField(fields, itemIndex, `icon${n}`, "image", 3 + n, { mediaId, mediaUrl }))}
-                      />
-                    );
-                  })}
-                </div>
-              </LabeledField>
-              <TextInputField
-                label="Options (fallback text, used only if no icons are set)"
-                value={options?.textValue ?? ""}
-                placeholder="E-wallet · Instant top-up"
-                onChange={(v) => onChange(upsertField(fields, itemIndex, "options", "text", 2, { textValue: v }))}
-              />
-              <TextInputField
-                label={getField(fields, 0, "col3Label")?.textValue || "Processing Time"}
-                value={processingTime?.textValue ?? ""}
-                placeholder="Instant to 6 Hours"
-                onChange={(v) => onChange(upsertField(fields, itemIndex, "processingTime", "text", 3, { textValue: v }))}
-              />
-              {extraColumns.map((n) => {
-                const cell = getField(fields, itemIndex, `col${n}`);
-                return (
-                  <TextInputField
-                    key={n}
-                    label={getField(fields, 0, `col${n}Label`)?.textValue ?? `Column ${n}`}
-                    value={cell?.textValue ?? ""}
-                    onChange={(v) => onChange(upsertField(fields, itemIndex, `col${n}`, "text", 3 + n, { textValue: v }))}
-                  />
-                );
-              })}
-            </div>
-          );
-        })}
-      </div>
-
-      <button
-        type="button"
-        onClick={addRow}
-        className="flex w-fit cursor-pointer items-center gap-2 rounded-md border border-dashed border-primary-300 px-3 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50"
-      >
-        <IconPlus width={14} height={14} />
-        Add Row
-      </button>
-      </>
-      )}
     </div>
   );
 }
@@ -3538,42 +3016,6 @@ function SourceChoiceField({
   );
 }
 
-// Live data block: the region's casinos, best rated first, with each casino's
-// cashback bonus, payment methods (icons from Payment Methods), rating and
-// safe index — see web/src/components/sections/CasinoListTableSection.tsx.
-function CasinoListTableFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
-  const text = (key: string) => getField(fields, 0, key)?.textValue ?? "";
-  return (
-    <div className="flex flex-col gap-4">
-      <TextInputField
-        label="Heading"
-        value={text("heading")}
-        placeholder="{regionAdj} Online Casinos List"
-        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
-      />
-      <RichTextField label="Intro (optional)" value={text("intro")} onChange={(v) => onChange(upsertField(fields, 0, "intro", "richtext", 2, { textValue: v }))} />
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <RegionCodeField
-          label="Region"
-          value={text("regionCode")}
-          emptyLabel="This page's region (automatic)"
-          onChange={(v) => onChange(upsertField(fields, 0, "regionCode", "text", 3, { textValue: v }))}
-        />
-        <TextInputField
-          label="Number of casinos"
-          value={text("limit") || "10"}
-          onChange={(v) => onChange(upsertField(fields, 0, "limit", "text", 4, { textValue: v }))}
-        />
-      </div>
-      <p className="text-xs text-text-muted dark:text-text-muted-dark">
-        Rows come from the region&apos;s published Casinos, best rated first. Cashback Details shows the casino&apos;s cashback bonus; payment logos
-        come from the matching Payment Method records.
-      </p>
-      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 5, bgFrom: 6, bgTo: 7, bgImage: 8 }} />
-    </div>
-  );
-}
-
 // Live data block: game tiles that list the region's best casinos for the
 // picked game (Casino → Supported Games) — see GameCasinoFinderSection.tsx.
 function GameCasinoFinderFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
@@ -3673,5 +3115,202 @@ function ContentItemPicker({ sourceType, value, onChange }: { sourceType: string
       onChange={onChange}
       options={options}
     />
+  );
+}
+
+// Figma "Bonus Page - Standard" table: heading, intro, editable column
+// headers, rows of label + explanation, closing note.
+function TwoColumnTableFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const text = (itemIndex: number, key: string) => getField(fields, itemIndex, key)?.textValue ?? "";
+  return (
+    <div className="flex flex-col gap-4">
+      <TextInputField label="Heading" value={text(0, "heading")} placeholder="Key Terms You Should Know" onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))} />
+      <RichTextField label="Intro (optional)" value={text(0, "intro")} onChange={(v) => onChange(upsertField(fields, 0, "intro", "richtext", 2, { textValue: v }))} />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <TextInputField label="Left column heading" value={text(0, "headerLeft")} placeholder="Term" onChange={(v) => onChange(upsertField(fields, 0, "headerLeft", "text", 3, { textValue: v }))} />
+        <TextInputField label="Right column heading" value={text(0, "headerRight")} placeholder="Simple Explanation" onChange={(v) => onChange(upsertField(fields, 0, "headerRight", "text", 4, { textValue: v }))} />
+      </div>
+      <RepeaterShell
+        label="Row"
+        idPrefix="two-column-row"
+        itemIndexes={itemIndexes(fields)}
+        onRemove={(i) => onChange(fields.filter((f) => f.itemIndex !== i))}
+        onAdd={() => {
+          const idx = nextItemIndex(fields);
+          onChange([...fields, blankField(idx, "left", "text", 1), blankField(idx, "right", "richtext", 2)]);
+        }}
+        addLabel="Add Row"
+        renderItem={(i) => (
+          <>
+            <TextInputField label="Left (term)" value={text(i, "left")} onChange={(v) => onChange(upsertField(fields, i, "left", "text", 1, { textValue: v }))} />
+            <RichTextField label="Right (explanation)" value={text(i, "right")} onChange={(v) => onChange(upsertField(fields, i, "right", "richtext", 2, { textValue: v }))} />
+          </>
+        )}
+      />
+      <RichTextField label="Closing note (optional)" value={text(0, "outro")} onChange={(v) => onChange(upsertField(fields, 0, "outro", "richtext", 5, { textValue: v }))} />
+      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 6, bgFrom: 7, bgTo: 8, bgImage: 9 }} />
+    </div>
+  );
+}
+
+// Mirrors web/src/components/data-table/columns.tsx's COLUMNS (same keys and
+// default labels). Casino values work for both sources (a bonus row shows its
+// casino's values); bonus values only for source "bonuses".
+const DATA_TABLE_COLUMNS: { value: string; label: string; source: "casino" | "bonus" }[] = [
+  { value: "rating", label: "Rating", source: "casino" },
+  { value: "safeIndex", label: "Safe Index", source: "casino" },
+  { value: "cashback", label: "Cashback Details", source: "casino" },
+  { value: "topBonus", label: "Bonuses", source: "casino" },
+  { value: "payments", label: "Payment Method", source: "casino" },
+  { value: "payoutSpeed", label: "Processing Time", source: "casino" },
+  { value: "rtp", label: "RTP", source: "casino" },
+  { value: "crypto", label: "Crypto Payment", source: "casino" },
+  { value: "localBanking", label: "Local Banking", source: "casino" },
+  { value: "currencies", label: "Currencies", source: "casino" },
+  { value: "details", label: "Bonus Details", source: "bonus" },
+  { value: "terms", label: "Terms", source: "bonus" },
+  { value: "code", label: "Bonus Code", source: "bonus" },
+  { value: "turnover", label: "Wagering Requirement", source: "bonus" },
+  { value: "maxClaim", label: "Max Claim Amount", source: "bonus" },
+  { value: "withdrawal", label: "Min Max Withdrawal", source: "bonus" },
+  { value: "minDeposit", label: "Min. Deposit", source: "bonus" },
+  { value: "frequency", label: "Payment Frequency", source: "bonus" },
+  { value: "eligibleGames", label: "Eligible Games", source: "bonus" },
+  { value: "provider", label: "Eligible Provider", source: "bonus" },
+  { value: "pointConversion", label: "Point Conversion Rate", source: "bonus" },
+  { value: "upgradeBonus", label: "Upgrade Bonus", source: "bonus" },
+  { value: "maxRebate", label: "Max Rebate", source: "bonus" },
+  { value: "perks", label: "Perks", source: "bonus" },
+  { value: "validUntil", label: "Valid Until", source: "bonus" },
+];
+
+// One editor for every casino and bonus table (web DataTableSection): pick
+// the source, region, rows and the columns between Brand and the button.
+function DataTableFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const text = (itemIndex: number, key: string) => getField(fields, itemIndex, key)?.textValue ?? "";
+  const set = (key: string, order: number, type: "text" | "richtext" = "text") => (v: string) => onChange(upsertField(fields, 0, key, type, order, { textValue: v }));
+  const source = text(0, "source") === "bonuses" ? "bonuses" : "casinos";
+  const columnsMode = source === "casinos" ? "custom" : text(0, "columnsMode") || "simple";
+  const columnOptions = DATA_TABLE_COLUMNS.filter((c) => source === "bonuses" || c.source === "casino").map((c) => ({
+    value: c.value,
+    label: source === "bonuses" ? `${c.label}${c.source === "casino" ? " (casino)" : ""}` : c.label,
+  }));
+  const columnItems = itemIndexes(fields);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <TextInputField label="Heading" value={text(0, "heading")} placeholder="{regionAdj} Online Casinos List" onChange={set("heading", 1)} />
+      <RichTextField label="Intro (optional)" value={text(0, "intro")} onChange={set("intro", 2, "richtext")} />
+      <SourceChoiceField
+        value={source}
+        onChange={set("source", 3)}
+        options={[
+          { value: "casinos", label: "Casinos", hint: "One row per casino, best rated first" },
+          { value: "bonuses", label: "Bonuses", hint: "One row per bonus of one type" },
+        ]}
+      />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <RegionCodeField label="Region" value={text(0, "regionCode")} emptyLabel="This page's region (automatic)" onChange={set("regionCode", 4)} />
+        <TextInputField label="Number of rows" value={text(0, "limit") || (source === "bonuses" ? "5" : "10")} onChange={set("limit", 5)} />
+        {source === "bonuses" && (
+          <LabeledField label="Bonus type">
+            <Select value={text(0, "bonusType") || "welcome"} onChange={set("bonusType", 6)} options={BONUS_TYPE_OPTIONS} />
+          </LabeledField>
+        )}
+        {source === "bonuses" && (
+          <LabeledField label="Columns">
+            <Select
+              value={columnsMode}
+              onChange={set("columnsMode", 10)}
+              options={[
+                { value: "simple", label: "Simple — Bonus Details only" },
+                { value: "typed", label: "This bonus type's standard columns" },
+                { value: "custom", label: "Choose columns myself" },
+              ]}
+            />
+          </LabeledField>
+        )}
+      </div>
+
+      {columnsMode === "custom" && (
+        <div className="flex flex-col gap-3 rounded-md border border-border bg-surface-muted p-4 dark:border-border-dark dark:bg-surface-muted-dark">
+          <p className="text-xs text-text-muted dark:text-text-muted-dark">
+            Brand is always the first column and the button the last. Pick the columns in between, in order; leave a label empty to use the
+            default name.{source === "casinos" ? " With no columns picked, the table shows Cashback, Payment Method, Rating and Safe Index." : ""}
+          </p>
+          {columnItems.map((itemIndex, position) => (
+            <div key={itemIndex} className="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
+              <LabeledField label={`Column ${position + 1}`}>
+                <Select
+                  value={text(itemIndex, "column") || undefined}
+                  placeholder="Choose a value"
+                  options={columnOptions}
+                  onChange={(v) => onChange(upsertField(fields, itemIndex, "column", "text", 1, { textValue: v }))}
+                />
+              </LabeledField>
+              <TextInputField
+                label="Label (optional)"
+                value={text(itemIndex, "label")}
+                placeholder={DATA_TABLE_COLUMNS.find((c) => c.value === text(itemIndex, "column"))?.label ?? ""}
+                onChange={(v) => onChange(upsertField(fields, itemIndex, "label", "text", 2, { textValue: v }))}
+              />
+              <IconButton
+                id={`data-table-column-${itemIndex}-remove`}
+                title="Remove column"
+                onClick={() => onChange(fields.filter((f) => f.itemIndex !== itemIndex))}
+                icon={<IconTrash width={14} height={14} />}
+                variant="danger"
+              />
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => {
+              const idx = nextItemIndex(fields);
+              onChange([...fields, blankField(idx, "column", "text", 1), blankField(idx, "label", "text", 2)]);
+            }}
+            className="flex w-fit cursor-pointer items-center gap-2 rounded-md border border-dashed border-primary-300 px-3 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50"
+          >
+            <IconPlus width={14} height={14} />
+            Add Column
+          </button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <LabeledField label="Button">
+          <Select
+            value={text(0, "showCta") === "no" ? "no" : "yes"}
+            onChange={set("showCta", 11)}
+            options={[
+              { value: "yes", label: "Show button" },
+              { value: "no", label: "No button" },
+            ]}
+          />
+        </LabeledField>
+        <TextInputField label="Button label" value={text(0, "ctaLabel")} placeholder={source === "casinos" ? "Visit Site" : "Claim Here"} onChange={set("ctaLabel", 12)} />
+        <LabeledField label="Review link">
+          <Select
+            value={text(0, "moreInfo") === "yes" ? "yes" : "no"}
+            onChange={set("moreInfo", 13)}
+            options={[
+              { value: "no", label: "Hidden" },
+              { value: "yes", label: "Show arrow to review" },
+            ]}
+          />
+        </LabeledField>
+      </div>
+
+      <details className="rounded-md border border-border p-3 dark:border-border-dark">
+        <summary className="cursor-pointer text-sm font-medium text-text dark:text-text-dark">Notes around the table (optional)</summary>
+        <div className="mt-3 flex flex-col gap-3">
+          <TextInputField label="Tip box heading" value={text(0, "tipHeading")} placeholder="Use this table to:" onChange={set("tipHeading", 14)} />
+          <RichTextField label="Tip box (above the table)" value={text(0, "tipBody")} onChange={set("tipBody", 15, "richtext")} />
+          <RichTextField label="Recommendation box (above the table)" value={text(0, "recommendation")} onChange={set("recommendation", 16, "richtext")} />
+          <RichTextField label="Note below the table" value={text(0, "outro")} onChange={set("outro", 17, "richtext")} />
+        </div>
+      </details>
+      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 18, bgFrom: 19, bgTo: 20, bgImage: 21 }} />
+    </div>
   );
 }

@@ -133,6 +133,7 @@ export interface CasinoDTO {
   summary: string;
   content: string;
   languages: string[] | null;
+  currencies: string[] | null;
   paymentMethods: string[] | null;
   pros: string[] | null;
   cons: string[] | null;
@@ -174,6 +175,8 @@ export interface BonusDTO {
   upgradeBonus: string;
   maxRebate: string;
   perks: string;
+  eligibleGames: string;
+  pointConversionRate: string;
   eligibleProviderId: number | null;
   status: ContentStatus;
   publishAt: string | null;
@@ -361,22 +364,17 @@ export type PageBlockType =
   | "hero"
   | "rich_text"
   | "icon_box_group"
-  | "image_gallery"
-  | "cta"
   | "logo_strip"
   | "stats_counter"
   | "faq"
   | "bonus_calculator"
-  | "bonus_listing_table"
   | "team_grid"
   | "top_casinos_by_region"
   | "blacklist_preview"
   | "content_carousel"
   | "region_explorer"
-  | "casino_comparison_table"
   | "event_highlights"
   | "introduction_section"
-  | "comparison_table"
   | "numbered_steps"
   | "feature_cards"
   | "checklist_callout"
@@ -388,8 +386,9 @@ export type PageBlockType =
   | "review_columns"
   | "cta_link_list"
   | "info_card_columns"
-  | "casino_list_table"
-  | "game_casino_finder";
+  | "game_casino_finder"
+  | "two_column_table"
+  | "data_table";
 
 export interface PageSectionDTO {
   id: number;

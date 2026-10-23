@@ -60,6 +60,8 @@ export interface BonusDTO {
   upgradeBonus: string;
   maxRebate: string;
   perks: string;
+  eligibleGames: string;
+  pointConversionRate: string;
   eligibleProviderId: number | null;
   status: string;
   publishAt: string | null;
@@ -145,9 +147,7 @@ async function fetchData<T>(url: string): Promise<T | null> {
   }
 }
 
-// Subset of CasinoDTO actually used by the Reviews hub and the region
-// homepage's comparison table — see web/src/app/casinos/lib.ts for the full
-// shape used by /casinos/[slug].
+// Public casino record (GET /api/casinos, /api/casinos/{slug}).
 export interface CasinoDTO {
   id: number;
   slug: string;
@@ -164,6 +164,36 @@ export interface CasinoDTO {
   rtpPercentage: number | null;
   cryptoSupported: boolean;
   localBankingSpeed: string;
+  summary: string;
+  content: string;
+  languages: string[] | null;
+  currencies: string[] | null;
+  cons: string[] | null;
+  regionIds: number[] | null;
+  gameProviderIds: number[] | null;
+  licenseIds: number[] | null;
+}
+
+export interface LicenseDTO {
+  id: number;
+  name: string;
+  logoUrl: string | null;
+}
+
+export async function getCasino(slug: string): Promise<CasinoDTO | null> {
+  const data = await fetchData<{ casino: CasinoDTO }>(`${API_BASE_URL}/api/casinos/${encodeURIComponent(slug)}`);
+  return data?.casino ?? null;
+}
+
+/** Every published bonus tied to one casino, across all regions. */
+export async function getBonusesForCasino(casinoId: number): Promise<BonusDTO[]> {
+  const data = await fetchData<{ bonuses: BonusDTO[] }>(`${API_BASE_URL}/api/bonuses?casinoId=${casinoId}&pageSize=100`);
+  return data?.bonuses ?? [];
+}
+
+export async function getLicenses(): Promise<LicenseDTO[]> {
+  const data = await fetchData<{ licenses: LicenseDTO[] | null }>(`${API_BASE_URL}/api/licenses`);
+  return data?.licenses ?? [];
 }
 
 export interface GameProviderDTO {

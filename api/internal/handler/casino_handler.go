@@ -32,6 +32,7 @@ type CasinoDTO struct {
 	Summary        string     `json:"summary"`
 	Content        string     `json:"content"`
 	Languages      []string   `json:"languages"`
+	Currencies     []string   `json:"currencies"`
 	PaymentMethods []string   `json:"paymentMethods"`
 	Pros           []string   `json:"pros"`
 	Cons           []string   `json:"cons"`
@@ -61,7 +62,7 @@ func toCasinoDTO(c *domain.Casino) CasinoDTO {
 	}
 	return CasinoDTO{
 		ID: c.ID, Slug: c.Slug, Name: c.Name, LogoMediaID: c.LogoMediaID, LogoURL: c.LogoURL, Rating: c.Rating, Summary: c.Summary,
-		Content: c.Content, Languages: c.Languages, PaymentMethods: c.PaymentMethods, Pros: c.Pros, Cons: c.Cons,
+		Content: c.Content, Languages: c.Languages, Currencies: c.Currencies, PaymentMethods: c.PaymentMethods, Pros: c.Pros, Cons: c.Cons,
 		SafeIndex: c.SafeIndex, RiskStatus: riskStatus, SupportedGames: c.SupportedGames, PayoutSpeed: c.PayoutSpeed,
 		CTAURL: c.CTAURL, Status: string(c.Status), PublishAt: c.PublishAt, RegionIDs: c.RegionIDs,
 		GameProviderIDs: c.GameProviderIDs, LicenseIDs: c.LicenseIDs, CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
@@ -92,6 +93,7 @@ type casinoRequest struct {
 	Summary        string   `json:"summary"`
 	Content        string   `json:"content"`
 	Languages      []string `json:"languages"`
+	Currencies     []string `json:"currencies"`
 	PaymentMethods []string `json:"paymentMethods"`
 	Pros           []string `json:"pros"`
 	Cons           []string `json:"cons"`
@@ -120,7 +122,7 @@ func (req casinoRequest) toInput() service.CasinoInput {
 	}
 	return service.CasinoInput{
 		Slug: req.Slug, Name: req.Name, LogoMediaID: req.LogoMediaID, Rating: req.Rating, Summary: req.Summary,
-		Content: req.Content, Languages: req.Languages, PaymentMethods: req.PaymentMethods, Pros: req.Pros, Cons: req.Cons,
+		Content: req.Content, Languages: req.Languages, Currencies: req.Currencies, PaymentMethods: req.PaymentMethods, Pros: req.Pros, Cons: req.Cons,
 		SafeIndex: req.SafeIndex, RiskStatus: riskStatus, SupportedGames: req.SupportedGames,
 		PayoutSpeed: req.PayoutSpeed, CTAURL: req.CTAURL, RegionIDs: req.RegionIDs, GameProviderIDs: req.GameProviderIDs,
 		LicenseIDs: req.LicenseIDs, RTPPercentage: req.RTPPercentage, CryptoSupported: req.CryptoSupported,

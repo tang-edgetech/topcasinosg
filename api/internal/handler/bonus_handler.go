@@ -40,6 +40,8 @@ type BonusDTO struct {
 	UpgradeBonus        string     `json:"upgradeBonus"`
 	MaxRebate           string     `json:"maxRebate"`
 	Perks               string     `json:"perks"`
+	EligibleGames       string     `json:"eligibleGames"`
+	PointConversionRate string     `json:"pointConversionRate"`
 	EligibleProviderID  *int64     `json:"eligibleProviderId"`
 	Status              string     `json:"status"`
 	PublishAt           *time.Time `json:"publishAt"`
@@ -54,7 +56,7 @@ func toBonusDTO(b *domain.Bonus) BonusDTO {
 		PublishAt: b.PublishAt, CreatedAt: b.CreatedAt, UpdatedAt: b.UpdatedAt,
 		TurnoverRequirement: b.TurnoverRequirement, MaxClaim: b.MaxClaim, WithdrawalLimit: b.WithdrawalLimit,
 		MinDeposit: b.MinDeposit, PaymentFrequency: b.PaymentFrequency, UpgradeBonus: b.UpgradeBonus, MaxRebate: b.MaxRebate,
-		Perks: b.Perks, EligibleProviderID: b.EligibleProviderID,
+		Perks: b.Perks, EligibleGames: b.EligibleGames, PointConversionRate: b.PointConversionRate, EligibleProviderID: b.EligibleProviderID,
 	}
 }
 
@@ -89,6 +91,8 @@ type bonusRequest struct {
 	UpgradeBonus        string     `json:"upgradeBonus"`
 	MaxRebate           string     `json:"maxRebate"`
 	Perks               string     `json:"perks"`
+	EligibleGames       string     `json:"eligibleGames"`
+	PointConversionRate string     `json:"pointConversionRate"`
 	EligibleProviderID  *int64     `json:"eligibleProviderId"`
 }
 
@@ -99,7 +103,8 @@ func (req bonusRequest) toInput() service.BonusInput {
 		BonusDetails: domain.BonusDetails{
 			TurnoverRequirement: req.TurnoverRequirement, MaxClaim: req.MaxClaim, WithdrawalLimit: req.WithdrawalLimit,
 			MinDeposit: req.MinDeposit, PaymentFrequency: req.PaymentFrequency, UpgradeBonus: req.UpgradeBonus,
-			MaxRebate: req.MaxRebate, Perks: req.Perks, EligibleProviderID: req.EligibleProviderID,
+			MaxRebate: req.MaxRebate, Perks: req.Perks, EligibleGames: req.EligibleGames, PointConversionRate: req.PointConversionRate,
+			EligibleProviderID: req.EligibleProviderID,
 		},
 	}
 }

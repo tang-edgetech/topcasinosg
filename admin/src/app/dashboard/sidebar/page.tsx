@@ -7,6 +7,7 @@ import { api, ApiError } from "@/lib/api";
 import type { SidebarSectionDTO } from "@/lib/types";
 import IconButton from "@/components/IconButton";
 import { IconPlus, IconTrash } from "@/components/Icons";
+import PageHeading from "@/components/PageHeading";
 
 /**
  * The Sidebar widget shown on every non-Home page (Figma "Comp / Header /
@@ -108,7 +109,7 @@ export default function SidebarPage() {
   return (
     <section id="sidebar-page" className="sidebar-page flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-text dark:text-text-dark">Sidebar</h1>
+        <PageHeading title="Sidebar" help="sidebar" />
         <button
           type="button"
           disabled={saving}

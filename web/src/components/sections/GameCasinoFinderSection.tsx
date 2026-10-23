@@ -1,9 +1,9 @@
 import type { CSSProperties } from "react";
-import { field, mediaUrl, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
+import { field, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { getCasinos } from "@/app/[region]/_lib/api";
+import { MAX_CASINOS_FOR_LOOKUP } from "@/components/data-table/loadRows";
 import GameCasinoFinder, { type FinderCasino } from "./GameCasinoFinder";
 
-const MAX_CASINOS_FOR_LOOKUP = 200;
 const DEFAULT_RESULTS = 3;
 
 // Figma "Choose an Online Casino Based on Your Playing Style": a panel of
@@ -27,9 +27,9 @@ export default async function GameCasinoFinderSection({ section, regionCode: pag
       id: c.id,
       name: c.name,
       slug: c.slug,
-      logo: mediaUrl(c.logoUrl),
+      logo: c.logoUrl,
       score: Math.min(c.rating * 2, 10),
-      ctaUrl: c.ctaUrl || `/casinos/${c.slug}`,
+      ctaUrl: c.ctaUrl,
       games: c.supportedGames ?? [],
     }));
 

@@ -72,6 +72,7 @@ type Casino struct {
 	Summary        string
 	Content        string
 	Languages      []string
+	Currencies     []string
 	PaymentMethods []string
 	Pros           []string
 	Cons           []string

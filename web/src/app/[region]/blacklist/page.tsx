@@ -81,7 +81,7 @@ export default async function RegionBlacklistPage({
           )}
         </div>
 
-        {result && result.sections.length > 0 && <SectionRenderer sections={result.sections} />}
+        {result && result.sections.length > 0 && <SectionRenderer sections={result.sections} regionCode={region} />}
       </PageGrid>
       {result && <RawHtmlBlock html={result.page.footerSnippet} />}
     </div>

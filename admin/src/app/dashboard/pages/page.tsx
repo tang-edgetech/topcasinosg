@@ -28,10 +28,13 @@ import IconButton from "@/components/IconButton";
 import { IconEdit, IconExternalLink, IconCopy, IconPlus, IconTrash, IconGripVertical } from "@/components/Icons";
 import StatusBadge from "@/components/content/StatusBadge";
 import PublishControl from "@/components/content/PublishControl";
-import StatusFilter, { type StatusFilterValue } from "@/components/content/StatusFilter";
+import ListToolbar from "@/components/content/ListToolbar";
+import { useListView, type ListFilterDef } from "@/lib/useListView";
+import { statusFilter } from "@/lib/listFilters";
 import BulkActionBar from "@/components/content/BulkActionBar";
 import { runBulkAction, bulkResultMessage } from "@/lib/bulk";
 import { isRegionTemplatePath } from "@/lib/regionTemplate";
+import PageHeading from "@/components/PageHeading";
 
 // NEXT_PUBLIC_WEB_URL points at this environment's actual web app (e.g. the
 // local dev server on :4000), so links open the site you're actually running
@@ -40,26 +43,11 @@ import { isRegionTemplatePath } from "@/lib/regionTemplate";
 // override is set, i.e. in production itself.
 const WEB_URL = process.env.NEXT_PUBLIC_WEB_URL;
 
-// Bonus-type-per-region pages aren't served at their path — they're served
-// by the bespoke /{region}/bonuses/{type} route (web/src/app/[region]/
-// bonuses/[type]/page.tsx), which looks a page up by the computed slug
-// "{region}-bonuses-{type}" (e.g. "th-bonuses-welcome"). The slug is only
-// ever a lookup key for that route, never a literal URL path segment, so it
-// has to be decomposed back into /region/bonuses/type here rather than
-// appended directly after the domain — these pages are also kept as root
-// pages (no parent) precisely so their slug alone still means this.
-const REGION_BONUS_TYPE_SLUG = /^([a-z]{2,3})-bonuses-([a-z_]+)$/;
-
+// A page is served at its full path (every ancestor's slug, then its own), e.g.
+// /th/bonuses/welcome; Home is the site root.
 function pagePublicUrl(base: string, page: PageDTO) {
   const root = base.replace(/\/+$/, "");
   if (page.slug === "home") return `${root}/`;
-
-  const match = page.slug.match(REGION_BONUS_TYPE_SLUG);
-  if (match) {
-    const [, region, bonusType] = match;
-    return `${root}/${region}/bonuses/${bonusType}`;
-  }
-
   return `${root}/${page.path}`;
 }
 
@@ -161,6 +149,25 @@ function DragHandle() {
 // so `dragDisabled` (whether a status filter is currently narrowing the
 // visible sibling set) is baked in without needing to route it through
 // antd's `components.body.row` prop plumbing, which doesn't pass extras.
+// "Section" filter: a page and all its descendants, grouped under their
+// top-level page (Thailand, Region Template, ...).
+function sectionFilter(pages: PageDTO[]): ListFilterDef<PageDTO> {
+  const byId = new Map(pages.map((p) => [p.id, p]));
+  const rootOf = (page: PageDTO): number => {
+    let current = page;
+    while (current.parentId != null && byId.has(current.parentId)) current = byId.get(current.parentId)!;
+    return current.id;
+  };
+  const roots = pages.filter((p) => p.parentId == null && pages.some((child) => child.parentId === p.id)).sort(bySortOrder);
+  return {
+    key: "section",
+    placeholder: "All sections",
+    options: roots.map((r) => ({ value: String(r.id), label: r.title })),
+    match: (page, value) => String(rootOf(page)) === value,
+    width: "w-52",
+  };
+}
+
 function makeDraggableRow(dragDisabled: boolean) {
   return function DraggableRow(props: HTMLAttributes<HTMLTableRowElement> & { "data-row-key": number }) {
     const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
@@ -194,7 +201,6 @@ export default function PagesPage() {
   const [pages, setPages] = useState<PageDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
-  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("all");
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   async function load() {
@@ -214,18 +220,27 @@ export default function PagesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (!user) return null;
-  const canManage = user.role === "super_admin" || user.role === "admin";
-
   // Filtering happens on the flat list before the tree is (re)built, so a
   // child page matching the filter still shows even if its parent doesn't -
   // it just surfaces as a top-level row for that view, same as any tree
   // filtered down to a subset of its nodes.
-  const filteredPages = statusFilter === "all" ? pages : pages.filter((p) => p.status === statusFilter);
-  const tree = buildPageTree(filteredPages);
-  const flatRows = flattenTree(tree);
+  const { filtered: filteredPages, pagination, toolbar } = useListView<PageDTO>({
+    storageKey: "pages",
+    items: pages,
+    searchText: (p) => `${p.title} /${p.path}`,
+    filters: [statusFilter<PageDTO>(), sectionFilter(pages)],
+  });
+  const filtering = toolbar.activeCount > 0;
+  const draggableRow = useMemo(() => makeDraggableRow(filtering), [filtering]);
+
+  if (!user) return null;
+  const canManage = user.role === "super_admin" || user.role === "admin";
+
+  const flatRows = flattenTree(buildPageTree(filteredPages));
+  const pageSize = pagination.pageSize ?? flatRows.length;
+  const currentPage = pagination.current ?? 1;
+  const visibleRows = flatRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const selectedPages = pages.filter((p) => selectedRowKeys.includes(p.id));
-  const draggableRow = useMemo(() => makeDraggableRow(statusFilter !== "all"), [statusFilter]);
 
   async function handleSetStatus(page: PageDTO, status: string, publishAt: string | null) {
     await api.put(`/api/admin/pages/${page.id}/status`, { status, publishAt });
@@ -341,14 +356,14 @@ export default function PagesPage() {
   return (
     <section id="pages-page" className="pages-page flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-text dark:text-text-dark">Pages</h1>
+        <PageHeading title="Pages" help="pages" />
         <IconButton id="pages-add-button" title="Add Page" onClick={() => router.push("/dashboard/pages/new")} icon={<IconPlus />} />
       </div>
 
-      <div className="flex items-center gap-3">
-        <StatusFilter id="pages-status-filter" value={statusFilter} onChange={setStatusFilter} />
-        {statusFilter !== "all" && (
-          <span className="text-xs text-text-muted dark:text-text-muted-dark">Drag-to-reorder is disabled while a status filter is active.</span>
+      <div className="flex flex-col gap-2">
+        <ListToolbar id="pages-toolbar" searchPlaceholder="Search pages by title or URL" {...toolbar} />
+        {filtering && (
+          <span className="text-xs text-text-muted dark:text-text-muted-dark">Drag-to-reorder is turned off while filters are active.</span>
         )}
       </div>
 
@@ -363,13 +378,13 @@ export default function PagesPage() {
       />
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={flatRows.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+        <SortableContext items={visibleRows.map((p) => p.id)} strategy={verticalListSortingStrategy}>
           <Table
             id="pages-table"
             rowKey="id"
             loading={loading}
             dataSource={flatRows}
-            pagination={false}
+            pagination={pagination}
             components={{ body: { row: draggableRow } }}
             rowSelection={{
               selectedRowKeys,

@@ -3,24 +3,20 @@ import { sanitizeRichText } from "@/lib/sanitize-html";
 import HeroSection from "./HeroSection";
 import RichTextSection from "./RichTextSection";
 import IconBoxGroupSection from "./IconBoxGroupSection";
-import ImageGallerySection from "./ImageGallerySection";
-import CTASection from "./CTASection";
 import LogoStripSection from "./LogoStripSection";
 import StatsCounterSection from "./StatsCounterSection";
 import FaqSection from "./FaqSection";
 import BonusCalculatorSection from "./BonusCalculatorSection";
-import BonusListingTableSection from "./BonusListingTableSection";
 import TeamGridSection from "./TeamGridSection";
 import TopCasinosByRegionSection from "./TopCasinosByRegionSection";
 import BlacklistPreviewSection from "./BlacklistPreviewSection";
 import ContentCarouselSection from "./ContentCarouselSection";
 import RegionExplorerSection from "./RegionExplorerSection";
-import CasinoComparisonTableSection from "./CasinoComparisonTableSection";
 import EventHighlightsSection from "./EventHighlightsSection";
 import IntroductionSectionBlock from "./IntroductionSectionBlock";
-import CasinoListTableSection from "./CasinoListTableSection";
 import GameCasinoFinderSection from "./GameCasinoFinderSection";
-import ComparisonTableSection from "./ComparisonTableSection";
+import TwoColumnTableSection from "./TwoColumnTableSection";
+import DataTableSection from "./DataTableSection";
 import NumberedStepsSection from "./NumberedStepsSection";
 import FeatureCardsSection from "./FeatureCardsSection";
 import ChecklistCalloutSection from "./ChecklistCalloutSection";
@@ -53,10 +49,6 @@ export default function SectionRenderer({ sections, regionCode }: { sections: Pa
             return <RichTextSection key={section.id} section={section} />;
           case "icon_box_group":
             return <IconBoxGroupSection key={section.id} section={section} />;
-          case "image_gallery":
-            return <ImageGallerySection key={section.id} section={section} />;
-          case "cta":
-            return <CTASection key={section.id} section={section} />;
           case "logo_strip":
             return <LogoStripSection key={section.id} section={section} />;
           case "stats_counter":
@@ -71,8 +63,6 @@ export default function SectionRenderer({ sections, regionCode }: { sections: Pa
                 introHtml={sanitizeRichText(field(section.fields, 0, "intro")?.textValue ?? "")}
               />
             );
-          case "bonus_listing_table":
-            return <BonusListingTableSection key={section.id} section={section} regionCode={regionCode} />;
           case "team_grid":
             return <TeamGridSection key={section.id} section={section} />;
           case "top_casinos_by_region":
@@ -83,14 +73,10 @@ export default function SectionRenderer({ sections, regionCode }: { sections: Pa
             return <ContentCarouselSection key={section.id} section={section} />;
           case "region_explorer":
             return <RegionExplorerSection key={section.id} section={section} />;
-          case "casino_comparison_table":
-            return <CasinoComparisonTableSection key={section.id} section={section} />;
           case "event_highlights":
             return <EventHighlightsSection key={section.id} section={section} />;
           case "introduction_section":
             return <IntroductionSectionBlock key={section.id} section={section} />;
-          case "comparison_table":
-            return <ComparisonTableSection key={section.id} section={section} regionCode={regionCode} />;
           case "numbered_steps":
             return <NumberedStepsSection key={section.id} section={section} />;
           case "feature_cards":
@@ -111,10 +97,12 @@ export default function SectionRenderer({ sections, regionCode }: { sections: Pa
             return <ReviewColumnsSection key={section.id} section={section} />;
           case "cta_link_list":
             return <CtaLinkListSection key={section.id} section={section} />;
-          case "casino_list_table":
-            return <CasinoListTableSection key={section.id} section={section} regionCode={regionCode} />;
           case "game_casino_finder":
             return <GameCasinoFinderSection key={section.id} section={section} regionCode={regionCode} />;
+          case "data_table":
+            return <DataTableSection key={section.id} section={section} regionCode={regionCode} />;
+          case "two_column_table":
+            return <TwoColumnTableSection key={section.id} section={section} />;
           case "info_card_columns":
             return <InfoCardColumnsSection key={section.id} section={section} />;
           default:

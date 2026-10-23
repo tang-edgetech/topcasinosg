@@ -1,8 +1,12 @@
 import type { CSSProperties } from "react";
 import { field, mediaUrl, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { getRegions, getRegionBonuses } from "@/app/[region]/_lib/api";
-import CasinoListTable, { loadCasinoRows } from "@/components/CasinoListTable";
+import DataTable from "@/components/data-table/DataTable";
+import { COLUMNS } from "@/components/data-table/columns";
+import { loadRows } from "@/components/data-table/loadRows";
 import { BonusPickCard } from "./TopBonusPicksSection";
+
+const TABLE_COLUMNS = ["cashback", "payments", "rating", "safeIndex"].map((key) => ({ key, label: COLUMNS[key].label, def: COLUMNS[key] }));
 
 const DEFAULT_MORE_COUNT = 3;
 
@@ -20,13 +24,14 @@ export default async function TopCasinosByRegionSection({ section }: { section: 
   const perRegion = (
     await Promise.all(
       regions.map(async (region) => {
-        const [top] = await loadCasinoRows(region.code, 1);
-        if (!top) return null;
+        const { rows: [top] } = await loadRows({ source: "casinos", regionCode: region.code, limit: 1 });
+        if (!top?.casino) return null;
+        const topCasino = top.casino;
         const [welcome, more] = await Promise.all([
           getRegionBonuses(region.code, "welcome"),
-          loadCasinoRows(region.code, moreCount, [top.casino.id]),
+          loadRows({ source: "casinos", regionCode: region.code, limit: moreCount, excludeCasinoIds: [topCasino.id] }),
         ]);
-        return { region, top, bonus: welcome.find((b) => b.casinoId === top.casino.id), more };
+        return { region, topCasino, bonus: welcome.find((b) => b.casinoId === topCasino.id), more };
       })
     )
   ).filter((entry): entry is NonNullable<typeof entry> => entry !== null);
@@ -49,10 +54,10 @@ export default async function TopCasinosByRegionSection({ section }: { section: 
         )}
 
         <div className="bonus-picks__track section-row flex snap-x snap-mandatory gap-4 overflow-x-auto pb-1 md:grid md:grid-cols-3 md:gap-[30px] md:overflow-visible">
-          {perRegion.map(({ region, top, bonus }) => (
+          {perRegion.map(({ region, topCasino, bonus }) => (
             <BonusPickCard
               key={region.id}
-              pick={{ casino: top.casino, bonus }}
+              pick={{ casino: topCasino, bonus }}
               rank={1}
               featured
               bonusLabel="Welcome Bonus"
@@ -62,7 +67,7 @@ export default async function TopCasinosByRegionSection({ section }: { section: 
         </div>
 
         {perRegion
-          .filter(({ more }) => more.length > 0)
+          .filter(({ more }) => more.rows.length > 0)
           .map(({ region, more }) => (
             <div key={region.id} className="flex flex-col gap-4">
               <div className="section-row">
@@ -74,7 +79,7 @@ export default async function TopCasinosByRegionSection({ section }: { section: 
                   More Online Casinos in {region.name}
                 </h3>
               </div>
-              <CasinoListTable rows={more} />
+              <DataTable rows={more.rows} ctx={more.ctx} columns={TABLE_COLUMNS} ctaLabel="Visit Site" moreInfo mobile="swipe" />
             </div>
           ))}
       </div>

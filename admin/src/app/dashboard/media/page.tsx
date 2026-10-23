@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/lib/auth-context";
 import MediaLibrary from "@/components/media/MediaLibrary";
+import PageHeading from "@/components/PageHeading";
 
 export default function MediaPage() {
   const { user } = useAuth();
@@ -17,7 +18,7 @@ export default function MediaPage() {
 
   return (
     <section id="media-page" className="media-page flex flex-col gap-6">
-      <h1 className="text-2xl font-bold text-text dark:text-text-dark">Media Library</h1>
+      <PageHeading title="Media Library" help="media" />
       <MediaLibrary />
     </section>
   );

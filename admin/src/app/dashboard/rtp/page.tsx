@@ -12,10 +12,13 @@ import IconButton from "@/components/IconButton";
 import { IconEdit, IconPlus, IconTrash } from "@/components/Icons";
 import StatusBadge from "@/components/content/StatusBadge";
 import PublishControl from "@/components/content/PublishControl";
-import StatusFilter, { type StatusFilterValue } from "@/components/content/StatusFilter";
+import ListToolbar from "@/components/content/ListToolbar";
+import { useListView } from "@/lib/useListView";
+import { statusFilter, regionFilter, optionFilter, titledOptions, presenceFilter } from "@/lib/listFilters";
 import BulkActionBar from "@/components/content/BulkActionBar";
 import { runBulkAction, bulkResultMessage } from "@/lib/bulk";
-import { CLIENT_TABLE_PAGINATION, FETCH_ALL_PAGE_SIZE } from "@/lib/pagination";
+import { FETCH_ALL_PAGE_SIZE } from "@/lib/pagination";
+import PageHeading from "@/components/PageHeading";
 
 export default function RTPEntriesPage() {
   const { user } = useAuth();
@@ -26,7 +29,6 @@ export default function RTPEntriesPage() {
   const [regions, setRegions] = useState<RegionDTO[]>([]);
   const [casinos, setCasinos] = useState<CasinoDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("all");
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   async function load() {
@@ -52,9 +54,20 @@ export default function RTPEntriesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const { filtered, pagination, toolbar } = useListView<RTPEntryDTO>({
+    storageKey: "rtp",
+    items: entries,
+    searchText: (e) => `${e.gameName} ${e.gameProviderName ?? ""} ${e.casinoName ?? ""}`,
+    filters: [
+        statusFilter<RTPEntryDTO>(),
+        regionFilter<RTPEntryDTO>(regions, (e) => [e.regionId]),
+        optionFilter<RTPEntryDTO>("category", "All categories", titledOptions(["slot", "table", "live", "other"]), (e) => e.category),
+        presenceFilter<RTPEntryDTO>("image", "Image: any", ["Has image", "Missing image"], (e) => Boolean(e.imageUrl)),
+      ],
+  });
+
   if (!user) return null;
 
-  const filtered = statusFilter === "all" ? entries : entries.filter((e) => e.status === statusFilter);
   const selectedEntries = entries.filter((e) => selectedRowKeys.includes(e.id));
 
   const regionName = (id: number) => regions.find((r) => r.id === id)?.name ?? id;
@@ -115,12 +128,12 @@ export default function RTPEntriesPage() {
   return (
     <section id="rtp-page" className="rtp-page flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-text dark:text-text-dark">RTP Entries</h1>
+        <PageHeading title="RTP Entries" help="rtp" />
         <IconButton id="rtp-add-button" title="Add RTP Entry" onClick={() => router.push("/dashboard/rtp/new")} icon={<IconPlus />} />
       </div>
 
       <div className="flex items-center gap-3">
-        <StatusFilter id="rtp-status-filter" value={statusFilter} onChange={setStatusFilter} />
+        <ListToolbar id="rtp-toolbar" searchPlaceholder="Search by game or provider" {...toolbar} />
       </div>
 
       <BulkActionBar
@@ -138,7 +151,7 @@ export default function RTPEntriesPage() {
         rowKey="id"
         loading={loading}
         dataSource={filtered}
-        pagination={CLIENT_TABLE_PAGINATION}
+        pagination={pagination}
         rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys }}
         columns={[
           {

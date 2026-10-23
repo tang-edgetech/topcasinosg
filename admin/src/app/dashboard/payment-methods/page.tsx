@@ -11,10 +11,13 @@ import IconButton from "@/components/IconButton";
 import { IconEdit, IconPlus, IconTrash } from "@/components/Icons";
 import StatusBadge from "@/components/content/StatusBadge";
 import PublishControl from "@/components/content/PublishControl";
-import StatusFilter, { type StatusFilterValue } from "@/components/content/StatusFilter";
+import ListToolbar from "@/components/content/ListToolbar";
+import { useListView } from "@/lib/useListView";
+import { statusFilter, regionFilter, presenceFilter } from "@/lib/listFilters";
 import BulkActionBar from "@/components/content/BulkActionBar";
 import { runBulkAction, bulkResultMessage } from "@/lib/bulk";
-import { CLIENT_TABLE_PAGINATION, FETCH_ALL_PAGE_SIZE } from "@/lib/pagination";
+import { FETCH_ALL_PAGE_SIZE } from "@/lib/pagination";
+import PageHeading from "@/components/PageHeading";
 
 export default function PaymentMethodsPage() {
   const { user } = useAuth();
@@ -24,7 +27,6 @@ export default function PaymentMethodsPage() {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodDTO[]>([]);
   const [regions, setRegions] = useState<RegionDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("all");
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   async function load() {
@@ -50,9 +52,19 @@ export default function PaymentMethodsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const { filtered, pagination, toolbar } = useListView<PaymentMethodDTO>({
+    storageKey: "payment-methods",
+    items: paymentMethods,
+    searchText: (pm) => `${pm.name} ${pm.description}`,
+    filters: [
+        statusFilter<PaymentMethodDTO>(),
+        regionFilter<PaymentMethodDTO>(regions, (pm) => [pm.regionId]),
+        presenceFilter<PaymentMethodDTO>("icon", "Icon: any", ["Has icon", "Missing icon"], (pm) => Boolean(pm.iconUrl)),
+      ],
+  });
+
   if (!user) return null;
 
-  const filtered = statusFilter === "all" ? paymentMethods : paymentMethods.filter((pm) => pm.status === statusFilter);
   const selectedPaymentMethods = paymentMethods.filter((pm) => selectedRowKeys.includes(pm.id));
 
   const regionName = (id: number) => regions.find((r) => r.id === id)?.name ?? id;
@@ -112,7 +124,7 @@ export default function PaymentMethodsPage() {
   return (
     <section id="payment-methods-page" className="payment-methods-page flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-text dark:text-text-dark">Payment Methods</h1>
+        <PageHeading title="Payment Methods" help="payment-methods" />
         <IconButton
           id="payment-methods-add-button"
           title="Add Payment Method"
@@ -122,7 +134,7 @@ export default function PaymentMethodsPage() {
       </div>
 
       <div className="flex items-center gap-3">
-        <StatusFilter id="payment-methods-status-filter" value={statusFilter} onChange={setStatusFilter} />
+        <ListToolbar id="payment-methods-toolbar" searchPlaceholder="Search payment methods" {...toolbar} />
       </div>
 
       <BulkActionBar
@@ -140,7 +152,7 @@ export default function PaymentMethodsPage() {
         rowKey="id"
         loading={loading}
         dataSource={filtered}
-        pagination={CLIENT_TABLE_PAGINATION}
+        pagination={pagination}
         rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys }}
         columns={[
           { title: "Name", dataIndex: "name", key: "name", sorter: (a, b) => a.name.localeCompare(b.name) },

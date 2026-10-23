@@ -1,328 +1,342 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import Link from "next/link";
 import {
-  getCasino,
-  getRegions,
   getBonusesForCasino,
-  getRtpEntriesForCasino,
+  getCasino,
   getGameProviders,
   getLicenses,
+  getPaymentBadgeLookup,
+  getRegions,
   toTitleCase,
-  ALL_GAME_TYPES,
-} from "../lib";
-import CasinoBadge from "../CasinoBadge";
-import LogoGrid from "../LogoGrid";
+  type BonusDTO,
+  type CasinoDTO,
+} from "@/app/[region]/_lib/api";
+import { mediaUrl } from "@/lib/pages";
 import { sanitizeRichText } from "@/lib/sanitize-html";
+import { DISPLAY_GAME_TYPES } from "@/lib/gameTypes";
+import CasinoLogo from "@/components/CasinoLogo";
+import GameTypeIcon from "@/components/GameTypeIcon";
+import PaymentMethodBadges, { type PaymentBadge } from "@/components/PaymentMethodBadges";
 
 /**
- * /casinos/[slug] — single casino review.
- *
- * Bonuses, VIP Benefit (the `loyalty_vip` bonus type), RTP score, Comparison
- * (pros/cons), Safe Index/Risk Status, the Games checklist (a fixed GameType
- * taxonomy, see supportedGames), Game Providers, and Licenses (both managed
- * logo lists, same shape — see GameProviderDTO/LicenseDTO) are all backed by
- * real CasinoDTO/Bonus/RTP fields now. Every section from the Figma mockup
- * this page was originally compared against has real data behind it.
+ * /casinos/{slug} — casino review (Figma "D / Brand Page / 1 Overview").
+ * Fully driven by the Casino record and its bonuses: a sticky score card on
+ * the left (logo, rating /10, Safe Index, risk status, Visit Site, regions,
+ * payment methods, currencies, RTP, payout speed) and the overview grid on
+ * the right (Bonuses, VIP Benefit, Games, Game Providers, Licences,
+ * Comparison). The long-form review text, when present, follows the grid.
  */
 
-interface CasinoPageParams {
-  slug: string;
-}
+const MAX_BONUS_CARDS = 3;
+const MAX_LOGOS = 10;
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<CasinoPageParams>;
-}): Promise<Metadata> {
+const RISK_STYLES: Record<string, { label: string; className: string }> = {
+  low: { label: "Low-Risk", className: "text-success" },
+  medium: { label: "Medium-Risk", className: "text-secondary-800" },
+  high: { label: "High-Risk", className: "text-danger" },
+};
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const casino = await getCasino(slug);
-
-  if (!casino) {
-    return { title: "Casino Review | Top Casino SG" };
-  }
-
+  if (!casino) return {};
   return {
-    title: `${casino.name} Casino Review | Top Casino SG`,
-    description: casino.summary,
+    title: `${casino.name} Casino Review ${new Date().getFullYear()} | Top Casino`,
+    description: casino.summary || undefined,
   };
 }
 
-export default async function CasinoDetailPage({
-  params,
-}: {
-  params: Promise<CasinoPageParams>;
-}) {
+export default async function CasinoReviewPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const [casino, regions] = await Promise.all([getCasino(slug), getRegions()]);
+  const casino = await getCasino(slug);
+  if (!casino) notFound();
 
-  if (!casino) {
-    notFound();
-  }
+  const [bonuses, regions, providers, licenses] = await Promise.all([getBonusesForCasino(casino.id), getRegions(), getGameProviders(), getLicenses()]);
+  const casinoRegions = regions.filter((r) => (casino.regionIds ?? []).includes(r.id)).sort((a, b) => a.sortOrder - b.sortOrder);
+  const badgeLookups = await Promise.all(casinoRegions.map((r) => getPaymentBadgeLookup(r.code)));
+  const paymentBadges = mergeBadges(badgeLookups.map((lookup) => lookup(casino.paymentMethods)), casino.paymentMethods);
 
-  const [bonuses, rtpEntries, gameProviders, licenses] = await Promise.all([
-    getBonusesForCasino(casino.id),
-    getRtpEntriesForCasino(casino.id),
-    getGameProviders(),
-    getLicenses(),
-  ]);
-  const casinoGameProviders = gameProviders.filter((p) => casino.gameProviderIds?.includes(p.id));
-  const casinoLicenses = licenses.filter((l) => casino.licenseIds?.includes(l.id));
-  const vipBonuses = bonuses.filter((b) => b.bonusType === "loyalty_vip");
-  const generalBonuses = bonuses.filter((b) => b.bonusType !== "loyalty_vip");
-  const averageRtp =
-    rtpEntries.length > 0
-      ? rtpEntries.reduce((sum, e) => sum + e.rtpPercentage, 0) / rtpEntries.length
-      : null;
-
-  const regionNames = (casino.regionIds ?? [])
-    .map((id) => regions.find((r) => r.id === id)?.name)
-    .filter((name): name is string => Boolean(name));
+  const regionById = new Map(regions.map((r) => [r.id, r]));
+  const offers = bonuses.filter((b) => b.bonusType !== "loyalty_vip").slice(0, MAX_BONUS_CARDS);
+  const vip = bonuses.find((b) => b.bonusType === "loyalty_vip");
+  const casinoProviders = providers.filter((p) => (casino.gameProviderIds ?? []).includes(p.id));
+  const casinoLicenses = licenses.filter((l) => (casino.licenseIds ?? []).includes(l.id));
+  const ctaUrl = casino.ctaUrl || "#";
 
   return (
-    <div id="casino-detail-page" className="casino-detail-page flex flex-1 flex-col bg-white">
-      <section id="casino-detail-hero" className="casino-detail-hero bg-surface-muted px-6 py-10">
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
-          <nav aria-label="Breadcrumb" className="casino-detail-breadcrumb text-sm text-primary-500">
-            <Link href="/" className="cursor-pointer hover:text-secondary-600 hover:underline">
+    <div id="casino-review-page" className="casino-review flex flex-1 flex-col bg-white">
+      <nav aria-label="Breadcrumb" className="casino-review__breadcrumb bg-gradient-to-r from-primary-900 to-primary-glow">
+        <ol className="section-container flex flex-wrap items-center gap-2 py-3 text-xs text-white">
+          <li>
+            <Link href="/" className="hover:underline">
               Home
             </Link>
-            <span className="mx-2">/</span>
-            <Link href="/casinos" className="cursor-pointer hover:text-secondary-600 hover:underline">
+          </li>
+          <li aria-hidden="true" className="h-1 w-1 rounded-full bg-secondary-500" />
+          <li>
+            <Link href="/casinos" className="hover:underline">
               Casino Reviews
             </Link>
-            <span className="mx-2">/</span>
-            <span className="text-primary-900">{casino.name}</span>
-          </nav>
+          </li>
+          <li aria-hidden="true" className="h-1 w-1 rounded-full bg-secondary-500" />
+          <li aria-current="page">{casino.name} Casino Review</li>
+        </ol>
+      </nav>
 
-          <div className="casino-detail-heading flex items-center gap-4">
-            <CasinoBadge name={casino.name} size={56} />
-            <div className="flex flex-col gap-1">
-              <h1 className="text-3xl font-bold tracking-tight text-primary-900 sm:text-4xl">
-                {casino.name} Casino Review
-              </h1>
-              <span className="casino-detail-rating inline-flex w-fit items-center gap-1 rounded-full bg-white px-3 py-1 text-sm font-semibold text-secondary-600 shadow-sm">
-                <span aria-hidden="true">★</span>
-                {casino.rating.toFixed(1)} / 5
-              </span>
-            </div>
-          </div>
-        </div>
-      </section>
+      <div className="section-container grid grid-cols-1 gap-8 py-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-11">
+        <aside className="casino-review__card lg:sticky lg:top-24 lg:self-start">
+          <ScoreCard casino={casino} ctaUrl={ctaUrl} regions={casinoRegions.map((r) => ({ id: r.id, name: r.name, flag: mediaUrl(r.flagUrl) }))} badges={paymentBadges} />
+        </aside>
 
-      <section id="casino-detail-body" className="casino-detail-body px-6 py-12">
-        <div className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-10 lg:grid-cols-3">
-          <div className="casino-detail-article flex flex-col gap-6 lg:col-span-2">
-            <p className="casino-detail-summary text-lg font-medium text-primary-900">{casino.summary}</p>
+        <main className="flex min-w-0 flex-col gap-8">
+          <header className="flex flex-col gap-3">
+            <h1 className="text-3xl font-bold text-primary-900">{casino.name} Casino Review</h1>
+            {casino.summary && <p className="text-sm leading-relaxed whitespace-pre-line text-primary-600">{casino.summary}</p>}
+          </header>
 
-            <div
-              className="casino-detail-content rich-text-content whitespace-pre-line text-base leading-relaxed text-primary-600"
-              dangerouslySetInnerHTML={{ __html: sanitizeRichText(casino.content) }}
-            />
+          <div className="grid grid-cols-1 gap-x-6 gap-y-8 md:grid-cols-2">
+            {offers.length > 0 && (
+              <Block title="Bonuses">
+                {offers.map((bonus) => (
+                  <OfferCard
+                    key={bonus.id}
+                    label={`${toTitleCase(bonus.bonusType)} Bonus${casinoRegions.length > 1 && regionById.get(bonus.regionId) ? ` · ${regionById.get(bonus.regionId)?.name}` : ""}`}
+                    title={bonus.title}
+                    detail={firstLine(bonus.terms)}
+                    terms={termsOf(bonus)}
+                  />
+                ))}
+              </Block>
+            )}
 
-            {generalBonuses.length > 0 && (
-              <section id="casino-detail-bonuses" className="flex flex-col gap-3">
-                <h2 className="text-xl font-bold text-primary-900">Bonuses</h2>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  {generalBonuses.map((bonus) => (
-                    <div
-                      key={bonus.id}
-                      className="casino-bonus-card flex flex-col gap-2 rounded-lg border border-primary-100 bg-surface-muted p-4"
+            {vip && (
+              <Block title="VIP Benefit">
+                <OfferCard label="Top Benefits" title={vip.title} terms={termsOf(vip)} />
+                {vip.upgradeBonus && <OfferCard label="Upgrade Bonus" title={vip.upgradeBonus} />}
+                {vip.perks && <OfferCard label="Perks" title={vip.perks} />}
+              </Block>
+            )}
+
+            <Block title="Games">
+              <ul className="grid grid-cols-2 gap-2">
+                {DISPLAY_GAME_TYPES.map((game) => {
+                  const offered = (casino.supportedGames ?? []).includes(game.value);
+                  return (
+                    <li
+                      key={game.value}
+                      className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${offered ? "border-success/30 text-success" : "border-primary-100 text-primary-200"}`}
                     >
-                      <span className="w-fit rounded-full bg-primary-100 px-2.5 py-0.5 text-xs font-semibold text-primary-900">
-                        {toTitleCase(bonus.bonusType)}
-                      </span>
-                      <h3 className="text-base font-semibold text-primary-900">{bonus.title}</h3>
-                      <p className="text-sm text-primary-600">{bonus.terms}</p>
-                      {bonus.code && (
-                        <span className="w-fit rounded border border-dashed border-secondary-600 bg-secondary-50 px-2 py-1 text-xs font-semibold text-primary-900">
-                          Code: {bonus.code}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
+                      <GameTypeIcon type={game.value} className={`h-6 w-6 ${offered ? "text-primary-900" : "text-primary-200"}`} />
+                      <span className="flex-1">{game.label}</span>
+                      <span className="sr-only">{offered ? "offered" : "not offered"}</span>
+                      <span aria-hidden="true" className={`h-2 w-3 rounded-full border ${offered ? "border-success" : "border-primary-100"}`} />
+                    </li>
+                  );
+                })}
+              </ul>
+            </Block>
 
-            {vipBonuses.length > 0 && (
-              <section id="casino-detail-vip-benefits" className="flex flex-col gap-3">
-                <h2 className="text-xl font-bold text-primary-900">VIP Benefit</h2>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  {vipBonuses.map((bonus) => (
-                    <div
-                      key={bonus.id}
-                      className="casino-vip-card flex flex-col gap-2 rounded-lg border border-secondary-200 bg-secondary-50 p-4"
-                    >
-                      <h3 className="text-base font-semibold text-primary-900">{bonus.title}</h3>
-                      <p className="text-sm text-primary-600">{bonus.terms}</p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {casino.supportedGames && casino.supportedGames.length > 0 && (
-              <section id="casino-detail-games" className="flex flex-col gap-3">
-                <h2 className="text-xl font-bold text-primary-900">Games</h2>
-                <div className="grid grid-cols-1 gap-x-8 gap-y-2 sm:grid-cols-2">
-                  {ALL_GAME_TYPES.map((game) => {
-                    const supported = casino.supportedGames?.includes(game.value) ?? false;
-                    return (
-                      <div key={game.value} className="flex items-center justify-between gap-2 text-sm">
-                        <span className="text-primary-900">{game.label}</span>
-                        <span
-                          aria-hidden="true"
-                          className={supported ? "text-success" : "text-primary-300"}
-                        >
-                          {supported ? "✓" : "✕"}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            )}
-
-            <LogoGrid id="casino-detail-game-providers" heading="Game Providers" items={casinoGameProviders} />
-
-            <LogoGrid id="casino-detail-licenses" heading="Licences" items={casinoLicenses} />
-
-            {((casino.pros && casino.pros.length > 0) || (casino.cons && casino.cons.length > 0)) && (
-              <section id="casino-detail-comparison" className="flex flex-col gap-3">
-                <h2 className="text-xl font-bold text-primary-900">Comparison</h2>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  {casino.pros && casino.pros.length > 0 && (
-                    <div className="flex flex-col gap-2 rounded-lg bg-success-subtle p-4">
-                      <h3 className="text-sm font-semibold text-success">Positive</h3>
-                      <ul className="flex flex-col gap-1 text-sm text-primary-700">
-                        {casino.pros.map((pro) => (
-                          <li key={pro} className="flex items-start gap-1.5">
-                            <span aria-hidden="true" className="text-success">✓</span>
-                            {pro}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {casino.cons && casino.cons.length > 0 && (
-                    <div className="flex flex-col gap-2 rounded-lg bg-danger/5 p-4">
-                      <h3 className="text-sm font-semibold text-danger">Negative</h3>
-                      <ul className="flex flex-col gap-1 text-sm text-primary-700">
-                        {casino.cons.map((con) => (
-                          <li key={con} className="flex items-start gap-1.5">
-                            <span aria-hidden="true" className="text-danger">✕</span>
-                            {con}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              </section>
-            )}
-
-            <a
-              href={casino.ctaUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="casino-detail-cta inline-flex w-fit cursor-pointer items-center justify-center rounded-md bg-primary-900 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-gradient-to-r hover:from-primary-900 hover:to-primary-glow"
-            >
-              Visit Site
-            </a>
-          </div>
-
-          <aside
-            id="casino-detail-sidebar"
-            className="casino-detail-sidebar flex h-fit flex-col gap-5 rounded-xl border border-primary-100 bg-surface-muted p-6"
-          >
-            <h2 className="text-lg font-bold text-primary-900">Casino Info</h2>
-
-            {(casino.safeIndex !== null || casino.riskStatus !== null) && (
-              <div className="flex items-center gap-4">
-                {casino.safeIndex !== null && (
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs font-semibold tracking-wide text-primary-500 uppercase">
-                      Safe Index
-                    </span>
-                    <span className="text-lg font-bold text-primary-900">{casino.safeIndex}</span>
-                  </div>
-                )}
-                {casino.riskStatus !== null && (
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs font-semibold tracking-wide text-primary-500 uppercase">
-                      Status
-                    </span>
-                    <span
-                      className={`w-fit rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                        casino.riskStatus === "low"
-                          ? "bg-success-subtle text-success"
-                          : casino.riskStatus === "medium"
-                            ? "bg-secondary-50 text-secondary-800"
-                            : "bg-danger/10 text-danger"
-                      }`}
-                    >
-                      {casino.riskStatus === "low" ? "Low-Risk" : casino.riskStatus === "medium" ? "Medium-Risk" : "High-Risk"}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="casino-detail-info-item flex flex-col gap-1">
-              <span className="text-xs font-semibold tracking-wide text-primary-500 uppercase">
-                Payout Speed
-              </span>
-              <span className="text-sm text-primary-900">{casino.payoutSpeed}</span>
+            <div className="flex flex-col gap-8">
+              {casinoProviders.length > 0 && (
+                <Block title="Game Providers">
+                  <LogoBox items={casinoProviders.slice(0, MAX_LOGOS)} more={casinoProviders.length - MAX_LOGOS} />
+                </Block>
+              )}
+              {casinoLicenses.length > 0 && (
+                <Block title="Licences">
+                  <LogoBox items={casinoLicenses} />
+                </Block>
+              )}
             </div>
 
-            {averageRtp !== null && (
-              <div className="casino-detail-info-item flex flex-col gap-1">
-                <span className="text-xs font-semibold tracking-wide text-primary-500 uppercase">
-                  Average RTP
-                </span>
-                <span className="text-sm text-primary-900">{averageRtp.toFixed(2)}%</span>
-              </div>
+            {((casino.pros ?? []).length > 0 || (casino.cons ?? []).length > 0) && (
+              <Block title="Comparison">
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <ProsCons title="Positive" items={casino.pros ?? []} tone="positive" />
+                  <ProsCons title="Negative" items={casino.cons ?? []} tone="negative" />
+                </div>
+              </Block>
             )}
+          </div>
 
-            {casino.languages && casino.languages.length > 0 && (
-              <div className="casino-detail-info-item flex flex-col gap-1">
-                <span className="text-xs font-semibold tracking-wide text-primary-500 uppercase">
-                  Languages
-                </span>
-                <span className="text-sm text-primary-900">{casino.languages.join(", ")}</span>
-              </div>
-            )}
-
-            {casino.paymentMethods && casino.paymentMethods.length > 0 && (
-              <div className="casino-detail-info-item flex flex-col gap-1">
-                <span className="text-xs font-semibold tracking-wide text-primary-500 uppercase">
-                  Payment Methods
-                </span>
-                <span className="text-sm text-primary-900">{casino.paymentMethods.join(", ")}</span>
-              </div>
-            )}
-
-            {regionNames.length > 0 && (
-              <div className="casino-detail-info-item flex flex-col gap-1">
-                <span className="text-xs font-semibold tracking-wide text-primary-500 uppercase">
-                  Regions Available
-                </span>
-                <span className="text-sm text-primary-900">{regionNames.join(", ")}</span>
-              </div>
-            )}
-
-            <a
-              href={casino.ctaUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="casino-detail-sidebar-cta cursor-pointer rounded-md bg-secondary-600 px-4 py-2.5 text-center text-sm font-semibold text-primary-900 transition-colors hover:bg-secondary-700"
-            >
-              Visit {casino.name} &rarr;
-            </a>
-          </aside>
-        </div>
-      </section>
+          {casino.content && (
+            <section className="flex flex-col gap-3 border-t border-primary-100 pt-8">
+              <h2 className="text-2xl font-bold text-primary-900">About {casino.name}</h2>
+              <div className="rich-text-content text-sm leading-relaxed text-primary-600" dangerouslySetInnerHTML={{ __html: sanitizeRichText(casino.content) }} />
+            </section>
+          )}
+        </main>
+      </div>
     </div>
   );
+}
+
+function ScoreCard({
+  casino,
+  ctaUrl,
+  regions,
+  badges,
+}: {
+  casino: CasinoDTO;
+  ctaUrl: string;
+  regions: { id: number; name: string; flag: string | null }[];
+  badges: PaymentBadge[];
+}) {
+  const risk = casino.riskStatus ? RISK_STYLES[casino.riskStatus] : null;
+  const currencies = casino.currencies ?? [];
+  return (
+    <div className="overflow-hidden rounded-xl bg-white shadow-[0_4px_20px_rgba(26,30,113,0.12)]">
+      <div className="flex h-32 items-center justify-center p-4">
+        <CasinoLogo src={casino.logoUrl} name={casino.name} className="h-20 w-40" />
+      </div>
+      <div className="flex flex-col gap-2 bg-success-subtle p-3">
+        <div className="grid grid-cols-2 gap-2">
+          <Stat label="Rating" value={Math.min(casino.rating * 2, 10).toFixed(1)} unit="/10" />
+          <Stat label="Safe Index" value={casino.safeIndex != null ? String(casino.safeIndex) : "—"} unit={casino.safeIndex != null ? "/100" : ""} />
+        </div>
+        {risk && (
+          <div className="rounded-lg bg-white px-3 py-2">
+            <p className="text-xs text-primary-600">Status</p>
+            <p className={`text-base font-bold ${risk.className}`}>{risk.label}</p>
+          </div>
+        )}
+        <Link
+          href={ctaUrl}
+          rel="noopener noreferrer sponsored"
+          className="cursor-pointer rounded-lg bg-success py-2.5 text-center text-sm font-bold text-white hover:brightness-95"
+        >
+          Visit Site
+        </Link>
+      </div>
+      <div className="flex flex-col gap-4 p-4 text-sm">
+        {regions.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <p className="text-xs text-primary-600">Region</p>
+            <ul className="flex flex-wrap gap-2">
+              {regions.map((r) => (
+                <li key={r.id} title={r.name}>
+                  {r.flag ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={r.flag} alt={r.name} className="h-7 w-7 rounded-full object-cover" />
+                  ) : (
+                    <span className="text-xs text-primary-900">{r.name}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {badges.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <p className="text-xs text-primary-600">Payment Methods</p>
+            <PaymentMethodBadges badges={badges} max={6} />
+          </div>
+        )}
+        <div className="grid grid-cols-2 gap-3">
+          {currencies.length > 0 && <Fact label="Currencies" value={String(currencies.length)} title={currencies.join(", ")} />}
+          {casino.rtpPercentage != null && <Fact label="RTP" value={`${casino.rtpPercentage}%`} />}
+          {casino.payoutSpeed && <Fact label="Payout Speed" value={casino.payoutSpeed} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Stat({ label, value, unit }: { label: string; value: string; unit: string }) {
+  return (
+    <div className="rounded-lg bg-white px-3 py-2">
+      <p className="text-xs text-primary-600">{label}</p>
+      <p className="text-success">
+        <span className="text-2xl font-bold">{value}</span>
+        <span className="text-xs">{unit}</span>
+      </p>
+    </div>
+  );
+}
+
+function Fact({ label, value, title }: { label: string; value: string; title?: string }) {
+  return (
+    <div title={title}>
+      <p className="text-xs text-primary-600">{label}</p>
+      <p className="font-bold text-primary-900">{value}</p>
+    </div>
+  );
+}
+
+function Block({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className="text-2xl font-bold text-primary-900">{title}</h2>
+      <div className="flex flex-col gap-2">{children}</div>
+    </section>
+  );
+}
+
+// Figma "Comp / Overview - Bonus": a small label strip, a bold headline and
+// an optional sub-line; the T&C toggle reveals the offer's terms.
+function OfferCard({ label, title, detail, terms }: { label: string; title: string; detail?: string; terms?: string }) {
+  return (
+    <div className="overflow-hidden rounded-lg border border-primary-100 bg-white">
+      <p className="bg-primary-50 px-3 py-1 text-[11px] text-primary-600">{label}</p>
+      <div className="px-3 py-2.5">
+        <p className="text-base leading-snug font-bold text-primary-glow">{title}</p>
+        {detail && <p className="text-xs text-primary-600">{detail}</p>}
+        {terms && (
+          <details className="group mt-1 text-xs text-primary-600">
+            <summary className="cursor-pointer list-none text-primary-500 underline-offset-2 hover:underline">T&amp;C apply</summary>
+            <p className="mt-1 whitespace-pre-line">{terms}</p>
+          </details>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LogoBox({ items, more = 0 }: { items: { id: number; name: string; logoUrl: string | null }[]; more?: number }) {
+  return (
+    <div className="flex flex-wrap gap-3 rounded-lg border border-primary-100 p-3">
+      {items.map((item) => (
+        <CasinoLogo key={item.id} src={item.logoUrl} name={item.name} className="h-9 w-[4.5rem]" />
+      ))}
+      {more > 0 && <span className="self-center text-xs text-primary-500">+{more} more</span>}
+    </div>
+  );
+}
+
+function ProsCons({ title, items, tone }: { title: string; items: string[]; tone: "positive" | "negative" }) {
+  const positive = tone === "positive";
+  return (
+    <div className={`rounded-lg border p-3 ${positive ? "border-success/30 bg-success-subtle" : "border-danger/30 bg-danger/10"}`}>
+      <p className={`mb-1 font-bold ${positive ? "text-success" : "text-danger"}`}>{title}</p>
+      <ul className="flex flex-col gap-1 text-xs text-primary-600">
+        {items.length === 0 && <li>—</li>}
+        {items.map((item) => (
+          <li key={item} className="flex gap-1.5">
+            <span aria-hidden="true" className={`mt-1 h-2 w-2.5 shrink-0 rounded-sm border ${positive ? "border-success" : "border-danger"}`} />
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+const firstLine = (text: string) => text.split(/(?<=[.!?])\s|\n/)[0] ?? "";
+
+function termsOf(bonus: BonusDTO): string {
+  return [
+    bonus.terms,
+    bonus.turnoverRequirement && `Wagering: ${bonus.turnoverRequirement}`,
+    bonus.minDeposit && `Min. deposit: ${bonus.minDeposit}`,
+    bonus.code && `Code: ${bonus.code}`,
+    bonus.validUntil && `Valid until ${new Date(bonus.validUntil).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+// A casino's payment methods with the first icon found across its regions.
+function mergeBadges(perRegion: PaymentBadge[][], names: string[] | null): PaymentBadge[] {
+  return (names ?? []).map((name) => ({ name, icon: perRegion.map((list) => list.find((b) => b.name === name)?.icon).find(Boolean) ?? null }));
 }

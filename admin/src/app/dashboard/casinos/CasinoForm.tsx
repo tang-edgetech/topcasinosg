@@ -52,6 +52,7 @@ export default function CasinoForm({
     summary: string;
     content: string;
     languages?: string[];
+    currencies?: string[];
     paymentMethods?: string[];
     pros?: string[];
     cons?: string[];
@@ -104,6 +105,7 @@ export default function CasinoForm({
           summary: target?.summary ?? "",
           content: target?.content ?? "",
           languages: target?.languages ?? [],
+          currencies: target?.currencies ?? [],
           paymentMethods: target?.paymentMethods ?? [],
           pros: target?.pros ?? [],
           cons: target?.cons ?? [],
@@ -161,6 +163,9 @@ export default function CasinoForm({
         </Form.Item>
         <Form.Item name="languages" label="Languages Supported">
           <Select mode="tags" placeholder="EN, CN, TH..." />
+        </Form.Item>
+        <Form.Item name="currencies" label="Currencies Accepted" extra="Shown as a count on the review page, e.g. 12 currencies.">
+          <Select mode="tags" placeholder="THB, MYR, SGD, USDT..." />
         </Form.Item>
         <Form.Item
           name="paymentMethods"

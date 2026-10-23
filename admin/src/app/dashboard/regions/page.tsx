@@ -10,6 +10,7 @@ import type { RegionDTO } from "@/lib/types";
 import IconButton from "@/components/IconButton";
 import { IconEdit, IconPlus, IconGlobe } from "@/components/Icons";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "@/lib/pagination";
+import PageHeading from "@/components/PageHeading";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
 
@@ -67,7 +68,7 @@ export default function RegionsPage() {
   return (
     <section id="regions-page" className="regions-page flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-text dark:text-text-dark">Regions</h1>
+        <PageHeading title="Regions" help="regions" />
         {canManage && (
           <IconButton id="regions-add-button" title="Add Region" onClick={() => router.push("/dashboard/regions/new")} icon={<IconPlus />} />
         )}

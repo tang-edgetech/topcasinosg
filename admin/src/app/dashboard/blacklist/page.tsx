@@ -11,10 +11,13 @@ import IconButton from "@/components/IconButton";
 import { IconEdit, IconPlus, IconTrash } from "@/components/Icons";
 import StatusBadge from "@/components/content/StatusBadge";
 import PublishControl from "@/components/content/PublishControl";
-import StatusFilter, { type StatusFilterValue } from "@/components/content/StatusFilter";
+import ListToolbar from "@/components/content/ListToolbar";
+import { useListView } from "@/lib/useListView";
+import { statusFilter, regionFilter } from "@/lib/listFilters";
 import BulkActionBar from "@/components/content/BulkActionBar";
 import { runBulkAction, bulkResultMessage } from "@/lib/bulk";
-import { CLIENT_TABLE_PAGINATION, FETCH_ALL_PAGE_SIZE } from "@/lib/pagination";
+import { FETCH_ALL_PAGE_SIZE } from "@/lib/pagination";
+import PageHeading from "@/components/PageHeading";
 
 export default function BlacklistPage() {
   const { user } = useAuth();
@@ -24,7 +27,6 @@ export default function BlacklistPage() {
   const [entries, setEntries] = useState<BlacklistEntryDTO[]>([]);
   const [regions, setRegions] = useState<RegionDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("all");
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   async function load() {
@@ -50,9 +52,18 @@ export default function BlacklistPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const { filtered, pagination, toolbar } = useListView<BlacklistEntryDTO>({
+    storageKey: "blacklist",
+    items: entries,
+    searchText: (e) => `${e.name} ${e.reason} ${(e.reasons ?? []).join(" ")}`,
+    filters: [
+        statusFilter<BlacklistEntryDTO>(),
+        regionFilter<BlacklistEntryDTO>(regions, (e) => (e.regionId ? [e.regionId] : []), true),
+      ],
+  });
+
   if (!user) return null;
 
-  const filtered = statusFilter === "all" ? entries : entries.filter((e) => e.status === statusFilter);
   const selectedEntries = entries.filter((e) => selectedRowKeys.includes(e.id));
 
   const regionName = (id: number | null) => (id === null ? "Global" : regions.find((r) => r.id === id)?.name ?? id);
@@ -112,7 +123,7 @@ export default function BlacklistPage() {
   return (
     <section id="blacklist-page" className="blacklist-page flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-text dark:text-text-dark">Blacklist</h1>
+        <PageHeading title="Blacklist" help="blacklist" />
         <IconButton
           id="blacklist-add-button"
           title="Add Blacklist Entry"
@@ -122,7 +133,7 @@ export default function BlacklistPage() {
       </div>
 
       <div className="flex items-center gap-3">
-        <StatusFilter id="blacklist-status-filter" value={statusFilter} onChange={setStatusFilter} />
+        <ListToolbar id="blacklist-toolbar" searchPlaceholder="Search by casino name or reason" {...toolbar} />
       </div>
 
       <BulkActionBar
@@ -140,7 +151,7 @@ export default function BlacklistPage() {
         rowKey="id"
         loading={loading}
         dataSource={filtered}
-        pagination={CLIENT_TABLE_PAGINATION}
+        pagination={pagination}
         rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys }}
         columns={[
           { title: "Name", dataIndex: "name", key: "name", sorter: (a, b) => a.name.localeCompare(b.name) },

@@ -39,6 +39,8 @@ type BonusDetails struct {
 	UpgradeBonus        string
 	MaxRebate           string
 	Perks               string
+	EligibleGames       string
+	PointConversionRate string
 	EligibleProviderID  *int64
 }
 

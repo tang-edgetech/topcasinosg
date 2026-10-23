@@ -24,7 +24,7 @@ const casinoColumns = `casinos.id, casinos.slug, casinos.name, casinos.logo_medi
 	casinos.summary, casinos.content, casinos.languages, casinos.payment_methods, casinos.pros, casinos.cons,
 	casinos.safe_index, casinos.risk_status, casinos.supported_games, casinos.payout_speed, casinos.cta_url,
 	casinos.status, casinos.publish_at, casinos.created_by, casinos.created_at, casinos.updated_at,
-	casinos.rtp_percentage, casinos.crypto_supported, casinos.local_banking_speed`
+	casinos.rtp_percentage, casinos.crypto_supported, casinos.local_banking_speed, casinos.currencies`
 const casinoFromClause = `casinos LEFT JOIN media ON media.id = casinos.logo_media_id`
 
 // Same columns, prefixed for queries that JOIN casinos against another
@@ -33,18 +33,18 @@ const casinoFromClause = `casinos LEFT JOIN media ON media.id = casinos.logo_med
 const casinoColumnsPrefixed = `c.id, c.slug, c.name, c.logo_media_id, media.url, c.rating, c.summary, c.content, c.languages,
 	c.payment_methods, c.pros, c.cons, c.safe_index, c.risk_status, c.supported_games, c.payout_speed, c.cta_url,
 	c.status, c.publish_at, c.created_by, c.created_at, c.updated_at,
-	c.rtp_percentage, c.crypto_supported, c.local_banking_speed`
+	c.rtp_percentage, c.crypto_supported, c.local_banking_speed, c.currencies`
 const casinoFromClausePrefixed = `casinos c LEFT JOIN media ON media.id = c.logo_media_id`
 
 func scanCasino(row interface{ Scan(...any) error }) (*domain.Casino, error) {
 	var c domain.Casino
-	var languagesJSON, paymentMethodsJSON, prosJSON, consJSON, supportedGamesJSON sql.NullString
+	var languagesJSON, paymentMethodsJSON, prosJSON, consJSON, supportedGamesJSON, currenciesJSON sql.NullString
 	var riskStatus, logoURL sql.NullString
 	if err := row.Scan(
 		&c.ID, &c.Slug, &c.Name, &c.LogoMediaID, &logoURL, &c.Rating, &c.Summary, &c.Content, &languagesJSON, &paymentMethodsJSON,
 		&prosJSON, &consJSON, &c.SafeIndex, &riskStatus, &supportedGamesJSON, &c.PayoutSpeed, &c.CTAURL, &c.Status,
 		&c.PublishAt, &c.CreatedBy, &c.CreatedAt, &c.UpdatedAt,
-		&c.RTPPercentage, &c.CryptoSupported, &c.LocalBankingSpeed,
+		&c.RTPPercentage, &c.CryptoSupported, &c.LocalBankingSpeed, &currenciesJSON,
 	); err != nil {
 		return nil, err
 	}
@@ -60,6 +60,9 @@ func scanCasino(row interface{ Scan(...any) error }) (*domain.Casino, error) {
 	}
 	if languagesJSON.Valid && languagesJSON.String != "" {
 		_ = json.Unmarshal([]byte(languagesJSON.String), &c.Languages)
+	}
+	if currenciesJSON.Valid && currenciesJSON.String != "" {
+		_ = json.Unmarshal([]byte(currenciesJSON.String), &c.Currencies)
 	}
 	if paymentMethodsJSON.Valid && paymentMethodsJSON.String != "" {
 		_ = json.Unmarshal([]byte(paymentMethodsJSON.String), &c.PaymentMethods)
@@ -141,6 +144,7 @@ func (r *CasinoRepo) syncAssociation(ctx context.Context, tx *sql.Tx, a casinoAs
 
 func (r *CasinoRepo) Create(ctx context.Context, c *domain.Casino) (int64, error) {
 	languagesJSON, _ := json.Marshal(c.Languages)
+	currenciesJSON, _ := json.Marshal(c.Currencies)
 	paymentMethodsJSON, _ := json.Marshal(c.PaymentMethods)
 	prosJSON, _ := json.Marshal(c.Pros)
 	consJSON, _ := json.Marshal(c.Cons)
@@ -155,11 +159,11 @@ func (r *CasinoRepo) Create(ctx context.Context, c *domain.Casino) (int64, error
 	res, err := tx.ExecContext(ctx, `
 		INSERT INTO casinos (slug, name, logo_media_id, rating, summary, content, languages, payment_methods,
 			pros, cons, safe_index, risk_status, supported_games, payout_speed, cta_url, status, publish_at, created_by,
-			rtp_percentage, crypto_supported, local_banking_speed)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			rtp_percentage, crypto_supported, local_banking_speed, currencies)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		c.Slug, c.Name, c.LogoMediaID, c.Rating, c.Summary, c.Content, languagesJSON, paymentMethodsJSON,
 		prosJSON, consJSON, c.SafeIndex, c.RiskStatus, supportedGamesJSON, c.PayoutSpeed, c.CTAURL, c.Status,
-		c.PublishAt, c.CreatedBy, c.RTPPercentage, c.CryptoSupported, c.LocalBankingSpeed,
+		c.PublishAt, c.CreatedBy, c.RTPPercentage, c.CryptoSupported, c.LocalBankingSpeed, currenciesJSON,
 	)
 	if err != nil {
 		return 0, err
@@ -191,6 +195,7 @@ func (r *CasinoRepo) Create(ctx context.Context, c *domain.Casino) (int64, error
 // []int64 zero-value would.
 func (r *CasinoRepo) Update(ctx context.Context, c *domain.Casino, gameProviderIDs, licenseIDs *[]int64) error {
 	languagesJSON, _ := json.Marshal(c.Languages)
+	currenciesJSON, _ := json.Marshal(c.Currencies)
 	paymentMethodsJSON, _ := json.Marshal(c.PaymentMethods)
 	prosJSON, _ := json.Marshal(c.Pros)
 	consJSON, _ := json.Marshal(c.Cons)
@@ -206,11 +211,11 @@ func (r *CasinoRepo) Update(ctx context.Context, c *domain.Casino, gameProviderI
 		UPDATE casinos SET slug = ?, name = ?, logo_media_id = ?, rating = ?, summary = ?, content = ?,
 			languages = ?, payment_methods = ?, pros = ?, cons = ?, safe_index = ?, risk_status = ?,
 			supported_games = ?, payout_speed = ?, cta_url = ?, rtp_percentage = ?, crypto_supported = ?,
-			local_banking_speed = ?
+			local_banking_speed = ?, currencies = ?
 		WHERE id = ?`,
 		c.Slug, c.Name, c.LogoMediaID, c.Rating, c.Summary, c.Content, languagesJSON, paymentMethodsJSON,
 		prosJSON, consJSON, c.SafeIndex, c.RiskStatus, supportedGamesJSON, c.PayoutSpeed, c.CTAURL,
-		c.RTPPercentage, c.CryptoSupported, c.LocalBankingSpeed, c.ID,
+		c.RTPPercentage, c.CryptoSupported, c.LocalBankingSpeed, currenciesJSON, c.ID,
 	); err != nil {
 		return err
 	}

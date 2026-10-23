@@ -1,75 +1,18 @@
 import type { Metadata } from "next";
-import { getActiveRegionByCode } from "../_lib/api";
-import { buildPageMenu, regionMenuLabel } from "../_lib/pageMenu";
-import { getPage } from "@/lib/pages";
-import IntroductionSection from "@/components/IntroductionSection";
-import IntroductionSectionBlock from "@/components/sections/IntroductionSectionBlock";
-import SectionRenderer from "@/components/sections/SectionRenderer";
-import PageGrid from "@/components/PageGrid";
-import RawHtmlBlock from "@/components/RawHtmlBlock";
+import RegionCmsPage, { regionCmsMetadata } from "../_lib/RegionCmsPage";
 
 /**
- * /{region}/rtp — a real "rtp" page nested under each region root page in
- * the Pages tree (see api/internal/db/migrations/
- * 0035_nest_rtp_guides_blacklist_pages.sql), same pattern as the
- * "payment-methods"/"bonuses" hubs. All content below the intro is
- * CMS-authored (Top RTP game carousels, how-the-tracker-works copy, the
- * live Bonus Tracker table, watch-outs, suggestions, FAQs, ...) via
- * SectionRenderer - there's no bespoke live-data RTP table on this route
- * (see Figma "D / Country / TH / RTP", which replaces the older plain
- * game/category/RTP% grid with curated carousels and a live bonus table).
+ * /{region}/rtp — RTP & Live Bonus (Figma "D / Country / TH / RTP"): the RTP
+ * sliders read RTP Entries, plus the bonus table, panels and FAQ. Shared by
+ * every region through region-template/rtp (see _lib/RegionCmsPage.tsx).
  */
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ region: string }>;
-}): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ region: string }> }): Promise<Metadata> {
   const { region } = await params;
-  const result = await getPage(`${region}/rtp`);
-  if (!result) return {};
-
-  const { page } = result;
-  return {
-    title: page.metaTitle || page.title || undefined,
-    description: page.metaDescription || undefined,
-  };
+  return regionCmsMetadata(region, "rtp");
 }
 
-export default async function RegionRtpPage({
-  params,
-}: {
-  params: Promise<{ region: string }>;
-}) {
+export default async function RegionRtpPage({ params }: { params: Promise<{ region: string }> }) {
   const { region } = await params;
-  const [regionData, result] = await Promise.all([getActiveRegionByCode(region), getPage(`${region}/rtp`)]);
-  const regionName = regionData?.name ?? region.toUpperCase();
-
-  const pageMenu = buildPageMenu(region, regionMenuLabel(regionName), "rtp");
-  const sections = (result?.sections ?? []).slice().sort((a, b) => a.sortOrder - b.sortOrder);
-  const introSection = sections[0]?.blockType === "introduction_section" ? sections[0] : null;
-  const bodySections = introSection ? sections.slice(1) : sections;
-
-  const intro = introSection ? (
-    <IntroductionSectionBlock section={introSection} fallbackPageMenu={pageMenu} />
-  ) : (
-    <IntroductionSection
-      heading={`${regionName} Real-Time RTP & Live Casino Bonus Trackers`}
-      highlightText="Real-Time RTP"
-      subheading="Top Casino Updated"
-      paragraph={`<p>Want to play smarter and win more? We give you access to real-time RTP stats and live casino bonus updates tailored just for players in ${regionName}. Whether you're chasing high-payout slots or exclusive limited-time offers, this is your go-to hub.</p>`}
-      pageMenu={pageMenu}
-    />
-  );
-
-  return (
-    <div id="region-rtp-page" className="region-rtp flex flex-1 flex-col">
-      {result && <RawHtmlBlock html={`${result.page.headSnippet}${result.page.bodySnippet}`} />}
-      <PageGrid>
-        {intro}
-        {bodySections.length > 0 && <SectionRenderer sections={bodySections} regionCode={region} />}
-      </PageGrid>
-      {result && <RawHtmlBlock html={result.page.footerSnippet} />}
-    </div>
-  );
+  return <RegionCmsPage region={region} subPath="rtp" menu="rtp" id="region-rtp-page" />;
 }

@@ -15,6 +15,7 @@ import BulkActionBar from "@/components/content/BulkActionBar";
 import IconButton from "@/components/IconButton";
 import { IconEdit, IconKey, IconShieldReset, IconPause, IconPlay, IconTrash, IconPlus, IconCrown } from "@/components/Icons";
 import { CLIENT_TABLE_PAGINATION } from "@/lib/pagination";
+import PageHeading from "@/components/PageHeading";
 
 type UserStatusFilter = "all" | "active" | "disabled";
 
@@ -139,7 +140,7 @@ export default function UsersPage() {
   return (
     <section id="users-page" className="users-page flex flex-col gap-6">
       <div className="users-page__header flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-text dark:text-text-dark">Users</h1>
+        <PageHeading title="Users" help="users" />
         <IconButton id="users-add-button" title="Add User" onClick={() => router.push("/dashboard/users/new")} icon={<IconPlus />} />
       </div>
 

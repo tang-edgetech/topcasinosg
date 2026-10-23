@@ -11,10 +11,13 @@ import IconButton from "@/components/IconButton";
 import { IconEdit, IconPlus, IconTrash } from "@/components/Icons";
 import StatusBadge from "@/components/content/StatusBadge";
 import PublishControl from "@/components/content/PublishControl";
-import StatusFilter, { type StatusFilterValue } from "@/components/content/StatusFilter";
+import ListToolbar from "@/components/content/ListToolbar";
+import { useListView } from "@/lib/useListView";
+import { statusFilter, regionFilter, presenceFilter } from "@/lib/listFilters";
 import BulkActionBar from "@/components/content/BulkActionBar";
 import { runBulkAction, bulkResultMessage } from "@/lib/bulk";
-import { CLIENT_TABLE_PAGINATION, FETCH_ALL_PAGE_SIZE } from "@/lib/pagination";
+import { FETCH_ALL_PAGE_SIZE } from "@/lib/pagination";
+import PageHeading from "@/components/PageHeading";
 
 export default function GuidesPage() {
   const { user } = useAuth();
@@ -24,7 +27,6 @@ export default function GuidesPage() {
   const [guides, setGuides] = useState<GuideDTO[]>([]);
   const [regions, setRegions] = useState<RegionDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("all");
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   async function load() {
@@ -48,9 +50,19 @@ export default function GuidesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const { filtered, pagination, toolbar } = useListView<GuideDTO>({
+    storageKey: "guides",
+    items: guides,
+    searchText: (g) => `${g.title} ${g.slug}`,
+    filters: [
+        statusFilter<GuideDTO>(),
+        regionFilter<GuideDTO>(regions, (g) => (g.regionId ? [g.regionId] : []), true),
+        presenceFilter<GuideDTO>("cover", "Cover: any", ["Has cover", "Missing cover"], (g) => Boolean(g.coverMediaId)),
+      ],
+  });
+
   if (!user) return null;
 
-  const filtered = statusFilter === "all" ? guides : guides.filter((g) => g.status === statusFilter);
   const selectedGuides = guides.filter((g) => selectedRowKeys.includes(g.id));
 
   const regionName = (id: number | null) => (id === null ? "Global" : regions.find((r) => r.id === id)?.name ?? id);
@@ -110,12 +122,12 @@ export default function GuidesPage() {
   return (
     <section id="guides-page" className="guides-page flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-text dark:text-text-dark">Guides</h1>
+        <PageHeading title="Guides" help="guides" />
         <IconButton id="guides-add-button" title="Add Guide" onClick={() => router.push("/dashboard/guides/new")} icon={<IconPlus />} />
       </div>
 
       <div className="flex items-center gap-3">
-        <StatusFilter id="guides-status-filter" value={statusFilter} onChange={setStatusFilter} />
+        <ListToolbar id="guides-toolbar" searchPlaceholder="Search guides by title or slug" {...toolbar} />
       </div>
 
       <BulkActionBar
@@ -133,7 +145,7 @@ export default function GuidesPage() {
         rowKey="id"
         loading={loading}
         dataSource={filtered}
-        pagination={CLIENT_TABLE_PAGINATION}
+        pagination={pagination}
         rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys }}
         columns={[
           { title: "Title", dataIndex: "title", key: "title", sorter: (a, b) => a.title.localeCompare(b.title) },

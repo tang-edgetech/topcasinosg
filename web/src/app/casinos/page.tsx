@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { getCasinos, getRegions, type CasinoDTO } from "./lib";
-import CasinoBadge from "./CasinoBadge";
+import { getAllCasinos, getCasinos, getRegions, type CasinoDTO } from "@/app/[region]/_lib/api";
+import CasinoLogo from "@/components/CasinoLogo";
 import IntroductionSection from "@/components/IntroductionSection";
 import PageGrid from "@/components/PageGrid";
 
@@ -35,7 +35,7 @@ function CasinoCard({ casino }: { casino: CasinoDTO }) {
       className="casino-card flex flex-col gap-4 rounded-xl border border-primary-100 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
     >
       <div className="casino-card__header flex items-center gap-3">
-        <CasinoBadge name={casino.name} />
+        <CasinoLogo src={casino.logoUrl} name={casino.name} className="h-10 w-20" />
         <div className="flex flex-col">
           <h2 className="text-lg font-bold text-primary-900">{casino.name}</h2>
           <RatingBadge rating={casino.rating} />
@@ -60,7 +60,7 @@ export default async function CasinosPage({
   searchParams: Promise<{ region?: string }>;
 }) {
   const { region } = await searchParams;
-  const [casinos, regions] = await Promise.all([getCasinos(region), getRegions()]);
+  const [casinos, regions] = await Promise.all([region ? getCasinos(region, undefined, 200) : getAllCasinos(), getRegions()]);
 
   const activeRegions = regions.filter((r) => r.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
 

@@ -1,5 +1,5 @@
-export const DEFAULT_PAGE_SIZE = 25;
-export const PAGE_SIZE_OPTIONS = ["25", "50", "100", "150", "200"];
+export const DEFAULT_PAGE_SIZE = 20;
+export const PAGE_SIZE_OPTIONS = ["10", "20", "50", "75", "100", "150"];
 
 // Every list page now fetches its whole dataset in one request (see
 // api/internal/service/pagination.go's maxPageSize) and paginates/filters/
@@ -9,6 +9,7 @@ export const FETCH_ALL_PAGE_SIZE = 5000;
 
 // Shared antd Table pagination config for a client-side-paginated list (the
 // whole dataset is already in `dataSource`; antd just slices it for display).
+// Lists with filters use useListView's controlled pagination instead.
 export const CLIENT_TABLE_PAGINATION = {
   defaultPageSize: DEFAULT_PAGE_SIZE,
   pageSizeOptions: PAGE_SIZE_OPTIONS,

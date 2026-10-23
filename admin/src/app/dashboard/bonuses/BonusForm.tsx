@@ -21,7 +21,9 @@ type DetailKey =
   | "paymentFrequency"
   | "upgradeBonus"
   | "maxRebate"
-  | "perks";
+  | "perks"
+  | "eligibleGames"
+  | "pointConversionRate";
 
 interface DetailField {
   key: DetailKey;
@@ -42,7 +44,10 @@ const DETAIL_FIELDS_BY_TYPE: Record<BonusType, DetailField[]> = {
     { key: "maxClaim", label: "Max Claim Amount", placeholder: "SGD 10" },
     { key: "withdrawalLimit", label: "Min Max Withdrawal", placeholder: "Minimum SGD 50" },
   ],
-  free_spins: [{ key: "turnoverRequirement", label: "Turnover Requirement", placeholder: "30x winnings" }],
+  free_spins: [
+    { key: "turnoverRequirement", label: "Turnover Requirement", placeholder: "30x winnings" },
+    { key: "eligibleGames", label: "Eligible Games", placeholder: "Sweet Bonanza, Gates of Olympus" },
+  ],
   cashback: [
     { key: "turnoverRequirement", label: "Turnover Requirement", placeholder: "No Wagering" },
     { key: "paymentFrequency", label: "Payment Frequency", placeholder: "Weekly" },
@@ -52,6 +57,7 @@ const DETAIL_FIELDS_BY_TYPE: Record<BonusType, DetailField[]> = {
     { key: "minDeposit", label: "Minimum Deposit", placeholder: "SGD 20" },
   ],
   loyalty_vip: [
+    { key: "pointConversionRate", label: "Point Conversion Rate", placeholder: "100 points = 1 SGD" },
     { key: "upgradeBonus", label: "Upgrade Bonus", placeholder: "SGD 3,500" },
     { key: "maxRebate", label: "Max Rebate", placeholder: "1.20%" },
     { key: "withdrawalLimit", label: "Daily Withdrawal Amount", placeholder: "By Invitation" },
@@ -121,6 +127,8 @@ export default function BonusForm({
       upgradeBonus: values.upgradeBonus ?? "",
       maxRebate: values.maxRebate ?? "",
       perks: values.perks ?? "",
+      eligibleGames: values.eligibleGames ?? "",
+      pointConversionRate: values.pointConversionRate ?? "",
       eligibleProviderId: values.eligibleProviderId ?? null,
     };
     try {
@@ -163,6 +171,8 @@ export default function BonusForm({
           upgradeBonus: target?.upgradeBonus ?? "",
           maxRebate: target?.maxRebate ?? "",
           perks: target?.perks ?? "",
+          eligibleGames: target?.eligibleGames ?? "",
+          pointConversionRate: target?.pointConversionRate ?? "",
           eligibleProviderId: target?.eligibleProviderId ?? undefined,
         }}
       >

@@ -11,9 +11,11 @@ import {
   type BonusType,
   type CasinoDTO,
 } from "@/app/[region]/_lib/api";
-import StarRating from "@/components/StarRating";
+import CasinoLogo from "@/components/CasinoLogo";
+import { MAX_CASINOS_FOR_LOOKUP } from "@/components/data-table/loadRows";
+import ScoreDisplay from "@/components/ScoreDisplay";
+import VisitSiteLink from "@/components/VisitSiteLink";
 
-const MAX_CASINOS_FOR_LOOKUP = 200;
 const MAX_PROS = 4;
 
 export interface Pick {
@@ -23,7 +25,7 @@ export interface Pick {
 
 // Figma "Top Bonus Picks in Thailand 2025" / "Most Popular Online Casinos
 // Among Thai Players": ranked cards of the region's best-rated casinos -
-// live Bonus/Casino data (same sources as BonusListingTableSection), not
+// live Bonus/Casino data (same sources as DataTableSection), not
 // admin-authored cards. #1 gets the highlighted amber treatment and the
 // region's flag; the rest show their rank. Casino.rating is stored out of 5
 // and shown out of 10 (x2) to match the design's "9.6/10" scale.
@@ -122,9 +124,7 @@ export function BonusPickCard({
   featured?: boolean;
 }) {
   const { bonus, casino } = pick;
-  const score = Math.min(casino.rating * 2, 10);
   const pros = (casino.pros ?? []).slice(0, MAX_PROS);
-  const logo = mediaUrl(casino.logoUrl);
 
   return (
     <article
@@ -149,25 +149,11 @@ export function BonusPickCard({
 
       <div className={`relative flex flex-1 flex-col items-center gap-3 px-6 pt-6 pb-5 ${featured ? "" : "bg-surface"}`}>
         <div className="flex flex-col items-center gap-1">
-          {logo ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={logo} alt="" className="h-14 w-28 object-contain" />
-          ) : (
-            <div
-              aria-hidden="true"
-              className="h-14 w-28 rounded bg-[repeating-conic-gradient(#e5e7eb_0%_25%,transparent_0%_50%)] bg-[length:12px_12px]"
-            />
-          )}
+          <CasinoLogo src={casino.logoUrl} name={casino.name} className="h-14 w-28" />
           <span className="text-sm text-primary-600">{casino.name}</span>
         </div>
 
-        <div className="flex flex-col items-center gap-1">
-          <p className="text-primary-900">
-            <span className="text-2xl font-bold">{score.toFixed(1)}</span>
-            <span className="text-xs">/10</span>
-          </p>
-          <StarRating rating={casino.rating} />
-        </div>
+        <ScoreDisplay rating={casino.rating} />
 
         {bonus && (
           <div
@@ -199,14 +185,13 @@ export function BonusPickCard({
       </div>
 
       <div className={`flex gap-2 px-6 py-4 ${featured ? "bg-secondary-50" : "bg-surface-muted"}`}>
-        <Link
-          href={casino.ctaUrl || `/casinos/${casino.slug}`}
+        <VisitSiteLink
+          href={casino.ctaUrl}
+          fallbackHref={`/casinos/${casino.slug}`}
           className={`flex-1 cursor-pointer rounded-md px-3 py-2 text-center text-sm font-semibold text-white ${
             featured ? "bg-secondary-900 hover:bg-secondary-800" : "bg-primary-900 hover:bg-primary-800"
           }`}
-        >
-          Visit Site
-        </Link>
+        />
         <Link
           href={`/casinos/${casino.slug}`}
           className="flex-1 cursor-pointer rounded-md bg-white px-3 py-2 text-center text-sm text-primary-600 hover:text-primary-900"

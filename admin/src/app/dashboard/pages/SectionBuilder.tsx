@@ -37,7 +37,6 @@ const BLOCK_GROUPS: { label: string; blocks: [PageBlockType, string][] }[] = [
       ["hero", "Large banner with image and button"],
       ["rich_text", "Heading with formatted text"],
       ["highlight_panel", "Two-tone heading, text and optional side-by-side boxes"],
-      ["cta", "Call-to-action banner with a button"],
       ["cta_link_list", "Heading with a stack of link buttons"],
     ],
   },
@@ -48,6 +47,7 @@ const BLOCK_GROUPS: { label: string; blocks: [PageBlockType, string][] }[] = [
       ["expandable_card_grid", "Tagline box plus expandable \"+\" cards"],
       ["link_card_grid", "Grid of cards with big linked titles"],
       ["info_card_columns", "Two columns of white/tinted info cards"],
+      ["two_column_table", "Two-column table: term and explanation"],
       ["icon_box_group", "Icon boxes in a grid"],
       ["checklist_callout", "Mint box with a checkmark list"],
       ["numbered_steps", "Step 1, Step 2… instruction cards"],
@@ -57,17 +57,14 @@ const BLOCK_GROUPS: { label: string; blocks: [PageBlockType, string][] }[] = [
       ["team_grid", "Team member cards"],
       ["stats_counter", "Animated number counters"],
       ["logo_strip", "Row of logos"],
-      ["image_gallery", "Image gallery"],
     ],
   },
   {
     label: "Live data (updates automatically)",
     blocks: [
       ["top_bonus_picks", "Ranked casino cards from live casinos & bonuses"],
-      ["bonus_listing_table", "Table of live bonuses for a region"],
-      ["casino_comparison_table", "Casino ratings comparison table"],
-      ["casino_list_table", "Casino list: cashback, payments, rating, safe index"],
       ["game_casino_finder", "Pick a game, see casinos that offer it"],
+      ["data_table", "Table of live casinos or bonuses, columns you choose"],
       ["top_casinos_by_region", "Top casinos for a region"],
       ["blacklist_preview", "Slider of blacklisted casinos"],
       ["content_carousel", "Latest guides or news"],
@@ -78,7 +75,6 @@ const BLOCK_GROUPS: { label: string; blocks: [PageBlockType, string][] }[] = [
   {
     label: "Tables & FAQ",
     blocks: [
-      ["comparison_table", "Hand-written comparison table with tips box"],
       ["faq", "Questions & answers accordion"],
     ],
   },

@@ -11,7 +11,9 @@ import IconButton from "@/components/IconButton";
 import { IconEdit, IconPlus, IconTrash, IconCertificate } from "@/components/Icons";
 import BulkActionBar from "@/components/content/BulkActionBar";
 import { runBulkAction, bulkResultMessage } from "@/lib/bulk";
-import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "@/lib/pagination";
+import ListToolbar from "@/components/content/ListToolbar";
+import { useListView } from "@/lib/useListView";
+import PageHeading from "@/components/PageHeading";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
 
@@ -44,6 +46,12 @@ export default function LicensesPage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const { filtered, pagination, toolbar } = useListView<LicenseDTO>({
+    storageKey: "licenses",
+    items: licenses,
+    searchText: (item) => item.name,
+  });
 
   if (!user) return null;
   const canManage = user.role === "super_admin" || user.role === "admin";
@@ -83,7 +91,7 @@ export default function LicensesPage() {
   return (
     <section id="licenses-page" className="licenses-page flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-text dark:text-text-dark">Licenses</h1>
+        <PageHeading title="Licenses" help="licenses" />
         {canManage && (
           <IconButton
             id="licenses-add-button"
@@ -93,6 +101,8 @@ export default function LicensesPage() {
           />
         )}
       </div>
+
+      <ListToolbar id="licenses-toolbar" searchPlaceholder="Search licenses" {...toolbar} />
 
       <BulkActionBar
         count={selectedRowKeys.length}
@@ -104,13 +114,8 @@ export default function LicensesPage() {
         id="licenses-table"
         rowKey="id"
         loading={loading}
-        dataSource={licenses}
-        pagination={{
-          defaultPageSize: DEFAULT_PAGE_SIZE,
-          pageSizeOptions: PAGE_SIZE_OPTIONS,
-          showSizeChanger: true,
-          showTotal: (t) => `${t} total`,
-        }}
+        dataSource={filtered}
+        pagination={pagination}
         rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys }}
         columns={[
           {

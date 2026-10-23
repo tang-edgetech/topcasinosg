@@ -11,7 +11,9 @@ import IconButton from "@/components/IconButton";
 import { IconEdit, IconPlus, IconTrash, IconDice } from "@/components/Icons";
 import BulkActionBar from "@/components/content/BulkActionBar";
 import { runBulkAction, bulkResultMessage } from "@/lib/bulk";
-import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "@/lib/pagination";
+import ListToolbar from "@/components/content/ListToolbar";
+import { useListView } from "@/lib/useListView";
+import PageHeading from "@/components/PageHeading";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
 
@@ -44,6 +46,12 @@ export default function GameProvidersPage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const { filtered, pagination, toolbar } = useListView<GameProviderDTO>({
+    storageKey: "game-providers",
+    items: providers,
+    searchText: (item) => item.name,
+  });
 
   if (!user) return null;
   const canManage = user.role === "super_admin" || user.role === "admin";
@@ -83,7 +91,7 @@ export default function GameProvidersPage() {
   return (
     <section id="game-providers-page" className="game-providers-page flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-text dark:text-text-dark">Game Providers</h1>
+        <PageHeading title="Game Providers" help="game-providers" />
         {canManage && (
           <IconButton
             id="game-providers-add-button"
@@ -93,6 +101,8 @@ export default function GameProvidersPage() {
           />
         )}
       </div>
+
+      <ListToolbar id="game-providers-toolbar" searchPlaceholder="Search game providers" {...toolbar} />
 
       <BulkActionBar
         count={selectedRowKeys.length}
@@ -104,13 +114,8 @@ export default function GameProvidersPage() {
         id="game-providers-table"
         rowKey="id"
         loading={loading}
-        dataSource={providers}
-        pagination={{
-          defaultPageSize: DEFAULT_PAGE_SIZE,
-          pageSizeOptions: PAGE_SIZE_OPTIONS,
-          showSizeChanger: true,
-          showTotal: (t) => `${t} total`,
-        }}
+        dataSource={filtered}
+        pagination={pagination}
         rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys }}
         columns={[
           {

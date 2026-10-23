@@ -7,6 +7,7 @@ import { api, ApiError } from "@/lib/api";
 import type { SnippetDTO, PageDTO } from "@/lib/types";
 import HeaderFooterPanel from "./HeaderFooterPanel";
 import CodePanel from "./CodePanel";
+import PageHeading from "@/components/PageHeading";
 
 export default function SnippetsPage() {
   const { user } = useAuth();
@@ -52,7 +53,7 @@ export default function SnippetsPage() {
   return (
     <section id="snippets-page" className="snippets-page flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold text-text dark:text-text-dark">Snippets</h1>
+        <PageHeading title="Snippets" help="snippets" />
         <p className="mt-1 text-sm text-text-muted dark:text-text-muted-dark">
           Raw HTML/JavaScript injected into the site — analytics, tracking pixels, chat widgets, etc.
         </p>

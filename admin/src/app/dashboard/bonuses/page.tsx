@@ -12,10 +12,13 @@ import IconButton from "@/components/IconButton";
 import { IconEdit, IconPlus, IconTrash } from "@/components/Icons";
 import StatusBadge from "@/components/content/StatusBadge";
 import PublishControl from "@/components/content/PublishControl";
-import StatusFilter, { type StatusFilterValue } from "@/components/content/StatusFilter";
+import ListToolbar from "@/components/content/ListToolbar";
+import { useListView } from "@/lib/useListView";
+import { statusFilter, regionFilter, optionFilter, titledOptions } from "@/lib/listFilters";
 import BulkActionBar from "@/components/content/BulkActionBar";
 import { runBulkAction, bulkResultMessage } from "@/lib/bulk";
-import { CLIENT_TABLE_PAGINATION, FETCH_ALL_PAGE_SIZE } from "@/lib/pagination";
+import { FETCH_ALL_PAGE_SIZE } from "@/lib/pagination";
+import PageHeading from "@/components/PageHeading";
 
 export default function BonusesPage() {
   const { user } = useAuth();
@@ -26,7 +29,6 @@ export default function BonusesPage() {
   const [regions, setRegions] = useState<RegionDTO[]>([]);
   const [casinos, setCasinos] = useState<CasinoDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("all");
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   async function load() {
@@ -52,9 +54,20 @@ export default function BonusesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const { filtered, pagination, toolbar } = useListView<BonusDTO>({
+    storageKey: "bonuses",
+    items: bonuses,
+    searchText: (b) => `${b.title} ${b.code ?? ""}`,
+    filters: [
+        statusFilter<BonusDTO>(),
+        regionFilter<BonusDTO>(regions, (b) => [b.regionId]),
+        optionFilter<BonusDTO>("type", "All bonus types", titledOptions(["welcome", "no_deposit", "free_spins", "deposit", "cashback", "loyalty_vip"]), (b) => b.bonusType),
+        { ...optionFilter<BonusDTO>("casino", "All casinos", casinos.map((c) => ({ value: String(c.id), label: c.name })), (b) => (b.casinoId ? String(b.casinoId) : "")), width: "w-44" },
+      ],
+  });
+
   if (!user) return null;
 
-  const filtered = statusFilter === "all" ? bonuses : bonuses.filter((b) => b.status === statusFilter);
   const selectedBonuses = bonuses.filter((b) => selectedRowKeys.includes(b.id));
 
   const regionName = (id: number) => regions.find((r) => r.id === id)?.name ?? id;
@@ -115,12 +128,12 @@ export default function BonusesPage() {
   return (
     <section id="bonuses-page" className="bonuses-page flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-text dark:text-text-dark">Bonuses</h1>
+        <PageHeading title="Bonuses" help="bonuses" />
         <IconButton id="bonuses-add-button" title="Add Bonus" onClick={() => router.push("/dashboard/bonuses/new")} icon={<IconPlus />} />
       </div>
 
       <div className="flex items-center gap-3">
-        <StatusFilter id="bonuses-status-filter" value={statusFilter} onChange={setStatusFilter} />
+        <ListToolbar id="bonuses-toolbar" searchPlaceholder="Search bonuses by title or code" {...toolbar} />
       </div>
 
       <BulkActionBar
@@ -138,7 +151,7 @@ export default function BonusesPage() {
         rowKey="id"
         loading={loading}
         dataSource={filtered}
-        pagination={CLIENT_TABLE_PAGINATION}
+        pagination={pagination}
         rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys }}
         columns={[
           { title: "Title", dataIndex: "title", key: "title", sorter: (a, b) => a.title.localeCompare(b.title) },

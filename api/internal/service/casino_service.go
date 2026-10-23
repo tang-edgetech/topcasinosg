@@ -26,6 +26,7 @@ type CasinoInput struct {
 	Summary        string
 	Content        string
 	Languages      []string
+	Currencies     []string
 	PaymentMethods []string
 	Pros           []string
 	Cons           []string
@@ -95,7 +96,7 @@ func (s *CasinoService) Create(ctx context.Context, actor *domain.AdminUser, in 
 	actorID := actor.ID
 	c := &domain.Casino{
 		Slug: in.Slug, Name: in.Name, LogoMediaID: in.LogoMediaID, Rating: in.Rating, Summary: in.Summary,
-		Content: in.Content, Languages: in.Languages, PaymentMethods: in.PaymentMethods, Pros: in.Pros, Cons: in.Cons,
+		Content: in.Content, Languages: in.Languages, Currencies: in.Currencies, PaymentMethods: in.PaymentMethods, Pros: in.Pros, Cons: in.Cons,
 		SafeIndex: in.SafeIndex, RiskStatus: in.RiskStatus, SupportedGames: in.SupportedGames,
 		PayoutSpeed: in.PayoutSpeed, CTAURL: in.CTAURL, Status: domain.ContentStatusDraft, CreatedBy: &actorID,
 		RegionIDs: in.RegionIDs, GameProviderIDs: derefIDs(in.GameProviderIDs), LicenseIDs: derefIDs(in.LicenseIDs),
@@ -127,7 +128,7 @@ func (s *CasinoService) Update(ctx context.Context, id int64, in CasinoInput) er
 	}
 	return s.casinos.Update(ctx, &domain.Casino{
 		ID: id, Slug: in.Slug, Name: in.Name, LogoMediaID: in.LogoMediaID, Rating: in.Rating, Summary: in.Summary,
-		Content: in.Content, Languages: in.Languages, PaymentMethods: in.PaymentMethods, Pros: in.Pros, Cons: in.Cons,
+		Content: in.Content, Languages: in.Languages, Currencies: in.Currencies, PaymentMethods: in.PaymentMethods, Pros: in.Pros, Cons: in.Cons,
 		SafeIndex: in.SafeIndex, RiskStatus: in.RiskStatus, SupportedGames: in.SupportedGames,
 		PayoutSpeed: in.PayoutSpeed, CTAURL: in.CTAURL, RegionIDs: in.RegionIDs,
 		RTPPercentage: in.RTPPercentage, CryptoSupported: in.CryptoSupported, LocalBankingSpeed: in.LocalBankingSpeed,

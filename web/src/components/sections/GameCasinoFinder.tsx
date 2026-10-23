@@ -3,7 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import GameTypeIcon from "@/components/GameTypeIcon";
-import type { GameType } from "@/lib/gameTypes";
+import CasinoLogo from "@/components/CasinoLogo";
+import VisitSiteLink from "@/components/VisitSiteLink";
+import { DISPLAY_GAME_TYPES, type GameType } from "@/lib/gameTypes";
 
 export interface FinderCasino {
   id: number;
@@ -15,19 +17,6 @@ export interface FinderCasino {
   games: string[];
 }
 
-// Figma's tile order (Poker isn't one of the design's options).
-const FINDER_GAMES: { value: GameType; label: string }[] = [
-  { value: "slots", label: "Slots" },
-  { value: "roulette", label: "Roulette" },
-  { value: "blackjack", label: "Blackjack" },
-  { value: "baccarat", label: "Baccarat" },
-  { value: "sic_bo", label: "Sic Bo" },
-  { value: "pai_gow", label: "Pai Gow" },
-  { value: "keno", label: "Keno" },
-  { value: "craps", label: "Craps" },
-  { value: "bingo", label: "Bingo" },
-  { value: "video_poker", label: "Video Poker" },
-];
 
 export default function GameCasinoFinder({
   casinos,
@@ -41,7 +30,7 @@ export default function GameCasinoFinder({
   results: number;
 }) {
   const [selected, setSelected] = useState<GameType | null>(null);
-  const selectedLabel = FINDER_GAMES.find((g) => g.value === selected)?.label ?? "";
+  const selectedLabel = DISPLAY_GAME_TYPES.find((g) => g.value === selected)?.label ?? "";
   const matches = selected ? casinos.filter((c) => c.games.includes(selected)).slice(0, results) : [];
 
   return (
@@ -53,7 +42,7 @@ export default function GameCasinoFinder({
 
       <div className="flex flex-col items-center gap-6 px-4 py-6">
         <div role="radiogroup" aria-label={panelTitle} className="flex max-w-[560px] flex-wrap justify-center gap-2">
-          {FINDER_GAMES.map((game) => {
+          {DISPLAY_GAME_TYPES.map((game) => {
             const active = selected === game.value;
             return (
               <button
@@ -86,15 +75,7 @@ export default function GameCasinoFinder({
                 {matches.map((casino, i) => (
                   <li key={casino.id} className="flex items-center gap-3 rounded-md bg-white px-3 py-2.5">
                     <span className="w-4 text-sm font-semibold text-primary-500">{i + 1}</span>
-                    {casino.logo ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={casino.logo} alt="" className="h-8 w-14 object-contain" />
-                    ) : (
-                      <span
-                        aria-hidden="true"
-                        className="h-8 w-14 rounded bg-[repeating-conic-gradient(#e5e7eb_0%_25%,transparent_0%_50%)] bg-[length:10px_10px]"
-                      />
-                    )}
+                    <CasinoLogo src={casino.logo} name={casino.name} className="h-8 w-14" />
                     <Link href={`/casinos/${casino.slug}`} className="flex-1 cursor-pointer text-sm font-semibold text-primary-900 hover:text-secondary-700">
                       {casino.name}
                     </Link>
@@ -102,13 +83,11 @@ export default function GameCasinoFinder({
                       <span className="font-bold">{casino.score.toFixed(1)}</span>
                       <span className="text-xs">/10</span>
                     </span>
-                    <Link
+                    <VisitSiteLink
                       href={casino.ctaUrl}
-                      rel="noopener noreferrer sponsored"
+                      fallbackHref={`/casinos/${casino.slug}`}
                       className="cursor-pointer rounded-md bg-primary-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-800"
-                    >
-                      Visit Site
-                    </Link>
+                    />
                   </li>
                 ))}
               </ol>
