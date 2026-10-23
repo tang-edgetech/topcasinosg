@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/tang-edgetech/topcasinosg/api/internal/config"
 	"github.com/tang-edgetech/topcasinosg/api/internal/db"
@@ -12,7 +14,23 @@ import (
 	"github.com/tang-edgetech/topcasinosg/api/internal/server"
 	"github.com/tang-edgetech/topcasinosg/api/internal/service"
 	"github.com/tang-edgetech/topcasinosg/api/internal/storage"
+	"github.com/tang-edgetech/topcasinosg/api/internal/version"
 )
+
+const auditPurgeInterval = 24 * time.Hour
+
+// purgeExpiredAuditLogs enforces the activity-log retention period once at
+// startup and then daily. Safe to run on several API instances at once.
+func purgeExpiredAuditLogs(audit *service.AuditService) {
+	for {
+		if removed, err := audit.PurgeExpired(context.Background()); err != nil {
+			log.Printf("audit purge: %v", err)
+		} else if removed > 0 {
+			log.Printf("audit purge: removed %d expired entries", removed)
+		}
+		time.Sleep(auditPurgeInterval)
+	}
+}
 
 func main() {
 	cfg := config.Load()
@@ -45,6 +63,7 @@ func main() {
 	pageRepo := repository.NewPageRepo(conn)
 	snippetRepo := repository.NewSnippetRepo(conn)
 	sidebarRepo := repository.NewSidebarRepo(conn)
+	auditRepo := repository.NewAuditRepo(conn)
 
 	jwtIssuer := security.NewJWTIssuer(cfg.JWTSecret)
 	secretbox, err := security.NewSecretbox(cfg.OTPEncryptionKey)
@@ -71,12 +90,14 @@ func main() {
 	pageService := service.NewPageService(pageRepo)
 	snippetService := service.NewSnippetService(snippetRepo)
 	sidebarService := service.NewSidebarService(sidebarRepo)
+	auditService := service.NewAuditService(auditRepo, users)
+	go purgeExpiredAuditLogs(auditService)
 
 	deps := server.Deps{
 		Config:                cfg,
 		JWT:                   jwtIssuer,
 		Users:                 users,
-		AuthHandler:           handler.NewAuthHandler(authService, cfg),
+		AuthHandler:           handler.NewAuthHandler(authService, auditService, cfg),
 		UserHandler:           handler.NewUserHandler(userService),
 		SiteSettingsHandler:   handler.NewSiteSettingsHandler(siteSettingsService, fileStorage),
 		MediaHandler:          handler.NewMediaHandler(mediaService),
@@ -94,10 +115,12 @@ func main() {
 		PageHandler:           handler.NewPageHandler(pageService),
 		SnippetHandler:        handler.NewSnippetHandler(snippetService),
 		SidebarHandler:        handler.NewSidebarHandler(sidebarService),
+		AuditHandler:          handler.NewAuditHandler(auditService),
+		Audit:                 auditService,
 	}
 	router := server.NewRouter(deps)
 
-	log.Printf("topcasinosg-api listening on :%s (env=%s)", cfg.Port, cfg.Env)
+	log.Printf("topcasinosg-api %s listening on :%s (env=%s)", version.Version, cfg.Port, cfg.Env)
 	if err := http.ListenAndServe(":"+cfg.Port, router); err != nil {
 		log.Fatal(err)
 	}

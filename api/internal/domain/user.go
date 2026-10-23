@@ -46,7 +46,6 @@ type AdminUser struct {
 	PasswordHash       string
 	FullName           string
 	Role               Role
-	CanManageAdmins    bool
 	ThemePreference    Theme
 	Status             Status
 	OTPSecretEncrypted []byte
@@ -60,35 +59,33 @@ func (u AdminUser) OTPEnrolled() bool {
 	return u.OTPConfirmedAt != nil
 }
 
-// CanManage reports whether actor can manage a user with target's role,
-// honoring the "Crown" flag: an Admin without it may only manage Editors.
-func CanManage(actorRole Role, actorCanManageAdmins bool, targetRole Role) bool {
+// CanSeeSuperAdmins: Super Admin is hidden from every other role — not
+// listed, not assignable, absent from the activity log — so to an Admin the
+// role simply doesn't exist.
+func CanSeeSuperAdmins(actorRole Role) bool {
+	return actorRole == RoleSuperAdmin
+}
+
+// CanManage reports whether actor can manage a user with target's role.
+// Admins have full control over Admins and Editors; Super Admins over everyone.
+func CanManage(actorRole Role, targetRole Role) bool {
 	switch actorRole {
 	case RoleSuperAdmin:
 		return true
 	case RoleAdmin:
-		if targetRole == RoleEditor {
-			return true
-		}
-		if targetRole == RoleAdmin {
-			return actorCanManageAdmins
-		}
-		return false
+		return targetRole == RoleAdmin || targetRole == RoleEditor
 	default:
 		return false
 	}
 }
 
 // AssignableRoles lists the roles actor is allowed to create/assign.
-func AssignableRoles(actorRole Role, actorCanManageAdmins bool) []Role {
+func AssignableRoles(actorRole Role) []Role {
 	switch actorRole {
 	case RoleSuperAdmin:
 		return []Role{RoleSuperAdmin, RoleAdmin, RoleEditor}
 	case RoleAdmin:
-		if actorCanManageAdmins {
-			return []Role{RoleAdmin, RoleEditor}
-		}
-		return []Role{RoleEditor}
+		return []Role{RoleAdmin, RoleEditor}
 	default:
 		return nil
 	}

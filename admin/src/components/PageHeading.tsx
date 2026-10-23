@@ -24,7 +24,7 @@ export default function PageHeading({ title, help }: { title: string; help: Admi
       >
         i
       </button>
-      <Drawer open={open} onClose={() => setOpen(false)} title={`How to use ${title}`} width={440}>
+      <Drawer open={open} onClose={() => setOpen(false)} title={`How to use ${title}`} size={440}>
         <div className="flex flex-col gap-5 text-sm leading-relaxed text-text dark:text-text-dark">
           <p>{guide.summary}</p>
           {guide.sections.map((section) => (

@@ -7,7 +7,9 @@ import { useAuth } from "@/lib/auth-context";
 import { useSiteSettings } from "@/lib/site-settings-context";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { titleCase } from "@/lib/format";
+import { isStaff } from "@/lib/roles";
 import BrandMark from "@/components/BrandMark";
+import AppVersion from "@/components/AppVersion";
 import {
   IconGrid,
   IconUsers,
@@ -33,6 +35,7 @@ import {
   IconList,
   IconEdit,
   IconChevronDown,
+  IconHistory,
 } from "@/components/Icons";
 
 // One color scheme for every clickable sidebar item, main nav or footer:
@@ -103,7 +106,8 @@ const NAV_ITEMS: NavEntry[] = [
       { href: "/dashboard/sidebar", label: "Sidebar", roles: ["super_admin", "admin"], icon: IconList },
     ],
   },
-  { href: "/dashboard/snippets", label: "Snippets", roles: ["super_admin"], icon: IconCode },
+  { href: "/dashboard/snippets", label: "Snippets", roles: ["super_admin", "admin"], icon: IconCode },
+  { href: "/dashboard/activity", label: "Activity Log", roles: ["super_admin", "admin", "editor"], icon: IconHistory },
 ];
 
 export default function Sidebar({ onNavigate, onClose }: { onNavigate?: () => void; onClose?: () => void }) {
@@ -241,7 +245,7 @@ export default function Sidebar({ onNavigate, onClose }: { onNavigate?: () => vo
           {user?.themePreference === "dark" ? "Light Theme" : "Dark Theme"}
         </button>
 
-        {user?.role === "super_admin" && (
+        {user && isStaff(user) && (
           <Link
             href="/dashboard/settings"
             onClick={onNavigate}
@@ -283,6 +287,8 @@ export default function Sidebar({ onNavigate, onClose }: { onNavigate?: () => vo
           <IconLogout width={18} height={18} />
           Log Out
         </button>
+
+        <AppVersion className="px-2 text-white/50" />
       </div>
     </nav>
   );

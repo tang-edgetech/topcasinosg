@@ -11,6 +11,7 @@ import (
 	"github.com/tang-edgetech/topcasinosg/api/internal/middleware"
 	"github.com/tang-edgetech/topcasinosg/api/internal/repository"
 	"github.com/tang-edgetech/topcasinosg/api/internal/security"
+	"github.com/tang-edgetech/topcasinosg/api/internal/service"
 )
 
 type Deps struct {
@@ -35,6 +36,8 @@ type Deps struct {
 	PageHandler           *handler.PageHandler
 	SnippetHandler        *handler.SnippetHandler
 	SidebarHandler        *handler.SidebarHandler
+	AuditHandler          *handler.AuditHandler
+	Audit                 *service.AuditService
 }
 
 func NewRouter(deps Deps) http.Handler {
@@ -79,7 +82,13 @@ func NewRouter(deps Deps) http.Handler {
 	mux.HandleFunc("GET /api/pages/{path...}", deps.PageHandler.GetPublic)
 	mux.HandleFunc("GET /api/snippets", deps.SnippetHandler.GetPublic)
 
-	authenticate := middleware.Authenticate(deps.JWT, deps.Users)
+	authenticateUser := middleware.Authenticate(deps.JWT, deps.Users)
+	audit := middleware.Audit(deps.Audit, adminSnapshotter(mux))
+	// Every authenticated route is audited: GETs pass straight through, and
+	// a change is logged only when the inner role check and handler succeed.
+	authenticate := func(next http.Handler) http.Handler {
+		return authenticateUser(audit(next))
+	}
 	staffOnly := middleware.RequireRoles(domain.RoleSuperAdmin, domain.RoleAdmin)
 	superAdminOnly := middleware.RequireRoles(domain.RoleSuperAdmin)
 	// Content-management roles: Editors manage content (including media),
@@ -93,30 +102,35 @@ func NewRouter(deps Deps) http.Handler {
 	mux.Handle("PUT /api/admin/account/theme", authenticate(http.HandlerFunc(deps.UserHandler.SetTheme)))
 	mux.Handle("PUT /api/admin/account/profile", authenticate(http.HandlerFunc(deps.UserHandler.SelfUpdateProfile)))
 
+	// Activity log — every role; what each one sees is narrowed in AuditService.
+	mux.Handle("GET /api/admin/activity", authenticate(contentStaff(http.HandlerFunc(deps.AuditHandler.List))))
+	mux.Handle("GET /api/admin/activity/actors", authenticate(contentStaff(http.HandlerFunc(deps.AuditHandler.Actors))))
+
 	// Users — Super Admin and Admin only; Editors have no access at all.
 	mux.Handle("GET /api/admin/users", authenticate(staffOnly(http.HandlerFunc(deps.UserHandler.List))))
+	mux.Handle("GET /api/admin/users/{id}", authenticate(staffOnly(http.HandlerFunc(deps.UserHandler.Get))))
 	mux.Handle("POST /api/admin/users", authenticate(staffOnly(http.HandlerFunc(deps.UserHandler.Create))))
 	mux.Handle("PUT /api/admin/users/{id}", authenticate(staffOnly(http.HandlerFunc(deps.UserHandler.UpdateProfile))))
 	mux.Handle("PUT /api/admin/users/{id}/status", authenticate(staffOnly(http.HandlerFunc(deps.UserHandler.SetStatus))))
-	mux.Handle("PUT /api/admin/users/{id}/crown", authenticate(staffOnly(http.HandlerFunc(deps.UserHandler.SetCrown))))
 	mux.Handle("POST /api/admin/users/{id}/reset-password", authenticate(staffOnly(http.HandlerFunc(deps.UserHandler.ResetPassword))))
 	mux.Handle("POST /api/admin/users/{id}/reset-otp", authenticate(staffOnly(http.HandlerFunc(deps.UserHandler.ResetOTP))))
 
-	// Site settings — Super Admin only.
-	mux.Handle("PUT /api/admin/settings/site", authenticate(superAdminOnly(http.HandlerFunc(deps.SiteSettingsHandler.Update))))
+	// Site settings — Super Admin and Admin. The site-wide 2FA switch stays
+	// Super Admin only: it guards the hidden owner's control of sign-in.
+	mux.Handle("PUT /api/admin/settings/site", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.Update))))
 	mux.Handle("PUT /api/admin/settings/2fa", authenticate(superAdminOnly(http.HandlerFunc(deps.SiteSettingsHandler.SetTwoFactorEnabled))))
-	mux.Handle("POST /api/admin/settings/site/logo", authenticate(superAdminOnly(http.HandlerFunc(deps.SiteSettingsHandler.UploadLogo))))
-	mux.Handle("POST /api/admin/settings/site/favicon", authenticate(superAdminOnly(http.HandlerFunc(deps.SiteSettingsHandler.UploadFavicon))))
-	mux.Handle("PUT /api/admin/settings/site/logo", authenticate(superAdminOnly(http.HandlerFunc(deps.SiteSettingsHandler.SetLogo))))
-	mux.Handle("PUT /api/admin/settings/site/favicon", authenticate(superAdminOnly(http.HandlerFunc(deps.SiteSettingsHandler.SetFavicon))))
+	mux.Handle("POST /api/admin/settings/site/logo", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.UploadLogo))))
+	mux.Handle("POST /api/admin/settings/site/favicon", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.UploadFavicon))))
+	mux.Handle("PUT /api/admin/settings/site/logo", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.SetLogo))))
+	mux.Handle("PUT /api/admin/settings/site/favicon", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.SetFavicon))))
 
-	// Snippets — Super Admin only. Raw HTML/JS injected into every page;
+	// Snippets — Super Admin and Admin. Raw HTML/JS injected into every page;
 	// same trust tier as Settings, not a content-editing capability.
-	mux.Handle("GET /api/admin/snippets", authenticate(superAdminOnly(http.HandlerFunc(deps.SnippetHandler.List))))
-	mux.Handle("POST /api/admin/snippets", authenticate(superAdminOnly(http.HandlerFunc(deps.SnippetHandler.Create))))
-	mux.Handle("PUT /api/admin/snippets/{id}", authenticate(superAdminOnly(http.HandlerFunc(deps.SnippetHandler.Update))))
-	mux.Handle("PUT /api/admin/snippets/{id}/active", authenticate(superAdminOnly(http.HandlerFunc(deps.SnippetHandler.SetActive))))
-	mux.Handle("DELETE /api/admin/snippets/{id}", authenticate(superAdminOnly(http.HandlerFunc(deps.SnippetHandler.Delete))))
+	mux.Handle("GET /api/admin/snippets", authenticate(staffOnly(http.HandlerFunc(deps.SnippetHandler.List))))
+	mux.Handle("POST /api/admin/snippets", authenticate(staffOnly(http.HandlerFunc(deps.SnippetHandler.Create))))
+	mux.Handle("PUT /api/admin/snippets/{id}", authenticate(staffOnly(http.HandlerFunc(deps.SnippetHandler.Update))))
+	mux.Handle("PUT /api/admin/snippets/{id}/active", authenticate(staffOnly(http.HandlerFunc(deps.SnippetHandler.SetActive))))
+	mux.Handle("DELETE /api/admin/snippets/{id}", authenticate(staffOnly(http.HandlerFunc(deps.SnippetHandler.Delete))))
 
 	// Media library — any content-management role.
 	mux.Handle("GET /api/admin/media", authenticate(contentStaff(http.HandlerFunc(deps.MediaHandler.List))))
@@ -199,7 +213,7 @@ func NewRouter(deps Deps) http.Handler {
 	mux.Handle("GET /api/admin/pages/{id}", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.Get))))
 	mux.Handle("PUT /api/admin/pages/{id}", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.Update))))
 	mux.Handle("PUT /api/admin/pages/{id}/seo", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.UpdateSEO))))
-	mux.Handle("PUT /api/admin/pages/{id}/snippets", authenticate(superAdminOnly(http.HandlerFunc(deps.PageHandler.UpdateSnippets))))
+	mux.Handle("PUT /api/admin/pages/{id}/snippets", authenticate(staffOnly(http.HandlerFunc(deps.PageHandler.UpdateSnippets))))
 	mux.Handle("PUT /api/admin/pages/{id}/status", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.SetStatus))))
 	mux.Handle("PUT /api/admin/pages/{id}/sections", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.ReplaceSections))))
 	mux.Handle("PUT /api/admin/pages/reorder", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.Reorder))))

@@ -26,6 +26,8 @@ func userErrorStatus(err error) int {
 		return http.StatusForbidden
 	case errors.Is(err, service.ErrEmailTaken):
 		return http.StatusConflict
+	case errors.Is(err, service.ErrUserNotFound):
+		return http.StatusNotFound
 	case errors.Is(err, service.ErrWrongCurrentPassword):
 		return http.StatusUnauthorized
 	case errors.Is(err, service.ErrInvalidTheme), errors.Is(err, service.ErrFullNameRequired):
@@ -47,6 +49,21 @@ func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.JSON(w, http.StatusOK, map[string]any{"users": toUserDTOs(users)})
+}
+
+func (h *UserHandler) Get(w http.ResponseWriter, r *http.Request) {
+	actor := middleware.UserFromContext(r.Context())
+	id, err := pathID(r)
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "invalid user id")
+		return
+	}
+	user, err := h.users.Get(r.Context(), actor, id)
+	if err != nil {
+		response.Err(w, userErrorStatus(err), err.Error())
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]any{"user": toUserDTO(user)})
 }
 
 type createUserRequest struct {
@@ -122,29 +139,6 @@ func (h *UserHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.users.SetStatus(r.Context(), actor, id, status); err != nil {
-		response.Err(w, userErrorStatus(err), err.Error())
-		return
-	}
-	response.JSON(w, http.StatusOK, map[string]bool{"updated": true})
-}
-
-type setCrownRequest struct {
-	Enabled bool `json:"enabled"`
-}
-
-func (h *UserHandler) SetCrown(w http.ResponseWriter, r *http.Request) {
-	actor := middleware.UserFromContext(r.Context())
-	id, err := pathID(r)
-	if err != nil {
-		response.Err(w, http.StatusBadRequest, "invalid user id")
-		return
-	}
-	var req setCrownRequest
-	if err := httpx.DecodeJSON(r, &req); err != nil {
-		response.Err(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-	if err := h.users.SetCanManageAdmins(r.Context(), actor, id, req.Enabled); err != nil {
 		response.Err(w, userErrorStatus(err), err.Error())
 		return
 	}

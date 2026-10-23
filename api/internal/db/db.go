@@ -8,15 +8,40 @@ import (
 	"io/fs"
 	"log"
 	"sort"
+	"strings"
+	"time"
 
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/go-sql-driver/mysql"
 )
 
 //go:embed migrations/*.sql
 var migrationFiles embed.FS
 
+// legacyDataFixMarker opens a migration that only corrects data written by
+// older releases. A brand-new database never held that data, so there the
+// migration is recorded as applied without running.
+const legacyDataFixMarker = "-- legacy-data-fix"
+
+// utcSessionTimeZone pins every connection to UTC, so DB-generated times
+// (DEFAULT CURRENT_TIMESTAMP, NOW()) match the UTC times the API writes and
+// reads, whatever time zone the MySQL server itself runs in.
+const utcSessionTimeZone = "'+00:00'"
+
+// Open connects with the session time zone forced to UTC on top of the
+// configured DSN, so a deployment can't accidentally run on server-local time.
 func Open(dsn string) (*sql.DB, error) {
-	conn, err := sql.Open("mysql", dsn)
+	cfg, err := mysql.ParseDSN(dsn)
+	if err != nil {
+		return nil, fmt.Errorf("parse mysql dsn: %w", err)
+	}
+	if cfg.Params == nil {
+		cfg.Params = map[string]string{}
+	}
+	cfg.Params["time_zone"] = utcSessionTimeZone
+	cfg.Loc = time.UTC
+	cfg.ParseTime = true
+
+	conn, err := sql.Open("mysql", cfg.FormatDSN())
 	if err != nil {
 		return nil, fmt.Errorf("open mysql: %w", err)
 	}
@@ -47,6 +72,12 @@ func Migrate(conn *sql.DB) error {
 	}
 	sort.Strings(names)
 
+	var previouslyApplied int
+	if err := conn.QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&previouslyApplied); err != nil {
+		return fmt.Errorf("count applied migrations: %w", err)
+	}
+	isNewDatabase := previouslyApplied == 0
+
 	for _, name := range names {
 		var alreadyApplied int
 		if err := conn.QueryRow(`SELECT COUNT(*) FROM schema_migrations WHERE filename = ?`, name).Scan(&alreadyApplied); err != nil {
@@ -61,7 +92,9 @@ func Migrate(conn *sql.DB) error {
 			return fmt.Errorf("read migration %s: %w", name, err)
 		}
 
-		if _, err := conn.Exec(string(contents)); err != nil {
+		if isNewDatabase && strings.HasPrefix(strings.TrimSpace(string(contents)), legacyDataFixMarker) {
+			log.Printf("db: skipping %s on a new database (nothing to fix)", name)
+		} else if _, err := conn.Exec(string(contents)); err != nil {
 			return fmt.Errorf("apply migration %s: %w", name, err)
 		}
 		if _, err := conn.Exec(`INSERT INTO schema_migrations (filename) VALUES (?)`, name); err != nil {

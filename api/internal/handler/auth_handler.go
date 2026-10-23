@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -14,12 +15,24 @@ import (
 )
 
 type AuthHandler struct {
-	auth *service.AuthService
-	cfg  config.Config
+	auth  *service.AuthService
+	audit *service.AuditService
+	cfg   config.Config
 }
 
-func NewAuthHandler(auth *service.AuthService, cfg config.Config) *AuthHandler {
-	return &AuthHandler{auth: auth, cfg: cfg}
+func NewAuthHandler(auth *service.AuthService, audit *service.AuditService, cfg config.Config) *AuthHandler {
+	return &AuthHandler{auth: auth, audit: audit, cfg: cfg}
+}
+
+func (h *AuthHandler) recordAuth(r *http.Request, action string, userID int64, email string) {
+	h.audit.RecordAuth(context.WithoutCancel(r.Context()), action, userID, email,
+		middleware.ClientIP(r), r.UserAgent())
+}
+
+func (h *AuthHandler) recordSignedIn(r *http.Request, outcome *service.LoginOutcome) {
+	if outcome.Status == "ok" && outcome.User != nil {
+		h.recordAuth(r, domain.AuditActionLogin, outcome.User.ID, "")
+	}
 }
 
 func authErrorStatus(err error) int {
@@ -91,6 +104,7 @@ func (h *AuthHandler) Bootstrap(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, authErrorStatus(err), err.Error())
 		return
 	}
+	h.recordSignedIn(r, outcome)
 	httpx.SetSessionCookies(w, h.cfg, outcome)
 	response.JSON(w, http.StatusCreated, map[string]any{"user": toUserDTO(outcome.User)})
 }
@@ -109,9 +123,11 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	outcome, err := h.auth.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
+		h.recordAuth(r, domain.AuditActionLoginFailed, 0, req.Email)
 		response.Err(w, authErrorStatus(err), err.Error())
 		return
 	}
+	h.recordSignedIn(r, outcome)
 	h.respondOutcome(w, outcome)
 }
 
@@ -128,9 +144,11 @@ func (h *AuthHandler) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 	}
 	outcome, err := h.auth.VerifyOTP(r.Context(), req.EphemeralToken, req.Code)
 	if err != nil {
+		h.recordAuth(r, domain.AuditActionLoginFailed, h.auth.PendingUserID(req.EphemeralToken), "")
 		response.Err(w, authErrorStatus(err), err.Error())
 		return
 	}
+	h.recordSignedIn(r, outcome)
 	h.respondOutcome(w, outcome)
 }
 
@@ -160,9 +178,11 @@ func (h *AuthHandler) ConfirmOTPSetup(w http.ResponseWriter, r *http.Request) {
 	}
 	outcome, err := h.auth.ConfirmOTPSetup(r.Context(), req.EphemeralToken, req.Code)
 	if err != nil {
+		h.recordAuth(r, domain.AuditActionLoginFailed, h.auth.PendingUserID(req.EphemeralToken), "")
 		response.Err(w, authErrorStatus(err), err.Error())
 		return
 	}
+	h.recordSignedIn(r, outcome)
 	h.respondOutcome(w, outcome)
 }
 
@@ -183,7 +203,9 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	if cookie, err := r.Cookie(httpx.RefreshCookieName); err == nil {
-		_ = h.auth.Logout(r.Context(), cookie.Value)
+		if userID, _ := h.auth.Logout(r.Context(), cookie.Value); userID > 0 {
+			h.recordAuth(r, domain.AuditActionLogout, userID, "")
+		}
 	}
 	httpx.ClearSessionCookies(w, h.cfg)
 	response.JSON(w, http.StatusOK, map[string]bool{"loggedOut": true})

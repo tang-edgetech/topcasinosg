@@ -1,0 +1,39 @@
+name: Version tag
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: version-tag
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create the next version tag
+        run: |
+          if git tag --points-at HEAD | grep -q '^v'; then
+            echo "HEAD is already tagged: $(git tag --points-at HEAD | grep '^v')"
+            exit 0
+          fi
+          series=$(tr -d '[:space:]' < VERSION)
+          last=$(git tag --list "v${series}.*" --sort=-v:refname | head -n1)
+          if [ -z "$last" ]; then
+            next="v${series}.0"
+          else
+            next="v${series}.$(( ${last##*.} + 1 ))"
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$next" -m "Release $next"
+          git push origin "$next"
+          echo "Tagged $next" >> "$GITHUB_STEP_SUMMARY"

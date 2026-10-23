@@ -187,9 +187,36 @@ export const ADMIN_HELP = {
       {
         heading: "Roles",
         points: [
-          "Editor: manages content (casinos, bonuses, pages…).",
-          "Admin: also manages settings, regions and editors.",
-          "Super Admin: full access, including other admins. It can't be deleted.",
+          "Editor: manages content (casinos, bonuses, pages, guides, news, media…).",
+          "Admin: full access to the whole admin panel, including users, settings, navigation and snippets.",
+        ],
+      },
+      {
+        heading: "Tips",
+        points: [
+          "Disabling a user signs them out straight away. Re-enable them any time.",
+          "Reset 2FA when someone loses their authenticator app; they scan a new QR code at next sign-in.",
+          "You can't disable or delete your own account.",
+        ],
+      },
+    ],
+  },
+  activity: {
+    summary: "The Activity Log records who did what in this admin panel, and when.",
+    sections: [
+      {
+        heading: "What is recorded",
+        points: [
+          "Every add, edit, publish, delete and setting change, with the old and new value of each field that changed.",
+          "Sign-ins, failed sign-in attempts and sign-outs, with the IP address and browser.",
+          "Passwords and 2FA codes are never recorded. Entries can't be edited or deleted, and are kept for 12 months.",
+        ],
+      },
+      {
+        heading: "Using the log",
+        points: [
+          "Filter by user, section, action or date range. Click an entry to see exactly what changed.",
+          "Editors see their own activity; Admins see everyone's.",
         ],
       },
     ],

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { isStaff, isSuperAdmin } from "@/lib/roles";
 import { useSiteSettings } from "@/lib/site-settings-context";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { api, ApiError } from "@/lib/api";
@@ -59,7 +60,7 @@ export default function SettingsPage() {
 
   if (!user) return null;
 
-  if (user.role !== "super_admin") {
+  if (!isStaff(user)) {
     return (
       <section id="settings-page" className="settings-page">
         <p className="text-text-muted dark:text-text-muted-dark">You don&apos;t have access to this section.</p>
@@ -433,7 +434,7 @@ export default function SettingsPage() {
         </button>
       </form>
 
-      <TwoFactorSettings />
+      {isSuperAdmin(user) && <TwoFactorSettings />}
     </section>
   );
 }

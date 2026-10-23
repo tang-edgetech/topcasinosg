@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Form, Input, App as AntApp } from "antd";
 import { useAuth } from "@/lib/auth-context";
+import { isStaff } from "@/lib/roles";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { api, ApiError } from "@/lib/api";
 import type { SaveAction } from "./SaveActionBar";
@@ -14,9 +15,9 @@ const { TextArea } = Input;
 // permission tiers: Meta Title/Description/robots are editable by any
 // content-management role (same as the rest of a page; indexing/following is
 // controlled site-wide only, see Dashboard > Settings), while the raw
-// Head/Body/Footer code injection is Super Admin only — same trust tier as
+// Head/Body/Footer code injection is Super Admin and Admin only — same trust tier as
 // the site-wide Snippets tool, since it's unrestricted script injection.
-// Non-super-admins simply don't see the code section (see Sidebar's
+// Editors simply don't see the code section (see Sidebar's
 // role-gated "Snippets" link for the same pattern).
 export default function PageSEOForm({
   page,
@@ -73,7 +74,7 @@ export default function PageSEOForm({
     const actions: SaveAction[] = [
       { id: "page-seo-form-submit", label: "Save SEO Settings", onSave: () => seoForm.submit(), saving: savingSeo },
     ];
-    if (user?.role === "super_admin") {
+    if (user && isStaff(user)) {
       actions.push({
         id: "page-snippets-form-submit",
         label: "Save Custom Code",
@@ -122,7 +123,7 @@ export default function PageSEOForm({
         </Form>
       </div>
 
-      {user?.role === "super_admin" && (
+      {user && isStaff(user) && (
         <div id="page-snippets-form" className="page-snippets-form flex flex-col gap-4 rounded-lg border border-border p-5 dark:border-border-dark">
           <div>
             <h2 className="text-lg font-bold text-text dark:text-text-dark">Custom Code</h2>

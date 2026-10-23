@@ -7,6 +7,7 @@ import { api, ApiError, hasSessionCookie } from "@/lib/api";
 import type { LoginResponse, OTPSetupResponse } from "@/lib/types";
 import PasswordInput from "@/components/PasswordInput";
 import BrandMark from "@/components/BrandMark";
+import AppVersion from "@/components/AppVersion";
 import { useSiteSettings } from "@/lib/site-settings-context";
 
 type Step = "checking" | "credentials" | "otp-verify" | "otp-setup";
@@ -122,7 +123,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div id="login-page" className="flex flex-1 items-center justify-center px-4 py-16">
+    <div id="login-page" className="flex flex-1 flex-col items-center justify-center gap-4 px-4 py-16">
       <div className="auth-card w-full max-w-sm rounded-lg border border-border bg-surface p-8 shadow-sm dark:border-border-dark dark:bg-surface-dark">
         <div className="mb-6 flex items-center gap-3">
           <BrandMark size={36} />
@@ -233,6 +234,7 @@ export default function LoginPage() {
           </form>
         )}
       </div>
+      <AppVersion className="text-text-muted dark:text-text-muted-dark" />
     </div>
   );
 }

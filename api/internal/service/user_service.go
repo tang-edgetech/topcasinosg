@@ -12,7 +12,8 @@ import (
 
 var (
 	ErrForbidden            = errors.New("not allowed to manage this account")
-	ErrEmailTaken           = errors.New("email is already in use")
+	ErrEmailTaken           = errors.New("this email can't be used")
+	ErrUserNotFound         = errors.New("user not found")
 	ErrInvalidRole          = errors.New("role is not assignable by this account")
 	ErrCannotActOnSelf      = errors.New("cannot perform this action on your own account")
 	ErrWrongCurrentPassword = errors.New("current password is incorrect")
@@ -33,7 +34,7 @@ func NewUserService(users *repository.UserRepo, refreshTokens *repository.Refres
 // exactly what they may manage. Editors get nothing — they have no access to
 // user management at all, enforced again at the route level.
 func visibleRoles(actor *domain.AdminUser) []domain.Role {
-	return domain.AssignableRoles(actor.Role, actor.CanManageAdmins)
+	return domain.AssignableRoles(actor.Role)
 }
 
 func (s *UserService) List(ctx context.Context, actor *domain.AdminUser) ([]domain.AdminUser, error) {
@@ -77,7 +78,7 @@ func (s *UserService) Create(ctx context.Context, actor *domain.AdminUser, email
 }
 
 func roleAssignable(actor *domain.AdminUser, role domain.Role) bool {
-	for _, r := range domain.AssignableRoles(actor.Role, actor.CanManageAdmins) {
+	for _, r := range domain.AssignableRoles(actor.Role) {
 		if r == role {
 			return true
 		}
@@ -87,13 +88,25 @@ func roleAssignable(actor *domain.AdminUser, role domain.Role) bool {
 
 func (s *UserService) requireManage(ctx context.Context, actor *domain.AdminUser, targetID int64) (*domain.AdminUser, error) {
 	target, err := s.users.GetByID(ctx, targetID)
+	if errors.Is(err, repository.ErrNotFound) {
+		return nil, ErrUserNotFound
+	}
 	if err != nil {
 		return nil, err
 	}
-	if !domain.CanManage(actor.Role, actor.CanManageAdmins, target.Role) {
+	if target.Role == domain.RoleSuperAdmin && !domain.CanSeeSuperAdmins(actor.Role) {
+		return nil, ErrUserNotFound
+	}
+	if !domain.CanManage(actor.Role, target.Role) {
 		return nil, ErrForbidden
 	}
 	return target, nil
+}
+
+// Get returns one account the actor may manage; a hidden Super Admin is
+// reported as not found.
+func (s *UserService) Get(ctx context.Context, actor *domain.AdminUser, targetID int64) (*domain.AdminUser, error) {
+	return s.requireManage(ctx, actor, targetID)
 }
 
 func (s *UserService) UpdateProfile(ctx context.Context, actor *domain.AdminUser, targetID int64, email, fullName string) error {
@@ -124,22 +137,6 @@ func (s *UserService) SetStatus(ctx context.Context, actor *domain.AdminUser, ta
 		return s.refreshTokens.RevokeAllForUser(ctx, targetID)
 	}
 	return nil
-}
-
-// SetCanManageAdmins toggles the "Crown" — Super Admin only, and only ever
-// meaningful on an Admin account.
-func (s *UserService) SetCanManageAdmins(ctx context.Context, actor *domain.AdminUser, targetID int64, enabled bool) error {
-	if actor.Role != domain.RoleSuperAdmin {
-		return ErrForbidden
-	}
-	target, err := s.users.GetByID(ctx, targetID)
-	if err != nil {
-		return err
-	}
-	if target.Role != domain.RoleAdmin {
-		return ErrForbidden
-	}
-	return s.users.UpdateCanManageAdmins(ctx, targetID, enabled)
 }
 
 func (s *UserService) SelfChangePassword(ctx context.Context, actor *domain.AdminUser, currentPassword, newPassword string) error {

@@ -8,7 +8,6 @@ export interface AdminUserDTO {
   email: string;
   fullName: string;
   role: Role;
-  canManageAdmins: boolean;
   themePreference: ThemePreference;
   status: UserStatus;
   otpEnrolled: boolean;
@@ -397,4 +396,29 @@ export interface PageSectionDTO {
   customId: string;
   sortOrder: number;
   fields: PageSectionFieldDTO[];
+}
+
+export interface AuditChange {
+  from?: unknown;
+  to?: unknown;
+}
+
+export interface AuditLogDTO {
+  id: number;
+  actorId: number | null;
+  actorName: string;
+  actorRole: string;
+  action: string;
+  entityType: string;
+  entityId: number | null;
+  entityLabel: string;
+  changes: Record<string, AuditChange> | null;
+  ipAddress: string;
+  userAgent: string;
+  createdAt: string;
+}
+
+export interface AuditActorDTO {
+  id: number;
+  name: string;
 }

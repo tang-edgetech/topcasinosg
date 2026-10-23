@@ -241,7 +241,7 @@ func (s *AuthService) validateStoredOTP(user *domain.AdminUser, code string) boo
 }
 
 func (s *AuthService) issueSession(ctx context.Context, user *domain.AdminUser) (*LoginOutcome, error) {
-	accessToken, err := s.jwt.GenerateAccessToken(user.ID, string(user.Role), user.CanManageAdmins)
+	accessToken, err := s.jwt.GenerateAccessToken(user.ID, string(user.Role))
 	if err != nil {
 		return nil, err
 	}
@@ -279,9 +279,24 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*LoginO
 	return s.issueSession(ctx, user)
 }
 
-func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
+// Logout revokes the refresh token and reports whose session it was (0 when
+// the token was already invalid), so the sign-out can be audited.
+func (s *AuthService) Logout(ctx context.Context, refreshToken string) (int64, error) {
 	if refreshToken == "" {
-		return nil
+		return 0, nil
 	}
-	return s.refreshTokens.Revoke(ctx, security.HashToken(refreshToken))
+	hash := security.HashToken(refreshToken)
+	userID, _ := s.refreshTokens.GetValidUserID(ctx, hash)
+	return userID, s.refreshTokens.Revoke(ctx, hash)
+}
+
+// PendingUserID identifies whose half-finished 2FA sign-in an ephemeral token
+// belongs to, so a wrong code is logged against the right account.
+func (s *AuthService) PendingUserID(ephemeralToken string) int64 {
+	for _, purpose := range []string{security.PurposeOTPVerify, security.PurposeOTPSetup} {
+		if claims, err := s.jwt.ParseEphemeralToken(ephemeralToken, purpose); err == nil {
+			return claims.UserID
+		}
+	}
+	return 0
 }

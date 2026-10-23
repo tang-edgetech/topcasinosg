@@ -1,0 +1,21 @@
+CREATE TABLE audit_logs (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    actor_id BIGINT UNSIGNED NULL,
+    actor_name VARCHAR(255) NOT NULL DEFAULT '',
+    actor_role VARCHAR(20) NOT NULL DEFAULT '',
+    action VARCHAR(60) NOT NULL,
+    entity_type VARCHAR(100) NOT NULL,
+    entity_id BIGINT UNSIGNED NULL,
+    entity_label VARCHAR(255) NOT NULL DEFAULT '',
+    changes JSON NULL,
+    restricted BOOLEAN NOT NULL DEFAULT FALSE,
+    ip_address VARCHAR(45) NOT NULL DEFAULT '',
+    user_agent VARCHAR(255) NOT NULL DEFAULT '',
+    created_at DATETIME NOT NULL,
+    PRIMARY KEY (id),
+    KEY idx_audit_logs_created_at (created_at),
+    KEY idx_audit_logs_actor (actor_id, created_at),
+    KEY idx_audit_logs_entity (entity_type, entity_id),
+    KEY idx_audit_logs_restricted (restricted, created_at),
+    CONSTRAINT fk_audit_logs_actor FOREIGN KEY (actor_id) REFERENCES admin_users (id) ON DELETE SET NULL
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;

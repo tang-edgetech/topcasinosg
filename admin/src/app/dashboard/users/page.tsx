@@ -13,7 +13,7 @@ import { runBulkAction, bulkResultMessage } from "@/lib/bulk";
 import PasswordInput from "@/components/PasswordInput";
 import BulkActionBar from "@/components/content/BulkActionBar";
 import IconButton from "@/components/IconButton";
-import { IconEdit, IconKey, IconShieldReset, IconPause, IconPlay, IconTrash, IconPlus, IconCrown } from "@/components/Icons";
+import { IconEdit, IconKey, IconShieldReset, IconPause, IconPlay, IconTrash, IconPlus } from "@/components/Icons";
 import { CLIENT_TABLE_PAGINATION } from "@/lib/pagination";
 import PageHeading from "@/components/PageHeading";
 
@@ -76,25 +76,6 @@ export default function UsersPage() {
 
     try {
       await api.put(`/api/admin/users/${target.id}/status`, { status });
-      await loadUsers();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not update user.");
-    }
-  }
-
-  async function handleToggleCrown(target: AdminUserDTO) {
-    const next = !target.canManageAdmins;
-    const ok = await confirm({
-      title: next ? "Grant Crown" : "Remove Crown",
-      message: next
-        ? `${target.fullName} will be able to manage other Admin accounts.`
-        : `${target.fullName} will only be able to manage Editor accounts.`,
-      confirmLabel: next ? "Grant" : "Remove",
-    });
-    if (!ok) return;
-
-    try {
-      await api.put(`/api/admin/users/${target.id}/crown`, { enabled: next });
       await loadUsers();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not update user.");
@@ -188,15 +169,6 @@ export default function UsersPage() {
             render: (_, target) => (
               <div>
                 <div className="user-row__name-wrap relative inline-block">
-                  {target.canManageAdmins && (
-                    <span
-                      id={`user-row-${target.id}-crown-badge`}
-                      title="Can Manage Admins"
-                      className="user-row__crown-badge absolute -right-4 -top-2 text-yellow-400"
-                    >
-                      <IconCrown width={14} height={14} />
-                    </span>
-                  )}
                   <p className="user-row__name text-[15px] font-semibold leading-tight text-text dark:text-text-dark">{target.fullName}</p>
                 </div>
                 <p className="user-row__email text-[13px] font-normal leading-tight text-text-muted dark:text-text-muted-dark">{target.email}</p>
@@ -207,22 +179,7 @@ export default function UsersPage() {
             title: "Role",
             key: "role",
             sorter: (a, b) => a.role.localeCompare(b.role),
-            render: (_, target) => (
-              <>
-                <span className="text-text dark:text-text-dark">{titleCase(target.role)}</span>
-                {target.role === "admin" && actor.role === "super_admin" && (
-                  <span className="ml-2 inline-flex align-middle">
-                    <IconButton
-                      id={`user-row-${target.id}-crown`}
-                      title={target.canManageAdmins ? "Remove Crown" : "Grant Crown"}
-                      onClick={() => handleToggleCrown(target)}
-                      variant={target.canManageAdmins ? "primary" : "muted"}
-                      icon={<IconCrown width={14} height={14} />}
-                    />
-                  </span>
-                )}
-              </>
-            ),
+            render: (_, target) => <span className="text-text dark:text-text-dark">{titleCase(target.role)}</span>,
           },
           {
             title: "Status",

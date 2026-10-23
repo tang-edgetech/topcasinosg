@@ -40,8 +40,12 @@ func (s *SiteSettingsService) Get(ctx context.Context) (*domain.SiteSettings, er
 	return s.settings.Get(ctx)
 }
 
+func canEditSiteSettings(actor *domain.AdminUser) bool {
+	return actor.Role == domain.RoleSuperAdmin || actor.Role == domain.RoleAdmin
+}
+
 func (s *SiteSettingsService) Update(ctx context.Context, actor *domain.AdminUser, next *domain.SiteSettings) error {
-	if actor.Role != domain.RoleSuperAdmin {
+	if !canEditSiteSettings(actor) {
 		return ErrForbidden
 	}
 	if !next.Language.Valid() {
@@ -100,14 +104,14 @@ func isSkypeURI(value string) bool {
 }
 
 func (s *SiteSettingsService) SetLogoURL(ctx context.Context, actor *domain.AdminUser, url string) error {
-	if actor.Role != domain.RoleSuperAdmin {
+	if !canEditSiteSettings(actor) {
 		return ErrForbidden
 	}
 	return s.settings.UpdateLogoURL(ctx, url)
 }
 
 func (s *SiteSettingsService) SetFaviconURL(ctx context.Context, actor *domain.AdminUser, url string) error {
-	if actor.Role != domain.RoleSuperAdmin {
+	if !canEditSiteSettings(actor) {
 		return ErrForbidden
 	}
 	return s.settings.UpdateFaviconURL(ctx, url)

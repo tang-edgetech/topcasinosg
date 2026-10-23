@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Tabs, App as AntApp } from "antd";
 import { useAuth } from "@/lib/auth-context";
+import { isStaff } from "@/lib/roles";
 import { api, ApiError } from "@/lib/api";
 import type { SnippetDTO, PageDTO } from "@/lib/types";
 import HeaderFooterPanel from "./HeaderFooterPanel";
@@ -39,7 +40,7 @@ export default function SnippetsPage() {
 
   if (!user) return null;
 
-  if (user.role !== "super_admin") {
+  if (!isStaff(user)) {
     return (
       <section id="snippets-page" className="snippets-page">
         <p className="text-text-muted dark:text-text-muted-dark">You don&apos;t have access to this section.</p>
