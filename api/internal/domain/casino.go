@@ -38,12 +38,14 @@ const (
 	GameTypePoker      GameType = "poker"
 	GameTypeVideoPoker GameType = "video_poker"
 	GameTypeBingo      GameType = "bingo"
+	GameTypePaiGow     GameType = "pai_gow"
+	GameTypeKeno       GameType = "keno"
 )
 
 // AllGameTypes is the fixed order the Games checklist renders in.
 var AllGameTypes = []GameType{
 	GameTypeSlots, GameTypeBlackjack, GameTypeBaccarat, GameTypeRoulette, GameTypeSicBo,
-	GameTypeCraps, GameTypePoker, GameTypeVideoPoker, GameTypeBingo,
+	GameTypeCraps, GameTypePoker, GameTypeVideoPoker, GameTypeBingo, GameTypePaiGow, GameTypeKeno,
 }
 
 func (g GameType) Valid() bool {

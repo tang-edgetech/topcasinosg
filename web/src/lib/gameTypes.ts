@@ -10,7 +10,9 @@ export type GameType =
   | "craps"
   | "poker"
   | "video_poker"
-  | "bingo";
+  | "bingo"
+  | "pai_gow"
+  | "keno";
 
 export const ALL_GAME_TYPES: { value: GameType; label: string }[] = [
   { value: "slots", label: "Slots" },
@@ -22,4 +24,6 @@ export const ALL_GAME_TYPES: { value: GameType; label: string }[] = [
   { value: "poker", label: "Poker" },
   { value: "video_poker", label: "Video Poker" },
   { value: "bingo", label: "Bingo" },
+  { value: "pai_gow", label: "Pai Gow" },
+  { value: "keno", label: "Keno" },
 ];

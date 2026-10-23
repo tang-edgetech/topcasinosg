@@ -56,6 +56,13 @@
   --color-border: var(--color-primary-100);
   --color-border-dark: #2a2e37;
 
+  /* Bonus calculator widget (Figma "Var / Calculator") — a fixed dark
+     card regardless of the page theme. */
+  --color-calc-surface: #2b2b2b;
+  --color-calc-panel: #494949;
+  --color-calc-field: #3c3b3c;
+  --color-calc-field-border: #636363;
+
   /* Sidebar — fixed brand color regardless of the user's light/dark choice. */
   --color-sidebar: var(--color-primary-600);
   --color-sidebar-active: var(--color-primary-700);

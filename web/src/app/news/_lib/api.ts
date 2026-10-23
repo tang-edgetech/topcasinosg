@@ -21,6 +21,7 @@ export interface NewsArticleDTO {
   title: string;
   slug: string;
   coverMediaId: number | null;
+  coverUrl: string | null;
   excerpt: string;
   content: string;
   status: string;

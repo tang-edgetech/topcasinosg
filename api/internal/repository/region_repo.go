@@ -16,12 +16,12 @@ func NewRegionRepo(db *sql.DB) *RegionRepo {
 	return &RegionRepo{db: db}
 }
 
-const regionColumns = `regions.id, regions.code, regions.name, regions.flag_media_id, media.url, regions.is_active, regions.sort_order, regions.created_at, regions.updated_at`
+const regionColumns = `regions.id, regions.code, regions.name, regions.demonym, regions.currency_code, regions.flag_media_id, media.url, regions.is_active, regions.sort_order, regions.created_at, regions.updated_at`
 const regionFromClause = `regions LEFT JOIN media ON media.id = regions.flag_media_id`
 
 func scanRegion(row interface{ Scan(...any) error }) (*domain.Region, error) {
 	var r domain.Region
-	if err := row.Scan(&r.ID, &r.Code, &r.Name, &r.FlagMediaID, &r.FlagURL, &r.IsActive, &r.SortOrder, &r.CreatedAt, &r.UpdatedAt); err != nil {
+	if err := row.Scan(&r.ID, &r.Code, &r.Name, &r.Demonym, &r.CurrencyCode, &r.FlagMediaID, &r.FlagURL, &r.IsActive, &r.SortOrder, &r.CreatedAt, &r.UpdatedAt); err != nil {
 		return nil, err
 	}
 	return &r, nil
@@ -91,8 +91,8 @@ func (r *RegionRepo) ExistsCode(ctx context.Context, code string, excludeID int6
 
 func (r *RegionRepo) Create(ctx context.Context, reg *domain.Region) (int64, error) {
 	res, err := r.db.ExecContext(ctx,
-		`INSERT INTO regions (code, name, flag_media_id, sort_order) VALUES (?, ?, ?, ?)`,
-		reg.Code, reg.Name, reg.FlagMediaID, reg.SortOrder,
+		`INSERT INTO regions (code, name, demonym, currency_code, flag_media_id, sort_order) VALUES (?, ?, ?, ?, ?, ?)`,
+		reg.Code, reg.Name, reg.Demonym, reg.CurrencyCode, reg.FlagMediaID, reg.SortOrder,
 	)
 	if err != nil {
 		return 0, err
@@ -100,9 +100,10 @@ func (r *RegionRepo) Create(ctx context.Context, reg *domain.Region) (int64, err
 	return res.LastInsertId()
 }
 
-func (r *RegionRepo) Update(ctx context.Context, id int64, code, name string, flagMediaID *int64, sortOrder int) error {
+func (r *RegionRepo) Update(ctx context.Context, id int64, reg *domain.Region) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE regions SET code = ?, name = ?, flag_media_id = ?, sort_order = ? WHERE id = ?`, code, name, flagMediaID, sortOrder, id,
+		`UPDATE regions SET code = ?, name = ?, demonym = ?, currency_code = ?, flag_media_id = ?, sort_order = ? WHERE id = ?`,
+		reg.Code, reg.Name, reg.Demonym, reg.CurrencyCode, reg.FlagMediaID, reg.SortOrder, id,
 	)
 	return err
 }

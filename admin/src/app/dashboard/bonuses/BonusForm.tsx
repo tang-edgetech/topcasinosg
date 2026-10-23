@@ -35,7 +35,7 @@ interface DetailField {
 const DETAIL_FIELDS_BY_TYPE: Record<BonusType, DetailField[]> = {
   welcome: [
     { key: "turnoverRequirement", label: "Turnover Requirement", placeholder: "30x bonus + deposit" },
-    { key: "minDeposit", label: "Minimum Deposit", placeholder: "SGD 20" },
+    { key: "withdrawalLimit", label: "Min Max Withdrawal", placeholder: "Minimum SGD 50" },
   ],
   no_deposit: [
     { key: "turnoverRequirement", label: "Turnover Requirement", placeholder: "40x bonus + winnings" },

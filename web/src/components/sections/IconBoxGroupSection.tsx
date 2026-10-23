@@ -14,9 +14,19 @@ import {
 } from "@/lib/pages";
 import { sanitizeRichText } from "@/lib/sanitize-html";
 import AccordionItem from "@/components/Accordion";
+import ExpandableCard from "@/components/ExpandableCard";
+
+const plainText = (html: string) =>
+  html
+    .replace(/<\/(p|li|h[1-6])>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .trim();
 
 // Flexible per admin/src/app/dashboard/pages/BlockFields.tsx's IconBoxGroupFields:
-// - displayMode "default" (vertical or horizontal layout) or "dropdown" (accordion)
+// - displayMode "default" (vertical or horizontal layout), "dropdown"
+//   (accordion) or "expandable" (Figma "Our Review Process" "+" cards: tinted
+//   header with icon + title, text clamped until opened)
 // - normal/hover/active colors resolved to CSS custom properties (see
 //   shared/theme/sections.css's .icon-box rules) rather than combinatorial classes
 // - an optional per-item CTA button, styled via the same buttonClassName as
@@ -69,7 +79,7 @@ export default function IconBoxGroupSection({ section }: { section: PageSection 
             </div>
           </div>
         )}
-        <div className={`section-row grid gap-8 ${columnsClassName(columns)}`} style={colorStyle}>
+        <div className={`section-row grid ${displayMode === "expandable" ? "gap-4" : "gap-8"} ${columnsClassName(columns)}`} style={colorStyle}>
           {items.map((itemIndex) => {
             const icon = mediaUrl(field(section.fields, itemIndex, "icon")?.mediaUrl);
             const boxHeading = field(section.fields, itemIndex, "heading")?.textValue ?? "";
@@ -92,6 +102,14 @@ export default function IconBoxGroupSection({ section }: { section: PageSection 
                 {button.textValue}
               </Link>
             );
+
+            if (displayMode === "expandable") {
+              return (
+                <div key={itemIndex} className="icon-box icon-box--expandable section-col">
+                  <ExpandableCard icon={iconEl} title={boxHeading} text={plainText(boxText)} />
+                </div>
+              );
+            }
 
             if (displayMode === "dropdown") {
               return (

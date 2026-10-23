@@ -4,7 +4,7 @@ import { field, mediaUrl, sectionClassName, sectionBgStyle, type PageSection } f
 import { sanitizeRichText } from "@/lib/sanitize-html";
 import {
   getActiveRegionByCode,
-  getBonuses,
+  getRegionBonuses,
   getCasinos,
   toTitleCase,
   type BonusDTO,
@@ -16,7 +16,7 @@ import StarRating from "@/components/StarRating";
 const MAX_CASINOS_FOR_LOOKUP = 200;
 const MAX_PROS = 4;
 
-interface Pick {
+export interface Pick {
   bonus?: BonusDTO;
   casino: CasinoDTO;
 }
@@ -31,10 +31,10 @@ interface Pick {
 // configured type; source "casinos" ranks the region's top-rated casinos
 // regardless, showing that bonus only when the casino has one. On mobile the
 // cards become a swipeable row with the next card peeking in.
-export default async function TopBonusPicksSection({ section }: { section: PageSection }) {
+export default async function TopBonusPicksSection({ section, regionCode: pageRegionCode = "" }: { section: PageSection; regionCode?: string }) {
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
   const intro = field(section.fields, 0, "intro")?.textValue ?? "";
-  const regionCode = field(section.fields, 0, "regionCode")?.textValue ?? "";
+  const regionCode = field(section.fields, 0, "regionCode")?.textValue || pageRegionCode;
   const bonusType = (field(section.fields, 0, "bonusType")?.textValue || "welcome") as BonusType;
   const limit = Number(field(section.fields, 0, "limit")?.textValue) || 3;
   const byCasino = field(section.fields, 0, "source")?.textValue === "casinos";
@@ -43,7 +43,7 @@ export default async function TopBonusPicksSection({ section }: { section: PageS
   if (!regionCode) return null;
 
   const [bonuses, casinos, region] = await Promise.all([
-    getBonuses(regionCode, bonusType, 50),
+    getRegionBonuses(regionCode, bonusType),
     getCasinos(regionCode, undefined, MAX_CASINOS_FOR_LOOKUP),
     getActiveRegionByCode(regionCode),
   ]);
@@ -107,9 +107,21 @@ function picksByBonus(casinos: CasinoDTO[], bonuses: BonusDTO[], limit: number):
   return picks.sort((a, b) => b.casino.rating - a.casino.rating).slice(0, limit);
 }
 
-function BonusPickCard({ pick, rank, bonusLabel, flagUrl }: { pick: Pick; rank: number; bonusLabel: string; flagUrl: string | null }) {
+// featured (the #1 card by default) gets the amber treatment and the flag.
+export function BonusPickCard({
+  pick,
+  rank,
+  bonusLabel,
+  flagUrl,
+  featured = rank === 1,
+}: {
+  pick: Pick;
+  rank: number;
+  bonusLabel: string;
+  flagUrl: string | null;
+  featured?: boolean;
+}) {
   const { bonus, casino } = pick;
-  const featured = rank === 1;
   const score = Math.min(casino.rating * 2, 10);
   const pros = (casino.pros ?? []).slice(0, MAX_PROS);
   const logo = mediaUrl(casino.logoUrl);

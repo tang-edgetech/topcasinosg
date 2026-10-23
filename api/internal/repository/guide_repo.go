@@ -16,18 +16,18 @@ func NewGuideRepo(db *sql.DB) *GuideRepo {
 	return &GuideRepo{db: db}
 }
 
-const guideColumns = `id, region_id, title, slug, cover_media_id, excerpt, content, status, publish_at,
-	created_by, created_at, updated_at`
+const guideColumns = `id, region_id, title, slug, cover_media_id, (SELECT url FROM media WHERE media.id = cover_media_id),
+	excerpt, content, status, publish_at, created_by, created_at, updated_at`
 
 // Same columns, prefixed for queries that JOIN guides against another table
 // (region filtering) where an unqualified column name would be ambiguous.
-const guideColumnsPrefixed = `g.id, g.region_id, g.title, g.slug, g.cover_media_id, g.excerpt, g.content, g.status,
-	g.publish_at, g.created_by, g.created_at, g.updated_at`
+const guideColumnsPrefixed = `g.id, g.region_id, g.title, g.slug, g.cover_media_id, (SELECT url FROM media WHERE media.id = g.cover_media_id),
+	g.excerpt, g.content, g.status, g.publish_at, g.created_by, g.created_at, g.updated_at`
 
 func scanGuide(row interface{ Scan(...any) error }) (*domain.Guide, error) {
 	var g domain.Guide
 	if err := row.Scan(
-		&g.ID, &g.RegionID, &g.Title, &g.Slug, &g.CoverMediaID, &g.Excerpt, &g.Content, &g.Status, &g.PublishAt,
+		&g.ID, &g.RegionID, &g.Title, &g.Slug, &g.CoverMediaID, &g.CoverURL, &g.Excerpt, &g.Content, &g.Status, &g.PublishAt,
 		&g.CreatedBy, &g.CreatedAt, &g.UpdatedAt,
 	); err != nil {
 		return nil, err

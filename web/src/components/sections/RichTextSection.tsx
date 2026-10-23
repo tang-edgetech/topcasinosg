@@ -2,10 +2,14 @@ import type { CSSProperties } from "react";
 import { field, mediaUrl, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { sanitizeRichText } from "@/lib/sanitize-html";
 
+// align "left" keeps the text to a narrow left column (Figma Home "Why Trust
+// Our Casino Reviews?", which sits beside the hero art); the default centres
+// it at reading width.
 export default function RichTextSection({ section }: { section: PageSection }) {
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
   const body = field(section.fields, 0, "body")?.textValue ?? "";
   const image = mediaUrl(field(section.fields, 0, "image")?.mediaUrl);
+  const alignLeft = field(section.fields, 0, "align")?.textValue === "left";
   const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
 
   const textCol = (
@@ -37,7 +41,7 @@ export default function RichTextSection({ section }: { section: PageSection }) {
           </div>
         ) : (
           <div className="section-row flex flex-col">
-            <div className="rich-text__measure mx-auto w-full max-w-3xl">{textCol}</div>
+            <div className={alignLeft ? "rich-text__measure w-full max-w-[560px]" : "rich-text__measure mx-auto w-full max-w-3xl"}>{textCol}</div>
           </div>
         )}
       </div>

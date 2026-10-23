@@ -10,6 +10,7 @@ import PageMetaForm from "../PageMetaForm";
 import PageSEOForm from "../PageSEOForm";
 import SectionBuilder from "../SectionBuilder";
 import SaveActionBar, { type SaveAction } from "../SaveActionBar";
+import RegionTemplateNotice from "@/components/content/RegionTemplateNotice";
 
 export default function EditPagePage() {
   const { user } = useAuth();
@@ -72,6 +73,8 @@ export default function EditPagePage() {
         <h1 className="text-2xl font-bold text-text dark:text-text-dark">Edit Page: {page.title}</h1>
         <SaveActionBar actions={activeActions} />
       </div>
+
+      <RegionTemplateNotice page={page} sectionCount={sections.length} />
 
       <Tabs
         activeKey={activeTab}

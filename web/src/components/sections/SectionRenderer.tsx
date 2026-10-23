@@ -18,6 +18,8 @@ import RegionExplorerSection from "./RegionExplorerSection";
 import CasinoComparisonTableSection from "./CasinoComparisonTableSection";
 import EventHighlightsSection from "./EventHighlightsSection";
 import IntroductionSectionBlock from "./IntroductionSectionBlock";
+import CasinoListTableSection from "./CasinoListTableSection";
+import GameCasinoFinderSection from "./GameCasinoFinderSection";
 import ComparisonTableSection from "./ComparisonTableSection";
 import NumberedStepsSection from "./NumberedStepsSection";
 import FeatureCardsSection from "./FeatureCardsSection";
@@ -70,7 +72,7 @@ export default function SectionRenderer({ sections, regionCode }: { sections: Pa
               />
             );
           case "bonus_listing_table":
-            return <BonusListingTableSection key={section.id} section={section} />;
+            return <BonusListingTableSection key={section.id} section={section} regionCode={regionCode} />;
           case "team_grid":
             return <TeamGridSection key={section.id} section={section} />;
           case "top_casinos_by_region":
@@ -102,13 +104,17 @@ export default function SectionRenderer({ sections, regionCode }: { sections: Pa
           case "link_card_grid":
             return <LinkCardGridSection key={section.id} section={section} />;
           case "top_bonus_picks":
-            return <TopBonusPicksSection key={section.id} section={section} />;
+            return <TopBonusPicksSection key={section.id} section={section} regionCode={regionCode} />;
           case "expandable_card_grid":
             return <ExpandableCardGridSection key={section.id} section={section} />;
           case "review_columns":
             return <ReviewColumnsSection key={section.id} section={section} />;
           case "cta_link_list":
             return <CtaLinkListSection key={section.id} section={section} />;
+          case "casino_list_table":
+            return <CasinoListTableSection key={section.id} section={section} regionCode={regionCode} />;
+          case "game_casino_finder":
+            return <GameCasinoFinderSection key={section.id} section={section} regionCode={regionCode} />;
           case "info_card_columns":
             return <InfoCardColumnsSection key={section.id} section={section} />;
           default:

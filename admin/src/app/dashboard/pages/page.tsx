@@ -31,6 +31,7 @@ import PublishControl from "@/components/content/PublishControl";
 import StatusFilter, { type StatusFilterValue } from "@/components/content/StatusFilter";
 import BulkActionBar from "@/components/content/BulkActionBar";
 import { runBulkAction, bulkResultMessage } from "@/lib/bulk";
+import { isRegionTemplatePath } from "@/lib/regionTemplate";
 
 // NEXT_PUBLIC_WEB_URL points at this environment's actual web app (e.g. the
 // local dev server on :4000), so links open the site you're actually running
@@ -383,7 +384,9 @@ export default function PagesPage() {
                 sorter: (a, b) => a.title.localeCompare(b.title),
                 render: (_, p) => {
                   const base = WEB_URL || settings?.siteUrl;
-                  const url = base ? pagePublicUrl(base, p) : null;
+                  const isTemplate = isRegionTemplatePath(p.path);
+                  const url = base && !isTemplate ? pagePublicUrl(base, p) : null;
+                  const noUrlReason = isTemplate ? "Shared region page — open a region's page to preview it" : "Set a Site URL in Settings first";
                   return (
                     <div className="flex items-center gap-2" style={p.depth > 0 ? { paddingLeft: p.depth * 20 } : undefined}>
                       {p.depth > 0 && (
@@ -395,7 +398,7 @@ export default function PagesPage() {
                       <span className="text-text dark:text-text-dark">{p.title}</span>
                       <IconButton
                         id={`page-${p.id}-open`}
-                        title={url ? "Open in New Tab" : "Set a Site URL in Settings first"}
+                        title={url ? "Open in New Tab" : noUrlReason}
                         onClick={() => url && window.open(url, "_blank", "noopener,noreferrer")}
                         icon={<IconExternalLink />}
                         variant="muted"
@@ -403,7 +406,7 @@ export default function PagesPage() {
                       />
                       <IconButton
                         id={`page-${p.id}-copy-link`}
-                        title={url ? "Copy Link" : "Set a Site URL in Settings first"}
+                        title={url ? "Copy Link" : noUrlReason}
                         onClick={() => url && handleCopyLink(url)}
                         icon={<IconCopy />}
                         variant="muted"

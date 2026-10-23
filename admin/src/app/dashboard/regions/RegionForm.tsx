@@ -21,6 +21,8 @@ export default function RegionForm({ target }: { target: RegionDTO | null }) {
   const confirm = useConfirm();
   const [code, setCode] = useState(target?.code ?? "");
   const [name, setName] = useState(target?.name ?? "");
+  const [demonym, setDemonym] = useState(target?.demonym ?? "");
+  const [currencyCode, setCurrencyCode] = useState(target?.currencyCode ?? "");
   const [sortOrder, setSortOrder] = useState(target?.sortOrder ?? 0);
   const [flagMediaId, setFlagMediaId] = useState<number | null>(target?.flagMediaId ?? null);
   const [flagUrl, setFlagUrl] = useState<string | null>(target?.flagUrl ?? null);
@@ -40,10 +42,10 @@ export default function RegionForm({ target }: { target: RegionDTO | null }) {
     setSubmitting(true);
     try {
       if (target) {
-        await api.put(`/api/admin/regions/${target.id}`, { code, name, flagMediaId, sortOrder });
+        await api.put(`/api/admin/regions/${target.id}`, { code, name, demonym, currencyCode, flagMediaId, sortOrder });
         message.success("Saved.");
       } else {
-        await api.post("/api/admin/regions", { code, name, flagMediaId, sortOrder });
+        await api.post("/api/admin/regions", { code, name, demonym, currencyCode, flagMediaId, sortOrder });
         message.success("Region created.");
       }
       router.push("/dashboard/regions");
@@ -105,6 +107,32 @@ export default function RegionForm({ target }: { target: RegionDTO | null }) {
             onChange={(e) => setName(e.target.value)}
             className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-primary-500 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark"
           />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor="region-form-demonym" className="text-sm font-medium text-text dark:text-text-dark">
+            Adjective
+          </label>
+          <input
+            id="region-form-demonym"
+            value={demonym}
+            placeholder="Thai"
+            onChange={(e) => setDemonym(e.target.value)}
+            className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-primary-500 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark"
+          />
+          <p className="text-xs text-text-muted dark:text-text-muted-dark">Fills {"{regionAdj}"} on shared region pages, e.g. &quot;Best {"{regionAdj}"} Casino Bonuses&quot;.</p>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor="region-form-currency" className="text-sm font-medium text-text dark:text-text-dark">
+            Currency Code
+          </label>
+          <input
+            id="region-form-currency"
+            value={currencyCode}
+            placeholder="THB"
+            onChange={(e) => setCurrencyCode(e.target.value.toUpperCase())}
+            className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-primary-500 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark"
+          />
+          <p className="text-xs text-text-muted dark:text-text-muted-dark">Fills {"{currency}"} on shared region pages and sets the bonus calculator&apos;s currency.</p>
         </div>
         <div className="flex flex-col gap-1">
           <label htmlFor="region-form-sort-order" className="text-sm font-medium text-text dark:text-text-dark">

@@ -27,6 +27,7 @@ type GuideDTO struct {
 	Title        string     `json:"title"`
 	Slug         string     `json:"slug"`
 	CoverMediaID *int64     `json:"coverMediaId"`
+	CoverURL     *string    `json:"coverUrl"`
 	Excerpt      string     `json:"excerpt"`
 	Content      string     `json:"content"`
 	Status       string     `json:"status"`
@@ -37,7 +38,7 @@ type GuideDTO struct {
 
 func toGuideDTO(g *domain.Guide) GuideDTO {
 	return GuideDTO{
-		ID: g.ID, RegionID: g.RegionID, Title: g.Title, Slug: g.Slug, CoverMediaID: g.CoverMediaID,
+		ID: g.ID, RegionID: g.RegionID, Title: g.Title, Slug: g.Slug, CoverMediaID: g.CoverMediaID, CoverURL: g.CoverURL,
 		Excerpt: g.Excerpt, Content: g.Content, Status: string(g.Status), PublishAt: g.PublishAt,
 		CreatedAt: g.CreatedAt, UpdatedAt: g.UpdatedAt,
 	}

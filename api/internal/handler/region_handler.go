@@ -22,26 +22,30 @@ func NewRegionHandler(regions *service.RegionService) *RegionHandler {
 }
 
 type RegionDTO struct {
-	ID          int64     `json:"id"`
-	Code        string    `json:"code"`
-	Name        string    `json:"name"`
-	FlagMediaID *int64    `json:"flagMediaId"`
-	FlagURL     *string   `json:"flagUrl"`
-	IsActive    bool      `json:"isActive"`
-	SortOrder   int       `json:"sortOrder"`
-	CreatedAt   time.Time `json:"createdAt"`
+	ID           int64     `json:"id"`
+	Code         string    `json:"code"`
+	Name         string    `json:"name"`
+	Demonym      string    `json:"demonym"`
+	CurrencyCode string    `json:"currencyCode"`
+	FlagMediaID  *int64    `json:"flagMediaId"`
+	FlagURL      *string   `json:"flagUrl"`
+	IsActive     bool      `json:"isActive"`
+	SortOrder    int       `json:"sortOrder"`
+	CreatedAt    time.Time `json:"createdAt"`
 }
 
 func toRegionDTO(r *domain.Region) RegionDTO {
 	return RegionDTO{
-		ID:          r.ID,
-		Code:        r.Code,
-		Name:        r.Name,
-		FlagMediaID: r.FlagMediaID,
-		FlagURL:     r.FlagURL,
-		IsActive:    r.IsActive,
-		SortOrder:   r.SortOrder,
-		CreatedAt:   r.CreatedAt,
+		ID:           r.ID,
+		Code:         r.Code,
+		Name:         r.Name,
+		Demonym:      r.Demonym,
+		CurrencyCode: r.CurrencyCode,
+		FlagMediaID:  r.FlagMediaID,
+		FlagURL:      r.FlagURL,
+		IsActive:     r.IsActive,
+		SortOrder:    r.SortOrder,
+		CreatedAt:    r.CreatedAt,
 	}
 }
 
@@ -85,10 +89,23 @@ func (h *RegionHandler) ListPublic(w http.ResponseWriter, r *http.Request) {
 }
 
 type regionRequest struct {
-	Code        string `json:"code"`
-	Name        string `json:"name"`
-	FlagMediaID *int64 `json:"flagMediaId"`
-	SortOrder   int    `json:"sortOrder"`
+	Code         string `json:"code"`
+	Name         string `json:"name"`
+	Demonym      string `json:"demonym"`
+	CurrencyCode string `json:"currencyCode"`
+	FlagMediaID  *int64 `json:"flagMediaId"`
+	SortOrder    int    `json:"sortOrder"`
+}
+
+func (req regionRequest) toInput() service.RegionInput {
+	return service.RegionInput{
+		Code:         req.Code,
+		Name:         req.Name,
+		Demonym:      req.Demonym,
+		CurrencyCode: req.CurrencyCode,
+		FlagMediaID:  req.FlagMediaID,
+		SortOrder:    req.SortOrder,
+	}
 }
 
 func (h *RegionHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -98,7 +115,7 @@ func (h *RegionHandler) Create(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	region, err := h.regions.Create(r.Context(), actor, req.Code, req.Name, req.FlagMediaID, req.SortOrder)
+	region, err := h.regions.Create(r.Context(), actor, req.toInput())
 	if err != nil {
 		response.Err(w, regionErrorStatus(err), err.Error())
 		return
@@ -118,7 +135,7 @@ func (h *RegionHandler) Update(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if err := h.regions.Update(r.Context(), actor, id, req.Code, req.Name, req.FlagMediaID, req.SortOrder); err != nil {
+	if err := h.regions.Update(r.Context(), actor, id, req.toInput()); err != nil {
 		response.Err(w, regionErrorStatus(err), err.Error())
 		return
 	}

@@ -1,13 +1,12 @@
 import type { IntroductionPageMenuItem } from "@/components/IntroductionSection";
 
-type PageKey = "overview" | "reviews" | "bonuses" | "payment-methods" | "rtp" | "guides" | "blacklist";
+export type PageKey = "overview" | "reviews" | "bonuses" | "payment-methods" | "rtp" | "guides" | "blacklist";
 
 // Canonical page-menu order (Figma's "Thailand 2025, Bonuses, Payment
-// Methods, RTP & Live Bonus, How to Play, Reviews" list) - the current
-// page's own item always moves to the front (rendered as the active tab
-// by IntroductionSection), the rest keep this relative order. Blacklist
-// isn't part of the Figma page-menu list itself, but slots in at the end
-// for pages where it's the current one.
+// Methods, RTP & Live Bonus, How to Play, Reviews" list) - fixed on
+// every region page so items never jump around; the current page is only
+// highlighted (rendered as the active tab by IntroductionSection). Blacklist
+// isn't part of the Figma page-menu list itself, so it sits last.
 const ITEMS: Record<PageKey, (region: string, regionLabel: string) => IntroductionPageMenuItem> = {
   overview: (region, regionLabel) => ({ label: regionLabel, url: `/${region}` }),
   bonuses: (region) => ({ label: "Bonuses", url: `/${region}/bonuses` }),
@@ -27,6 +26,5 @@ export function regionMenuLabel(regionName: string): string {
 }
 
 export function buildPageMenu(region: string, regionLabel: string, current: PageKey): IntroductionPageMenuItem[] {
-  const ordered = [current, ...ORDER.filter((k) => k !== current)];
-  return ordered.map((key) => ITEMS[key](region, regionLabel));
+  return ORDER.map((key) => ({ ...ITEMS[key](region, regionLabel), active: key === current }));
 }

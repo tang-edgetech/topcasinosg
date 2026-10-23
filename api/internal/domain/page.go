@@ -71,6 +71,8 @@ var KnownBlockTypes = []string{
 	"review_columns",
 	"cta_link_list",
 	"info_card_columns",
+	"casino_list_table",
+	"game_casino_finder",
 }
 
 // PageSection is one visual block on a page. CustomClass/CustomID are the

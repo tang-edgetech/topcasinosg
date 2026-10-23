@@ -3,7 +3,7 @@ import Link from "next/link";
 import { field, mediaUrl, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { sanitizeRichText } from "@/lib/sanitize-html";
 import {
-  getBonuses,
+  getRegionBonuses,
   getCasinos,
   getGameProviders,
   type BonusDTO,
@@ -62,7 +62,11 @@ const TYPED_LAYOUTS: Record<BonusType, TypedLayout> = {
     ctaLabel: "Claim Here",
   },
   welcome: {
-    columns: [detailsColumn("Welcome Bonus Details"), turnoverColumn, minDepositColumn],
+    columns: [
+      detailsColumn("Welcome Bonus Details"),
+      turnoverColumn,
+      { label: "Min Max Withdrawal", render: (b) => text(b.withdrawalLimit) },
+    ],
     ctaLabel: "Activate Offer",
   },
   free_spins: {
@@ -94,14 +98,15 @@ const TYPED_LAYOUTS: Record<BonusType, TypedLayout> = {
 };
 
 // Async server component — fetches live Bonus/Casino data at render time
-// using the admin-configured regionCode/bonusType/limit. "simple" mode (the
-// default, and what every table seeded before typed mode existed uses) is a
-// Brand / Bonus Details / Claim layout; "typed" mode switches to the bonus
-// type's own comparison columns above.
-export default async function BonusListingTableSection({ section }: { section: PageSection }) {
+// using the admin-configured bonusType/limit and regionCode (blank = the
+// page's own region). A table with no bonuses of its type is left out.
+// "simple" mode (the default, and what every table seeded before typed mode
+// existed uses) is a Brand / Bonus Details / Claim layout; "typed" mode
+// switches to the bonus type's own comparison columns above.
+export default async function BonusListingTableSection({ section, regionCode: pageRegionCode = "" }: { section: PageSection; regionCode?: string }) {
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
   const intro = field(section.fields, 0, "intro")?.textValue ?? "";
-  const regionCode = field(section.fields, 0, "regionCode")?.textValue ?? "";
+  const regionCode = field(section.fields, 0, "regionCode")?.textValue || pageRegionCode;
   const bonusType = (field(section.fields, 0, "bonusType")?.textValue || "welcome") as BonusType;
   const typed = field(section.fields, 0, "columnsMode")?.textValue === "typed";
   const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
@@ -129,11 +134,16 @@ export default async function BonusListingTableSection({ section }: { section: P
   }
 
   const needsProviders = typed && bonusType === "free_spins";
-  const [bonuses, casinos, providerList] = await Promise.all([
-    getBonuses(regionCode, bonusType, limit),
+  const [typeBonuses, casinos, providerList] = await Promise.all([
+    getRegionBonuses(regionCode, bonusType),
     getCasinos(regionCode, undefined, MAX_CASINOS_FOR_LOOKUP),
     needsProviders ? getGameProviders() : Promise.resolve([] as GameProviderDTO[]),
   ]);
+  const bonuses = typeBonuses.slice(0, limit);
+  if (bonuses.length === 0) {
+    return null;
+  }
+
   const casinoById = new Map(casinos.map((c) => [c.id, c]));
   const providers = new Map(providerList.map((p) => [p.id, p]));
 
@@ -157,70 +167,107 @@ export default async function BonusListingTableSection({ section }: { section: P
             </div>
           </div>
         )}
-        <div className="section-row">
-          <div className="bonus-table section-col w-full overflow-x-auto rounded-lg border border-primary-100">
-            {bonuses.length === 0 ? (
-              <p className="p-4 text-sm text-primary-500">No bonuses published for this region/type yet.</p>
-            ) : (
-              <table className="bonus-table__table w-full min-w-[640px] border-collapse text-sm">
-                <thead className="bg-primary-900 text-white">
-                  <tr>
-                    <th className="w-24 border-r border-white/20 px-3 py-3 text-center font-medium">Brand</th>
+        <div className="section-row md:hidden">
+          <ul className="bonus-cards section-col flex w-full flex-col gap-3">
+            {bonuses.map((bonus) => {
+              const casino = bonus.casinoId ? casinoById.get(bonus.casinoId) : undefined;
+              return (
+                <li key={bonus.id} className="bonus-cards__card flex flex-col gap-3 rounded-lg border border-primary-100 bg-white p-4 text-sm">
+                  {casino && (
+                    <Link href={`/casinos/${casino.slug}`} className="flex cursor-pointer items-center gap-3 text-primary-900 hover:text-secondary-600">
+                      {mediaUrl(casino.logoUrl) ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img loading="lazy" decoding="async" src={mediaUrl(casino.logoUrl) ?? ""} alt="" className="h-8 w-16 object-contain" />
+                      ) : (
+                        <div
+                          aria-hidden="true"
+                          className="h-8 w-16 rounded bg-[repeating-conic-gradient(#e5e7eb_0%_25%,transparent_0%_50%)] bg-[length:10px_10px]"
+                        />
+                      )}
+                      <span className="font-semibold">{casino.name}</span>
+                    </Link>
+                  )}
+                  <dl className="flex flex-col gap-2">
                     {layout.columns.map((col) => (
-                      <th key={col.label} className="border-r border-white/20 px-3 py-3 text-center font-medium">
-                        {col.label}
-                      </th>
+                      <div key={col.label} className="flex flex-col gap-0.5">
+                        <dt className="text-xs font-medium text-primary-500">{col.label}</dt>
+                        <dd className="text-primary-900">{col.render(bonus, providers)}</dd>
+                      </div>
                     ))}
-                    <th className="w-40 px-3 py-3"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bonuses.map((bonus) => {
-                    const casino = bonus.casinoId ? casinoById.get(bonus.casinoId) : undefined;
-                    return (
-                      <tr key={bonus.id} className="border-t border-primary-100">
-                        <td className="border-r border-primary-100 px-3 py-3 text-primary-900">
-                          {casino ? (
-                            <Link
-                              href={`/casinos/${casino.slug}`}
-                              className="flex cursor-pointer flex-col items-center gap-1 text-center hover:text-secondary-600"
-                            >
-                              {mediaUrl(casino.logoUrl) ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img loading="lazy" decoding="async" src={mediaUrl(casino.logoUrl) ?? ""} alt="" className="h-8 w-16 object-contain" />
-                              ) : (
-                                <div
-                                  aria-hidden="true"
-                                  className="h-8 w-16 rounded bg-[repeating-conic-gradient(#e5e7eb_0%_25%,transparent_0%_50%)] bg-[length:10px_10px]"
-                                />
-                              )}
-                              <span className="text-xs whitespace-nowrap">{casino.name}</span>
-                            </Link>
-                          ) : (
-                            <span className="block text-center">—</span>
-                          )}
+                  </dl>
+                  {casino && (
+                    <Link
+                      href={casino.ctaUrl || `/casinos/${casino.slug}`}
+                      className="inline-flex w-full cursor-pointer items-center justify-center rounded-md bg-primary-900 px-3 py-2.5 text-sm font-semibold text-white hover:bg-primary-800"
+                    >
+                      {layout.ctaLabel}
+                    </Link>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+        <div className="section-row hidden md:block">
+          <div className="bonus-table section-col w-full overflow-x-auto rounded-lg border border-primary-100">
+            <table className="bonus-table__table w-full min-w-[640px] border-collapse text-sm">
+              <thead className="bg-primary-900 text-white">
+                <tr>
+                  <th className="w-24 border-r border-white/20 px-3 py-3 text-center font-medium">Brand</th>
+                  {layout.columns.map((col) => (
+                    <th key={col.label} className="border-r border-white/20 px-3 py-3 text-center font-medium">
+                      {col.label}
+                    </th>
+                  ))}
+                  <th className="w-40 px-3 py-3"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {bonuses.map((bonus) => {
+                  const casino = bonus.casinoId ? casinoById.get(bonus.casinoId) : undefined;
+                  return (
+                    <tr key={bonus.id} className="border-t border-primary-100">
+                      <td className="border-r border-primary-100 px-3 py-3 text-primary-900">
+                        {casino ? (
+                          <Link
+                            href={`/casinos/${casino.slug}`}
+                            className="flex cursor-pointer flex-col items-center gap-1 text-center hover:text-secondary-600"
+                          >
+                            {mediaUrl(casino.logoUrl) ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img loading="lazy" decoding="async" src={mediaUrl(casino.logoUrl) ?? ""} alt="" className="h-8 w-16 object-contain" />
+                            ) : (
+                              <div
+                                aria-hidden="true"
+                                className="h-8 w-16 rounded bg-[repeating-conic-gradient(#e5e7eb_0%_25%,transparent_0%_50%)] bg-[length:10px_10px]"
+                              />
+                            )}
+                            <span className="text-xs whitespace-nowrap">{casino.name}</span>
+                          </Link>
+                        ) : (
+                          <span className="block text-center">—</span>
+                        )}
+                      </td>
+                      {layout.columns.map((col) => (
+                        <td key={col.label} className="border-r border-primary-100 px-3 py-3 text-center text-primary-600">
+                          {col.render(bonus, providers)}
                         </td>
-                        {layout.columns.map((col) => (
-                          <td key={col.label} className="border-r border-primary-100 px-3 py-3 text-center text-primary-600">
-                            {col.render(bonus, providers)}
-                          </td>
-                        ))}
-                        <td className="bonus-table__cta bg-surface-muted px-3 py-3 text-center">
-                          {casino && (
-                            <Link
-                              href={casino.ctaUrl || `/casinos/${casino.slug}`}
-                              className="inline-flex w-full cursor-pointer items-center justify-center rounded-md bg-primary-900 px-3 py-2 text-xs font-semibold whitespace-nowrap text-white hover:bg-primary-800"
-                            >
-                              {layout.ctaLabel}
-                            </Link>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
+                      ))}
+                      <td className="bonus-table__cta bg-surface-muted px-3 py-3 text-center">
+                        {casino && (
+                          <Link
+                            href={casino.ctaUrl || `/casinos/${casino.slug}`}
+                            className="inline-flex w-full cursor-pointer items-center justify-center rounded-md bg-primary-900 px-3 py-2 text-xs font-semibold whitespace-nowrap text-white hover:bg-primary-800"
+                          >
+                            {layout.ctaLabel}
+                          </Link>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>

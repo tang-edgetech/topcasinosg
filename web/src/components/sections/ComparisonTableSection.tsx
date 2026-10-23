@@ -1,6 +1,7 @@
 import { field, itemIndexes, mediaUrl, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { sanitizeRichText } from "@/lib/sanitize-html";
-import { getCasinos, getPaymentMethods } from "@/app/[region]/_lib/api";
+import { getCasinos, getPaymentBadgeLookup } from "@/app/[region]/_lib/api";
+import PaymentMethodBadges from "@/components/PaymentMethodBadges";
 import type { CSSProperties } from "react";
 
 const OPTION_ICON_COUNT = 5;
@@ -159,30 +160,7 @@ export default async function ComparisonTableSection({ section, regionCode: page
 }
 
 function PaymentOptionsCell({ row }: { row: ComparisonRow }) {
-  if (row.options.length > 0) {
-    return (
-      <div className="flex flex-wrap items-center gap-2">
-        {row.options.map((option) =>
-          option.icon ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              loading="lazy"
-              decoding="async"
-              key={option.name}
-              src={option.icon}
-              alt={option.name}
-              title={option.name}
-              className="h-8 w-8 rounded object-contain"
-            />
-          ) : (
-            <span key={option.name} className="rounded border border-primary-100 bg-surface-muted px-2 py-1 text-xs text-primary-600">
-              {option.name}
-            </span>
-          )
-        )}
-      </div>
-    );
-  }
+  if (row.options.length > 0) return <PaymentMethodBadges badges={row.options} />;
   if (row.optionsText) return <span className="text-primary-600">{row.optionsText}</span>;
   return (
     <div className="flex flex-wrap gap-2">
@@ -198,14 +176,13 @@ async function loadCasinoRows(section: PageSection, pageRegionCode: string | und
   if (!regionCode) return [];
   const limit = Number(field(section.fields, 0, "limit")?.textValue) || DEFAULT_CASINO_LIMIT;
 
-  const [casinos, paymentMethods] = await Promise.all([getCasinos(regionCode, undefined, limit), getPaymentMethods(regionCode)]);
-  const iconByName = new Map(paymentMethods.map((pm) => [pm.name.trim().toLowerCase(), mediaUrl(pm.iconUrl)]));
+  const [casinos, paymentBadges] = await Promise.all([getCasinos(regionCode, undefined, limit), getPaymentBadgeLookup(regionCode)]);
 
   return casinos.map((casino) => ({
     key: casino.id,
     logo: mediaUrl(casino.logoUrl),
     brandName: casino.name,
-    options: (casino.paymentMethods ?? []).map((name) => ({ name, icon: iconByName.get(name.trim().toLowerCase()) ?? null })),
+    options: paymentBadges(casino.paymentMethods),
     optionsText: "",
     processingTime: casino.payoutSpeed,
     extraCells: {},

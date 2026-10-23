@@ -1,10 +1,12 @@
 import type { CSSProperties } from "react";
 import { field, itemIndexes, mediaUrl, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 
-// "Expert Team Behind the Reviews" — purely admin-authored (photo/name/
-// title/quote per member), mirrors LogoStripSection's item shape.
+// Figma Home "Expert Team Behind the Reviews": heading + intro, then member
+// cards — a tinted photo panel (cut-out portrait), name, job title and a
+// short quote. Purely admin-authored. 2 per row on mobile, 4 on desktop.
 export default function TeamGridSection({ section }: { section: PageSection }) {
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
+  const intro = field(section.fields, 0, "intro")?.textValue ?? "";
   const items = itemIndexes(section.fields);
   const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
 
@@ -16,15 +18,16 @@ export default function TeamGridSection({ section }: { section: PageSection }) {
       className={sectionClassName(hasBleedBg ? "section--team-grid section--bg" : "section--team-grid", section)}
       style={bgStyle as CSSProperties}
     >
-      <div className="section-container relative z-10 flex flex-col gap-10 py-16">
-        {heading && (
+      <div className="section-container relative z-10 flex flex-col gap-6 py-[3.125rem]">
+        {(heading || intro) && (
           <div className="section-row">
-            <div className="section-col text-center">
-              <h2 className="section-heading text-2xl font-bold text-primary-900">{heading}</h2>
+            <div className="section-col flex flex-col gap-2">
+              {heading && <h2 className="section-heading text-2xl font-bold text-primary-900">{heading}</h2>}
+              {intro && <p className="text-sm text-primary-600">{intro}</p>}
             </div>
           </div>
         )}
-        <div className="section-row grid grid-cols-2 gap-6 sm:grid-cols-4">
+        <div className="section-row grid grid-cols-2 gap-4 md:grid-cols-4">
           {items.map((itemIndex) => {
             const photo = mediaUrl(field(section.fields, itemIndex, "photo")?.mediaUrl);
             const name = field(section.fields, itemIndex, "name")?.textValue ?? "";
@@ -32,16 +35,20 @@ export default function TeamGridSection({ section }: { section: PageSection }) {
             const quote = field(section.fields, itemIndex, "quote")?.textValue ?? "";
 
             return (
-              <div key={itemIndex} className="team-member section-col flex flex-col items-center gap-2 text-center">
-                <div className="h-24 w-24 overflow-hidden rounded-full bg-surface-muted">
-                  {photo && (
+              <div key={itemIndex} className="team-member section-col flex flex-col items-center gap-1 text-center">
+                <div className="mb-2 flex aspect-[2/1] w-full items-end justify-center overflow-hidden rounded-lg bg-surface-muted">
+                  {photo ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={photo} alt={name} className="h-full w-full object-cover" />
+                    <img loading="lazy" decoding="async" src={photo} alt={name} className="h-full w-auto object-contain object-bottom" />
+                  ) : (
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="h-3/4 w-auto text-primary-100" aria-hidden="true">
+                      <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-4.4 0-8 2.2-8 5v3h16v-3c0-2.8-3.6-5-8-5z" />
+                    </svg>
                   )}
                 </div>
-                {name && <h3 className="text-base font-semibold text-primary-900">{name}</h3>}
+                {name && <h3 className="text-sm font-bold text-primary-900">{name}</h3>}
                 {title && <p className="text-xs text-primary-500">{title}</p>}
-                {quote && <p className="text-sm text-primary-600 italic">&ldquo;{quote}&rdquo;</p>}
+                {quote && <p className="text-sm text-primary-500">{quote}</p>}
               </div>
             );
           })}

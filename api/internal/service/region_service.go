@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 
 	"github.com/tang-edgetech/topcasinosg/api/internal/domain"
 	"github.com/tang-edgetech/topcasinosg/api/internal/repository"
@@ -32,6 +33,27 @@ func (s *RegionService) GetByCode(ctx context.Context, code string) (*domain.Reg
 	return s.regions.GetByCode(ctx, code)
 }
 
+// RegionInput is the editable part of a Region (create and update).
+type RegionInput struct {
+	Code         string
+	Name         string
+	Demonym      string
+	CurrencyCode string
+	FlagMediaID  *int64
+	SortOrder    int
+}
+
+func (in RegionInput) toRegion() *domain.Region {
+	return &domain.Region{
+		Code:         strings.TrimSpace(in.Code),
+		Name:         strings.TrimSpace(in.Name),
+		Demonym:      strings.TrimSpace(in.Demonym),
+		CurrencyCode: strings.ToUpper(strings.TrimSpace(in.CurrencyCode)),
+		FlagMediaID:  in.FlagMediaID,
+		SortOrder:    in.SortOrder,
+	}
+}
+
 func requireManageRole(actor *domain.AdminUser) error {
 	if actor.Role != domain.RoleSuperAdmin && actor.Role != domain.RoleAdmin {
 		return ErrForbidden
@@ -39,36 +61,38 @@ func requireManageRole(actor *domain.AdminUser) error {
 	return nil
 }
 
-func (s *RegionService) Create(ctx context.Context, actor *domain.AdminUser, code, name string, flagMediaID *int64, sortOrder int) (*domain.Region, error) {
+func (s *RegionService) Create(ctx context.Context, actor *domain.AdminUser, in RegionInput) (*domain.Region, error) {
 	if err := requireManageRole(actor); err != nil {
 		return nil, err
 	}
-	exists, err := s.regions.ExistsCode(ctx, code, 0)
+	reg := in.toRegion()
+	exists, err := s.regions.ExistsCode(ctx, reg.Code, 0)
 	if err != nil {
 		return nil, err
 	}
 	if exists {
 		return nil, ErrAlreadyExists
 	}
-	id, err := s.regions.Create(ctx, &domain.Region{Code: code, Name: name, FlagMediaID: flagMediaID, SortOrder: sortOrder})
+	id, err := s.regions.Create(ctx, reg)
 	if err != nil {
 		return nil, err
 	}
 	return s.regions.GetByID(ctx, id)
 }
 
-func (s *RegionService) Update(ctx context.Context, actor *domain.AdminUser, id int64, code, name string, flagMediaID *int64, sortOrder int) error {
+func (s *RegionService) Update(ctx context.Context, actor *domain.AdminUser, id int64, in RegionInput) error {
 	if err := requireManageRole(actor); err != nil {
 		return err
 	}
-	exists, err := s.regions.ExistsCode(ctx, code, id)
+	reg := in.toRegion()
+	exists, err := s.regions.ExistsCode(ctx, reg.Code, id)
 	if err != nil {
 		return err
 	}
 	if exists {
 		return ErrAlreadyExists
 	}
-	return s.regions.Update(ctx, id, code, name, flagMediaID, sortOrder)
+	return s.regions.Update(ctx, id, reg)
 }
 
 func (s *RegionService) SetActive(ctx context.Context, actor *domain.AdminUser, id int64, active bool) error {

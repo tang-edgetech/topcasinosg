@@ -10,6 +10,7 @@
  */
 
 import { type GameType, ALL_GAME_TYPES } from "@/lib/gameTypes";
+import { mediaUrl } from "@/lib/pages";
 
 export type { GameType };
 export { ALL_GAME_TYPES };
@@ -25,6 +26,8 @@ export interface RegionDTO {
   id: number;
   code: string;
   name: string;
+  demonym: string;
+  currencyCode: string;
   flagUrl: string | null;
   isActive: boolean;
   sortOrder: number;
@@ -105,6 +108,7 @@ export interface GuideDTO {
   title: string;
   slug: string;
   coverMediaId: number | null;
+  coverUrl: string | null;
   excerpt: string;
   content: string;
   status: string;
@@ -153,6 +157,7 @@ export interface CasinoDTO {
   safeIndex: number | null;
   riskStatus: "low" | "medium" | "high" | null;
   paymentMethods: string[] | null;
+  supportedGames: string[] | null;
   payoutSpeed: string;
   pros: string[] | null;
   ctaUrl: string;
@@ -216,6 +221,24 @@ export async function getBonuses(regionCode: string, bonusType?: BonusType, page
   return data?.bonuses ?? [];
 }
 
+// Every published bonus in a region in one request. The bonus blocks on a
+// page filter this by type, so a page with seven bonus blocks makes one
+// request (fetch() dedupes the identical URL within a render).
+const REGION_BONUSES_PAGE_SIZE = 500;
+
+export async function getRegionBonuses(regionCode: string, bonusType?: BonusType): Promise<BonusDTO[]> {
+  const all = await getBonuses(regionCode, undefined, REGION_BONUSES_PAGE_SIZE);
+  return bonusType ? all.filter((b) => b.bonusType === bonusType) : all;
+}
+
+// Icons for the payment method names a casino lists, matched by name
+// (case-insensitive) against the region's Payment Method records.
+export async function getPaymentBadgeLookup(regionCode: string): Promise<(names: string[] | null) => { name: string; icon: string | null }[]> {
+  const methods = await getPaymentMethods(regionCode);
+  const iconByName = new Map(methods.map((pm) => [pm.name.trim().toLowerCase(), mediaUrl(pm.iconUrl)]));
+  return (names) => (names ?? []).map((name) => ({ name, icon: iconByName.get(name.trim().toLowerCase()) ?? null }));
+}
+
 export async function getPaymentMethods(regionCode: string): Promise<PaymentMethodDTO[]> {
   const data = await fetchData<{ paymentMethods: PaymentMethodDTO[]; total: number }>(
     `${API_BASE_URL}/api/payment-methods?region=${encodeURIComponent(regionCode)}`,
@@ -259,6 +282,29 @@ export async function getBlacklistEntries(regionCode?: string, page = 1, pageSiz
     `${API_BASE_URL}/api/blacklist?${params.toString()}`,
   );
   return { entries: data?.blacklistEntries ?? [], total: data?.total ?? 0 };
+}
+
+export type SiteStat = "casinos" | "blacklist" | "regions" | "guides";
+
+// Live site-wide counts for the Home "Our Track Record" tiles. Each list is
+// requested with pageSize=1 and read from its total. The public blacklist
+// list is global-only without a region, so regional entries are added per
+// active region.
+export async function getSiteStats(): Promise<Record<SiteStat, number>> {
+  const [casinos, globalBlacklist, regions, guides] = await Promise.all([
+    fetchData<{ total: number }>(`${API_BASE_URL}/api/casinos?pageSize=1`),
+    getBlacklistEntries(undefined, 1, 1),
+    getRegions(),
+    fetchData<{ total: number }>(`${API_BASE_URL}/api/guides?pageSize=1`),
+  ]);
+  const activeRegions = regions.filter((r) => r.isActive);
+  const regionalBlacklists = await Promise.all(activeRegions.map((r) => getBlacklistEntries(r.code, 1, 1)));
+  return {
+    casinos: casinos?.total ?? 0,
+    blacklist: regionalBlacklists.reduce((sum, list) => sum + list.total, globalBlacklist.total),
+    regions: activeRegions.length,
+    guides: guides?.total ?? 0,
+  };
 }
 
 /** "no_deposit" -> "No Deposit" */

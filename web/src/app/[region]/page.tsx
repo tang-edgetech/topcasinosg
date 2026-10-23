@@ -6,6 +6,7 @@ import SectionRenderer from "@/components/sections/SectionRenderer";
 import IntroductionSectionBlock from "@/components/sections/IntroductionSectionBlock";
 import PageGrid from "@/components/PageGrid";
 import RawHtmlBlock from "@/components/RawHtmlBlock";
+import { buildPageMenu, regionMenuLabel } from "./_lib/pageMenu";
 import { getActiveRegionByCode, getBonuses, getGuides, getPaymentMethods, getRtpEntries } from "./_lib/api";
 
 /**
@@ -50,18 +51,19 @@ export default async function RegionOverviewPage({
   params: Promise<RegionPageParams>;
 }) {
   const { region } = await params;
-  const result = await getPage(region);
+  const [result, regionData] = await Promise.all([getPage(region), getActiveRegionByCode(region)]);
 
   if (result && result.sections.length > 0) {
     const ordered = result.sections.slice().sort((a, b) => a.sortOrder - b.sortOrder);
     const [first, ...rest] = ordered;
     const hasIntro = first?.blockType === "introduction_section";
+    const pageMenu = regionData ? buildPageMenu(region, regionMenuLabel(regionData.name), "overview") : [];
 
     return (
       <div id="region-overview-page" className="region-overview flex flex-1 flex-col">
         <RawHtmlBlock html={`${result.page.headSnippet}${result.page.bodySnippet}`} />
         <PageGrid>
-          {hasIntro && <IntroductionSectionBlock section={first} />}
+          {hasIntro && <IntroductionSectionBlock section={first} fallbackPageMenu={pageMenu} currentPath={`/${region}`} />}
           <SectionRenderer sections={hasIntro ? rest : ordered} regionCode={region} />
         </PageGrid>
         <RawHtmlBlock html={result.page.footerSnippet} />
@@ -69,7 +71,6 @@ export default async function RegionOverviewPage({
     );
   }
 
-  const regionData = await getActiveRegionByCode(region);
   if (!regionData) {
     notFound();
   }

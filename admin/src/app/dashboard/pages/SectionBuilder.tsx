@@ -66,6 +66,8 @@ const BLOCK_GROUPS: { label: string; blocks: [PageBlockType, string][] }[] = [
       ["top_bonus_picks", "Ranked casino cards from live casinos & bonuses"],
       ["bonus_listing_table", "Table of live bonuses for a region"],
       ["casino_comparison_table", "Casino ratings comparison table"],
+      ["casino_list_table", "Casino list: cashback, payments, rating, safe index"],
+      ["game_casino_finder", "Pick a game, see casinos that offer it"],
       ["top_casinos_by_region", "Top casinos for a region"],
       ["blacklist_preview", "Slider of blacklisted casinos"],
       ["content_carousel", "Latest guides or news"],

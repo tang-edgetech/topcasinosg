@@ -66,6 +66,8 @@ export interface RegionDTO {
   id: number;
   code: string;
   name: string;
+  demonym: string;
+  currencyCode: string;
   flagMediaId: number | null;
   flagUrl: string | null;
   isActive: boolean;
@@ -103,7 +105,9 @@ export type GameType =
   | "craps"
   | "poker"
   | "video_poker"
-  | "bingo";
+  | "bingo"
+  | "pai_gow"
+  | "keno";
 
 export const GAME_TYPE_LABELS: Record<GameType, string> = {
   slots: "Slots",
@@ -115,6 +119,8 @@ export const GAME_TYPE_LABELS: Record<GameType, string> = {
   poker: "Poker",
   video_poker: "Video Poker",
   bingo: "Bingo",
+  pai_gow: "Pai Gow",
+  keno: "Keno",
 };
 
 export interface CasinoDTO {
@@ -381,7 +387,9 @@ export type PageBlockType =
   | "expandable_card_grid"
   | "review_columns"
   | "cta_link_list"
-  | "info_card_columns";
+  | "info_card_columns"
+  | "casino_list_table"
+  | "game_casino_finder";
 
 export interface PageSectionDTO {
   id: number;

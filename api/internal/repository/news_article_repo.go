@@ -16,13 +16,13 @@ func NewNewsArticleRepo(db *sql.DB) *NewsArticleRepo {
 	return &NewsArticleRepo{db: db}
 }
 
-const newsArticleColumns = `id, title, slug, cover_media_id, excerpt, content, status, publish_at,
-	created_by, created_at, updated_at`
+const newsArticleColumns = `id, title, slug, cover_media_id, (SELECT url FROM media WHERE media.id = cover_media_id),
+	excerpt, content, status, publish_at, created_by, created_at, updated_at`
 
 func scanNewsArticle(row interface{ Scan(...any) error }) (*domain.NewsArticle, error) {
 	var n domain.NewsArticle
 	if err := row.Scan(
-		&n.ID, &n.Title, &n.Slug, &n.CoverMediaID, &n.Excerpt, &n.Content, &n.Status, &n.PublishAt,
+		&n.ID, &n.Title, &n.Slug, &n.CoverMediaID, &n.CoverURL, &n.Excerpt, &n.Content, &n.Status, &n.PublishAt,
 		&n.CreatedBy, &n.CreatedAt, &n.UpdatedAt,
 	); err != nil {
 		return nil, err

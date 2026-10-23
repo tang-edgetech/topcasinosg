@@ -4,6 +4,7 @@ import { sanitizeRichText } from "@/lib/sanitize-html";
 export interface IntroductionPageMenuItem {
   label: string;
   url: string;
+  active?: boolean;
 }
 
 export interface IntroductionSectionProps {
@@ -84,12 +85,13 @@ export default function IntroductionSection({
               aria-label="Page menu"
               className="intro-col--menu mt-6 hidden flex-col md:flex gap-2 border-t border-white/20 pt-4 min-[1200px]:mt-0 min-[1200px]:border-t-0 min-[1200px]:border-l min-[1200px]:pt-0 min-[1200px]:pl-6"
             >
-              {pageMenu.map((item, i) => (
+              {pageMenu.map((item) => (
                 <a
                   key={item.url}
                   href={item.url}
+                  aria-current={item.active ? "page" : undefined}
                   className={
-                    i === 0
+                    item.active
                       ? "cursor-pointer text-sm font-semibold text-secondary-500"
                       : "cursor-pointer text-sm text-white/80 hover:text-white hover:underline"
                   }

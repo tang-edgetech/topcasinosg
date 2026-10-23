@@ -3,13 +3,16 @@ import IntroductionSection, { type IntroductionPageMenuItem } from "@/components
 
 // fallbackPageMenu is the route's standard menu (e.g. the region page menu)
 // used when the editor leaves the section's own Page Menu empty, so most
-// pages never need a hand-maintained menu.
+// pages never need a hand-maintained menu. An authored menu keeps its own
+// order; the item linking to currentPath is highlighted.
 export default function IntroductionSectionBlock({
   section,
   fallbackPageMenu = [],
+  currentPath,
 }: {
   section: PageSection;
   fallbackPageMenu?: IntroductionPageMenuItem[];
+  currentPath?: string;
 }) {
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
   const highlightText = field(section.fields, 0, "highlightText")?.textValue ?? "";
@@ -23,7 +26,8 @@ export default function IntroductionSectionBlock({
       label: field(section.fields, itemIndex, "label")?.textValue ?? "",
       url: field(section.fields, itemIndex, "url")?.textValue ?? "",
     }))
-    .filter((item) => item.label && item.url);
+    .filter((item) => item.label && item.url)
+    .map((item) => ({ ...item, active: item.url === currentPath }));
 
   return (
     <IntroductionSection

@@ -26,6 +26,7 @@ type NewsArticleDTO struct {
 	Title        string     `json:"title"`
 	Slug         string     `json:"slug"`
 	CoverMediaID *int64     `json:"coverMediaId"`
+	CoverURL     *string    `json:"coverUrl"`
 	Excerpt      string     `json:"excerpt"`
 	Content      string     `json:"content"`
 	Status       string     `json:"status"`
@@ -36,7 +37,7 @@ type NewsArticleDTO struct {
 
 func toNewsArticleDTO(n *domain.NewsArticle) NewsArticleDTO {
 	return NewsArticleDTO{
-		ID: n.ID, Title: n.Title, Slug: n.Slug, CoverMediaID: n.CoverMediaID, Excerpt: n.Excerpt, Content: n.Content,
+		ID: n.ID, Title: n.Title, Slug: n.Slug, CoverMediaID: n.CoverMediaID, CoverURL: n.CoverURL, Excerpt: n.Excerpt, Content: n.Content,
 		Status: string(n.Status), PublishAt: n.PublishAt, CreatedAt: n.CreatedAt, UpdatedAt: n.UpdatedAt,
 	}
 }

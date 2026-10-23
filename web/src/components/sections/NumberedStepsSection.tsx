@@ -11,13 +11,16 @@ const ACCENT_CLASSES: Record<string, string> = {
 // heading (optionally two lines, with one phrase - highlightText - picked
 // out in the accent color), an intro paragraph, then a vertical list of
 // step cards whose "Step N" labels share that accent (blue for deposit,
-// green for withdraw in the design).
+// green for withdraw in the design). labelMode "titles" drops the "Step N"
+// label and shows each card title in that accent instead (Figma Calculator
+// "Bonus Types & Real-Life Examples" cards).
 export default function NumberedStepsSection({ section }: { section: PageSection }) {
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
   const subheading = field(section.fields, 0, "subheading")?.textValue ?? "";
   const intro = field(section.fields, 0, "intro")?.textValue ?? "";
   const highlightText = field(section.fields, 0, "highlightText")?.textValue ?? "";
   const accentClass = ACCENT_CLASSES[field(section.fields, 0, "accent")?.textValue ?? ""] ?? ACCENT_CLASSES.primary;
+  const showStepLabels = field(section.fields, 0, "labelMode")?.textValue !== "titles";
   const items = itemIndexes(section.fields);
   const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields, { bgType: "color", bgFrom: "surface-muted" });
   const headingParts = highlightText && heading.includes(highlightText) ? heading.split(highlightText) : null;
@@ -59,9 +62,14 @@ export default function NumberedStepsSection({ section }: { section: PageSection
             const title = field(section.fields, itemIndex, "title")?.textValue ?? "";
             const body = field(section.fields, itemIndex, "body")?.textValue ?? "";
             return (
-              <div key={itemIndex} className="numbered-step section-col flex flex-col gap-1 rounded-lg bg-white p-5 shadow-sm">
-                <span className={`numbered-step__badge text-2xl font-bold ${accentClass}`}>Step {i + 1}</span>
-                {title && <h3 className="numbered-step__title text-lg font-bold text-primary-900">{title}</h3>}
+              <div key={itemIndex} className="numbered-step section-col flex flex-col gap-1 rounded-lg border border-primary-50 bg-white p-5 shadow-sm">
+                {showStepLabels && <span className={`numbered-step__badge text-2xl font-bold ${accentClass}`}>Step {i + 1}</span>}
+                {title &&
+                  (showStepLabels ? (
+                    <h3 className="numbered-step__title text-lg font-bold text-primary-900">{title}</h3>
+                  ) : (
+                    <h3 className={`numbered-step__title text-2xl font-bold ${accentClass}`}>{title}</h3>
+                  ))}
                 {body && (
                   <div
                     className="numbered-step__body rich-text-content caret-list text-sm leading-relaxed text-primary-600"

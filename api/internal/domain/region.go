@@ -6,10 +6,14 @@ import "time"
 // later is an admin action, not a code change or redeploy. See web/'s
 // [region] dynamic route.
 type Region struct {
-	ID          int64
-	Code        string
-	Name        string
-	FlagMediaID *int64
+	ID   int64
+	Code string
+	Name string
+	// Demonym and CurrencyCode fill the {regionAdj}/{currency} placeholders
+	// in shared region pages (e.g. "Thai", "THB").
+	Demonym      string
+	CurrencyCode string
+	FlagMediaID  *int64
 	// FlagURL is denormalized in via a JOIN on media at read-time (like
 	// Casino's attachRegionsBatch) — not a real column on regions.
 	FlagURL   *string

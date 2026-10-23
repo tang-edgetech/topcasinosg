@@ -12,6 +12,8 @@ type Guide struct {
 	Title        string
 	Slug         string
 	CoverMediaID *int64
+	// CoverURL is read-only, looked up from media at read time.
+	CoverURL     *string
 	Excerpt      string
 	Content      string
 	Status       ContentStatus

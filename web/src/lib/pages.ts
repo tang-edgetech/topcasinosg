@@ -56,7 +56,9 @@ export type PageBlockType =
   | "expandable_card_grid"
   | "review_columns"
   | "cta_link_list"
-  | "info_card_columns";
+  | "info_card_columns"
+  | "casino_list_table"
+  | "game_casino_finder";
 
 export interface PageSection {
   id: number;
@@ -96,6 +98,17 @@ interface ApiEnvelope<T> {
 // encoded individually rather than the whole string, since encoding the "/"
 // separators themselves would turn a multi-segment path into one that no
 // longer matches the API's `{path...}` route.
+// {year} works in any page text (headings, meta title, ...) so copy like
+// "Best Casinos in {year}" never goes stale.
+function fillYear(result: PageWithSections): PageWithSections {
+  const year = String(new Date().getFullYear());
+  const fill = (text: string) => (text && text.includes("{year}") ? text.replaceAll("{year}", year) : text);
+  return {
+    page: { ...result.page, title: fill(result.page.title), metaTitle: fill(result.page.metaTitle), metaDescription: fill(result.page.metaDescription) },
+    sections: result.sections.map((s) => ({ ...s, fields: s.fields.map((f) => ({ ...f, textValue: fill(f.textValue) })) })),
+  };
+}
+
 export async function getPage(path: string): Promise<PageWithSections | null> {
   try {
     const encodedPath = path.split("/").map(encodeURIComponent).join("/");
@@ -107,7 +120,7 @@ export async function getPage(path: string): Promise<PageWithSections | null> {
     const body = (await res.json()) as ApiEnvelope<{ page?: PageMeta; sections?: PageSection[] }>;
     if (!body.success || !body.data?.page) return null;
 
-    return { page: body.data.page, sections: body.data.sections ?? [] };
+    return fillYear({ page: body.data.page, sections: body.data.sections ?? [] });
   } catch {
     return null;
   }
@@ -135,9 +148,19 @@ export function sectionClassName(canonical: string, section: Pick<PageSection, "
 // (>=1200px — not a stock Tailwind breakpoint, hence the arbitrary
 // `min-[1200px]:` variant). Keep new block types on this same convention
 // (see admin's ColumnsField) so column behavior stays consistent site-wide.
+// Full class names (not interpolated) so Tailwind generates every option.
+// The tablet step uses min-[640px] rather than sm: because Tailwind sorts
+// arbitrary min-[...] variants before named ones, so sm:grid-cols-2 would
+// always beat min-[1200px]:grid-cols-N.
+const DESKTOP_COLUMN_CLASSES: Record<string, string> = {
+  "1": "min-[1200px]:grid-cols-1",
+  "2": "min-[1200px]:grid-cols-2",
+  "3": "min-[1200px]:grid-cols-3",
+  "4": "min-[1200px]:grid-cols-4",
+};
+
 export function columnsClassName(columns: string | undefined): string {
-  const desktop = columns === "1" || columns === "2" || columns === "3" ? columns : "3";
-  return `grid-cols-1 sm:grid-cols-2 min-[1200px]:grid-cols-${desktop}`;
+  return `grid-cols-1 min-[640px]:grid-cols-2 ${DESKTOP_COLUMN_CLASSES[columns ?? ""] ?? DESKTOP_COLUMN_CLASSES["3"]}`;
 }
 
 export type ButtonStyle = "primary" | "secondary" | "outline" | "white";
