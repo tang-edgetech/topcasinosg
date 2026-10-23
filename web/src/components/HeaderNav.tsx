@@ -62,7 +62,7 @@ export default function HeaderNav({ navTabs, logo }: { navTabs: NavTab[]; logo: 
         </Link>
 
         <nav id="site-header-nav" className="site-header__nav hidden items-center gap-1 lg:flex" aria-label="Primary">
-          {navTabs.map((tab) => (
+          {navTabs.map((tab, index) => (
             <div
               key={tab.id}
               id={`site-header-tab-${tab.id}`}
@@ -81,7 +81,14 @@ export default function HeaderNav({ navTabs, logo }: { navTabs: NavTab[]; logo: 
                 <CaretIcon open={openTab === tab.id} />
               </button>
 
-              {openTab === tab.id && <MegaMenu columns={tab.columns} footerLink={tab.footerLink} onNavigate={closeMenus} />}
+              {openTab === tab.id && (
+                <MegaMenu
+                  columns={tab.columns}
+                  footerLink={tab.footerLink}
+                  onNavigate={closeMenus}
+                  alignRight={index === navTabs.length - 1}
+                />
+              )}
             </div>
           ))}
         </nav>

@@ -21,7 +21,7 @@ body {
 }
 
 /* Only this one nav tab's mega-menu should sit flush under the tab —
-   every other tab keeps MegaMenu's own mt-2 gap. */
+   every other tab keeps MegaMenu's own 8px hover-bridge padding. */
 #site-header-tab-1 .mega-menu {
-  margin-top: 0;
+  padding-top: 0;
 }

@@ -23,7 +23,10 @@ interface EditableSection {
 // "Advanced" free-text field only ever has to show whatever is left over.
 const TIGHT_TOP_CLASS = "section--tight-top";
 const DIVIDER_TOP_CLASS = "section--divider-top";
-const PRESET_CLASSES = [TIGHT_TOP_CLASS, DIVIDER_TOP_CLASS];
+const WIDE_CONTENT_CLASS = "section--content-960";
+const PRESET_CLASSES = [TIGHT_TOP_CLASS, DIVIDER_TOP_CLASS, WIDE_CONTENT_CLASS];
+// Single-column reading blocks, whose 768px column can widen to 960px.
+const WIDE_CONTENT_BLOCK_TYPES: PageBlockType[] = ["rich_text", "faq"];
 
 // Grouped + described so editors pick a block by what it looks like, not by
 // its internal name. Every key of BLOCK_TYPE_LABELS must appear in exactly one
@@ -412,6 +415,14 @@ export default function SectionBuilder({
                     >
                       Divider line above
                     </Checkbox>
+                    {WIDE_CONTENT_BLOCK_TYPES.includes(section.blockType) && (
+                      <Checkbox
+                        checked={hasClass(section.customClass, WIDE_CONTENT_CLASS)}
+                        onChange={(e) => updateSection(section.key, { customClass: toggleClass(section.customClass, WIDE_CONTENT_CLASS, e.target.checked) })}
+                      >
+                        Wider content (960px)
+                      </Checkbox>
+                    )}
                     <button
                       type="button"
                       onClick={() => setAdvancedOpen((prev) => toggleIn(prev, section.key))}
