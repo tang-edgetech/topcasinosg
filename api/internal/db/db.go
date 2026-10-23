@@ -22,6 +22,10 @@ var migrationFiles embed.FS
 // migration is recorded as applied without running.
 const legacyDataFixMarker = "-- legacy-data-fix"
 
+// defaultMaxIdleConns is database/sql's own default, restored once migrations
+// are done.
+const defaultMaxIdleConns = 2
+
 // utcSessionTimeZone pins every connection to UTC, so DB-generated times
 // (DEFAULT CURRENT_TIMESTAMP, NOW()) match the UTC times the API writes and
 // reads, whatever time zone the MySQL server itself runs in.
@@ -55,6 +59,14 @@ func Open(dsn string) (*sql.DB, error) {
 // schema_migrations, in filename order. Migrations are plain SQL, not
 // reversible — this project favors additive changes over down-migrations.
 func Migrate(conn *sql.DB) error {
+	// Each migration must start from a clean MySQL session: content seeds read
+	// LAST_INSERT_ID() and @variables, and a pooled connection would carry
+	// the previous migration's values over (an empty database then failed at
+	// 0034, whose guarded INSERT was skipped but LAST_INSERT_ID() was stale).
+	// With no idle connections kept, every statement below gets a new session.
+	conn.SetMaxIdleConns(0)
+	defer conn.SetMaxIdleConns(defaultMaxIdleConns)
+
 	if _, err := conn.Exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
 		filename VARCHAR(255) NOT NULL PRIMARY KEY,
 		applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP

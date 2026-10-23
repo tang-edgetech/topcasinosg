@@ -103,11 +103,11 @@ ALTER DATABASE <cpuser>_tcsg_staging CHARACTER SET utf8mb4 COLLATE utf8mb4_unico
 ```
 The API applies migrations itself on every start.
 
-> **Known issue — start from a copy, not an empty database.** On an empty database,
-> migration `0034_th_payment_methods_content.sql` fails (it seeds content for a Thailand page
-> that only exists once regions are set up). Until that is fixed, create staging by importing
-> a `mysqldump` of the local database (plus the `uploads/` folder); the API then applies any
-> newer migrations on start.
+> **Empty database vs. a copy.** An empty database migrates cleanly, but it only gets the
+> structure, the regions, menus and the shared region-template pages — not the casinos,
+> region pages or other content created in the admin. To start staging with real content,
+> import a `mysqldump` of the local database (plus the `uploads/` folder); the API then applies
+> any newer migrations on start.
 >
 > All times are stored in **UTC**: the API forces its MySQL session to UTC, so the server's
 > own time zone doesn't matter. The admin and site convert to the viewer's local time.
