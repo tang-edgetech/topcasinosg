@@ -31,6 +31,8 @@ const SECTION_LABELS: Record<string, string> = {
   sidebar: "Sidebar",
   snippets: "Snippets",
   settings: "Site Settings",
+  exports: "Export",
+  imports: "Import",
   account: "My Account",
   auth: "Sign-in",
 };
@@ -49,6 +51,8 @@ const ACTION_LABELS: Record<string, string> = {
   login: "Signed in",
   login_failed: "Failed sign-in",
   logout: "Signed out",
+  download: "Downloaded",
+  preview: "Previewed",
 };
 
 const ACTION_FILTERS = ["create", "update", "delete", "status", "login", "login_failed", "logout"];

@@ -14,14 +14,14 @@ type contextKey int
 
 const userContextKey contextKey = iota
 
-// Authenticate reads the access_token cookie, verifies it, and re-fetches the
+// Authenticate reads the access-token cookie (named accessCookie), verifies it, and re-fetches the
 // user from the DB (not just trusting the JWT claims) so a role change or an
 // account disable takes effect immediately instead of waiting out the token's
 // 15-minute lifetime.
-func Authenticate(jwtIssuer *security.JWTIssuer, users *repository.UserRepo) func(http.Handler) http.Handler {
+func Authenticate(jwtIssuer *security.JWTIssuer, users *repository.UserRepo, accessCookie string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			cookie, err := r.Cookie("access_token")
+			cookie, err := r.Cookie(accessCookie)
 			if err != nil {
 				response.Err(w, http.StatusUnauthorized, "not authenticated")
 				return

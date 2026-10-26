@@ -187,7 +187,7 @@ func (h *AuthHandler) ConfirmOTPSetup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie(httpx.RefreshCookieName)
+	cookie, err := r.Cookie(h.cfg.CookieName(httpx.RefreshCookieName))
 	if err != nil {
 		response.Err(w, http.StatusUnauthorized, "not authenticated")
 		return
@@ -202,7 +202,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
-	if cookie, err := r.Cookie(httpx.RefreshCookieName); err == nil {
+	if cookie, err := r.Cookie(h.cfg.CookieName(httpx.RefreshCookieName)); err == nil {
 		if userID, _ := h.auth.Logout(r.Context(), cookie.Value); userID > 0 {
 			h.recordAuth(r, domain.AuditActionLogout, userID, "")
 		}

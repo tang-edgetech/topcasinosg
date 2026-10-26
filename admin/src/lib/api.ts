@@ -1,3 +1,5 @@
+import { HAS_SESSION_COOKIE } from "@/lib/cookies";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
 
 export class ApiError extends Error {
@@ -82,13 +84,35 @@ async function requestForm<T>(path: string, form: FormData, _retried = false): P
   return unwrap<T>(res);
 }
 
-// has_session is a plain, non-HttpOnly marker cookie the API sets alongside
+// The has_session cookie is a plain, non-HttpOnly marker cookie the API sets alongside
 // the real session cookies (see api/internal/httpx/cookies.go) — its absence
 // means "definitely logged out," so callers can skip the /auth/me round trip
 // (and the 401 it would otherwise correctly return) instead of probing first.
 export function hasSessionCookie(): boolean {
   if (typeof document === "undefined") return false;
-  return document.cookie.split("; ").some((c) => c.startsWith("has_session="));
+  return document.cookie.split("; ").some((c) => c.startsWith(`${HAS_SESSION_COOKIE}=`));
+}
+
+// requestBlob posts JSON and returns a binary download (export zips). Errors
+// still arrive as the JSON envelope.
+async function requestBlob(path: string, data: unknown, _retried = false): Promise<Blob> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  if (res.status === 401 && !_retried) {
+    const refreshed = await refreshSession();
+    if (refreshed) {
+      return requestBlob(path, data, true);
+    }
+  }
+  if (!res.ok) {
+    return unwrap<never>(res);
+  }
+  return res.blob();
 }
 
 export const api = {
@@ -99,4 +123,5 @@ export const api = {
     request<T>(path, { method: "PUT", body: data !== undefined ? JSON.stringify(data) : undefined }),
   del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
   upload: <T>(path: string, form: FormData) => requestForm<T>(path, form),
+  download: (path: string, data: unknown) => requestBlob(path, data),
 };

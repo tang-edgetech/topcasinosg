@@ -31,17 +31,23 @@ The system runs as **3 long-lived processes** per environment:
 
 ## 2. Domains, databases, ports
 
-Replace `topcasinosg.com.sg` with the real domain.
-
 | | Staging | Production |
 |---|---|---|
-| Public site | `staging.topcasinosg.com.sg` | `topcasinosg.com.sg` (+ `www`) |
-| Admin | `admin.staging.topcasinosg.com.sg` | `admin.topcasinosg.com.sg` |
-| API | `api.staging.topcasinosg.com.sg` | `api.topcasinosg.com.sg` |
+| Public site (frontend) | `staging.topcasinosg.com.sg` | `topcasinosg.com.sg` (+ `www`) |
+| Back office (admin) | `staging-backoffice.topcasinosg.com.sg` | `backoffice.topcasinosg.com.sg` |
+| API | `staging-api.topcasinosg.com.sg` | `api.topcasinosg.com.sg` |
 | Database | `<cpuser>_tcsg_staging` | `<cpuser>_tcsg_live` |
 | Ports (localhost only) | web 4100 · admin 4101 · api 8190 | web 4000 · admin 4001 · api 8090 |
+| Cookie prefix | `stg_` | none |
 
 Staging and production never share a database, an uploads folder, secrets or ports.
+
+- Every name is **one level** under `topcasinosg.com.sg` (`staging-backoffice`, not
+  `backoffice.staging`), so Cloudflare's free certificate (`*.topcasinosg.com.sg`) covers it.
+- Both environments share the cookie domain `.topcasinosg.com.sg`; the **cookie prefix**
+  keeps a staging login from overwriting a live one in the same browser.
+- Content moves between environments with **Back office → Export / Import** (local → staging
+  → live), not by copying databases. See §9.
 
 ---
 
@@ -103,11 +109,11 @@ ALTER DATABASE <cpuser>_tcsg_staging CHARACTER SET utf8mb4 COLLATE utf8mb4_unico
 ```
 The API applies migrations itself on every start.
 
-> **Empty database vs. a copy.** An empty database migrates cleanly, but it only gets the
-> structure, the regions, menus and the shared region-template pages — not the casinos,
-> region pages or other content created in the admin. To start staging with real content,
-> import a `mysqldump` of the local database (plus the `uploads/` folder); the API then applies
-> any newer migrations on start.
+> **Empty database, then import.** An empty database migrates cleanly, but it only gets the
+> structure, the regions, menus and the shared region-template pages. To fill staging with
+> real content: local back office → **Export / Import → Export → Whole backoffice**, then
+> staging back office → **Import** that zip with **Replace everything**. Uploaded files travel
+> inside the zip. Users are never copied — create the first staging user at `/setup`, as in §9 step 4.
 >
 > All times are stored in **UTC**: the API forces its MySQL session to UTC, so the server's
 > own time zone doesn't matter. The admin and site convert to the viewer's local time.
@@ -119,10 +125,18 @@ PORT=8190
 DB_DSN=<dbuser>:<dbpass>@tcp(127.0.0.1:3306)/<cpuser>_tcsg_staging?parseTime=true&multiStatements=true&charset=utf8mb4
 JWT_SECRET=<64 random chars>
 OTP_ENCRYPTION_KEY=<exactly 32 chars>
-CORS_ALLOWED_ORIGINS=https://staging.topcasinosg.com.sg,https://admin.staging.topcasinosg.com.sg
-COOKIE_DOMAIN=.staging.topcasinosg.com.sg
+CORS_ALLOWED_ORIGINS=https://staging.topcasinosg.com.sg,https://staging-backoffice.topcasinosg.com.sg
+COOKIE_DOMAIN=.topcasinosg.com.sg
+COOKIE_PREFIX=stg_
 UPLOAD_DIR=/home/<cpuser>/apps/staging/shared/uploads
 ```
+Build-time values for the Next apps (baked in by GitHub Actions, §8):
+
+| App | Staging | Production |
+|---|---|---|
+| web | `NEXT_PUBLIC_API_URL=https://staging-api.topcasinosg.com.sg` | `NEXT_PUBLIC_API_URL=https://api.topcasinosg.com.sg` |
+| admin | same API URL · `NEXT_PUBLIC_WEB_URL=https://staging.topcasinosg.com.sg` · `NEXT_PUBLIC_COOKIE_PREFIX=stg_` | same API URL · `NEXT_PUBLIC_WEB_URL=https://topcasinosg.com.sg` · no prefix |
+
 - Staging uses `APP_ENV=production` too: that turns on Secure cookies and 2FA enforcement.
 - Generate secrets with `openssl rand -base64 48`, and use different values per environment.
 - `chmod 600 api.env`.
@@ -171,14 +185,14 @@ ProxyPass        / http://127.0.0.1:4100/
 ProxyPassReverse / http://127.0.0.1:4100/
 RequestHeader set X-Forwarded-Proto "https"
 ```
-Repeat for admin (4101) and api (8190). Then apply:
+Repeat for `staging-backoffice` (4101) and `staging-api` (8190). Then apply:
 ```
 /scripts/rebuildhttpdconf && /scripts/restartsrv_httpd
 ```
 The `/.well-known` exclusion keeps AutoSSL renewals working.
 
 ### 5.6 Keep staging private
-- On the staging public-site and admin subdomains: cPanel → **Directory Privacy**, or an
+- On `staging` and `staging-backoffice`: cPanel → **Directory Privacy**, or an
   `AuthType Basic` block in the same `proxy.conf`.
 - Global Settings → `noindex, nofollow` on.
 
@@ -240,14 +254,14 @@ Format **`vMAJOR.MINOR.PATCH`**, starting at `v1.0.0`. **Already implemented.**
 1. **Fail fast on missing secrets.** `api/internal/config/config.go` currently falls back
    to dev secrets when an env var is missing. With `APP_ENV=production`, it must refuse to
    start unless `DB_DSN`, `JWT_SECRET`, `OTP_ENCRYPTION_KEY` and `CORS_ALLOWED_ORIGINS` are set.
-2. **Environment-specific cookie names.** Staging (`.staging.topcasinosg.com.sg`) is under
-   the production cookie domain (`.topcasinosg.com.sg`), so production cookies would also be
-   sent to staging. Give staging its own cookie names, e.g. a `COOKIE_PREFIX` env var.
+2. **Environment-specific cookie names** — done: `COOKIE_PREFIX` (API) and
+   `NEXT_PUBLIC_COOKIE_PREFIX` (admin build) must match; `stg_` on staging, empty on live.
 3. **Next.js standalone output.** Add `output: "standalone"` to both `next.config.ts`
    files, so a deploy ships `server.js` plus only the needed modules (copy `public/` and
    `.next/static/` alongside).
-4. **Build-time API URL.** `NEXT_PUBLIC_API_URL` (and `NEXT_PUBLIC_WEB_URL` in admin) is
-   baked in at build time, so Actions builds once for staging and once for production.
+4. **Build-time values.** `NEXT_PUBLIC_API_URL` (plus `NEXT_PUBLIC_WEB_URL` and
+   `NEXT_PUBLIC_COOKIE_PREFIX` in admin) are baked in at build time, so Actions builds once for
+   staging and once for production (values in §5.3).
 5. **Version plumbing** (§7) — done, except passing the tag into the deploy builds.
 6. **Repo files:** `.github/workflows/ci-deploy.yml`, `deploy/remote-deploy.sh`,
    `deploy/systemd/*.service`, `deploy/apache/*.conf` templates.
@@ -256,17 +270,19 @@ Format **`vMAJOR.MINOR.PATCH`**, starting at `v1.0.0`. **Already implemented.**
 
 ## 9. Going live on the main domain
 
-1. In cPanel, point the main domain + `www` at the server and create `admin.` and `api.`
-   subdomains, then run AutoSSL.
+1. In cPanel, point the main domain + `www` at the server and create the `backoffice.` and
+   `api.` subdomains, then run AutoSSL (or install the Cloudflare origin certificate).
 2. Create the production database, `apps/production/shared/api.env` (new secrets,
-   ports 4000/4001/8090, `COOKIE_DOMAIN=.topcasinosg.com.sg`, production origins in CORS),
+   ports 4000/4001/8090, `COOKIE_DOMAIN=.topcasinosg.com.sg`, **no** `COOKIE_PREFIX`,
+   `CORS_ALLOWED_ORIGINS=https://topcasinosg.com.sg,https://www.topcasinosg.com.sg,https://backoffice.topcasinosg.com.sg`),
    the systemd units and the Apache includes, exactly as in §5.
-3. Copy content from staging if wanted (`mysqldump` staging → import into production, plus
-   the `uploads/` folder).
-4. GitHub → Actions → **Deploy to production** → choose the version → approve.
-5. Global Settings on production → turn **off** `noindex, nofollow`. Remove Basic Auth
-   (never added on production).
-6. First admin login on production → set up 2FA.
+3. GitHub → Actions → **Deploy to production** → choose the version → approve.
+4. First back-office login on production (`/setup` creates the first Super Admin) → set up 2FA.
+5. Copy content: staging back office → **Export / Import → Whole backoffice** → download;
+   production back office → **Import** → **Replace everything**. Check the preview first.
+   Later, move single items (a new casino, an edited page) with **Choose items** + **Merge**.
+6. Global Settings on production → set the site URL, turn **off** `noindex, nofollow`.
+   Remove Basic Auth (never added on production).
 
 ---
 
@@ -287,7 +303,8 @@ Format **`vMAJOR.MINOR.PATCH`**, starting at `v1.0.0`. **Already implemented.**
 | Symptom | Likely cause |
 |---|---|
 | 503 from Apache | The service is down — `systemctl status tcsg-<env>-<app>`. |
-| Admin login loops back to login | `COOKIE_DOMAIN` or `CORS_ALLOWED_ORIGINS` mismatch, or the `https` scheme missing from the origins. |
+| Back-office login loops back to login | `COOKIE_DOMAIN` or `CORS_ALLOWED_ORIGINS` mismatch, the `https` scheme missing from the origins, or `COOKIE_PREFIX` ≠ the admin build's `NEXT_PUBLIC_COOKIE_PREFIX`. |
+| Import rejected through Cloudflare (413) | Cloudflare's free plan caps uploads at 100 MB. Export fewer items per file, or import from a browser pointed straight at the server. |
 | Images 404 | `UPLOAD_DIR` isn't pointing at `shared/uploads`. |
 | Site shows old content after deploy | `current` didn't switch — check the deploy step log; Next services restarted? |
 | AutoSSL fails | The `ProxyPass /.well-known !` line is missing. |

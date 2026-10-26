@@ -8,6 +8,7 @@ import (
 	"github.com/tang-edgetech/topcasinosg/api/internal/config"
 	"github.com/tang-edgetech/topcasinosg/api/internal/domain"
 	"github.com/tang-edgetech/topcasinosg/api/internal/handler"
+	"github.com/tang-edgetech/topcasinosg/api/internal/httpx"
 	"github.com/tang-edgetech/topcasinosg/api/internal/middleware"
 	"github.com/tang-edgetech/topcasinosg/api/internal/repository"
 	"github.com/tang-edgetech/topcasinosg/api/internal/security"
@@ -37,6 +38,7 @@ type Deps struct {
 	SnippetHandler        *handler.SnippetHandler
 	SidebarHandler        *handler.SidebarHandler
 	AuditHandler          *handler.AuditHandler
+	TransferHandler       *handler.TransferHandler
 	Audit                 *service.AuditService
 }
 
@@ -82,7 +84,7 @@ func NewRouter(deps Deps) http.Handler {
 	mux.HandleFunc("GET /api/pages/{path...}", deps.PageHandler.GetPublic)
 	mux.HandleFunc("GET /api/snippets", deps.SnippetHandler.GetPublic)
 
-	authenticateUser := middleware.Authenticate(deps.JWT, deps.Users)
+	authenticateUser := middleware.Authenticate(deps.JWT, deps.Users, deps.Config.CookieName(httpx.AccessCookieName))
 	audit := middleware.Audit(deps.Audit, adminSnapshotter(mux))
 	// Every authenticated route is audited: GETs pass straight through, and
 	// a change is logged only when the inner role check and handler succeed.
@@ -105,6 +107,13 @@ func NewRouter(deps Deps) http.Handler {
 	// Activity log — every role; what each one sees is narrowed in AuditService.
 	mux.Handle("GET /api/admin/activity", authenticate(contentStaff(http.HandlerFunc(deps.AuditHandler.List))))
 	mux.Handle("GET /api/admin/activity/actors", authenticate(contentStaff(http.HandlerFunc(deps.AuditHandler.Actors))))
+
+	// Export / import — Super Admin and Admin. Imports are a single-segment
+	// POST so the activity log stores the import report as the entry details.
+	mux.Handle("GET /api/admin/exports/catalog", authenticate(staffOnly(http.HandlerFunc(deps.TransferHandler.Catalog))))
+	mux.Handle("POST /api/admin/exports/download", authenticate(staffOnly(http.HandlerFunc(deps.TransferHandler.Export))))
+	mux.Handle("POST /api/admin/imports/preview", authenticate(staffOnly(http.HandlerFunc(deps.TransferHandler.Preview))))
+	mux.Handle("POST /api/admin/imports", authenticate(staffOnly(http.HandlerFunc(deps.TransferHandler.Import))))
 
 	// Users — Super Admin and Admin only; Editors have no access at all.
 	mux.Handle("GET /api/admin/users", authenticate(staffOnly(http.HandlerFunc(deps.UserHandler.List))))

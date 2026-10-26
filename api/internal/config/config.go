@@ -26,6 +26,10 @@ type Config struct {
 	// ".topcasinosg.com.sg" in production so the cookie is shared between the
 	// admin and api subdomains.
 	CookieDomain string
+	// CookiePrefix keeps sessions apart when two environments share a cookie
+	// domain (staging and live both on .topcasinosg.com.sg): e.g. "stg_".
+	// The admin app must be built with the same NEXT_PUBLIC_COOKIE_PREFIX.
+	CookiePrefix string
 
 	// UploadDir stores logo/favicon uploads, served back at /uploads/.
 	UploadDir string
@@ -44,6 +48,7 @@ func Load() Config {
 
 		CORSAllowedOrigins: splitCSV(getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:4000,http://localhost:4001")),
 		CookieDomain:       getEnv("COOKIE_DOMAIN", ""),
+		CookiePrefix:       getEnv("COOKIE_PREFIX", ""),
 
 		UploadDir: getEnv("UPLOAD_DIR", "uploads"),
 	}
@@ -64,6 +69,10 @@ func splitCSV(v string) []string {
 // cookie flag, and — per product decision — 2FA enforcement itself.
 func (c Config) IsProduction() bool {
 	return c.Env == "production"
+}
+
+func (c Config) CookieName(base string) string {
+	return c.CookiePrefix + base
 }
 
 func getEnv(key, fallback string) string {

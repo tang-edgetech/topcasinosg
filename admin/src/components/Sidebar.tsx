@@ -36,6 +36,7 @@ import {
   IconEdit,
   IconChevronDown,
   IconHistory,
+  IconTransfer,
 } from "@/components/Icons";
 
 // One color scheme for every clickable sidebar item, main nav or footer:
@@ -107,6 +108,7 @@ const NAV_ITEMS: NavEntry[] = [
     ],
   },
   { href: "/dashboard/snippets", label: "Snippets", roles: ["super_admin", "admin"], icon: IconCode },
+  { href: "/dashboard/transfer", label: "Export / Import", roles: ["super_admin", "admin"], icon: IconTransfer },
   { href: "/dashboard/activity", label: "Activity Log", roles: ["super_admin", "admin", "editor"], icon: IconHistory },
 ];
 

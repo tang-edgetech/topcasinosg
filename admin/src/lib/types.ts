@@ -403,6 +403,40 @@ export interface AuditChange {
   to?: unknown;
 }
 
+export interface TransferCatalogItem {
+  id: string;
+  label: string;
+  detail: string;
+}
+
+export interface TransferCatalogGroup {
+  key: string;
+  label: string;
+  items: TransferCatalogItem[];
+}
+
+export type TransferMode = "merge" | "replace";
+
+export interface TransferTableReport {
+  created: number;
+  updated: number;
+  linked: number;
+  deleted: number;
+}
+
+export interface TransferReport {
+  name: string;
+  mode: TransferMode;
+  dryRun: boolean;
+  whole: boolean;
+  source: string;
+  appVersion: string;
+  exportedAt: string;
+  tables: Record<string, TransferTableReport>;
+  files: number;
+  warnings: string[];
+}
+
 export interface AuditLogDTO {
   id: number;
   actorId: number | null;

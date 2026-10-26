@@ -23,15 +23,15 @@ const (
 // Secure is tied to environment, not request scheme, since the product
 // decision is: production is HTTPS, localhost never sets Secure.
 func SetSessionCookies(w http.ResponseWriter, cfg config.Config, outcome *service.LoginOutcome) {
-	setCookie(w, cfg, AccessCookieName, outcome.AccessToken, security.AccessTokenTTL)
-	setCookie(w, cfg, RefreshCookieName, outcome.RefreshToken, service.RefreshTokenTTL)
-	setMarkerCookie(w, cfg, HasSessionCookieName, service.RefreshTokenTTL)
+	setCookie(w, cfg, cfg.CookieName(AccessCookieName), outcome.AccessToken, security.AccessTokenTTL)
+	setCookie(w, cfg, cfg.CookieName(RefreshCookieName), outcome.RefreshToken, service.RefreshTokenTTL)
+	setMarkerCookie(w, cfg, cfg.CookieName(HasSessionCookieName), service.RefreshTokenTTL)
 }
 
 func ClearSessionCookies(w http.ResponseWriter, cfg config.Config) {
-	deleteCookie(w, cfg, AccessCookieName)
-	deleteCookie(w, cfg, RefreshCookieName)
-	deleteCookie(w, cfg, HasSessionCookieName)
+	deleteCookie(w, cfg, cfg.CookieName(AccessCookieName))
+	deleteCookie(w, cfg, cfg.CookieName(RefreshCookieName))
+	deleteCookie(w, cfg, cfg.CookieName(HasSessionCookieName))
 }
 
 func setCookie(w http.ResponseWriter, cfg config.Config, name, value string, ttl time.Duration) {

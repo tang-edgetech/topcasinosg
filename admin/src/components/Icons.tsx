@@ -285,6 +285,17 @@ export function IconHistory(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function IconTransfer(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M7 4v13" />
+      <path d="m3 13 4 4 4-4" />
+      <path d="M17 20V7" />
+      <path d="m21 11-4-4-4 4" />
+    </svg>
+  );
+}
+
 export function IconGlobe(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base(props)}>

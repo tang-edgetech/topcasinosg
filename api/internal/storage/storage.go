@@ -8,14 +8,26 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"io"
+	"strings"
 )
+
+var ErrNotFound = errors.New("file not found")
 
 type Storage interface {
 	// Save writes r under a name derived from filename and returns the
 	// public URL clients should use to fetch it.
 	Save(ctx context.Context, filename string, r io.Reader) (url string, err error)
 	Delete(ctx context.Context, url string) error
+	// Open reads back a file saved under filename; ErrNotFound when missing.
+	Open(ctx context.Context, filename string) (io.ReadCloser, error)
+	Exists(ctx context.Context, filename string) bool
+}
+
+// ValidFilename rejects anything that could escape the upload directory.
+func ValidFilename(name string) bool {
+	return name != "" && name != "." && !strings.Contains(name, "..") && !strings.ContainsAny(name, `/\:`)
 }
 
 // GenerateFilename produces a collision-resistant name that keeps the

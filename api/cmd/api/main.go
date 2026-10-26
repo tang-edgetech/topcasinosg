@@ -64,6 +64,7 @@ func main() {
 	snippetRepo := repository.NewSnippetRepo(conn)
 	sidebarRepo := repository.NewSidebarRepo(conn)
 	auditRepo := repository.NewAuditRepo(conn)
+	transferRepo := repository.NewTransferRepo(conn)
 
 	jwtIssuer := security.NewJWTIssuer(cfg.JWTSecret)
 	secretbox, err := security.NewSecretbox(cfg.OTPEncryptionKey)
@@ -116,6 +117,7 @@ func main() {
 		SnippetHandler:        handler.NewSnippetHandler(snippetService),
 		SidebarHandler:        handler.NewSidebarHandler(sidebarService),
 		AuditHandler:          handler.NewAuditHandler(auditService),
+		TransferHandler:       handler.NewTransferHandler(service.NewTransferService(transferRepo, fileStorage)),
 		Audit:                 auditService,
 	}
 	router := server.NewRouter(deps)

@@ -46,3 +46,22 @@ func (s *LocalStorage) Delete(_ context.Context, url string) error {
 	}
 	return err
 }
+
+func (s *LocalStorage) Open(_ context.Context, filename string) (io.ReadCloser, error) {
+	if !ValidFilename(filename) {
+		return nil, ErrNotFound
+	}
+	f, err := os.Open(filepath.Join(s.dir, filename))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, ErrNotFound
+	}
+	return f, err
+}
+
+func (s *LocalStorage) Exists(_ context.Context, filename string) bool {
+	if !ValidFilename(filename) {
+		return false
+	}
+	info, err := os.Stat(filepath.Join(s.dir, filename))
+	return err == nil && !info.IsDir()
+}

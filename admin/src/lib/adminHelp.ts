@@ -221,6 +221,28 @@ export const ADMIN_HELP = {
       },
     ],
   },
+  transfer: {
+    summary: "Copy backoffice content between environments: this computer → staging → live.",
+    sections: [
+      {
+        heading: "Export",
+        points: [
+          "Whole backoffice: every page, casino, bonus, menu, setting and uploaded file in one .zip.",
+          "Choose items: tick only what you want. Anything those items need (a bonus's casino and region, a page's parent, images) is added automatically.",
+          "Users, passwords, the activity log, the site URL and the 2FA switch are never exported.",
+        ],
+      },
+      {
+        heading: "Import",
+        points: [
+          "Drop the .zip in and check the preview. Nothing changes until you press Import and confirm.",
+          "Merge adds new items and updates matching ones (same slug, code, name or page address). Nothing is deleted.",
+          "Replace everything (whole exports only) deletes all content here first, so this backoffice becomes an exact copy of the file.",
+          "Export this backoffice first as a backup before a big import.",
+        ],
+      },
+    ],
+  },
   navigation: {
     summary: "Navigation controls the website's header menu and footer link columns.",
     sections: [
