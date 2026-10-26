@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"sort"
 	"strings"
 	"time"
 
@@ -296,6 +297,9 @@ func (s *PageService) Delete(ctx context.Context, id int64) error {
 // rather than silently persisting a section the frontend won't know how to
 // render.
 func (s *PageService) ReplaceSections(ctx context.Context, pageID int64, sections []domain.PageSection) error {
+	if err := validateContainers(sections); err != nil {
+		return err
+	}
 	for i := range sections {
 		if !isKnownBlockType(sections[i].BlockType) {
 			return ErrInvalidBlockType
@@ -307,6 +311,24 @@ func (s *PageService) ReplaceSections(ctx context.Context, pageID int64, section
 		}
 	}
 	return s.pages.ReplaceSections(ctx, pageID, sections)
+}
+
+// validateContainers checks, in display order, that every in-container
+// section follows a container (or another section inside one) and that no
+// container is itself inside a container.
+func validateContainers(sections []domain.PageSection) error {
+	ordered := make([]domain.PageSection, len(sections))
+	copy(ordered, sections)
+	sort.SliceStable(ordered, func(i, j int) bool { return ordered[i].SortOrder < ordered[j].SortOrder })
+	open := false
+	for _, section := range ordered {
+		isContainer := section.BlockType == domain.BlockTypeContainer
+		if section.InContainer && (isContainer || !open) {
+			return ErrInvalidContainer
+		}
+		open = isContainer || section.InContainer
+	}
+	return nil
 }
 
 func isKnownBlockType(t string) bool {

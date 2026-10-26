@@ -361,6 +361,7 @@ export interface PageSectionFieldDTO {
 }
 
 export type PageBlockType =
+  | "container"
   | "hero"
   | "rich_text"
   | "icon_box_group"
@@ -395,6 +396,8 @@ export interface PageSectionDTO {
   blockType: PageBlockType;
   customClass: string;
   customId: string;
+  // Inside the nearest Container before it (api/internal/domain/page.go).
+  inContainer: boolean;
   sortOrder: number;
   fields: PageSectionFieldDTO[];
 }

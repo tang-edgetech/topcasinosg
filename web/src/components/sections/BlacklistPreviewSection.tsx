@@ -1,5 +1,4 @@
 import type { CSSProperties } from "react";
-import Link from "next/link";
 import { field, mediaUrl, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { getBlacklistEntries, type BlacklistEntryDTO } from "@/app/[region]/_lib/api";
 import HorizontalSlider from "@/components/HorizontalSlider";
@@ -11,11 +10,15 @@ const MAX_REASONS = 3;
 // a slider of blacklisted casinos - logo, score out of 10 and a red panel
 // listing why each one is blacklisted. Live blacklist data (the region's
 // entries, see BlacklistEntry.Rating/Reasons/LogoURL). highlightText colors
-// one word of the heading (e.g. "Avoid") in the danger color.
+// one word of the heading (e.g. "Avoid") in the danger color. The optional
+// secondary heading/text sit in the slider's own row beside See All and the
+// arrows (Figma Home "What Makes a Casino Get Blacklisted?").
 export default async function BlacklistPreviewSection({ section }: { section: PageSection }) {
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
   const highlightText = field(section.fields, 0, "highlightText")?.textValue ?? "";
   const subheading = field(section.fields, 0, "subheading")?.textValue ?? "";
+  const secondaryHeading = field(section.fields, 0, "secondaryHeading")?.textValue ?? "";
+  const secondaryText = field(section.fields, 0, "secondaryText")?.textValue ?? "";
   const limit = Number(field(section.fields, 0, "limit")?.textValue) || 10;
   const seeAllUrl = field(section.fields, 0, "seeAllUrl")?.textValue || "/blacklist";
   const regionCode = field(section.fields, 0, "regionCode")?.textValue || undefined;
@@ -26,10 +29,10 @@ export default async function BlacklistPreviewSection({ section }: { section: Pa
 
   const headingParts = highlightText && heading.includes(highlightText) ? heading.split(highlightText) : null;
 
-  const header = (
-    <div className="flex flex-col gap-1">
+  const titleSet = (heading || subheading) && (
+    <div className="blacklist-preview__title flex flex-col gap-5">
       {heading && (
-        <h2 className="section-heading text-3xl font-bold text-white">
+        <h2 className="section-heading text-[36px] leading-[43px] font-bold text-white">
           {headingParts ? (
             <>
               {headingParts[0]}
@@ -41,7 +44,14 @@ export default async function BlacklistPreviewSection({ section }: { section: Pa
           )}
         </h2>
       )}
-      {subheading && <p className="text-sm text-white/80">{subheading}</p>}
+      {subheading && <p className="text-base text-white">{subheading}</p>}
+    </div>
+  );
+
+  const sliderHeader = (secondaryHeading || secondaryText) && (
+    <div className="blacklist-preview__secondary flex flex-col gap-1">
+      {secondaryHeading && <h3 className="text-[26px] leading-[31px] font-bold text-white">{secondaryHeading}</h3>}
+      {secondaryText && <p className="text-base text-white">{secondaryText}</p>}
     </div>
   );
 
@@ -53,23 +63,9 @@ export default async function BlacklistPreviewSection({ section }: { section: Pa
     >
       <div className="section-container relative z-10 py-[3.125rem]">
         <div className="section-row">
-          <div className="section-col">
-            <HorizontalSlider
-              label="Blacklisted casinos"
-              showArrows
-              arrowTheme="dark"
-              header={
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  {header}
-                  <Link
-                    href={seeAllUrl}
-                    className="cursor-pointer rounded border border-white/40 px-6 py-1.5 text-sm text-white hover:bg-white/10"
-                  >
-                    See All
-                  </Link>
-                </div>
-              }
-            >
+          <div className="section-col flex flex-col gap-[3.125rem]">
+            {titleSet}
+            <HorizontalSlider label="Blacklisted casinos" showArrows arrowTheme="dark" seeAllUrl={seeAllUrl} header={sliderHeader}>
               {entries.map((entry) => (
                 <BlacklistCard key={entry.id} entry={entry} />
               ))}

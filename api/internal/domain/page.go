@@ -41,6 +41,7 @@ type Page struct {
 // render. Add a new block by: adding its key/label here, teaching the admin
 // field editor its field shape, and adding a render case in web/.
 var KnownBlockTypes = []string{
+	BlockTypeContainer,
 	"hero",
 	"rich_text",
 	"icon_box_group",
@@ -82,9 +83,17 @@ type PageSection struct {
 	BlockType   string
 	CustomClass string
 	CustomID    string
+	// InContainer puts this section inside the nearest Container section
+	// before it (see BlockTypeContainer); a Container itself is never inside
+	// another one.
+	InContainer bool
 	SortOrder   int
 	Fields      []PageSectionField
 }
+
+// BlockTypeContainer wraps the sections after it that have InContainer set,
+// giving them a shared background and title.
+const BlockTypeContainer = "container"
 
 // PageSectionField is one EAV-style value. ItemIndex groups fields into
 // repeatable items within a section (e.g. icon_box_group's N boxes, or

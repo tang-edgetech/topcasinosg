@@ -15,6 +15,12 @@ const dot = (cx: number, cy: number, r: number, key?: string | number) => <circl
 const repeat = (count: number, draw: (i: number) => ReactNode) => Array.from({ length: count }, (_, i) => draw(i));
 
 const BLOCK_ICON_SHAPES: Record<PageBlockType, ReactNode> = {
+  container: [
+    <rect key="frame" x={2} y={2} width={44} height={28} rx={3} fill="none" stroke="currentColor" strokeWidth={1.5} strokeDasharray="3 2" />,
+    line(6, 6, 18, 1),
+    solid(6, 12, 36, 7, 2),
+    solid(6, 21, 36, 5, 3),
+  ],
   hero: [line(4, 8, 18, 1), line(4, 13, 14, 2), solid(4, 19, 10, 5, 3), box(27, 5, 17, 22, 4)],
   rich_text: [line(4, 6, 20, 1), ...repeat(4, (i) => line(4, 12 + i * 4, i === 3 ? 26 : 40, `l${i}`))],
   icon_box_group: repeat(3, (i) => [box(3 + i * 15, 6, 13, 20, `b${i}`), dot(9.5 + i * 15, 12, 2.5, `d${i}`), line(5 + i * 15, 18, 9, `l${i}`)]),

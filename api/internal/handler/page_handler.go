@@ -68,6 +68,7 @@ type PageSectionDTO struct {
 	BlockType   string                `json:"blockType"`
 	CustomClass string                `json:"customClass"`
 	CustomID    string                `json:"customId"`
+	InContainer bool                  `json:"inContainer"`
 	SortOrder   int                   `json:"sortOrder"`
 	Fields      []PageSectionFieldDTO `json:"fields"`
 }
@@ -84,7 +85,7 @@ func toSectionDTOs(sections []domain.PageSection) []PageSectionDTO {
 		}
 		dtos[i] = PageSectionDTO{
 			ID: s.ID, BlockType: s.BlockType, CustomClass: s.CustomClass, CustomID: s.CustomID,
-			SortOrder: s.SortOrder, Fields: fields,
+			InContainer: s.InContainer, SortOrder: s.SortOrder, Fields: fields,
 		}
 	}
 	return dtos
@@ -98,6 +99,7 @@ func pageErrorStatus(err error) int {
 		return http.StatusConflict
 	case errors.Is(err, service.ErrInvalidContentStatus), errors.Is(err, service.ErrPublishAtRequired),
 		errors.Is(err, service.ErrInvalidBlockType), errors.Is(err, service.ErrInvalidFieldType),
+		errors.Is(err, service.ErrInvalidContainer),
 		errors.Is(err, service.ErrHomeSlugLocked), errors.Is(err, service.ErrInvalidParent):
 		return http.StatusBadRequest
 	default:
@@ -351,7 +353,7 @@ func (h *PageHandler) ReplaceSections(w http.ResponseWriter, r *http.Request) {
 		}
 		sections[i] = domain.PageSection{
 			PageID: id, BlockType: s.BlockType, CustomClass: s.CustomClass, CustomID: s.CustomID,
-			SortOrder: s.SortOrder, Fields: fields,
+			InContainer: s.InContainer, SortOrder: s.SortOrder, Fields: fields,
 		}
 	}
 

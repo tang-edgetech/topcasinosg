@@ -400,6 +400,22 @@ export function IconInsertBelow(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function IconIndent(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3 5h18M11 10h10M11 14h10M3 19h18M3 9l4 3-4 3" />
+    </svg>
+  );
+}
+
+export function IconOutdent(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3 5h18M11 10h10M11 14h10M3 19h18M7 9l-4 3 4 3" />
+    </svg>
+  );
+}
+
 export function IconChevronUp(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base(props)}>

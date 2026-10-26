@@ -27,6 +27,7 @@ export interface PageSectionField {
 }
 
 export type PageBlockType =
+  | "container"
   | "hero"
   | "rich_text"
   | "icon_box_group"
@@ -61,6 +62,7 @@ export interface PageSection {
   blockType: PageBlockType;
   customClass: string;
   customId: string;
+  inContainer?: boolean;
   sortOrder: number;
   fields: PageSectionField[];
 }

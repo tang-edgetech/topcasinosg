@@ -31,6 +31,7 @@ function blankField(itemIndex: number, fieldKey: string, fieldType: PageFieldTyp
 }
 
 export const BLOCK_TYPE_LABELS: Record<PageBlockType, string> = {
+  container: "Container",
   hero: "Hero Banner",
   rich_text: "Rich Text",
   icon_box_group: "Icon Box Group",
@@ -135,6 +136,17 @@ function textField(itemIndex: number, key: string, value: string, sortOrder: num
 
 export function defaultFieldsForBlockType(blockType: PageBlockType): EditableField[] {
   switch (blockType) {
+    case "container":
+      return [
+        blankField(0, "heading", "text", 1),
+        blankField(0, "highlightText", "text", 2),
+        blankField(0, "intro", "text", 3),
+        textField(0, "textTone", "dark", 4),
+        textField(0, "bgType", "none", 5),
+        textField(0, "bgFrom", "primary-900", 6),
+        textField(0, "bgTo", "danger", 7),
+        blankField(0, "bgImage", "image", 8),
+      ];
     case "hero":
       return [
         blankField(0, "heading", "text", 1),
@@ -683,6 +695,8 @@ interface BlockFieldsProps {
 
 export default function BlockFieldEditor({ blockType, fields, onChange }: BlockFieldsProps) {
   switch (blockType) {
+    case "container":
+      return <ContainerFields fields={fields} onChange={onChange} />;
     case "hero":
       return <HeroFields fields={fields} onChange={onChange} />;
     case "rich_text":
@@ -1556,9 +1570,48 @@ function CasinoMultiPickerField({ label, value, onChange }: { label: string; val
   );
 }
 
+// Container — a shared background and main title set for the components
+// placed inside it (web ContainerSection). Light text is for dark
+// backgrounds such as the navy-to-red gradient.
+function ContainerFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const text = (key: string) => getField(fields, 0, key)?.textValue ?? "";
+  const set = (key: string, order: number) => (v: string) => onChange(upsertField(fields, 0, key, "text", order, { textValue: v }));
+
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-xs text-text-muted dark:text-text-muted-dark">
+        Components inside this container share its background and appear under its title. Add them with “+ Add Component Inside”, or
+        use “Move Into Container Above” on the section right below the container.
+      </p>
+      <TextInputField label="Heading (optional)" value={text("heading")} placeholder="Blacklisted Casinos to Avoid" onChange={set("heading", 1)} />
+      <TextInputField
+        label="Highlight word in heading (optional, shown in red)"
+        value={text("highlightText")}
+        placeholder="Avoid"
+        onChange={set("highlightText", 2)}
+      />
+      <LabeledField label="Intro text (optional)">
+        <Input.TextArea autoSize={{ minRows: 2 }} value={text("intro")} onChange={(e) => set("intro", 3)(e.target.value)} />
+      </LabeledField>
+      <LabeledField label="Text colour">
+        <Select
+          value={text("textTone") === "light" ? "light" : "dark"}
+          onChange={set("textTone", 4)}
+          options={[
+            { value: "dark", label: "Dark text (for light backgrounds)" },
+            { value: "light", label: "White text (for dark backgrounds)" },
+          ]}
+        />
+      </LabeledField>
+      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 5, bgFrom: 6, bgTo: 7, bgImage: 8 }} />
+    </div>
+  );
+}
+
 // Live data block — fetches the most recently added published Blacklist
 // entries (GET /api/blacklist, no region filter) at render time; only the
-// surrounding copy and row count are admin-configured.
+// surrounding copy and row count are admin-configured. Inside a Container,
+// leave the heading empty and use the secondary heading beside See All.
 function BlacklistPreviewFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
   const heading = getField(fields, 0, "heading");
   const subheading = getField(fields, 0, "subheading");
@@ -1581,11 +1634,25 @@ function BlacklistPreviewFields({ fields, onChange }: { fields: EditableField[];
         onChange={(v) => onChange(upsertField(fields, 0, "highlightText", "text", 10, { textValue: v }))}
       />
       <TextInputField
-        label="Subheading (optional)"
+        label="Intro text under the heading (optional)"
         value={subheading?.textValue ?? ""}
-        placeholder="What Makes a Casino Get Blacklisted?"
+        placeholder="We expose rogue casinos that delay withdrawals or scam users."
         onChange={(v) => onChange(upsertField(fields, 0, "subheading", "text", 2, { textValue: v }))}
       />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <TextInputField
+          label="Secondary heading (optional, beside See All)"
+          value={getField(fields, 0, "secondaryHeading")?.textValue ?? ""}
+          placeholder="What Makes a Casino Get Blacklisted?"
+          onChange={(v) => onChange(upsertField(fields, 0, "secondaryHeading", "text", 11, { textValue: v }))}
+        />
+        <TextInputField
+          label="Secondary text (optional)"
+          value={getField(fields, 0, "secondaryText")?.textValue ?? ""}
+          placeholder="We test every casino for licensing, games, payouts, bonuses, and support."
+          onChange={(v) => onChange(upsertField(fields, 0, "secondaryText", "text", 12, { textValue: v }))}
+        />
+      </div>
       <TextInputField
         label="Max Entries"
         value={limit?.textValue ?? "6"}

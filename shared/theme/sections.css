@@ -77,6 +77,15 @@
   margin-top: -78px;
 }
 
+/*
+ * Container block (ContainerSection.tsx): the sections inside it keep their
+ * own markup, but the container owns the vertical rhythm - 50px around and
+ * between them - so their own section padding is dropped.
+ */
+.container-section__body > .section > .section-container {
+  padding-block: 0;
+}
+
 .section--image-gallery {
   background: transparent;
 }

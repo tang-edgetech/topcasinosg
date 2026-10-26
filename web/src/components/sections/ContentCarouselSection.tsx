@@ -46,17 +46,11 @@ export default async function ContentCarouselSection({ section }: { section: Pag
             <HorizontalSlider
               label={heading || "Articles"}
               showArrows={cards.length > 1}
+              seeAllUrl={seeAllUrl || undefined}
               header={
-                <div className="flex flex-wrap items-end justify-between gap-3">
-                  <div className="flex flex-col gap-1">
-                    {heading && <h2 className="section-heading text-2xl font-bold text-primary-900">{heading}</h2>}
-                    {intro && <p className="text-sm whitespace-pre-line text-primary-600">{intro}</p>}
-                  </div>
-                  {seeAllUrl && (
-                    <Link href={seeAllUrl} className="cursor-pointer text-sm text-primary-600 hover:text-primary-900 hover:underline">
-                      See All
-                    </Link>
-                  )}
+                <div className="flex flex-col gap-1">
+                  {heading && <h2 className="section-heading text-2xl font-bold text-primary-900">{heading}</h2>}
+                  {intro && <p className="text-sm whitespace-pre-line text-primary-600">{intro}</p>}
                 </div>
               }
             >

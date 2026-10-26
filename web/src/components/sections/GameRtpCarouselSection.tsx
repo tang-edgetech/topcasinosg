@@ -1,5 +1,4 @@
 import type { CSSProperties } from "react";
-import Link from "next/link";
 import { field, itemIndexes, mediaUrl, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { getAllCasinos, getRtpEntries, type RTPCategory } from "@/app/[region]/_lib/api";
 import HorizontalSlider from "@/components/HorizontalSlider";
@@ -44,19 +43,8 @@ export default async function GameRtpCarouselSection({ section, regionCode: page
             <HorizontalSlider
               label={heading}
               showArrows
-              header={
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  {heading && <h2 className="section-heading text-2xl font-bold text-primary-900">{heading}</h2>}
-                  {seeAllUrl && (
-                    <Link
-                      href={seeAllUrl}
-                      className="cursor-pointer rounded border border-primary-100 bg-surface px-6 py-1.5 text-sm text-primary-600 hover:text-primary-900"
-                    >
-                      See All
-                    </Link>
-                  )}
-                </div>
-              }
+              seeAllUrl={seeAllUrl || undefined}
+              header={heading && <h2 className="section-heading text-2xl font-bold text-primary-900">{heading}</h2>}
             >
               {cards.map((card) => (
                 <article
