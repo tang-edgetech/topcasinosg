@@ -1,8 +1,4 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
-import { APP_BUILD_DATE, APP_COMMIT, APP_VERSION, isDevVersion } from "@/lib/version";
+import { APP_BUILD_DATE, APP_VERSION } from "@/lib/version";
 
 function formatBuildDate(isoDate: string): string {
   const date = new Date(`${isoDate}T00:00:00`);
@@ -10,27 +6,17 @@ function formatBuildDate(isoDate: string): string {
   return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
-// Build version for the login page and sidebar footer. When a deploy has
-// left the API on a different release than this admin build, it says so.
+// Plain release number (v1.0.3) for the login page and sidebar; the release
+// date only appears on hover.
 export default function AppVersion({ className = "" }: { className?: string }) {
-  const [apiVersion, setApiVersion] = useState("");
-
-  useEffect(() => {
-    api
-      .get<{ version: string }>("/health")
-      .then((health) => setApiVersion(health.version))
-      .catch(() => setApiVersion(""));
-  }, []);
-
   const buildDate = formatBuildDate(APP_BUILD_DATE);
-  const mismatch = apiVersion !== "" && !isDevVersion(apiVersion) && !isDevVersion(APP_VERSION) && apiVersion !== APP_VERSION;
-  const details = [APP_COMMIT && `Commit ${APP_COMMIT}`, apiVersion && `API ${apiVersion}`].filter(Boolean).join(" · ");
-
   return (
-    <p id="app-version" title={details} className={`app-version text-xs ${className}`}>
+    <p
+      id="app-version"
+      title={buildDate ? `Released ${buildDate}` : undefined}
+      className={`app-version cursor-default text-[10px] underline decoration-dotted underline-offset-2 ${className}`}
+    >
       {APP_VERSION}
-      {buildDate && ` · ${buildDate}`}
-      {mismatch && <span className="app-version__mismatch ml-1 text-secondary-600">(API {apiVersion})</span>}
     </p>
   );
 }

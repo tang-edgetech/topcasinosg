@@ -16,7 +16,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { settings } = useSiteSettings();
   const [step, setStep] = useState<Step>("checking");
-  const [email, setEmail] = useState("");
+  const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [ephemeralToken, setEphemeralToken] = useState("");
@@ -57,7 +57,7 @@ export default function LoginPage() {
     setError("");
     setSubmitting(true);
     try {
-      const outcome = await api.post<LoginResponse>("/api/admin/auth/login", { email, password });
+      const outcome = await api.post<LoginResponse>("/api/admin/auth/login", { login, password });
       await handleOutcome(outcome);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
@@ -134,16 +134,18 @@ export default function LoginPage() {
           <form id="login-form" className="auth-form flex flex-col gap-4" onSubmit={handleLogin}>
             <div className="form-field flex flex-col gap-1">
               <label htmlFor="login-email" className="text-sm font-medium text-text dark:text-text-dark">
-                Email
+                Email or Username
               </label>
               <input
                 id="login-email"
-                name="email"
-                type="email"
+                name="login"
+                type="text"
                 required
                 autoComplete="username"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                autoCapitalize="none"
+                spellCheck={false}
+                value={login}
+                onChange={(e) => setLogin(e.target.value)}
                 className="rounded-md border border-border dark:border-border-dark px-3 py-2 text-sm text-text dark:text-text-dark outline-none focus:border-primary-500"
               />
             </div>

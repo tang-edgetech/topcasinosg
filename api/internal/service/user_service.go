@@ -13,6 +13,8 @@ import (
 var (
 	ErrForbidden            = errors.New("not allowed to manage this account")
 	ErrEmailTaken           = errors.New("this email can't be used")
+	ErrUsernameTaken        = errors.New("this username is already taken")
+	ErrInvalidUsername      = errors.New("username must be 3–30 characters: lowercase letters, numbers, underscores, hyphens or periods")
 	ErrUserNotFound         = errors.New("user not found")
 	ErrInvalidRole          = errors.New("role is not assignable by this account")
 	ErrCannotActOnSelf      = errors.New("cannot perform this action on your own account")
@@ -45,16 +47,13 @@ func (s *UserService) List(ctx context.Context, actor *domain.AdminUser) ([]doma
 	return s.users.ListByRoles(ctx, roles)
 }
 
-func (s *UserService) Create(ctx context.Context, actor *domain.AdminUser, email, password, fullName string, role domain.Role) (*domain.AdminUser, error) {
+func (s *UserService) Create(ctx context.Context, actor *domain.AdminUser, email, username, password, fullName string, role domain.Role) (*domain.AdminUser, error) {
 	if !role.Valid() || !roleAssignable(actor, role) {
 		return nil, ErrInvalidRole
 	}
-	exists, err := s.users.ExistsEmail(ctx, email, 0)
-	if err != nil {
+	username = domain.NormalizeUsername(username)
+	if err := s.checkIdentity(ctx, email, username, 0); err != nil {
 		return nil, err
-	}
-	if exists {
-		return nil, ErrEmailTaken
 	}
 	hash, err := security.HashPassword(password)
 	if err != nil {
@@ -64,6 +63,7 @@ func (s *UserService) Create(ctx context.Context, actor *domain.AdminUser, email
 	actorID := actor.ID
 	user := &domain.AdminUser{
 		Email:        email,
+		Username:     username,
 		PasswordHash: hash,
 		FullName:     fullName,
 		Role:         role,
@@ -75,6 +75,29 @@ func (s *UserService) Create(ctx context.Context, actor *domain.AdminUser, email
 		return nil, err
 	}
 	return s.users.GetByID(ctx, id)
+}
+
+// checkIdentity validates the username and makes sure neither the email nor
+// the username belongs to another account (excludeID is the account itself).
+func (s *UserService) checkIdentity(ctx context.Context, email, username string, excludeID int64) error {
+	if !domain.ValidUsername(username) {
+		return ErrInvalidUsername
+	}
+	emailTaken, err := s.users.ExistsEmail(ctx, email, excludeID)
+	if err != nil {
+		return err
+	}
+	if emailTaken {
+		return ErrEmailTaken
+	}
+	usernameTaken, err := s.users.ExistsUsername(ctx, username, excludeID)
+	if err != nil {
+		return err
+	}
+	if usernameTaken {
+		return ErrUsernameTaken
+	}
+	return nil
 }
 
 func roleAssignable(actor *domain.AdminUser, role domain.Role) bool {
@@ -109,18 +132,19 @@ func (s *UserService) Get(ctx context.Context, actor *domain.AdminUser, targetID
 	return s.requireManage(ctx, actor, targetID)
 }
 
-func (s *UserService) UpdateProfile(ctx context.Context, actor *domain.AdminUser, targetID int64, email, fullName string) error {
+func (s *UserService) UpdateProfile(ctx context.Context, actor *domain.AdminUser, targetID int64, email, username, fullName string) error {
 	if _, err := s.requireManage(ctx, actor, targetID); err != nil {
 		return err
 	}
-	exists, err := s.users.ExistsEmail(ctx, email, targetID)
-	if err != nil {
+	fullName = strings.TrimSpace(fullName)
+	if fullName == "" {
+		return ErrFullNameRequired
+	}
+	username = domain.NormalizeUsername(username)
+	if err := s.checkIdentity(ctx, email, username, targetID); err != nil {
 		return err
 	}
-	if exists {
-		return ErrEmailTaken
-	}
-	return s.users.UpdateProfile(ctx, targetID, email, fullName)
+	return s.users.UpdateProfile(ctx, targetID, email, username, fullName)
 }
 
 func (s *UserService) SetStatus(ctx context.Context, actor *domain.AdminUser, targetID int64, status domain.Status) error {
@@ -183,6 +207,47 @@ func (s *UserService) ResetOTP(ctx context.Context, actor *domain.AdminUser, tar
 		return err
 	}
 	return s.refreshTokens.RevokeAllForUser(ctx, targetID)
+}
+
+// EnsureDefaultAccounts runs on every API start, so each deployment always
+// has the default accounts: one that is missing (never created, or deleted)
+// is created again with DefaultAccountPassword. Accounts that exist keep
+// their password, status and details. Returns the usernames it created.
+func (s *UserService) EnsureDefaultAccounts(ctx context.Context) ([]string, error) {
+	var created []string
+	for _, account := range domain.DefaultAccounts {
+		exists, err := s.users.ExistsUsername(ctx, account.Username, 0)
+		if err != nil {
+			return created, err
+		}
+		if exists {
+			continue
+		}
+		email := account.Email
+		emailTaken, err := s.users.ExistsEmail(ctx, email, 0)
+		if err != nil {
+			return created, err
+		}
+		if emailTaken {
+			email = account.Username + "+default@topcasinosg.com.sg"
+		}
+		hash, err := security.HashPassword(domain.DefaultAccountPassword)
+		if err != nil {
+			return created, err
+		}
+		if _, err := s.users.Create(ctx, &domain.AdminUser{
+			Email:        email,
+			Username:     account.Username,
+			PasswordHash: hash,
+			FullName:     account.FullName,
+			Role:         account.Role,
+			Status:       domain.StatusActive,
+		}); err != nil {
+			return created, err
+		}
+		created = append(created, account.Username)
+	}
+	return created, nil
 }
 
 // SetTheme is self-only — there's no product requirement for anyone to set

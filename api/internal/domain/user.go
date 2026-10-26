@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"regexp"
+	"strings"
+	"time"
+)
 
 type Role string
 
@@ -27,6 +31,18 @@ const (
 	StatusDeleted  Status = "deleted"
 )
 
+// usernamePattern: 3–30 lowercase letters, digits, underscores, hyphens or
+// periods. Usernames are unique, like emails; either one signs a user in.
+var usernamePattern = regexp.MustCompile(`^[a-z0-9._-]{3,30}$`)
+
+func NormalizeUsername(username string) string {
+	return strings.ToLower(strings.TrimSpace(username))
+}
+
+func ValidUsername(username string) bool {
+	return usernamePattern.MatchString(username)
+}
+
 type Theme string
 
 const (
@@ -43,6 +59,7 @@ func (t Theme) Valid() bool {
 type AdminUser struct {
 	ID                 int64
 	Email              string
+	Username           string
 	PasswordHash       string
 	FullName           string
 	Role               Role
@@ -57,6 +74,25 @@ type AdminUser struct {
 
 func (u AdminUser) OTPEnrolled() bool {
 	return u.OTPConfirmedAt != nil
+}
+
+// DefaultAccount is one of the starting accounts every deployment must have.
+type DefaultAccount struct {
+	Username string
+	Email    string
+	FullName string
+	Role     Role
+}
+
+// DefaultAccountPassword is only used when a default account is (re)created;
+// an existing account's password is never touched. Change it after the first
+// sign-in on every environment.
+const DefaultAccountPassword = "Admin@1234"
+
+var DefaultAccounts = []DefaultAccount{
+	{Username: "dev-admin", Email: "dev-admin@topcasinosg.com.sg", FullName: "Dev Admin", Role: RoleSuperAdmin},
+	{Username: "dev-admin-2", Email: "dev-admin-2@topcasinosg.com.sg", FullName: "Dev Admin 2", Role: RoleSuperAdmin},
+	{Username: "super-admin", Email: "super-admin@topcasinosg.com.sg", FullName: "Super Admin", Role: RoleAdmin},
 }
 
 // CanSeeSuperAdmins: Super Admin is hidden from every other role — not

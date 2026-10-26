@@ -118,7 +118,7 @@ func (s *SiteSettingsService) SetFaviconURL(ctx context.Context, actor *domain.A
 }
 
 func (s *SiteSettingsService) SetTwoFactorEnabled(ctx context.Context, actor *domain.AdminUser, enabled bool) error {
-	if actor.Role != domain.RoleSuperAdmin {
+	if !canEditSiteSettings(actor) {
 		return ErrForbidden
 	}
 	return s.settings.SetTwoFactorEnabled(ctx, enabled)

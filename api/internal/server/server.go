@@ -92,7 +92,6 @@ func NewRouter(deps Deps) http.Handler {
 		return authenticateUser(audit(next))
 	}
 	staffOnly := middleware.RequireRoles(domain.RoleSuperAdmin, domain.RoleAdmin)
-	superAdminOnly := middleware.RequireRoles(domain.RoleSuperAdmin)
 	// Content-management roles: Editors manage content (including media),
 	// just not other admin accounts — see internal/domain/user.go.
 	contentStaff := middleware.RequireRoles(domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleEditor)
@@ -124,10 +123,9 @@ func NewRouter(deps Deps) http.Handler {
 	mux.Handle("POST /api/admin/users/{id}/reset-password", authenticate(staffOnly(http.HandlerFunc(deps.UserHandler.ResetPassword))))
 	mux.Handle("POST /api/admin/users/{id}/reset-otp", authenticate(staffOnly(http.HandlerFunc(deps.UserHandler.ResetOTP))))
 
-	// Site settings — Super Admin and Admin. The site-wide 2FA switch stays
-	// Super Admin only: it guards the hidden owner's control of sign-in.
+	// Site settings, including the site-wide 2FA switch — Super Admin and Admin.
 	mux.Handle("PUT /api/admin/settings/site", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.Update))))
-	mux.Handle("PUT /api/admin/settings/2fa", authenticate(superAdminOnly(http.HandlerFunc(deps.SiteSettingsHandler.SetTwoFactorEnabled))))
+	mux.Handle("PUT /api/admin/settings/2fa", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.SetTwoFactorEnabled))))
 	mux.Handle("POST /api/admin/settings/site/logo", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.UploadLogo))))
 	mux.Handle("POST /api/admin/settings/site/favicon", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.UploadFavicon))))
 	mux.Handle("PUT /api/admin/settings/site/logo", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.SetLogo))))

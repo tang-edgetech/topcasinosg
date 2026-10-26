@@ -32,21 +32,21 @@ func (s *AuditService) Record(ctx context.Context, entry *domain.AuditLog) {
 }
 
 // RecordAuth logs a sign-in event. The account is looked up by id, or by the
-// email typed in for a failed attempt, so an event on a Super Admin account
+// email or username typed in for a failed attempt, so an event on a Super Admin account
 // stays restricted even when nobody is signed in yet.
-func (s *AuditService) RecordAuth(ctx context.Context, action string, userID int64, email, ip, userAgent string) {
+func (s *AuditService) RecordAuth(ctx context.Context, action string, userID int64, login, ip, userAgent string) {
 	entry := &domain.AuditLog{
 		Action:      action,
 		EntityType:  domain.AuditEntityAuth,
-		EntityLabel: email,
+		EntityLabel: login,
 		IPAddress:   ip,
 		UserAgent:   userAgent,
 	}
 	var user *domain.AdminUser
 	if userID > 0 {
 		user, _ = s.users.GetByID(ctx, userID)
-	} else if email != "" {
-		user, _ = s.users.GetByEmail(ctx, email)
+	} else if login != "" {
+		user, _ = FindByLogin(ctx, s.users, login)
 	}
 	if user != nil {
 		entry.ActorID = &user.ID

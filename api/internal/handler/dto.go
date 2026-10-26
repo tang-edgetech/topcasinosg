@@ -11,6 +11,7 @@ import (
 type UserDTO struct {
 	ID              int64     `json:"id"`
 	Email           string    `json:"email"`
+	Username        string    `json:"username"`
 	FullName        string    `json:"fullName"`
 	Role            string    `json:"role"`
 	ThemePreference string    `json:"themePreference"`
@@ -23,6 +24,7 @@ func toUserDTO(u *domain.AdminUser) UserDTO {
 	return UserDTO{
 		ID:              u.ID,
 		Email:           u.Email,
+		Username:        u.Username,
 		FullName:        u.FullName,
 		Role:            string(u.Role),
 		ThemePreference: string(u.ThemePreference),

@@ -109,6 +109,10 @@ function picksByBonus(casinos: CasinoDTO[], bonuses: BonusDTO[], limit: number):
   return picks.sort((a, b) => b.casino.rating - a.casino.rating).slice(0, limit);
 }
 
+// Corner ribbon from Figma (49×166): full width at the top, then a concave
+// curve that tapers to a point at the bottom-left.
+const RIBBON_SHAPE = "path('M0 0H49C1 46 3 139 0 166Z')";
+
 // featured (the #1 card by default) gets the amber treatment and the flag.
 export function BonusPickCard({
   pick,
@@ -134,7 +138,8 @@ export function BonusPickCard({
     >
       <div
         aria-hidden="true"
-        className={`bonus-pick__ribbon absolute top-0 left-0 h-44 w-12 rounded-br-[100%] ${
+        style={{ clipPath: RIBBON_SHAPE }}
+        className={`bonus-pick__ribbon absolute top-0 left-0 h-[166px] w-[49px] ${
           featured ? "bg-gradient-to-b from-secondary-600 to-secondary-900" : "bg-primary-50"
         }`}
       />

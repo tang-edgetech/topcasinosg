@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"errors"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/tang-edgetech/topcasinosg/api/internal/config"
@@ -14,8 +16,8 @@ import (
 const RefreshTokenTTL = 7 * 24 * time.Hour
 
 var (
-	ErrInvalidCredentials = errors.New("invalid email or password")
-	ErrAccountNotActive   = errors.New("account is disabled")
+	ErrInvalidCredentials = errors.New("invalid email, username or password")
+	ErrAccountNotActive   = errors.New("this account is inactive")
 	ErrAlreadyBootstapped = errors.New("an admin account already exists")
 	ErrInvalidOTP         = errors.New("invalid or expired code")
 )
@@ -91,6 +93,7 @@ func (s *AuthService) Bootstrap(ctx context.Context, input BootstrapInput) (*dom
 
 	user := &domain.AdminUser{
 		Email:        input.Email,
+		Username:     usernameFromEmail(input.Email),
 		PasswordHash: hash,
 		FullName:     input.FullName,
 		Role:         domain.RoleSuperAdmin,
@@ -116,6 +119,22 @@ func (s *AuthService) Bootstrap(ctx context.Context, input BootstrapInput) (*dom
 	return user, nil
 }
 
+var usernameInvalidChars = regexp.MustCompile(`[^a-z0-9._-]`)
+
+// usernameFromEmail derives a starting username from an email's local part,
+// the same rule migration 0070 used for existing accounts.
+func usernameFromEmail(email string) string {
+	local, _, _ := strings.Cut(strings.ToLower(email), "@")
+	username := usernameInvalidChars.ReplaceAllString(local, "")
+	if len(username) > 30 {
+		username = username[:30]
+	}
+	if len(username) < 3 {
+		username = "admin"
+	}
+	return username
+}
+
 // twoFactorRequired applies the product decision that 2FA is force-disabled
 // outside production, no matter what the DB setting says.
 func (s *AuthService) twoFactorRequired(ctx context.Context) (bool, error) {
@@ -129,8 +148,18 @@ func (s *AuthService) twoFactorRequired(ctx context.Context) (bool, error) {
 	return settings.TwoFactorEnabled, nil
 }
 
-func (s *AuthService) Login(ctx context.Context, email, password string) (*LoginOutcome, error) {
-	user, err := s.users.GetByEmail(ctx, email)
+// FindByLogin looks an account up by what was typed into the sign-in form:
+// an email when it contains "@", otherwise a username.
+func FindByLogin(ctx context.Context, users *repository.UserRepo, login string) (*domain.AdminUser, error) {
+	login = strings.TrimSpace(login)
+	if strings.Contains(login, "@") {
+		return users.GetByEmail(ctx, login)
+	}
+	return users.GetByUsername(ctx, domain.NormalizeUsername(login))
+}
+
+func (s *AuthService) Login(ctx context.Context, login, password string) (*LoginOutcome, error) {
+	user, err := FindByLogin(ctx, s.users, login)
 	if errors.Is(err, repository.ErrNotFound) {
 		return nil, ErrInvalidCredentials
 	}

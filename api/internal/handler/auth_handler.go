@@ -24,8 +24,8 @@ func NewAuthHandler(auth *service.AuthService, audit *service.AuditService, cfg 
 	return &AuthHandler{auth: auth, audit: audit, cfg: cfg}
 }
 
-func (h *AuthHandler) recordAuth(r *http.Request, action string, userID int64, email string) {
-	h.audit.RecordAuth(context.WithoutCancel(r.Context()), action, userID, email,
+func (h *AuthHandler) recordAuth(r *http.Request, action string, userID int64, login string) {
+	h.audit.RecordAuth(context.WithoutCancel(r.Context()), action, userID, login,
 		middleware.ClientIP(r), r.UserAgent())
 }
 
@@ -109,8 +109,9 @@ func (h *AuthHandler) Bootstrap(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusCreated, map[string]any{"user": toUserDTO(outcome.User)})
 }
 
+// Login is an email or a username.
 type loginRequest struct {
-	Email    string `json:"email"`
+	Login    string `json:"login"`
 	Password string `json:"password"`
 }
 
@@ -121,9 +122,9 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outcome, err := h.auth.Login(r.Context(), req.Email, req.Password)
+	outcome, err := h.auth.Login(r.Context(), req.Login, req.Password)
 	if err != nil {
-		h.recordAuth(r, domain.AuditActionLoginFailed, 0, req.Email)
+		h.recordAuth(r, domain.AuditActionLoginFailed, 0, req.Login)
 		response.Err(w, authErrorStatus(err), err.Error())
 		return
 	}

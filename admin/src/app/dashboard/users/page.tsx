@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Table } from "antd";
+import { Switch, Table } from "antd";
 import { useAuth } from "@/lib/auth-context";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { api, ApiError } from "@/lib/api";
@@ -13,7 +13,7 @@ import { runBulkAction, bulkResultMessage } from "@/lib/bulk";
 import PasswordInput from "@/components/PasswordInput";
 import BulkActionBar from "@/components/content/BulkActionBar";
 import IconButton from "@/components/IconButton";
-import { IconEdit, IconKey, IconShieldReset, IconPause, IconPlay, IconTrash, IconPlus } from "@/components/Icons";
+import { IconEdit, IconKey, IconShieldReset, IconTrash, IconPlus } from "@/components/Icons";
 import { CLIENT_TABLE_PAGINATION } from "@/lib/pagination";
 import PageHeading from "@/components/PageHeading";
 
@@ -28,6 +28,7 @@ export default function UsersPage() {
   const [error, setError] = useState("");
   const [resetPasswordTarget, setResetPasswordTarget] = useState<AdminUserDTO | null>(null);
   const [statusFilter, setStatusFilter] = useState<UserStatusFilter>("all");
+  const [statusUpdating, setStatusUpdating] = useState<number | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   async function loadUsers() {
@@ -67,18 +68,21 @@ export default function UsersPage() {
 
   async function handleSetStatus(target: AdminUserDTO, status: "active" | "disabled" | "deleted") {
     const copy = {
-      active: { title: "Enable User", message: `Re-enable ${target.fullName}'s account so they can sign in again?` },
-      disabled: { title: "Disable User", message: `${target.fullName} will be signed out and unable to log in. Continue?` },
-      deleted: { title: "Delete User", message: `Delete ${target.fullName}? This cannot be undone from here.` },
+      active: { title: "Set Active", message: `${target.fullName} will be able to sign in again.`, confirmLabel: "Set Active" },
+      disabled: { title: "Set Inactive", message: `${target.fullName} will be signed out and unable to sign in until set active again.`, confirmLabel: "Set Inactive" },
+      deleted: { title: "Delete User", message: `Delete ${target.fullName}? This cannot be undone from here.`, confirmLabel: "Delete" },
     }[status];
-    const ok = await confirm({ ...copy, confirmLabel: titleCase(status === "active" ? "enable" : status), danger: status !== "active" });
+    const ok = await confirm({ ...copy, danger: status !== "active" });
     if (!ok) return;
 
+    setStatusUpdating(target.id);
     try {
       await api.put(`/api/admin/users/${target.id}/status`, { status });
       await loadUsers();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not update user.");
+    } finally {
+      setStatusUpdating(null);
     }
   }
 
@@ -101,13 +105,13 @@ export default function UsersPage() {
 
   async function handleBulkSetStatus(status: "active" | "disabled" | "deleted") {
     const copy = {
-      active: "Enable",
-      disabled: "Disable",
+      active: "Set Active",
+      disabled: "Set Inactive",
       deleted: "Delete",
     }[status];
     const ok = await confirm({
-      title: `${copy} Users`,
-      message: `${copy} ${selectedUsers.length} user(s)?`,
+      title: copy,
+      message: `${copy}: ${selectedUsers.length} user(s)?`,
       confirmLabel: copy,
       danger: status !== "active",
     });
@@ -136,7 +140,7 @@ export default function UsersPage() {
         >
           <option value="all">All Statuses</option>
           <option value="active">Active</option>
-          <option value="disabled">Disabled</option>
+          <option value="disabled">Inactive</option>
         </select>
       </div>
 
@@ -144,8 +148,8 @@ export default function UsersPage() {
         count={selectedRowKeys.length}
         onClear={() => setSelectedRowKeys([])}
         actions={[
-          { id: "users-bulk-enable", label: "Enable", onClick: () => handleBulkSetStatus("active") },
-          { id: "users-bulk-disable", label: "Disable", onClick: () => handleBulkSetStatus("disabled") },
+          { id: "users-bulk-enable", label: "Set Active", onClick: () => handleBulkSetStatus("active") },
+          { id: "users-bulk-disable", label: "Set Inactive", onClick: () => handleBulkSetStatus("disabled") },
           { id: "users-bulk-delete", label: "Delete", onClick: () => handleBulkSetStatus("deleted"), danger: true },
         ]}
       />
@@ -171,7 +175,9 @@ export default function UsersPage() {
                 <div className="user-row__name-wrap relative inline-block">
                   <p className="user-row__name text-[15px] font-semibold leading-tight text-text dark:text-text-dark">{target.fullName}</p>
                 </div>
-                <p className="user-row__email text-[13px] font-normal leading-tight text-text-muted dark:text-text-muted-dark">{target.email}</p>
+                <p className="user-row__email text-[13px] font-normal leading-tight text-text-muted dark:text-text-muted-dark">
+                  @{target.username} · {target.email}
+                </p>
               </div>
             ),
           },
@@ -185,17 +191,24 @@ export default function UsersPage() {
             title: "Status",
             key: "status",
             sorter: (a, b) => a.status.localeCompare(b.status),
-            render: (_, target) => (
-              <span
-                className={`user-row__status rounded-full px-2 py-0.5 text-xs font-medium ${
-                  target.status === "active"
-                    ? "bg-success-subtle text-success"
-                    : "bg-surface-muted text-text-muted dark:bg-surface-muted-dark dark:text-text-muted-dark"
-                }`}
-              >
-                {titleCase(target.status)}
-              </span>
-            ),
+            render: (_, target) => {
+              const active = target.status === "active";
+              return (
+                <label className="user-row__status flex items-center gap-2">
+                  <Switch
+                    id={`user-row-${target.id}-status`}
+                    size="small"
+                    checked={active}
+                    loading={statusUpdating === target.id}
+                    disabled={!isManageable(target)}
+                    onChange={(checked) => handleSetStatus(target, checked ? "active" : "disabled")}
+                  />
+                  <span className={`text-xs font-medium ${active ? "text-success" : "text-text-muted dark:text-text-muted-dark"}`}>
+                    {active ? "Active" : "Inactive"}
+                  </span>
+                </label>
+              );
+            },
           },
           {
             title: "2FA",
@@ -221,7 +234,7 @@ export default function UsersPage() {
                   />
                   <IconButton
                     id={`user-row-${target.id}-reset-password`}
-                    title="Reset Password"
+                    title="Change Password"
                     onClick={() => setResetPasswordTarget(target)}
                     icon={<IconKey />}
                     variant="muted"
@@ -233,23 +246,6 @@ export default function UsersPage() {
                     icon={<IconShieldReset />}
                     variant="muted"
                   />
-                  {target.status === "active" ? (
-                    <IconButton
-                      id={`user-row-${target.id}-disable`}
-                      title="Disable User"
-                      onClick={() => handleSetStatus(target, "disabled")}
-                      icon={<IconPause />}
-                      variant="muted"
-                    />
-                  ) : (
-                    <IconButton
-                      id={`user-row-${target.id}-enable`}
-                      title="Enable User"
-                      onClick={() => handleSetStatus(target, "active")}
-                      icon={<IconPlay />}
-                      variant="muted"
-                    />
-                  )}
                   <IconButton
                     id={`user-row-${target.id}-delete`}
                     title="Delete User"
@@ -298,9 +294,9 @@ function ResetPasswordPanel({
       return;
     }
     const ok = await confirm({
-      title: "Reset Password",
+      title: "Change Password",
       message: `${target.fullName} will be signed out everywhere and must use the new password next login.`,
-      confirmLabel: "Reset Password",
+      confirmLabel: "Change Password",
       danger: true,
     });
     if (!ok) return;
@@ -319,7 +315,7 @@ function ResetPasswordPanel({
   return (
     <div id="reset-password-overlay" className="fixed inset-0 z-[90] flex items-center justify-center bg-primary-900/40 px-4">
       <div className="reset-password-panel w-full max-w-sm rounded-lg bg-surface p-6 shadow-lg dark:bg-surface-dark">
-        <h2 className="mb-1 text-lg font-bold text-text dark:text-text-dark">Reset Password</h2>
+        <h2 className="mb-1 text-lg font-bold text-text dark:text-text-dark">Change Password</h2>
         <p className="mb-4 text-sm text-text-muted dark:text-text-muted-dark">
           For {target.fullName} ({target.email})
         </p>
@@ -337,7 +333,7 @@ function ResetPasswordPanel({
               disabled={submitting}
               className="btn btn--primary cursor-pointer rounded-md bg-primary-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {submitting ? "Saving…" : "Reset Password"}
+              {submitting ? "Saving…" : "Change Password"}
             </button>
           </div>
         </form>

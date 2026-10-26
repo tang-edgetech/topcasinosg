@@ -113,7 +113,13 @@ The API applies migrations itself on every start.
 > structure, the regions, menus and the shared region-template pages. To fill staging with
 > real content: local back office → **Export / Import → Export → Whole backoffice**, then
 > staging back office → **Import** that zip with **Replace everything**. Uploaded files travel
-> inside the zip. Users are never copied — create the first staging user at `/setup`, as in §9 step 4.
+> inside the zip. Users are never copied — every environment always has the default accounts below.
+
+> **Default accounts** — the API checks them on **every start**, so every deployment has them;
+> a missing (or deleted) one is recreated with the password `Admin@1234`. Existing accounts keep
+> their password and details: `dev-admin` and `dev-admin-2` (Super Admin), `super-admin` (Admin). Sign in with
+> the username or email (`<username>@topcasinosg.com.sg`). **Change all three passwords right
+> after the first sign-in on staging and on live** — the default is in this repo.
 >
 > All times are stored in **UTC**: the API forces its MySQL session to UTC, so the server's
 > own time zone doesn't matter. The admin and site convert to the viewer's local time.
@@ -236,15 +242,15 @@ Format **`vMAJOR.MINOR.PATCH`**, starting at `v1.0.0`. **Already implemented.**
   tag: `v1.0.0 → v1.0.1 → v1.0.2`. A push with several commits counts once.
 - MINOR or MAJOR changes when the `VERSION` file at the repo root is edited (e.g. `1.0` →
   `1.1`). The next push becomes `v1.1.0`, and PATCH counts up from there.
-- **Admin build:** `admin/next.config.ts` reads `APP_VERSION`, `APP_COMMIT` and
-  `APP_BUILD_DATE` from the environment. Without them (local dev) it shows the latest tag of
-  the `VERSION` series plus `-dev`, e.g. `v1.0.57-dev`.
+- **Admin build:** `admin/next.config.ts` reads `APP_VERSION` and `APP_BUILD_DATE` from the
+  environment. Without them (local dev) it shows the latest tag of the `VERSION` series, e.g.
+  `v1.0.57`, and today as the date.
 - **API build:** stamp it with
   `go build -ldflags "-X github.com/tang-edgetech/topcasinosg/api/internal/version.Version=$TAG -X github.com/tang-edgetech/topcasinosg/api/internal/version.Commit=$SHA -X github.com/tang-edgetech/topcasinosg/api/internal/version.BuildDate=$DATE"`.
   `/health` reports `version`, `commit` and `buildDate`.
-- **Where it shows:** under the login card and at the bottom of the admin sidebar
-  (`v1.0.3 · 23 Oct 2026`; hover for commit and API version). If the API runs a different
-  release than the admin build, the API version is shown next to it (a half-finished deploy).
+- **Where it shows:** under the login card, and under the site name at the top of the back-office
+  sidebar. Just the number (`v1.0.3`); hovering shows the release date. `/health` on the API
+  reports its own version, to spot a half-finished deploy.
 - The deploy workflow (§3) must run after the tag exists and pass the tag as `APP_VERSION`.
 
 ---
@@ -277,7 +283,8 @@ Format **`vMAJOR.MINOR.PATCH`**, starting at `v1.0.0`. **Already implemented.**
    `CORS_ALLOWED_ORIGINS=https://topcasinosg.com.sg,https://www.topcasinosg.com.sg,https://backoffice.topcasinosg.com.sg`),
    the systemd units and the Apache includes, exactly as in §5.
 3. GitHub → Actions → **Deploy to production** → choose the version → approve.
-4. First back-office login on production (`/setup` creates the first Super Admin) → set up 2FA.
+4. First back-office login on production with a default account (§5.2) → **change all three
+   default passwords** (Users → key button) → set up 2FA.
 5. Copy content: staging back office → **Export / Import → Whole backoffice** → download;
    production back office → **Import** → **Replace everything**. Check the preview first.
    Later, move single items (a new casino, an edited page) with **Choose items** + **Merge**.

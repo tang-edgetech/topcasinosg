@@ -8,12 +8,14 @@ import type { AdminUserDTO, Role } from "@/lib/types";
 import { assignableRoles } from "@/lib/roles";
 import { titleCase } from "@/lib/format";
 import PasswordInput from "@/components/PasswordInput";
+import { USERNAME_HINT, USERNAME_PATTERN, normalizeUsername } from "@/lib/username";
 
 export default function AddUserForm({ actor }: { actor: AdminUserDTO }) {
   const router = useRouter();
   const confirm = useConfirm();
   const roles = assignableRoles(actor);
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<Role>(roles[roles.length - 1] ?? "editor");
@@ -28,7 +30,7 @@ export default function AddUserForm({ actor }: { actor: AdminUserDTO }) {
 
     setSubmitting(true);
     try {
-      await api.post("/api/admin/users", { email, password, fullName, role });
+      await api.post("/api/admin/users", { email, username, password, fullName, role });
       router.push("/dashboard/users");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not create user.");
@@ -42,7 +44,7 @@ export default function AddUserForm({ actor }: { actor: AdminUserDTO }) {
       <form id="add-user-form" className="flex flex-col gap-4" onSubmit={handleSubmit}>
         <div className="form-field flex flex-col gap-1">
           <label htmlFor="add-user-full-name" className="text-sm font-medium text-text dark:text-text-dark">
-            Full Name
+            Display Name
           </label>
           <input
             id="add-user-full-name"
@@ -51,6 +53,22 @@ export default function AddUserForm({ actor }: { actor: AdminUserDTO }) {
             onChange={(e) => setFullName(e.target.value)}
             className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-primary-500 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark"
           />
+        </div>
+        <div className="form-field flex flex-col gap-1">
+          <label htmlFor="add-user-username" className="text-sm font-medium text-text dark:text-text-dark">
+            Username
+          </label>
+          <input
+            id="add-user-username"
+            required
+            autoComplete="off"
+            pattern={USERNAME_PATTERN}
+            title={USERNAME_HINT}
+            value={username}
+            onChange={(e) => setUsername(normalizeUsername(e.target.value))}
+            className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-primary-500 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark"
+          />
+          <p className="text-xs text-text-muted dark:text-text-muted-dark">{USERNAME_HINT}</p>
         </div>
         <div className="form-field flex flex-col gap-1">
           <label htmlFor="add-user-email" className="text-sm font-medium text-text dark:text-text-dark">

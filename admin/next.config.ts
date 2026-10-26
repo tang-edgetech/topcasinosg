@@ -14,12 +14,12 @@ function git(args: string): string {
 }
 
 // CI passes the release tag it just created as APP_VERSION. A local build
-// shows the latest tag of the current VERSION series with a "-dev" suffix.
+// shows the latest tag of the current VERSION series.
 function resolveAppVersion(): string {
   if (process.env.APP_VERSION) return process.env.APP_VERSION;
   const series = readFileSync(path.join(repoRoot, "VERSION"), "utf8").trim();
   const latestTag = git(`tag --list "v${series}.*" --sort=-v:refname`).split("\n")[0];
-  return `${latestTag || `v${series}.0`}-dev`;
+  return latestTag || `v${series}.0`;
 }
 
 const nextConfig: NextConfig = {
@@ -30,7 +30,6 @@ const nextConfig: NextConfig = {
   },
   env: {
     NEXT_PUBLIC_APP_VERSION: resolveAppVersion(),
-    NEXT_PUBLIC_APP_COMMIT: process.env.APP_COMMIT || git("rev-parse --short HEAD"),
     NEXT_PUBLIC_APP_BUILD_DATE: process.env.APP_BUILD_DATE || new Date().toISOString().slice(0, 10),
   },
 };

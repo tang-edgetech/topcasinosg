@@ -75,6 +75,11 @@ func main() {
 
 	authService := service.NewAuthService(users, siteSettings, refreshTokens, jwtIssuer, secretbox, cfg)
 	userService := service.NewUserService(users, refreshTokens)
+	if created, err := userService.EnsureDefaultAccounts(context.Background()); err != nil {
+		log.Fatalf("default accounts: %v", err)
+	} else if len(created) > 0 {
+		log.Printf("default accounts: created %v (password: the default — change it after signing in)", created)
+	}
 	siteSettingsService := service.NewSiteSettingsService(siteSettings)
 	mediaService := service.NewMediaService(mediaRepo, fileStorage)
 	regionService := service.NewRegionService(regionRepo)

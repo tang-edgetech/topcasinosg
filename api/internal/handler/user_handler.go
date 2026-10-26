@@ -24,13 +24,13 @@ func userErrorStatus(err error) int {
 	switch {
 	case errors.Is(err, service.ErrForbidden), errors.Is(err, service.ErrInvalidRole), errors.Is(err, service.ErrCannotActOnSelf):
 		return http.StatusForbidden
-	case errors.Is(err, service.ErrEmailTaken):
+	case errors.Is(err, service.ErrEmailTaken), errors.Is(err, service.ErrUsernameTaken):
 		return http.StatusConflict
 	case errors.Is(err, service.ErrUserNotFound):
 		return http.StatusNotFound
 	case errors.Is(err, service.ErrWrongCurrentPassword):
 		return http.StatusUnauthorized
-	case errors.Is(err, service.ErrInvalidTheme), errors.Is(err, service.ErrFullNameRequired):
+	case errors.Is(err, service.ErrInvalidTheme), errors.Is(err, service.ErrFullNameRequired), errors.Is(err, service.ErrInvalidUsername):
 		return http.StatusBadRequest
 	default:
 		return http.StatusInternalServerError
@@ -68,6 +68,7 @@ func (h *UserHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 type createUserRequest struct {
 	Email    string `json:"email"`
+	Username string `json:"username"`
 	Password string `json:"password"`
 	FullName string `json:"fullName"`
 	Role     string `json:"role"`
@@ -85,7 +86,7 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.users.Create(r.Context(), actor, req.Email, req.Password, req.FullName, domain.Role(req.Role))
+	user, err := h.users.Create(r.Context(), actor, req.Email, req.Username, req.Password, req.FullName, domain.Role(req.Role))
 	if err != nil {
 		response.Err(w, userErrorStatus(err), err.Error())
 		return
@@ -95,6 +96,7 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 type updateProfileRequest struct {
 	Email    string `json:"email"`
+	Username string `json:"username"`
 	FullName string `json:"fullName"`
 }
 
@@ -110,7 +112,7 @@ func (h *UserHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if err := h.users.UpdateProfile(r.Context(), actor, id, req.Email, req.FullName); err != nil {
+	if err := h.users.UpdateProfile(r.Context(), actor, id, req.Email, req.Username, req.FullName); err != nil {
 		response.Err(w, userErrorStatus(err), err.Error())
 		return
 	}

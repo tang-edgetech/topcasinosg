@@ -18,13 +18,13 @@ func NewUserRepo(db *sql.DB) *UserRepo {
 	return &UserRepo{db: db}
 }
 
-const userColumns = `id, email, password_hash, full_name, role, theme_preference, status,
+const userColumns = `id, email, username, password_hash, full_name, role, theme_preference, status,
 	otp_secret_encrypted, otp_confirmed_at, created_by, created_at, updated_at`
 
 func scanUser(row interface{ Scan(...any) error }) (*domain.AdminUser, error) {
 	var u domain.AdminUser
 	if err := row.Scan(
-		&u.ID, &u.Email, &u.PasswordHash, &u.FullName, &u.Role, &u.ThemePreference, &u.Status,
+		&u.ID, &u.Email, &u.Username, &u.PasswordHash, &u.FullName, &u.Role, &u.ThemePreference, &u.Status,
 		&u.OTPSecretEncrypted, &u.OTPConfirmedAt, &u.CreatedBy, &u.CreatedAt, &u.UpdatedAt,
 	); err != nil {
 		return nil, err
@@ -40,9 +40,9 @@ func (r *UserRepo) CountAll(ctx context.Context) (int, error) {
 
 func (r *UserRepo) Create(ctx context.Context, u *domain.AdminUser) (int64, error) {
 	res, err := r.db.ExecContext(ctx, `
-		INSERT INTO admin_users (email, password_hash, full_name, role, status, created_by)
-		VALUES (?, ?, ?, ?, ?, ?)`,
-		u.Email, u.PasswordHash, u.FullName, u.Role, u.Status, u.CreatedBy,
+		INSERT INTO admin_users (email, username, password_hash, full_name, role, status, created_by)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		u.Email, u.Username, u.PasswordHash, u.FullName, u.Role, u.Status, u.CreatedBy,
 	)
 	if err != nil {
 		return 0, err
@@ -57,6 +57,23 @@ func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*domain.AdminU
 		return nil, ErrNotFound
 	}
 	return u, err
+}
+
+func (r *UserRepo) GetByUsername(ctx context.Context, username string) (*domain.AdminUser, error) {
+	row := r.db.QueryRowContext(ctx, `SELECT `+userColumns+` FROM admin_users WHERE username = ?`, username)
+	u, err := scanUser(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	return u, err
+}
+
+func (r *UserRepo) ExistsUsername(ctx context.Context, username string, excludeID int64) (bool, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM admin_users WHERE username = ? AND id != ?`, username, excludeID,
+	).Scan(&count)
+	return count > 0, err
 }
 
 func (r *UserRepo) GetByID(ctx context.Context, id int64) (*domain.AdminUser, error) {
@@ -112,16 +129,16 @@ func (r *UserRepo) ListByRoles(ctx context.Context, roles []domain.Role) ([]doma
 	return users, rows.Err()
 }
 
-func (r *UserRepo) UpdateProfile(ctx context.Context, id int64, email, fullName string) error {
+func (r *UserRepo) UpdateProfile(ctx context.Context, id int64, email, username, fullName string) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE admin_users SET email = ?, full_name = ? WHERE id = ?`, email, fullName, id,
+		`UPDATE admin_users SET email = ?, username = ?, full_name = ? WHERE id = ?`, email, username, fullName, id,
 	)
 	return err
 }
 
 // UpdateFullName is the self-service rename (see UserService.SelfUpdateProfile)
 // — a single-column update rather than reusing UpdateProfile's email+fullName
-// pair, so a self-rename can never accidentally touch the email column.
+// fields, so a self-rename can never accidentally touch the email column.
 func (r *UserRepo) UpdateFullName(ctx context.Context, id int64, fullName string) error {
 	_, err := r.db.ExecContext(ctx, `UPDATE admin_users SET full_name = ? WHERE id = ?`, fullName, id)
 	return err

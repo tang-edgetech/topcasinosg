@@ -6,11 +6,13 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { api, ApiError } from "@/lib/api";
 import type { AdminUserDTO } from "@/lib/types";
 import { titleCase } from "@/lib/format";
+import { USERNAME_HINT, USERNAME_PATTERN, normalizeUsername } from "@/lib/username";
 
 export default function EditUserForm({ target }: { target: AdminUserDTO }) {
   const router = useRouter();
   const confirm = useConfirm();
   const [email, setEmail] = useState(target.email);
+  const [username, setUsername] = useState(target.username);
   const [fullName, setFullName] = useState(target.fullName);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -23,7 +25,7 @@ export default function EditUserForm({ target }: { target: AdminUserDTO }) {
 
     setSubmitting(true);
     try {
-      await api.put(`/api/admin/users/${target.id}`, { email, fullName });
+      await api.put(`/api/admin/users/${target.id}`, { email, username, fullName });
       router.push("/dashboard/users");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not update user.");
@@ -34,11 +36,13 @@ export default function EditUserForm({ target }: { target: AdminUserDTO }) {
 
   return (
     <div id="edit-user-form-page" className="edit-user-form-page w-full max-w-sm">
-      <p className="mb-4 text-sm text-text-muted dark:text-text-muted-dark">{titleCase(target.role)}</p>
+      <p className="mb-4 text-sm text-text-muted dark:text-text-muted-dark">
+        {titleCase(target.role)} · change the password with the key button on the Users list.
+      </p>
       <form id="edit-user-form" className="flex flex-col gap-4" onSubmit={handleSubmit}>
         <div className="form-field flex flex-col gap-1">
           <label htmlFor="edit-user-full-name" className="text-sm font-medium text-text dark:text-text-dark">
-            Full Name
+            Display Name
           </label>
           <input
             id="edit-user-full-name"
@@ -47,6 +51,22 @@ export default function EditUserForm({ target }: { target: AdminUserDTO }) {
             onChange={(e) => setFullName(e.target.value)}
             className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-primary-500 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark"
           />
+        </div>
+        <div className="form-field flex flex-col gap-1">
+          <label htmlFor="edit-user-username" className="text-sm font-medium text-text dark:text-text-dark">
+            Username
+          </label>
+          <input
+            id="edit-user-username"
+            required
+            autoComplete="off"
+            pattern={USERNAME_PATTERN}
+            title={USERNAME_HINT}
+            value={username}
+            onChange={(e) => setUsername(normalizeUsername(e.target.value))}
+            className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-primary-500 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark"
+          />
+          <p className="text-xs text-text-muted dark:text-text-muted-dark">{USERNAME_HINT}</p>
         </div>
         <div className="form-field flex flex-col gap-1">
           <label htmlFor="edit-user-email" className="text-sm font-medium text-text dark:text-text-dark">

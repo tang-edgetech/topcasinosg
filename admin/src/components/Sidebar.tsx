@@ -158,6 +158,7 @@ export default function Sidebar({ onNavigate, onClose }: { onNavigate?: () => vo
         <div className="flex items-center gap-2">
           <BrandMark size={30} />
           <span className="text-base font-bold tracking-tight">{settings?.siteTitle || "Top Casino SG"}</span>
+          <AppVersion className="self-end pb-0.5 text-white/50" />
         </div>
         {onClose && (
           <button
@@ -289,8 +290,6 @@ export default function Sidebar({ onNavigate, onClose }: { onNavigate?: () => vo
           <IconLogout width={18} height={18} />
           Log Out
         </button>
-
-        <AppVersion className="px-2 text-white/50" />
       </div>
     </nav>
   );

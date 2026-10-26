@@ -6,6 +6,7 @@ export type Language = "en" | "cn";
 export interface AdminUserDTO {
   id: number;
   email: string;
+  username: string;
   fullName: string;
   role: Role;
   themePreference: ThemePreference;

@@ -189,14 +189,16 @@ export const ADMIN_HELP = {
         points: [
           "Editor: manages content (casinos, bonuses, pages, guides, news, media…).",
           "Admin: full access to the whole admin panel, including users, settings, navigation and snippets.",
+          "Everyone signs in with their email or their username. Both must be unique.",
         ],
       },
       {
         heading: "Tips",
         points: [
-          "Disabling a user signs them out straight away. Re-enable them any time.",
+          "Turn a user's Status switch off to make them Inactive: they're signed out straight away and can't sign in until it's turned back on.",
+          "Edit a user to change their display name, username or email; the key button sets a new password.",
           "Reset 2FA when someone loses their authenticator app; they scan a new QR code at next sign-in.",
-          "You can't disable or delete your own account.",
+          "You can't deactivate or delete your own account.",
         ],
       },
     ],
@@ -239,6 +241,18 @@ export const ADMIN_HELP = {
           "Merge adds new items and updates matching ones (same slug, code, name or page address). Nothing is deleted.",
           "Replace everything (whole exports only) deletes all content here first, so this backoffice becomes an exact copy of the file.",
           "Export this backoffice first as a backup before a big import.",
+        ],
+      },
+    ],
+  },
+  settings: {
+    summary: "Site-wide settings, split into tabs.",
+    sections: [
+      {
+        heading: "Tabs",
+        points: [
+          "General: logo, favicon, site title and URL, SEO indexing, timezone, language, footer and contact details.",
+          "Security: whether everyone must use two-factor authentication (enforced on the live site only).",
         ],
       },
     ],

@@ -17,6 +17,7 @@ export default function AccountPage() {
         <h1 className="text-2xl font-bold text-text dark:text-text-dark">My Account</h1>
         <p className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <span className="text-[15px] font-semibold text-text dark:text-text-dark">{user.fullName}</span>
+          <span className="text-[13px] font-normal text-text-muted dark:text-text-muted-dark">@{user.username}</span>
           <span className="text-[13px] font-normal text-text-muted dark:text-text-muted-dark">{user.email}</span>
           <span className="text-[13px] font-normal text-text-muted dark:text-text-muted-dark">
             {titleCase(user.role)}
