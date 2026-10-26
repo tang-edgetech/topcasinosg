@@ -1,18 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Checkbox, Input, Radio, Select } from "antd";
 import RichTextEditor from "@/components/content/RichTextEditor";
 import MediaPicker from "@/components/media/MediaPicker";
 import IconButton from "@/components/IconButton";
 import { IconPhoto, IconPlus, IconTrash } from "@/components/Icons";
 import { api } from "@/lib/api";
-import type { CasinoDTO, MediaDTO, PageBlockType, PageFieldType, RegionDTO } from "@/lib/types";
+import type { CasinoDTO, GlobalSectionDTO, MediaDTO, PageBlockType, PageFieldType, RegionDTO } from "@/lib/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
 
 export function mediaUrl(url: string) {
   return url.startsWith("http") ? url : `${API_URL}${url}`;
+}
+
+// The component editor's Style tab (SectionBuilder) provides a DOM node;
+// StyleFields renders its children there instead of in place, so each
+// block editor keeps its look controls (background, size, alignment,
+// colour) next to the rest of its code while editors see them under Style.
+// With no Style tab around, they render in place.
+export const StyleTabTarget = createContext<HTMLElement | null | undefined>(undefined);
+
+export function StyleFields({ children }: { children: React.ReactNode }) {
+  const target = useContext(StyleTabTarget);
+  if (target === undefined) return <>{children}</>;
+  return target ? createPortal(<div className="flex flex-col gap-4">{children}</div>, target) : null;
 }
 
 export interface EditableField {
@@ -32,6 +46,7 @@ function blankField(itemIndex: number, fieldKey: string, fieldType: PageFieldTyp
 
 export const BLOCK_TYPE_LABELS: Record<PageBlockType, string> = {
   container: "Container",
+  global_section: "Global Section",
   title_set: "Title & Text",
   image: "Image",
   button_group: "Buttons",
@@ -149,6 +164,8 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
         blankField(0, "bgImage", "image", 4),
         textField(0, "layout", "stack", 5),
       ];
+    case "global_section":
+      return [blankField(0, "globalId", "text", 1)];
     case "image":
       return [
         blankField(0, "image", "image", 1),
@@ -672,6 +689,7 @@ function SectionBackgroundFields({
   }
 
   return (
+    <StyleFields>
     <div className="section-bg-fields flex flex-col gap-3 rounded-md bg-surface-muted p-4 dark:bg-surface-muted-dark">
       <LabeledField label="Section Background">
         <Select value={bgType} onChange={(v) => setStyleField("bgType", sortOrders.bgType, v)} options={SECTION_BG_TYPE_OPTIONS} />
@@ -700,6 +718,7 @@ function SectionBackgroundFields({
         />
       )}
     </div>
+    </StyleFields>
   );
 }
 
@@ -739,6 +758,8 @@ export default function BlockFieldEditor({ blockType, fields, onChange }: BlockF
   switch (blockType) {
     case "container":
       return <ContainerFields fields={fields} onChange={onChange} />;
+    case "global_section":
+      return <GlobalSectionFields fields={fields} onChange={onChange} />;
     case "title_set":
       return <TitleSetFields fields={fields} onChange={onChange} />;
     case "image":
@@ -1675,8 +1696,10 @@ function ContainerFields({ fields, onChange }: { fields: EditableField[]; onChan
     <div className="flex flex-col gap-4">
       <p className="text-xs text-text-muted dark:text-text-muted-dark">
         Components inside this container share its background and layout. Add them with “+ Add Component Inside”, or use “Move Into
-        Container Above” on the section right below the container. In a grid, set each component&apos;s width in its Layout row.
+        Container Above” on the section right below the container. Layout, spacing, colours and background are in the Style tab; in a
+        grid, set each component&apos;s width in its own Style tab.
       </p>
+      <StyleFields>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <LabeledField label="Layout">
           <Select
@@ -1747,7 +1770,54 @@ function ContainerFields({ fields, onChange }: { fields: EditableField[]; onChan
       <p className="text-xs text-text-muted dark:text-text-muted-dark">
         Text colour applies to Title &amp; Text (when set to “Follow container”), Rich Text, Image and Video captions and divider lines.
       </p>
+      </StyleFields>
       <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 1, bgFrom: 2, bgTo: 3, bgImage: 4 }} />
+    </div>
+  );
+}
+
+// Global Section — places one reusable global section (edited under Global
+// Sections) here; its content is shared with every page that places it.
+function GlobalSectionFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const [globals, setGlobals] = useState<GlobalSectionDTO[] | null>(null);
+  const value = textOf(fields, "globalId");
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get<{ globalSections: GlobalSectionDTO[] }>("/api/admin/global-sections")
+      .then((data) => !cancelled && setGlobals(data.globalSections ?? []))
+      .catch(() => !cancelled && setGlobals([]));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <LabeledField label="Global section">
+        <Select
+          showSearch
+          optionFilterProp="label"
+          loading={globals === null}
+          placeholder="Choose a global section"
+          value={value || undefined}
+          onChange={textSetter(fields, onChange)("globalId", 1)}
+          options={(globals ?? []).map((g) => ({ value: String(g.id), label: g.name }))}
+        />
+      </LabeledField>
+      <p className="text-xs text-text-muted dark:text-text-muted-dark">
+        Its content is edited once under Global Sections and shows the same on every page that places it.{" "}
+        {value ? (
+          <a href={`/dashboard/global-sections/${value}`} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
+            Edit this global section ↗
+          </a>
+        ) : (
+          <a href="/dashboard/global-sections" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
+            Manage global sections ↗
+          </a>
+        )}
+      </p>
     </div>
   );
 }
@@ -1771,6 +1841,9 @@ function ImageFields({ fields, onChange }: { fields: EditableField[]; onChange: 
         <TextInputField label="Alt text (describes the image)" value={text("alt")} onChange={set("alt", 2)} />
         <TextInputField label="Caption (optional)" value={text("caption")} onChange={set("caption", 3)} />
         <TextInputField label="Link (optional)" value={text("linkUrl")} placeholder="/casinos" onChange={set("linkUrl", 4)} />
+      </div>
+      <StyleFields>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <LabeledField label="Size">
           <Select value={text("size") || "full"} onChange={set("size", 5)} options={SIZE_OPTIONS} />
         </LabeledField>
@@ -1788,6 +1861,7 @@ function ImageFields({ fields, onChange }: { fields: EditableField[]; onChange: 
           />
         </LabeledField>
       </div>
+      </StyleFields>
     </div>
   );
 }
@@ -1842,9 +1916,11 @@ function ButtonGroupFields({ fields, onChange }: { fields: EditableField[]; onCh
           );
         }}
       />
-      <LabeledField label="Alignment">
-        <Select value={textOf(fields, "align") || "left"} onChange={textSetter(fields, onChange)("align", 1)} options={ALIGN_OPTIONS} />
-      </LabeledField>
+      <StyleFields>
+        <LabeledField label="Alignment">
+          <Select value={textOf(fields, "align") || "left"} onChange={textSetter(fields, onChange)("align", 1)} options={ALIGN_OPTIONS} />
+        </LabeledField>
+      </StyleFields>
     </div>
   );
 }
@@ -1899,13 +1975,17 @@ function VideoFields({ fields, onChange }: { fields: EditableField[]; onChange: 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <TextInputField label="Title (for screen readers)" value={text("title")} onChange={set("title", 2)} />
         <TextInputField label="Caption (optional)" value={text("caption")} onChange={set("caption", 3)} />
-        <LabeledField label="Size">
-          <Select value={text("size") || "full"} onChange={set("size", 4)} options={SIZE_OPTIONS} />
-        </LabeledField>
-        <LabeledField label="Alignment">
-          <Select value={text("align") || "center"} onChange={set("align", 5)} options={ALIGN_OPTIONS} />
-        </LabeledField>
       </div>
+      <StyleFields>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <LabeledField label="Size">
+            <Select value={text("size") || "full"} onChange={set("size", 4)} options={SIZE_OPTIONS} />
+          </LabeledField>
+          <LabeledField label="Alignment">
+            <Select value={text("align") || "center"} onChange={set("align", 5)} options={ALIGN_OPTIONS} />
+          </LabeledField>
+        </div>
+      </StyleFields>
     </div>
   );
 }
@@ -1928,6 +2008,7 @@ function TitleSetFields({ fields, onChange }: { fields: EditableField[]; onChang
       <LabeledField label="Text (optional)">
         <Input.TextArea autoSize={{ minRows: 2 }} value={text("text")} onChange={(e) => set("text", 3)(e.target.value)} />
       </LabeledField>
+      <StyleFields>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <LabeledField label="Title size">
           <Select value={text("headingSize") === "medium" ? "medium" : "large"} onChange={set("headingSize", 4)} options={HEADING_SIZE_OPTIONS} />
@@ -1950,6 +2031,7 @@ function TitleSetFields({ fields, onChange }: { fields: EditableField[]; onChang
           />
         </LabeledField>
       </div>
+      </StyleFields>
       <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 7, bgFrom: 8, bgTo: 9, bgImage: 10 }} />
     </div>
   );
@@ -1986,13 +2068,15 @@ function BlacklistPreviewFields({ fields, onChange }: { fields: EditableField[];
         placeholder="Problems such as delays in payouts… have been reported at these casinos."
         onChange={(v) => onChange(upsertField(fields, 0, "subheading", "text", 2, { textValue: v }))}
       />
-      <LabeledField label="Heading size">
-        <Select
-          value={getField(fields, 0, "headingSize")?.textValue === "medium" ? "medium" : "large"}
-          onChange={(v) => onChange(upsertField(fields, 0, "headingSize", "text", 11, { textValue: v }))}
-          options={HEADING_SIZE_OPTIONS}
-        />
-      </LabeledField>
+      <StyleFields>
+        <LabeledField label="Heading size">
+          <Select
+            value={getField(fields, 0, "headingSize")?.textValue === "medium" ? "medium" : "large"}
+            onChange={(v) => onChange(upsertField(fields, 0, "headingSize", "text", 11, { textValue: v }))}
+            options={HEADING_SIZE_OPTIONS}
+          />
+        </LabeledField>
+      </StyleFields>
       <TextInputField
         label="Max Entries"
         value={limit?.textValue ?? "6"}

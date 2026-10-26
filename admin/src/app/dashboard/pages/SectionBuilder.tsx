@@ -1,15 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Checkbox, Input, Select, App as AntApp } from "antd";
+import { Checkbox, Input, Modal, Select, Tabs, App as AntApp } from "antd";
 import { api, ApiError } from "@/lib/api";
 import { useConfirm } from "@/components/ConfirmDialog";
 import IconButton from "@/components/IconButton";
-import { IconChevronUp, IconChevronDown, IconCopy, IconIndent, IconInsertBelow, IconOutdent, IconTrash } from "@/components/Icons";
-import BlockFieldEditor, { BLOCK_TYPE_LABELS, defaultFieldsForBlockType, mediaUrl, type EditableField } from "./BlockFields";
+import {
+  IconChevronUp,
+  IconChevronDown,
+  IconCopy,
+  IconGripVertical,
+  IconIndent,
+  IconInsertBelow,
+  IconOutdent,
+  IconLayersPlus,
+  IconTrash,
+} from "@/components/Icons";
+import BlockFieldEditor, { BLOCK_TYPE_LABELS, StyleTabTarget, defaultFieldsForBlockType, mediaUrl, type EditableField } from "./BlockFields";
 import type { SaveAction } from "./SaveActionBar";
 import ComponentPicker, { type ComponentGroup } from "./ComponentPicker";
-import type { PageBlockType, PageSectionDTO } from "@/lib/types";
+import type { GlobalSectionDTO, PageBlockType, PageSectionDTO } from "@/lib/types";
 
 interface EditableSection {
   key: string;
@@ -21,6 +31,7 @@ interface EditableSection {
 }
 
 const CONTAINER: PageBlockType = "container";
+const GLOBAL_SECTION: PageBlockType = "global_section";
 
 // Spacing/divider presets editors toggle with plain checkboxes - they're
 // stored as classes in custom_class (see shared/theme/sections.css), so the
@@ -51,7 +62,10 @@ const WIDE_CONTENT_BLOCK_TYPES: PageBlockType[] = ["rich_text", "faq"];
 const BLOCK_GROUPS: { label: string; blocks: [PageBlockType, string][] }[] = [
   {
     label: "Layout",
-    blocks: [["container", "Wraps components with one shared background"]],
+    blocks: [
+      ["container", "Wraps components with one shared background"],
+      ["global_section", "A reusable section edited once under Global Sections"],
+    ],
   },
   {
     label: "Basic",
@@ -113,7 +127,7 @@ const BLOCK_GROUPS: { label: string; blocks: [PageBlockType, string][] }[] = [
   },
 ];
 
-function buildPickerGroups(includeContainer: boolean): ComponentGroup[] {
+function buildPickerGroups(includeContainer: boolean, includeGlobal: boolean): ComponentGroup[] {
   const grouped = new Set(BLOCK_GROUPS.flatMap((g) => g.blocks.map(([type]) => type)));
   const other = (Object.keys(BLOCK_TYPE_LABELS) as PageBlockType[]).filter((t) => !grouped.has(t));
   const groups = other.length > 0 ? [...BLOCK_GROUPS, { label: "Other", blocks: other.map((t) => [t, ""] as [PageBlockType, string]) }] : BLOCK_GROUPS;
@@ -121,7 +135,7 @@ function buildPickerGroups(includeContainer: boolean): ComponentGroup[] {
     .map((group) => ({
       label: group.label,
       blocks: group.blocks
-        .filter(([type]) => includeContainer || type !== CONTAINER)
+        .filter(([type]) => (includeContainer || type !== CONTAINER) && (includeGlobal || type !== GLOBAL_SECTION))
         .map(([type, description]) => ({ type, title: BLOCK_TYPE_LABELS[type], description })),
     }))
     .filter((group) => group.blocks.length > 0);
@@ -205,6 +219,159 @@ function previousUnitStart(sections: EditableSection[], index: number): number {
   return start;
 }
 
+type DropPosition = "before" | "after" | "inside";
+interface DropTarget {
+  key: string;
+  position: DropPosition;
+}
+const END_DROP_KEY = "__end";
+
+// Where a dragged section (a container brings its components along) lands.
+// Dropping on a component inside a container keeps it inside; just below a
+// container's header puts it first inside; "inside" appends to a container.
+// A container is never dropped into another one - it lands next to it.
+function applyDrop(list: EditableSection[], dragKey: string, target: DropTarget): EditableSection[] | null {
+  const from = list.findIndex((s) => s.key === dragKey);
+  if (from < 0) return null;
+  const end = unitEnd(list, from);
+  const unit = list.slice(from, end);
+  if (unit.some((s) => s.key === target.key)) return null;
+  const rest = [...list.slice(0, from), ...list.slice(end)];
+  const draggingContainer = unit[0].blockType === CONTAINER;
+  let at: number;
+  let inContainer = false;
+
+  if (target.key === END_DROP_KEY) {
+    at = rest.length;
+  } else {
+    const t = rest.findIndex((s) => s.key === target.key);
+    if (t < 0) return null;
+    const targetSection = rest[t];
+    if (target.position === "inside") {
+      at = unitEnd(rest, t);
+      inContainer = !draggingContainer;
+    } else if (targetSection.inContainer) {
+      if (draggingContainer) {
+        let head = t;
+        while (head > 0 && rest[head].inContainer) head -= 1;
+        at = target.position === "before" ? head : unitEnd(rest, head);
+      } else {
+        at = target.position === "before" ? t : t + 1;
+        inContainer = true;
+      }
+    } else if (targetSection.blockType === CONTAINER && target.position === "after") {
+      at = draggingContainer ? unitEnd(rest, t) : t + 1;
+      inContainer = !draggingContainer;
+    } else {
+      at = target.position === "before" ? t : t + 1;
+    }
+  }
+
+  const moved = draggingContainer ? unit : [{ ...unit[0], inContainer }];
+  return normalizeContainers([...rest.slice(0, at), ...moved, ...rest.slice(at)]);
+}
+
+// One expanded component: Content (its own fields), Style (background, size,
+// alignment, colours - portalled in from the block editor via StyleFields -
+// plus spacing and grid width) and Advanced (CSS class, HTML id).
+function SectionEditor({
+  section,
+  inGrid,
+  onUpdate,
+}: {
+  section: EditableSection;
+  inGrid: boolean;
+  onUpdate: (patch: Partial<EditableSection>) => void;
+}) {
+  const [styleTarget, setStyleTarget] = useState<HTMLDivElement | null>(null);
+  const [tab, setTab] = useState("content");
+
+  return (
+    <StyleTabTarget.Provider value={styleTarget}>
+      <Tabs
+        activeKey={tab}
+        onChange={setTab}
+        className="section-editor-tabs"
+        items={[
+          {
+            key: "content",
+            label: "Content",
+            children: <BlockFieldEditor blockType={section.blockType} fields={section.fields} onChange={(fields) => onUpdate({ fields })} />,
+          },
+          {
+            key: "style",
+            label: "Style",
+            forceRender: true,
+            children: (
+              <div className="flex flex-col gap-4">
+                <div ref={setStyleTarget} className="section-style-fields flex flex-col gap-4 empty:hidden" />
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-md bg-surface px-4 py-3 dark:bg-surface-muted-dark">
+                  <span className="text-xs font-semibold tracking-wide text-text-muted uppercase dark:text-text-muted-dark">Spacing</span>
+                  <Checkbox
+                    checked={hasClass(section.customClass, TIGHT_TOP_CLASS)}
+                    onChange={(e) => onUpdate({ customClass: toggleClass(section.customClass, TIGHT_TOP_CLASS, e.target.checked) })}
+                  >
+                    Less space above
+                  </Checkbox>
+                  <Checkbox
+                    checked={hasClass(section.customClass, DIVIDER_TOP_CLASS)}
+                    onChange={(e) => onUpdate({ customClass: toggleClass(section.customClass, DIVIDER_TOP_CLASS, e.target.checked) })}
+                  >
+                    Divider line above
+                  </Checkbox>
+                  {WIDE_CONTENT_BLOCK_TYPES.includes(section.blockType) && (
+                    <Checkbox
+                      checked={hasClass(section.customClass, WIDE_CONTENT_CLASS)}
+                      onChange={(e) => onUpdate({ customClass: toggleClass(section.customClass, WIDE_CONTENT_CLASS, e.target.checked) })}
+                    >
+                      Wider content (960px)
+                    </Checkbox>
+                  )}
+                  {inGrid && (
+                    <label className="flex items-center gap-2 text-sm">
+                      Width in container
+                      <Select
+                        size="small"
+                        className="min-w-36"
+                        value={widthClass(section.customClass)}
+                        onChange={(cls: string) => onUpdate({ customClass: setWidthClass(section.customClass, cls) })}
+                        options={WIDTH_OPTIONS}
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
+            ),
+          },
+          {
+            key: "advanced",
+            label: "Advanced",
+            children: (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Input
+                  addonBefore="CSS class"
+                  placeholder="optional"
+                  value={extraClasses(section.customClass)}
+                  onChange={(e) => {
+                    const presets = PRESET_CLASSES.filter((c) => hasClass(section.customClass, c));
+                    onUpdate({ customClass: composeClasses(e.target.value, presets) });
+                  }}
+                />
+                <Input
+                  addonBefore="HTML id"
+                  placeholder="optional, e.g. faqs (for #faqs links)"
+                  value={section.customId}
+                  onChange={(e) => onUpdate({ customId: e.target.value })}
+                />
+              </div>
+            ),
+          },
+        ]}
+      />
+    </StyleTabTarget.Provider>
+  );
+}
+
 let clientKeySeq = 0;
 function nextClientKey() {
   clientKeySeq += 1;
@@ -255,23 +422,38 @@ export default function SectionBuilder({
   pageId,
   initialSections,
   onActionsChange,
+  isGlobal = false,
 }: {
   pageId: number;
   initialSections: PageSectionDTO[];
   onActionsChange?: (actions: SaveAction[]) => void;
+  isGlobal?: boolean;
 }) {
   const { message } = AntApp.useApp();
   const confirm = useConfirm();
   const [sections, setSections] = useState<EditableSection[]>(() => fromDTO(initialSections));
   const [savedSnapshot, setSavedSnapshot] = useState(() => snapshot(fromDTO(initialSections)));
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
-  const [advancedOpen, setAdvancedOpen] = useState<Set<string>>(() => new Set());
+  const [dragKey, setDragKey] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   const [saving, setSaving] = useState(false);
   const scrollToKey = useRef<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [insertAt, setInsertAt] = useState<number | null>(null);
   const [insertInContainer, setInsertInContainer] = useState(false);
-  const pickerGroups = useMemo(() => buildPickerGroups(!insertInContainer), [insertInContainer]);
+  const pickerGroups = useMemo(() => buildPickerGroups(!insertInContainer, !isGlobal), [insertInContainer, isGlobal]);
+  const [globalNames, setGlobalNames] = useState<Map<string, string>>(() => new Map());
+  const [saveGlobalIndex, setSaveGlobalIndex] = useState<number | null>(null);
+  const [globalName, setGlobalName] = useState("");
+  const [savingGlobal, setSavingGlobal] = useState(false);
+
+  useEffect(() => {
+    if (isGlobal) return;
+    api
+      .get<{ globalSections: GlobalSectionDTO[] }>("/api/admin/global-sections")
+      .then((data) => setGlobalNames(new Map((data.globalSections ?? []).map((g) => [String(g.id), g.name]))))
+      .catch(() => undefined);
+  }, [isGlobal]);
 
   const dirty = snapshot(sections) !== savedSnapshot;
 
@@ -414,6 +596,92 @@ export default function SectionBuilder({
     });
   }
 
+  function dragOver(e: React.DragEvent<HTMLElement>, key: string, position?: DropPosition) {
+    if (!dragKey) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "move";
+    const rect = e.currentTarget.getBoundingClientRect();
+    const next = position ?? (e.clientY < rect.top + rect.height / 2 ? "before" : "after");
+    if (dropTarget?.key !== key || dropTarget.position !== next) setDropTarget({ key, position: next });
+  }
+
+  function drop(e: React.DragEvent<HTMLElement>) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (dragKey && dropTarget) {
+      const next = applyDrop(sections, dragKey, dropTarget);
+      if (next) {
+        setSections(next);
+        scrollToKey.current = null;
+      }
+    }
+    endDrag();
+  }
+
+  function endDrag() {
+    setDragKey(null);
+    setDropTarget(null);
+  }
+
+  function startDrag(e: React.DragEvent<HTMLElement>, section: EditableSection) {
+    setDragKey(section.key);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", section.key);
+    const preview = document.getElementById(section.blockType === CONTAINER ? `container-${section.key}` : `section-${section.key}`);
+    if (preview) e.dataTransfer.setDragImage(preview, 24, 24);
+  }
+
+  function isDragged(index: number): boolean {
+    if (!dragKey) return false;
+    const from = sections.findIndex((s) => s.key === dragKey);
+    return from >= 0 && index >= from && index < unitEnd(sections, from);
+  }
+
+  // Turns a section (a container with its components) into a new global
+  // section and puts a Global Section block in its place - the page change
+  // still needs "Save Page Content", the global section is created at once.
+  async function saveAsGlobal() {
+    if (saveGlobalIndex === null) return;
+    const index = saveGlobalIndex;
+    const end = unitEnd(sections, index);
+    const unit = sections.slice(index, end);
+    setSavingGlobal(true);
+    try {
+      const data = await api.post<{ globalSection: GlobalSectionDTO }>("/api/admin/global-sections", {
+        name: globalName,
+        sections: unit.map((s, i) => ({
+          blockType: s.blockType,
+          customClass: s.customClass,
+          customId: s.customId,
+          inContainer: i > 0 && s.inContainer,
+          sortOrder: i + 1,
+          fields: s.fields.map((f, fi) => ({ ...f, sortOrder: fi + 1 })),
+        })),
+      });
+      const created = data.globalSection;
+      setGlobalNames((prev) => new Map(prev).set(String(created.id), created.name));
+      const placeholder: EditableSection = {
+        key: nextClientKey(),
+        blockType: GLOBAL_SECTION,
+        customClass: "",
+        customId: "",
+        inContainer: unit[0].inContainer,
+        fields: [{ itemIndex: 0, fieldKey: "globalId", fieldType: "text", textValue: String(created.id), mediaId: null, mediaUrl: null, urlValue: "", sortOrder: 1 }],
+      };
+      update((prev) => {
+        const start = prev.findIndex((s) => s.key === unit[0].key);
+        return [...prev.slice(0, start), placeholder, ...prev.slice(start + unit.length)];
+      });
+      setSaveGlobalIndex(null);
+      message.success(`"${created.name}" is now a global section. Save Page Content to keep it on this page.`);
+    } catch (err) {
+      message.error(err instanceof ApiError ? err.message : "Could not create the global section.");
+    } finally {
+      setSavingGlobal(false);
+    }
+  }
+
   function updateSection(key: string, patch: Partial<EditableSection>) {
     setSections((prev) => prev.map((s) => (s.key === key ? { ...s, ...patch } : s)));
   }
@@ -463,20 +731,45 @@ export default function SectionBuilder({
     const isContainer = section.blockType === CONTAINER;
     const inGrid = section.inContainer && containerLayout(index) === "grid";
     const componentCount = isContainer ? unitEnd(sections, index) - index - 1 : 0;
-    const summary = isContainer ? `${componentCount} component${componentCount === 1 ? "" : "s"} inside` : sectionSummary(section.fields);
+    const globalId = section.blockType === GLOBAL_SECTION ? (section.fields.find((f) => f.fieldKey === "globalId")?.textValue ?? "") : "";
+    const summary = isContainer
+      ? `${componentCount} component${componentCount === 1 ? "" : "s"} inside`
+      : globalId
+        ? (globalNames.get(globalId) ?? `Global section #${globalId}`)
+        : sectionSummary(section.fields);
     const items = itemCount(section.fields);
+
+    const dropHere = dropTarget?.key === section.key ? dropTarget.position : null;
 
     return (
       <div
         key={section.key}
         id={`section-${section.key}`}
-        className={`section-block flex scroll-mt-24 flex-col rounded-lg border transition-colors ${
+        onDragOver={(e) => dragOver(e, section.key)}
+        onDrop={drop}
+        className={`section-block relative flex scroll-mt-24 flex-col rounded-lg border transition-colors ${isDragged(index) ? "opacity-40" : ""} ${
           isOpen
             ? "section-block--open border-primary-300 bg-primary-50/70 shadow-sm dark:border-primary-500 dark:bg-surface-muted-dark/60"
             : "border-border bg-surface dark:border-border-dark dark:bg-transparent"
         }`}
       >
-        <div className={`flex items-center gap-3 rounded-t-lg px-4 py-3 ${isOpen ? "bg-primary-100/70 dark:bg-surface-muted-dark" : ""}`}>
+        {dropHere && dropHere !== "inside" && (
+          <div
+            aria-hidden="true"
+            className={`pointer-events-none absolute inset-x-0 z-10 h-1 rounded bg-primary-500 ${dropHere === "before" ? "-top-2" : "-bottom-2"}`}
+          />
+        )}
+        <div className={`flex items-center gap-2 rounded-t-lg py-3 pr-4 pl-2 ${isOpen ? "bg-primary-100/70 dark:bg-surface-muted-dark" : ""}`}>
+          <span
+            draggable
+            onDragStart={(e) => startDrag(e, section)}
+            onDragEnd={endDrag}
+            title={isContainer ? "Drag to move the container and its components" : "Drag to move"}
+            aria-label="Drag to move"
+            className="flex h-8 w-5 shrink-0 cursor-grab items-center justify-center text-text-muted hover:text-primary-700 active:cursor-grabbing dark:text-text-muted-dark"
+          >
+            <IconGripVertical width={16} height={16} />
+          </span>
           <span className="w-7 shrink-0 text-center text-xs font-semibold text-text-muted dark:text-text-muted-dark">{label}</span>
           <button
             type="button"
@@ -542,6 +835,18 @@ export default function SectionBuilder({
               icon={<IconInsertBelow />}
               variant="muted"
             />
+            {!isGlobal && section.blockType !== GLOBAL_SECTION && (
+              <IconButton
+                id={`section-${section.key}-save-global`}
+                title={isContainer ? "Save Container as Global Section" : "Save as Global Section"}
+                onClick={() => {
+                  setGlobalName(sectionSummary(isContainer ? (sections[index + 1]?.fields ?? []) : section.fields));
+                  setSaveGlobalIndex(index);
+                }}
+                icon={<IconLayersPlus />}
+                variant="muted"
+              />
+            )}
             <IconButton
               id={`section-${section.key}-duplicate`}
               title={isContainer ? "Duplicate Container and Its Components" : "Duplicate Section"}
@@ -560,75 +865,8 @@ export default function SectionBuilder({
         </div>
 
         {isOpen && (
-          <div className="flex flex-col gap-4 border-t border-primary-200 px-5 py-5 dark:border-border-dark">
-            <BlockFieldEditor
-              blockType={section.blockType}
-              fields={section.fields}
-              onChange={(fields) => updateSection(section.key, { fields })}
-            />
-
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-md bg-surface px-4 py-3 dark:bg-surface-muted-dark">
-              <span className="text-xs font-semibold tracking-wide text-text-muted uppercase dark:text-text-muted-dark">Layout</span>
-              <Checkbox
-                checked={hasClass(section.customClass, TIGHT_TOP_CLASS)}
-                onChange={(e) => updateSection(section.key, { customClass: toggleClass(section.customClass, TIGHT_TOP_CLASS, e.target.checked) })}
-              >
-                Less space above
-              </Checkbox>
-              <Checkbox
-                checked={hasClass(section.customClass, DIVIDER_TOP_CLASS)}
-                onChange={(e) => updateSection(section.key, { customClass: toggleClass(section.customClass, DIVIDER_TOP_CLASS, e.target.checked) })}
-              >
-                Divider line above
-              </Checkbox>
-              {WIDE_CONTENT_BLOCK_TYPES.includes(section.blockType) && (
-                <Checkbox
-                  checked={hasClass(section.customClass, WIDE_CONTENT_CLASS)}
-                  onChange={(e) => updateSection(section.key, { customClass: toggleClass(section.customClass, WIDE_CONTENT_CLASS, e.target.checked) })}
-                >
-                  Wider content (960px)
-                </Checkbox>
-              )}
-              {inGrid && (
-                <label className="flex items-center gap-2 text-sm">
-                  Width in container
-                  <Select
-                    size="small"
-                    className="min-w-36"
-                    value={widthClass(section.customClass)}
-                    onChange={(cls: string) => updateSection(section.key, { customClass: setWidthClass(section.customClass, cls) })}
-                    options={WIDTH_OPTIONS}
-                  />
-                </label>
-              )}
-              <button
-                type="button"
-                onClick={() => setAdvancedOpen((prev) => toggleIn(prev, section.key))}
-                className="ml-auto cursor-pointer text-xs text-primary-600 hover:underline dark:text-text-dark"
-              >
-                {advancedOpen.has(section.key) ? "Hide advanced" : "Advanced"}
-              </button>
-            </div>
-
-            {advancedOpen.has(section.key) && (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Input
-                  addonBefore="CSS class"
-                  placeholder="optional"
-                  value={extraClasses(section.customClass)}
-                  onChange={(e) => {
-                    const presets = PRESET_CLASSES.filter((c) => hasClass(section.customClass, c));
-                    updateSection(section.key, { customClass: composeClasses(e.target.value, presets) });
-                  }}
-                />
-                <Input
-                  addonBefore="HTML id"
-                  placeholder="optional, e.g. faqs (for #faqs links)"
-                  value={section.customId}
-                  onChange={(e) => updateSection(section.key, { customId: e.target.value })}
-                />
-              </div>
-            )}
+          <div className="border-t border-primary-200 px-5 pt-2 pb-5 dark:border-border-dark">
+            <SectionEditor section={section} inGrid={inGrid} onUpdate={(patch) => updateSection(section.key, patch)} />
           </div>
         )}
       </div>
@@ -660,6 +898,32 @@ export default function SectionBuilder({
 
       <ComponentPicker open={pickerOpen} groups={pickerGroups} onPick={addSection} onClose={() => setPickerOpen(false)} />
 
+      <Modal
+        open={saveGlobalIndex !== null}
+        title="Save as Global Section"
+        okText="Create Global Section"
+        onOk={saveAsGlobal}
+        okButtonProps={{ disabled: !globalName.trim(), loading: savingGlobal }}
+        onCancel={() => setSaveGlobalIndex(null)}
+        destroyOnHidden
+      >
+        <div className="flex flex-col gap-3 pt-2">
+          <p className="text-sm text-text-muted">
+            {saveGlobalIndex !== null && sections[saveGlobalIndex]?.blockType === CONTAINER
+              ? "This container and the components inside it become a global section"
+              : "This section becomes a global section"}{" "}
+            you can place on other pages and edit once under Global Sections. Here it&apos;s replaced by a Global Section component
+            showing the same content.
+          </p>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="save-global-name" className="text-xs font-semibold tracking-wide text-text-muted uppercase">
+              Name (only shown in the backoffice)
+            </label>
+            <Input id="save-global-name" autoFocus value={globalName} onChange={(e) => setGlobalName(e.target.value)} />
+          </div>
+        </div>
+      </Modal>
+
       {sections.length === 0 && (
         <p className="text-sm text-text-muted dark:text-text-muted-dark">No sections yet — use “+ Add Component” to start building this page.</p>
       )}
@@ -672,6 +936,7 @@ export default function SectionBuilder({
           return (
             <div
               key={`container-${head.key}`}
+              id={`container-${head.key}`}
               className="container-block flex flex-col gap-2 rounded-xl border-2 border-dashed border-primary-200 bg-primary-50/30 p-2 dark:border-border-dark dark:bg-transparent"
             >
               {renderSection(head, start, String(number))}
@@ -682,18 +947,38 @@ export default function SectionBuilder({
                     This container is empty — add a component inside it, or use “Move Into Container Above” on the section below.
                   </p>
                 )}
-                <button
-                  type="button"
-                  id={`section-${head.key}-add-inside`}
-                  onClick={() => openPicker(end, true)}
-                  className="cursor-pointer self-start rounded-md border border-dashed border-primary-300 px-3 py-1.5 text-sm text-primary-600 hover:bg-primary-50 dark:text-text-dark dark:hover:bg-surface-muted-dark"
+                <div
+                  onDragOver={(e) => dragOver(e, head.key, "inside")}
+                  onDrop={drop}
+                  className={`flex items-center gap-3 rounded-md ${
+                    dropTarget?.key === head.key && dropTarget.position === "inside" ? "bg-primary-100 outline-2 outline-primary-500 outline-dashed" : ""
+                  }`}
                 >
-                  + Add Component Inside
-                </button>
+                  <button
+                    type="button"
+                    id={`section-${head.key}-add-inside`}
+                    onClick={() => openPicker(end, true)}
+                    className="cursor-pointer rounded-md border border-dashed border-primary-300 px-3 py-1.5 text-sm text-primary-600 hover:bg-primary-50 dark:text-text-dark dark:hover:bg-surface-muted-dark"
+                  >
+                    + Add Component Inside
+                  </button>
+                  {dragKey && <span className="text-xs text-text-muted dark:text-text-muted-dark">or drop here to add it to this container</span>}
+                </div>
               </div>
             </div>
           );
         })}
+        {dragKey && (
+          <div
+            onDragOver={(e) => dragOver(e, END_DROP_KEY, "after")}
+            onDrop={drop}
+            className={`rounded-lg border-2 border-dashed px-4 py-3 text-center text-xs text-text-muted dark:text-text-muted-dark ${
+              dropTarget?.key === END_DROP_KEY ? "border-primary-500 bg-primary-100" : "border-primary-200"
+            }`}
+          >
+            Drop here to move to the end of the page
+          </div>
+        )}
       </div>
     </div>
   );

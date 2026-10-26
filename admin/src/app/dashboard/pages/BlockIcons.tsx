@@ -21,6 +21,12 @@ const BLOCK_ICON_SHAPES: Record<PageBlockType, ReactNode> = {
     solid(6, 12, 36, 7, 2),
     solid(6, 21, 36, 5, 3),
   ],
+  global_section: [
+    <rect key="a" x={8} y={2} width={36} height={20} rx={2} fill="none" stroke="currentColor" strokeWidth={1.5} />,
+    <rect key="b" x={4} y={8} width={36} height={22} rx={2} fillOpacity={0.3} />,
+    line(9, 14, 22, 1),
+    line(9, 19, 26, 2),
+  ],
   title_set: [solid(4, 9, 30, 5, 1), line(4, 19, 40, 2), line(4, 23, 28, 3)],
   image: [box(6, 4, 36, 24, 1), dot(15, 12, 3, 2), <path key="m" d="M9 25l9-8 6 5 5-4 10 7z" fillOpacity={0.3} />],
   button_group: [solid(4, 12, 18, 8, 1), box(26, 12, 18, 8, 2)],

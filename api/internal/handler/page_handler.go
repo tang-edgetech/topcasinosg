@@ -22,10 +22,10 @@ func NewPageHandler(pages *service.PageService) *PageHandler {
 }
 
 type PageDTO struct {
-	ID              int64      `json:"id"`
-	ParentID        *int64     `json:"parentId"`
-	SortOrder       int        `json:"sortOrder"`
-	Slug            string     `json:"slug"`
+	ID        int64  `json:"id"`
+	ParentID  *int64 `json:"parentId"`
+	SortOrder int    `json:"sortOrder"`
+	Slug      string `json:"slug"`
 	// Path is the page's full URL path (every ancestor's slug, root-first,
 	// then this page's own) - computed, not stored; see PageService.PathsByID.
 	// Empty when the DTO is built without a paths map (e.g. GetPublic, which
@@ -95,11 +95,11 @@ func pageErrorStatus(err error) int {
 	switch {
 	case errors.Is(err, repository.ErrNotFound):
 		return http.StatusNotFound
-	case errors.Is(err, service.ErrAlreadyExists):
+	case errors.Is(err, service.ErrAlreadyExists), errors.Is(err, service.ErrGlobalInUse):
 		return http.StatusConflict
 	case errors.Is(err, service.ErrInvalidContentStatus), errors.Is(err, service.ErrPublishAtRequired),
 		errors.Is(err, service.ErrInvalidBlockType), errors.Is(err, service.ErrInvalidFieldType),
-		errors.Is(err, service.ErrInvalidContainer),
+		errors.Is(err, service.ErrInvalidContainer), errors.Is(err, service.ErrGlobalNameRequired), errors.Is(err, service.ErrNestedGlobal),
 		errors.Is(err, service.ErrHomeSlugLocked), errors.Is(err, service.ErrInvalidParent):
 		return http.StatusBadRequest
 	default:
@@ -326,6 +326,24 @@ func (h *PageHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, map[string]bool{"deleted": true})
 }
 
+func toDomainSections(dtos []PageSectionDTO, pageID int64) []domain.PageSection {
+	sections := make([]domain.PageSection, len(dtos))
+	for i, s := range dtos {
+		fields := make([]domain.PageSectionField, len(s.Fields))
+		for j, f := range s.Fields {
+			fields[j] = domain.PageSectionField{
+				ItemIndex: f.ItemIndex, FieldKey: f.FieldKey, FieldType: f.FieldType, TextValue: f.TextValue,
+				MediaID: f.MediaID, URLValue: f.URLValue, SortOrder: f.SortOrder,
+			}
+		}
+		sections[i] = domain.PageSection{
+			PageID: pageID, BlockType: s.BlockType, CustomClass: s.CustomClass, CustomID: s.CustomID,
+			InContainer: s.InContainer, SortOrder: s.SortOrder, Fields: fields,
+		}
+	}
+	return sections
+}
+
 type replaceSectionsRequest struct {
 	Sections []PageSectionDTO `json:"sections"`
 }
@@ -342,20 +360,7 @@ func (h *PageHandler) ReplaceSections(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sections := make([]domain.PageSection, len(req.Sections))
-	for i, s := range req.Sections {
-		fields := make([]domain.PageSectionField, len(s.Fields))
-		for j, f := range s.Fields {
-			fields[j] = domain.PageSectionField{
-				ItemIndex: f.ItemIndex, FieldKey: f.FieldKey, FieldType: f.FieldType, TextValue: f.TextValue,
-				MediaID: f.MediaID, URLValue: f.URLValue, SortOrder: f.SortOrder,
-			}
-		}
-		sections[i] = domain.PageSection{
-			PageID: id, BlockType: s.BlockType, CustomClass: s.CustomClass, CustomID: s.CustomID,
-			InContainer: s.InContainer, SortOrder: s.SortOrder, Fields: fields,
-		}
-	}
+	sections := toDomainSections(req.Sections, id)
 
 	if err := h.pages.ReplaceSections(r.Context(), id, sections); err != nil {
 		response.Err(w, pageErrorStatus(err), err.Error())

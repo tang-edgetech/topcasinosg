@@ -17,13 +17,13 @@ func NewPageRepo(db *sql.DB) *PageRepo {
 	return &PageRepo{db: db}
 }
 
-const pageColumns = `id, parent_id, sort_order, slug, title, meta_title, meta_description,
+const pageColumns = `id, parent_id, kind, sort_order, slug, title, meta_title, meta_description,
 	head_snippet, body_snippet, footer_snippet, status, publish_at, created_at, updated_at`
 
 func scanPage(row interface{ Scan(...any) error }) (*domain.Page, error) {
 	var p domain.Page
 	if err := row.Scan(
-		&p.ID, &p.ParentID, &p.SortOrder, &p.Slug, &p.Title, &p.MetaTitle, &p.MetaDescription,
+		&p.ID, &p.ParentID, &p.Kind, &p.SortOrder, &p.Slug, &p.Title, &p.MetaTitle, &p.MetaDescription,
 		&p.HeadSnippet, &p.BodySnippet, &p.FooterSnippet, &p.Status, &p.PublishAt, &p.CreatedAt, &p.UpdatedAt,
 	); err != nil {
 		return nil, err
@@ -36,7 +36,7 @@ func scanPage(row interface{ Scan(...any) error }) (*domain.Page, error) {
 // anyway, so a global ORDER BY only needs to keep siblings in the right
 // relative order, which parent_key + sort_order does directly.
 func (r *PageRepo) List(ctx context.Context) ([]domain.Page, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT `+pageColumns+` FROM pages ORDER BY parent_key, sort_order, id`)
+	rows, err := r.db.QueryContext(ctx, `SELECT `+pageColumns+` FROM pages WHERE kind = 'page' ORDER BY parent_key, sort_order, id`)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +68,7 @@ func (r *PageRepo) GetByID(ctx context.Context, id int64) (*domain.Page, error) 
 // paths resolve via ResolvePath/PathNodes below instead.
 func (r *PageRepo) GetPublishedBySlug(ctx context.Context, slug string) (*domain.Page, error) {
 	row := r.db.QueryRowContext(ctx,
-		`SELECT `+pageColumns+` FROM pages WHERE slug = ? AND parent_id IS NULL AND `+EffectivelyPublishedSQL, slug,
+		`SELECT `+pageColumns+` FROM pages WHERE slug = ? AND parent_id IS NULL AND kind = 'page' AND `+EffectivelyPublishedSQL, slug,
 	)
 	p, err := scanPage(row)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -83,7 +83,7 @@ func (r *PageRepo) GetPublishedBySlug(ctx context.Context, slug string) (*domain
 // not full row data, for every ancestor along the way.
 func (r *PageRepo) GetPublishedByID(ctx context.Context, id int64) (*domain.Page, error) {
 	row := r.db.QueryRowContext(ctx,
-		`SELECT `+pageColumns+` FROM pages WHERE id = ? AND `+EffectivelyPublishedSQL, id,
+		`SELECT `+pageColumns+` FROM pages WHERE id = ? AND kind = 'page' AND `+EffectivelyPublishedSQL, id,
 	)
 	p, err := scanPage(row)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -118,7 +118,7 @@ type PathNode struct {
 }
 
 func (r *PageRepo) ListPathNodes(ctx context.Context) ([]PathNode, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, parent_id, slug FROM pages`)
+	rows, err := r.db.QueryContext(ctx, `SELECT id, parent_id, slug FROM pages WHERE kind = 'page'`)
 	if err != nil {
 		return nil, err
 	}
@@ -155,13 +155,72 @@ func (r *PageRepo) NextSortOrder(ctx context.Context, parentID *int64) (int, err
 
 func (r *PageRepo) Create(ctx context.Context, p *domain.Page) (int64, error) {
 	res, err := r.db.ExecContext(ctx,
-		`INSERT INTO pages (parent_id, sort_order, slug, title, meta_title, meta_description, status, publish_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		p.ParentID, p.SortOrder, p.Slug, p.Title, p.MetaTitle, p.MetaDescription, p.Status, p.PublishAt,
+		`INSERT INTO pages (parent_id, kind, sort_order, slug, title, meta_title, meta_description, status, publish_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		p.ParentID, pageKindOrDefault(p.Kind), p.SortOrder, p.Slug, p.Title, p.MetaTitle, p.MetaDescription, p.Status, p.PublishAt,
 	)
 	if err != nil {
 		return 0, err
 	}
 	return res.LastInsertId()
+}
+
+func pageKindOrDefault(kind string) string {
+	if kind == "" {
+		return domain.PageKindPage
+	}
+	return kind
+}
+
+// ListGlobals returns every global section with how many pages place it
+// (a global_section block whose globalId field is its id).
+func (r *PageRepo) ListGlobals(ctx context.Context) ([]domain.GlobalSection, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT p.id, p.title, p.updated_at, `+globalUsageSQL+`
+		FROM pages p WHERE p.kind = 'global' ORDER BY p.title, p.id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	globals := []domain.GlobalSection{}
+	for rows.Next() {
+		var g domain.GlobalSection
+		if err := rows.Scan(&g.ID, &g.Name, &g.UpdatedAt, &g.UsageCount); err != nil {
+			return nil, err
+		}
+		globals = append(globals, g)
+	}
+	return globals, rows.Err()
+}
+
+const globalUsageSQL = `(
+			SELECT COUNT(DISTINCT s.page_id) FROM page_sections s
+			JOIN page_section_fields f ON f.section_id = s.id AND f.item_index = 0 AND f.field_key = 'globalId'
+			WHERE s.block_type = 'global_section' AND CAST(f.text_value AS UNSIGNED) = p.id
+		)`
+
+func (r *PageRepo) GetGlobal(ctx context.Context, id int64) (*domain.GlobalSection, error) {
+	var g domain.GlobalSection
+	err := r.db.QueryRowContext(ctx,
+		`SELECT p.id, p.title, p.updated_at, `+globalUsageSQL+` FROM pages p WHERE p.id = ? AND p.kind = 'global'`, id,
+	).Scan(&g.ID, &g.Name, &g.UpdatedAt, &g.UsageCount)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	return &g, err
+}
+
+func (r *PageRepo) RenameGlobal(ctx context.Context, id int64, name string) error {
+	res, err := r.db.ExecContext(ctx, `UPDATE pages SET title = ? WHERE id = ? AND kind = 'global'`, name, id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		if _, err := r.GetGlobal(ctx, id); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // UpdateDetails is the "Page Details" tab's save — title + slug + parent.

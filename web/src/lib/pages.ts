@@ -28,6 +28,7 @@ export interface PageSectionField {
 
 export type PageBlockType =
   | "container"
+  | "global_section"
   | "title_set"
   | "image"
   | "button_group"
@@ -124,6 +125,24 @@ export async function getPage(path: string): Promise<PageWithSections | null> {
     if (!body.success || !body.data?.page) return null;
 
     return fillYear({ page: body.data.page, sections: body.data.sections ?? [] });
+  } catch {
+    return null;
+  }
+}
+
+// One global section's sections (GET /api/global-sections/{id}), with the
+// same {year} filling as page content.
+export async function getGlobalSections(id: number): Promise<PageSection[] | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/global-sections/${id}`, { next: { revalidate: REVALIDATE_SECONDS } });
+    if (!res.ok) return null;
+    const body = (await res.json()) as ApiEnvelope<{ sections?: PageSection[] }>;
+    if (!body.success) return null;
+    const year = String(new Date().getFullYear());
+    return (body.data?.sections ?? []).map((s) => ({
+      ...s,
+      fields: s.fields.map((f) => (f.textValue?.includes("{year}") ? { ...f, textValue: f.textValue.replaceAll("{year}", year) } : f)),
+    }));
   } catch {
     return null;
   }

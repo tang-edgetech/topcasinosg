@@ -14,6 +14,7 @@ import { runBulkAction, bulkResultMessage } from "@/lib/bulk";
 import ListToolbar from "@/components/content/ListToolbar";
 import { useListView } from "@/lib/useListView";
 import PageHeading from "@/components/PageHeading";
+import ContentImportButton from "@/components/content/ContentImportButton";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
 
@@ -92,14 +93,17 @@ export default function LicensesPage() {
     <section id="licenses-page" className="licenses-page flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <PageHeading title="Licenses" help="licenses" />
-        {canManage && (
-          <IconButton
-            id="licenses-add-button"
-            title="Add License"
-            onClick={() => router.push("/dashboard/licenses/new")}
-            icon={<IconPlus />}
-          />
-        )}
+        <div className="flex items-center gap-2">
+          {canManage && <ContentImportButton type="licenses" onImported={load} />}
+          {canManage && (
+            <IconButton
+              id="licenses-add-button"
+              title="Add License"
+              onClick={() => router.push("/dashboard/licenses/new")}
+              icon={<IconPlus />}
+            />
+          )}
+        </div>
       </div>
 
       <ListToolbar id="licenses-toolbar" searchPlaceholder="Search licenses" {...toolbar} />

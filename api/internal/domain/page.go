@@ -6,12 +6,15 @@ import "time"
 // ordered list of Sections, each holding its own ordered Fields. See
 // api/internal/db/migrations/0016_pages.sql for the full schema rationale.
 type Page struct {
-	ID     int64
+	ID int64
 	// ParentID is nil for a root page. A page's full URL path is its own
 	// slug preceded by every ancestor's slug in order (e.g. parent "legal"
 	// + this page's slug "privacy-policy" -> "/legal/privacy-policy") -
 	// see PageService.ResolvePath and .PathsByID.
 	ParentID *int64
+	// Kind is PageKindPage for a normal page, or PageKindGlobal for a
+	// global section's hidden holder page (see GlobalSection).
+	Kind string
 	// SortOrder is display order among siblings (same ParentID) - lower
 	// first, ties broken by id. Set via PageService.Reorder, never by
 	// Create/Update directly (see PageRepo.NextSortOrder).
@@ -42,6 +45,7 @@ type Page struct {
 // field editor its field shape, and adding a render case in web/.
 var KnownBlockTypes = []string{
 	BlockTypeContainer,
+	BlockTypeGlobalSection,
 	"title_set",
 	"image",
 	"button_group",
@@ -99,6 +103,26 @@ type PageSection struct {
 // BlockTypeContainer wraps the sections after it that have InContainer set,
 // giving them a shared background and title.
 const BlockTypeContainer = "container"
+
+// BlockTypeGlobalSection places a GlobalSection on a page; its "globalId"
+// field holds the global section's id.
+const BlockTypeGlobalSection = "global_section"
+
+const (
+	PageKindPage   = "page"
+	PageKindGlobal = "global"
+)
+
+// GlobalSection is a reusable group of sections edited once and shown on
+// every page that places it. It is stored as a page of kind PageKindGlobal
+// (Name is that page's title), so its sections use the normal page section
+// tables; UsageCount is how many pages place it.
+type GlobalSection struct {
+	ID         int64
+	Name       string
+	UsageCount int
+	UpdatedAt  time.Time
+}
 
 // PageSectionField is one EAV-style value. ItemIndex groups fields into
 // repeatable items within a section (e.g. icon_box_group's N boxes, or

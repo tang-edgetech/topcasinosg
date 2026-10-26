@@ -18,6 +18,7 @@ import BulkActionBar from "@/components/content/BulkActionBar";
 import { runBulkAction, bulkResultMessage } from "@/lib/bulk";
 import { FETCH_ALL_PAGE_SIZE } from "@/lib/pagination";
 import PageHeading from "@/components/PageHeading";
+import ContentImportButton from "@/components/content/ContentImportButton";
 
 export default function BlacklistPage() {
   const { user } = useAuth();
@@ -124,12 +125,15 @@ export default function BlacklistPage() {
     <section id="blacklist-page" className="blacklist-page flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <PageHeading title="Blacklist" help="blacklist" />
-        <IconButton
-          id="blacklist-add-button"
-          title="Add Blacklist Entry"
-          onClick={() => router.push("/dashboard/blacklist/new")}
-          icon={<IconPlus />}
-        />
+        <div className="flex items-center gap-2">
+          <ContentImportButton type="blacklist" onImported={load} />
+          <IconButton
+            id="blacklist-add-button"
+            title="Add Blacklist Entry"
+            onClick={() => router.push("/dashboard/blacklist/new")}
+            icon={<IconPlus />}
+          />
+        </div>
       </div>
 
       <div className="flex items-center gap-3">

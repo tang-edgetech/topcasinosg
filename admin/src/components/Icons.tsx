@@ -416,6 +416,16 @@ export function IconOutdent(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function IconLayersPlus(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M8 4h10a2 2 0 0 1 2 2v10" />
+      <rect x="4" y="8" width="12" height="12" rx="2" />
+      <path d="M10 11v6M7 14h6" />
+    </svg>
+  );
+}
+
 export function IconChevronUp(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base(props)}>

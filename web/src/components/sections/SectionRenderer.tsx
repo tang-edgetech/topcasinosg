@@ -29,6 +29,7 @@ import ReviewColumnsSection from "./ReviewColumnsSection";
 import CtaLinkListSection from "./CtaLinkListSection";
 import InfoCardColumnsSection from "./InfoCardColumnsSection";
 import ContainerSection from "./ContainerSection";
+import GlobalSectionBlock from "./GlobalSectionBlock";
 import TitleSetSection from "./TitleSetSection";
 import ImageSection from "./ImageSection";
 import ButtonGroupSection from "./ButtonGroupSection";
@@ -42,8 +43,24 @@ import VideoSection from "./VideoSection";
 // the canonical look. regionCode is the page's own region (region routes
 // pass it) — live-data sections fall back to it when their own Region
 // field is left blank, so editors don't have to repeat it per section.
-// Sections marked inContainer render inside the Container before them.
-export default function SectionRenderer({ sections, regionCode }: { sections: PageSection[]; regionCode?: string }) {
+// Sections marked inContainer render inside the Container before them; a
+// global_section block renders that global section's own sections in place
+// (insideGlobal stops a global section from placing another one).
+export default function SectionRenderer({
+  sections,
+  regionCode,
+  insideGlobal = false,
+}: {
+  sections: PageSection[];
+  regionCode?: string;
+  insideGlobal?: boolean;
+}) {
+  const render = (section: PageSection) =>
+    section.blockType === "global_section" ? (
+      insideGlobal ? null : <GlobalSectionBlock key={section.id} section={section} regionCode={regionCode} />
+    ) : (
+      renderSection(section, regionCode)
+    );
   const ordered = sections.slice().sort((a, b) => a.sortOrder - b.sortOrder);
   const groups: { section: PageSection; children: PageSection[] }[] = [];
   for (const section of ordered) {
@@ -57,10 +74,10 @@ export default function SectionRenderer({ sections, regionCode }: { sections: Pa
       {groups.map(({ section, children }) =>
         section.blockType === "container" ? (
           <ContainerSection key={section.id} section={section}>
-            {children.map((child) => renderSection(child, regionCode))}
+            {children.map(render)}
           </ContainerSection>
         ) : (
-          renderSection(section, regionCode)
+          render(section)
         )
       )}
     </>

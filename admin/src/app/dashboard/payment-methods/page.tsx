@@ -18,6 +18,7 @@ import BulkActionBar from "@/components/content/BulkActionBar";
 import { runBulkAction, bulkResultMessage } from "@/lib/bulk";
 import { FETCH_ALL_PAGE_SIZE } from "@/lib/pagination";
 import PageHeading from "@/components/PageHeading";
+import ContentImportButton from "@/components/content/ContentImportButton";
 
 export default function PaymentMethodsPage() {
   const { user } = useAuth();
@@ -125,12 +126,15 @@ export default function PaymentMethodsPage() {
     <section id="payment-methods-page" className="payment-methods-page flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <PageHeading title="Payment Methods" help="payment-methods" />
-        <IconButton
-          id="payment-methods-add-button"
-          title="Add Payment Method"
-          onClick={() => router.push("/dashboard/payment-methods/new")}
-          icon={<IconPlus />}
-        />
+        <div className="flex items-center gap-2">
+          <ContentImportButton type="payment_methods" onImported={load} />
+          <IconButton
+            id="payment-methods-add-button"
+            title="Add Payment Method"
+            onClick={() => router.push("/dashboard/payment-methods/new")}
+            icon={<IconPlus />}
+          />
+        </div>
       </div>
 
       <div className="flex items-center gap-3">

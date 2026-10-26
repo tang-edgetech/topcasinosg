@@ -37,6 +37,7 @@ import {
   IconChevronDown,
   IconHistory,
   IconTransfer,
+  IconCopy
 } from "@/components/Icons";
 
 // One color scheme for every clickable sidebar item, main nav or footer:
@@ -71,6 +72,7 @@ function isNavGroup(entry: NavEntry): entry is NavGroup {
 const NAV_ITEMS: NavEntry[] = [
   { href: "/dashboard", label: "Overview", roles: ["super_admin", "admin", "editor"], icon: IconGrid },
   { href: "/dashboard/pages", label: "Pages", roles: ["super_admin", "admin", "editor"], icon: IconLayout },
+  { href: "/dashboard/global-sections", label: "Global Sections", roles: ["super_admin", "admin", "editor"], icon: IconCopy },
   { href: "/dashboard/regions", label: "Regions", roles: ["super_admin", "admin"], icon: IconGlobe },
   { href: "/dashboard/casinos", label: "Casinos", roles: ["super_admin", "admin", "editor"], icon: IconTag },
   {

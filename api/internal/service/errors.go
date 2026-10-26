@@ -21,11 +21,14 @@ var (
 
 // PageService validation.
 var (
-	ErrInvalidBlockType = errors.New("unknown block type")
-	ErrInvalidContainer = errors.New("a component can only be inside a container placed before it, and containers cannot be nested")
-	ErrInvalidFieldType = errors.New("field type must be 'text', 'richtext', 'image', or 'button'")
-	ErrHomeSlugLocked   = errors.New("the homepage's slug must stay 'home' with no parent")
-	ErrInvalidParent    = errors.New("a page cannot be its own parent or a descendant of itself")
+	ErrInvalidBlockType   = errors.New("unknown block type")
+	ErrInvalidContainer   = errors.New("a component can only be inside a container placed before it, and containers cannot be nested")
+	ErrInvalidFieldType   = errors.New("field type must be 'text', 'richtext', 'image', or 'button'")
+	ErrHomeSlugLocked     = errors.New("the homepage's slug must stay 'home' with no parent")
+	ErrGlobalNameRequired = errors.New("a global section needs a name")
+	ErrGlobalInUse        = errors.New("this global section is still used on some pages; remove it from them first")
+	ErrNestedGlobal       = errors.New("a global section cannot contain another global section")
+	ErrInvalidParent      = errors.New("a page cannot be its own parent or a descendant of itself")
 )
 
 // CasinoService validation.

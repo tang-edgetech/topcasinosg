@@ -293,6 +293,53 @@ export interface NewsArticleDTO {
   updatedAt: string;
 }
 
+// Per-type import format and result (api/internal/domain/content_import.go).
+export interface ImportColumnDTO {
+  key: string;
+  kind: string;
+  required: boolean;
+  values?: string[];
+  min?: number;
+  max?: number;
+  maxLength?: number;
+  help: string;
+  example: string;
+}
+
+export interface ImportTypeDTO {
+  key: string;
+  label: string;
+  matchBy: string;
+  adminOnly: boolean;
+  columns: ImportColumnDTO[];
+}
+
+export interface ImportRowErrorDTO {
+  row: number;
+  column?: string;
+  message: string;
+}
+
+export interface ImportReportDTO {
+  type: string;
+  format: "csv" | "json";
+  dryRun: boolean;
+  rows: number;
+  created: number;
+  updated: number;
+  applied: boolean;
+  errors: ImportRowErrorDTO[];
+}
+
+// A reusable group of sections placed on pages with the "global_section"
+// block (api/internal/domain/page.go GlobalSection).
+export interface GlobalSectionDTO {
+  id: number;
+  name: string;
+  usageCount: number;
+  updatedAt: string;
+}
+
 export interface PageDTO {
   id: number;
   parentId: number | null;
@@ -362,6 +409,7 @@ export interface PageSectionFieldDTO {
 
 export type PageBlockType =
   | "container"
+  | "global_section"
   | "title_set"
   | "image"
   | "button_group"

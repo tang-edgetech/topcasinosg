@@ -11,6 +11,7 @@ import IconButton from "@/components/IconButton";
 import { IconEdit, IconPlus, IconGlobe } from "@/components/Icons";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "@/lib/pagination";
 import PageHeading from "@/components/PageHeading";
+import ContentImportButton from "@/components/content/ContentImportButton";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
 
@@ -69,9 +70,12 @@ export default function RegionsPage() {
     <section id="regions-page" className="regions-page flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <PageHeading title="Regions" help="regions" />
-        {canManage && (
-          <IconButton id="regions-add-button" title="Add Region" onClick={() => router.push("/dashboard/regions/new")} icon={<IconPlus />} />
-        )}
+        <div className="flex items-center gap-2">
+          {canManage && <ContentImportButton type="regions" onImported={load} />}
+          {canManage && (
+            <IconButton id="regions-add-button" title="Add Region" onClick={() => router.push("/dashboard/regions/new")} icon={<IconPlus />} />
+          )}
+        </div>
       </div>
 
       <Table

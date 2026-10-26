@@ -123,7 +123,11 @@ func main() {
 		SidebarHandler:        handler.NewSidebarHandler(sidebarService),
 		AuditHandler:          handler.NewAuditHandler(auditService),
 		TransferHandler:       handler.NewTransferHandler(service.NewTransferService(transferRepo, fileStorage)),
-		Audit:                 auditService,
+		ContentImportHandler: handler.NewContentImportHandler(service.NewContentImportService(
+			regionService, gameProviderService, licenseService, casinoService, bonusService,
+			paymentMethodService, rtpEntryService, blacklistEntryService, guideService, newsArticleService,
+		)),
+		Audit: auditService,
 	}
 	router := server.NewRouter(deps)
 

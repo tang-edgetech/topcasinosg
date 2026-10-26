@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -300,6 +301,13 @@ func (s *PageService) ReplaceSections(ctx context.Context, pageID int64, section
 	if err := validateContainers(sections); err != nil {
 		return err
 	}
+	page, err := s.pages.GetByID(ctx, pageID)
+	if err != nil {
+		return err
+	}
+	if page.Kind == domain.PageKindGlobal && hasGlobalSectionBlock(sections) {
+		return ErrNestedGlobal
+	}
 	for i := range sections {
 		if !isKnownBlockType(sections[i].BlockType) {
 			return ErrInvalidBlockType
@@ -311,6 +319,79 @@ func (s *PageService) ReplaceSections(ctx context.Context, pageID int64, section
 		}
 	}
 	return s.pages.ReplaceSections(ctx, pageID, sections)
+}
+
+func hasGlobalSectionBlock(sections []domain.PageSection) bool {
+	for _, section := range sections {
+		if section.BlockType == domain.BlockTypeGlobalSection {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *PageService) ListGlobals(ctx context.Context) ([]domain.GlobalSection, error) {
+	return s.pages.ListGlobals(ctx)
+}
+
+// CreateGlobal stores a new global section as a published page of kind
+// global. Its slug starts with "_", which normal page slugs can't, so it
+// never collides with a real URL; it is hidden from page lists and paths.
+func (s *PageService) CreateGlobal(ctx context.Context, name string, sections []domain.PageSection) (*domain.GlobalSection, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, ErrGlobalNameRequired
+	}
+	if hasGlobalSectionBlock(sections) {
+		return nil, ErrNestedGlobal
+	}
+	if err := validateContainers(sections); err != nil {
+		return nil, err
+	}
+	id, err := s.pages.Create(ctx, &domain.Page{
+		Kind:   domain.PageKindGlobal,
+		Slug:   fmt.Sprintf("_global-%d", time.Now().UnixNano()),
+		Title:  name,
+		Status: domain.ContentStatusPublished,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(sections) > 0 {
+		if err := s.ReplaceSections(ctx, id, sections); err != nil {
+			_ = s.pages.Delete(ctx, id)
+			return nil, err
+		}
+	}
+	return s.pages.GetGlobal(ctx, id)
+}
+
+func (s *PageService) RenameGlobal(ctx context.Context, id int64, name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return ErrGlobalNameRequired
+	}
+	return s.pages.RenameGlobal(ctx, id, name)
+}
+
+// DeleteGlobal refuses while any page still places the global section, so
+// deleting never leaves a hole in a live page.
+func (s *PageService) DeleteGlobal(ctx context.Context, id int64) error {
+	global, err := s.pages.GetGlobal(ctx, id)
+	if err != nil {
+		return err
+	}
+	if global.UsageCount > 0 {
+		return ErrGlobalInUse
+	}
+	return s.pages.Delete(ctx, id)
+}
+
+func (s *PageService) GlobalSections(ctx context.Context, id int64) ([]domain.PageSection, error) {
+	if _, err := s.pages.GetGlobal(ctx, id); err != nil {
+		return nil, err
+	}
+	return s.pages.GetSectionsWithFields(ctx, id)
 }
 
 // validateContainers checks, in display order, that every in-container

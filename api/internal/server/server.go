@@ -39,6 +39,7 @@ type Deps struct {
 	SidebarHandler        *handler.SidebarHandler
 	AuditHandler          *handler.AuditHandler
 	TransferHandler       *handler.TransferHandler
+	ContentImportHandler  *handler.ContentImportHandler
 	Audit                 *service.AuditService
 }
 
@@ -82,6 +83,7 @@ func NewRouter(deps Deps) http.Handler {
 	mux.HandleFunc("GET /api/news/{slug}", deps.NewsArticleHandler.GetPublic)
 	mux.HandleFunc("GET /api/menus", deps.MenuItemHandler.ListPublic)
 	mux.HandleFunc("GET /api/pages/{path...}", deps.PageHandler.GetPublic)
+	mux.HandleFunc("GET /api/global-sections/{id}", deps.PageHandler.GetGlobalPublic)
 	mux.HandleFunc("GET /api/snippets", deps.SnippetHandler.GetPublic)
 
 	authenticateUser := middleware.Authenticate(deps.JWT, deps.Users, deps.Config.CookieName(httpx.AccessCookieName))
@@ -113,6 +115,11 @@ func NewRouter(deps Deps) http.Handler {
 	mux.Handle("POST /api/admin/exports/download", authenticate(staffOnly(http.HandlerFunc(deps.TransferHandler.Export))))
 	mux.Handle("POST /api/admin/imports/preview", authenticate(staffOnly(http.HandlerFunc(deps.TransferHandler.Preview))))
 	mux.Handle("POST /api/admin/imports", authenticate(staffOnly(http.HandlerFunc(deps.TransferHandler.Import))))
+
+	// Per-type content imports (CSV/JSON in an exact format) — content staff;
+	// regions, game providers and licenses are limited to admins by the service.
+	mux.Handle("GET /api/admin/content-imports", authenticate(contentStaff(http.HandlerFunc(deps.ContentImportHandler.Types))))
+	mux.Handle("POST /api/admin/content-imports/{type}", authenticate(contentStaff(http.HandlerFunc(deps.ContentImportHandler.Import))))
 
 	// Users — Super Admin and Admin only; Editors have no access at all.
 	mux.Handle("GET /api/admin/users", authenticate(staffOnly(http.HandlerFunc(deps.UserHandler.List))))
@@ -225,6 +232,10 @@ func NewRouter(deps Deps) http.Handler {
 	mux.Handle("PUT /api/admin/pages/{id}/sections", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.ReplaceSections))))
 	mux.Handle("PUT /api/admin/pages/reorder", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.Reorder))))
 	mux.Handle("DELETE /api/admin/pages/{id}", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.Delete))))
+	mux.Handle("GET /api/admin/global-sections", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.ListGlobals))))
+	mux.Handle("POST /api/admin/global-sections", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.CreateGlobal))))
+	mux.Handle("PUT /api/admin/global-sections/{id}", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.RenameGlobal))))
+	mux.Handle("DELETE /api/admin/global-sections/{id}", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.DeleteGlobal))))
 
 	// Guides.
 	mux.Handle("GET /api/admin/guides", authenticate(contentStaff(http.HandlerFunc(deps.GuideHandler.List))))

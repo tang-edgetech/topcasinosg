@@ -9,6 +9,7 @@ const LIST_BASICS = {
     "Type in the search box to filter as you type; the dropdowns narrow it further. \"Clear filters\" resets everything.",
     "Choose 10–150 rows per page at the bottom of the table. Your choice is remembered for this list.",
     "Tick rows to publish, set to draft or delete several at once.",
+    "Import (the upload icon next to Add) adds or updates many items from a CSV or JSON file: download the template, keep its columns exactly, and Check File shows every problem by row before anything is saved.",
   ],
 };
 
@@ -156,6 +157,26 @@ export const ADMIN_HELP = {
         ],
       },
       LIST_BASICS,
+    ],
+  },
+  globalSections: {
+    summary: "Global sections are reusable blocks of components — a band, a call to action, an FAQ — that you edit once here and place on as many pages as you like.",
+    sections: [
+      {
+        heading: "How to use",
+        points: [
+          "Create one here and build it like a page (Containers, Title & Text, any component), or click “Save as Global Section” on a section in a page editor to turn it into one.",
+          "Place it on a page with the “Global Section” component (Layout group in Add Component).",
+          "Saving a global section updates every page that uses it straight away.",
+        ],
+      },
+      {
+        heading: "Tips",
+        points: [
+          "A global section can't contain another global section.",
+          "You can only delete a global section once no page uses it — the “Used on” column shows how many do.",
+        ],
+      },
     ],
   },
   licenses: {

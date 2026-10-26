@@ -14,6 +14,7 @@ import { runBulkAction, bulkResultMessage } from "@/lib/bulk";
 import ListToolbar from "@/components/content/ListToolbar";
 import { useListView } from "@/lib/useListView";
 import PageHeading from "@/components/PageHeading";
+import ContentImportButton from "@/components/content/ContentImportButton";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
 
@@ -92,14 +93,17 @@ export default function GameProvidersPage() {
     <section id="game-providers-page" className="game-providers-page flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <PageHeading title="Game Providers" help="game-providers" />
-        {canManage && (
-          <IconButton
-            id="game-providers-add-button"
-            title="Add Game Provider"
-            onClick={() => router.push("/dashboard/game-providers/new")}
-            icon={<IconPlus />}
-          />
-        )}
+        <div className="flex items-center gap-2">
+          {canManage && <ContentImportButton type="game_providers" onImported={load} />}
+          {canManage && (
+            <IconButton
+              id="game-providers-add-button"
+              title="Add Game Provider"
+              onClick={() => router.push("/dashboard/game-providers/new")}
+              icon={<IconPlus />}
+            />
+          )}
+        </div>
       </div>
 
       <ListToolbar id="game-providers-toolbar" searchPlaceholder="Search game providers" {...toolbar} />
