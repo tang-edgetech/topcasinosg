@@ -9,7 +9,9 @@ import Link from "next/link";
 // "slider" pattern: Avoid These Casinos, and the mobile card rows of Most
 // Popular / Event Highlights / Real Reviews. seeAllUrl adds Figma's "See
 // All" button (Comp / CTA 3: 120x39, 0.5px border, 5px radius) 10px before
-// the joined 39x39 arrow pair.
+// the joined 39x39 arrow pair. Controls line up with the bottom of the
+// header (a title with text under it), or its top (controlsAlign "start",
+// a title on its own).
 export default function HorizontalSlider({
   children,
   header,
@@ -19,6 +21,7 @@ export default function HorizontalSlider({
   label,
   seeAllUrl,
   seeAllLabel = "See All",
+  controlsAlign = "end",
 }: {
   children: ReactNode;
   header?: ReactNode;
@@ -28,6 +31,7 @@ export default function HorizontalSlider({
   label?: string;
   seeAllUrl?: string;
   seeAllLabel?: string;
+  controlsAlign?: "start" | "end";
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
 
@@ -47,7 +51,7 @@ export default function HorizontalSlider({
   return (
     <div className="horizontal-slider flex flex-col gap-5">
       {(header || hasControls) && (
-        <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className={`flex flex-wrap justify-between gap-3 ${controlsAlign === "start" ? "items-start" : "items-end"}`}>
           <div className="min-w-0 flex-1">{header}</div>
           {hasControls && (
             <div className="horizontal-slider__controls flex shrink-0 items-center gap-2.5">

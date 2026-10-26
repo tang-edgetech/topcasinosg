@@ -28,6 +28,11 @@ export interface PageSectionField {
 
 export type PageBlockType =
   | "container"
+  | "title_set"
+  | "image"
+  | "button_group"
+  | "spacer"
+  | "video"
   | "hero"
   | "rich_text"
   | "icon_box_group"
@@ -135,6 +140,17 @@ export function itemIndexes(fields: PageSectionField[]): number[] {
 export function mediaUrl(url: string | null | undefined): string | null {
   if (!url) return null;
   return url.startsWith("http") ? url : `${API_BASE_URL}${url}`;
+}
+
+// Figma title sizes: large = section title (36/43), medium = sub-title
+// inside a band (26/31). Used by Title & Text and Blacklist Preview.
+const HEADING_SIZE_CLASSES: Record<string, string> = {
+  large: "text-[36px] leading-[43px]",
+  medium: "text-[26px] leading-[31px]",
+};
+
+export function headingSizeClassName(size: string | undefined): string {
+  return HEADING_SIZE_CLASSES[size ?? ""] ?? HEADING_SIZE_CLASSES.large;
 }
 
 export function sectionClassName(canonical: string, section: Pick<PageSection, "customClass">): string {

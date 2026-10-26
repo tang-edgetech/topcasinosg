@@ -42,6 +42,11 @@ type Page struct {
 // field editor its field shape, and adding a render case in web/.
 var KnownBlockTypes = []string{
 	BlockTypeContainer,
+	"title_set",
+	"image",
+	"button_group",
+	"spacer",
+	"video",
 	"hero",
 	"rich_text",
 	"icon_box_group",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Input, Radio, Select } from "antd";
+import { Checkbox, Input, Radio, Select } from "antd";
 import RichTextEditor from "@/components/content/RichTextEditor";
 import MediaPicker from "@/components/media/MediaPicker";
 import IconButton from "@/components/IconButton";
@@ -32,6 +32,11 @@ function blankField(itemIndex: number, fieldKey: string, fieldType: PageFieldTyp
 
 export const BLOCK_TYPE_LABELS: Record<PageBlockType, string> = {
   container: "Container",
+  title_set: "Title & Text",
+  image: "Image",
+  button_group: "Buttons",
+  spacer: "Spacer / Divider",
+  video: "Video",
   hero: "Hero Banner",
   rich_text: "Rich Text",
   icon_box_group: "Icon Box Group",
@@ -138,14 +143,51 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
   switch (blockType) {
     case "container":
       return [
+        textField(0, "bgType", "none", 1),
+        textField(0, "bgFrom", "primary-900", 2),
+        textField(0, "bgTo", "danger", 3),
+        blankField(0, "bgImage", "image", 4),
+        textField(0, "layout", "stack", 5),
+      ];
+    case "image":
+      return [
+        blankField(0, "image", "image", 1),
+        blankField(0, "alt", "text", 2),
+        blankField(0, "caption", "text", 3),
+        blankField(0, "linkUrl", "text", 4),
+        textField(0, "size", "full", 5),
+        textField(0, "align", "center", 6),
+        textField(0, "rounded", "yes", 7),
+      ];
+    case "button_group":
+      return [
+        textField(0, "align", "left", 1),
+        blankField(1, "button", "button", 1),
+        textField(1, "buttonStyle", "primary", 2),
+        textField(1, "newTab", "no", 3),
+      ];
+    case "spacer":
+      return [textField(0, "size", "m", 1), textField(0, "divider", "no", 2)];
+    case "video":
+      return [
+        blankField(0, "url", "text", 1),
+        blankField(0, "title", "text", 2),
+        blankField(0, "caption", "text", 3),
+        textField(0, "size", "full", 4),
+        textField(0, "align", "center", 5),
+      ];
+    case "title_set":
+      return [
         blankField(0, "heading", "text", 1),
         blankField(0, "highlightText", "text", 2),
-        blankField(0, "intro", "text", 3),
-        textField(0, "textTone", "dark", 4),
-        textField(0, "bgType", "none", 5),
-        textField(0, "bgFrom", "primary-900", 6),
-        textField(0, "bgTo", "danger", 7),
-        blankField(0, "bgImage", "image", 8),
+        blankField(0, "text", "text", 3),
+        textField(0, "headingSize", "large", 4),
+        textField(0, "align", "left", 5),
+        textField(0, "textTone", "auto", 6),
+        textField(0, "bgType", "none", 7),
+        textField(0, "bgFrom", "primary-900", 8),
+        textField(0, "bgTo", "primary-glow", 9),
+        blankField(0, "bgImage", "image", 10),
       ];
     case "hero":
       return [
@@ -697,6 +739,16 @@ export default function BlockFieldEditor({ blockType, fields, onChange }: BlockF
   switch (blockType) {
     case "container":
       return <ContainerFields fields={fields} onChange={onChange} />;
+    case "title_set":
+      return <TitleSetFields fields={fields} onChange={onChange} />;
+    case "image":
+      return <ImageFields fields={fields} onChange={onChange} />;
+    case "button_group":
+      return <ButtonGroupFields fields={fields} onChange={onChange} />;
+    case "spacer":
+      return <SpacerFields fields={fields} onChange={onChange} />;
+    case "video":
+      return <VideoFields fields={fields} onChange={onChange} />;
     case "hero":
       return <HeroFields fields={fields} onChange={onChange} />;
     case "rich_text":
@@ -1570,40 +1622,335 @@ function CasinoMultiPickerField({ label, value, onChange }: { label: string; val
   );
 }
 
-// Container — a shared background and main title set for the components
-// placed inside it (web ContainerSection). Light text is for dark
-// backgrounds such as the navy-to-red gradient.
+const HEADING_SIZE_OPTIONS = [
+  { value: "large", label: "Large (36px section title)" },
+  { value: "medium", label: "Medium (26px sub-title)" },
+];
+
+const TEXT_TONE_OPTIONS = [
+  { value: "dark", label: "Dark text (for light backgrounds)" },
+  { value: "light", label: "White text (for dark backgrounds)" },
+];
+
+const TITLE_TONE_OPTIONS = [{ value: "auto", label: "Follow container" }, ...TEXT_TONE_OPTIONS];
+
+const SIZE_OPTIONS = [
+  { value: "full", label: "Full width" },
+  { value: "large", label: "Large (800px)" },
+  { value: "medium", label: "Medium (560px)" },
+  { value: "small", label: "Small (360px)" },
+];
+
+const ALIGN_OPTIONS = [
+  { value: "left", label: "Left" },
+  { value: "center", label: "Centre" },
+  { value: "right", label: "Right" },
+];
+
+const SPACE_OPTIONS = [
+  { value: "none", label: "None" },
+  { value: "s", label: "Small (25px)" },
+  { value: "m", label: "Medium (50px)" },
+  { value: "l", label: "Large (80px)" },
+];
+
+function textOf(fields: EditableField[], key: string): string {
+  return getField(fields, 0, key)?.textValue ?? "";
+}
+
+function textSetter(fields: EditableField[], onChange: (f: EditableField[]) => void) {
+  return (key: string, order: number) => (v: string) => onChange(upsertField(fields, 0, key, "text", order, { textValue: v }));
+}
+
+// Container — one shared background for the components placed inside it
+// (web ContainerSection), laid out as a stack or a 2/3/4-column grid; each
+// component's own "Width in container" (in its Layout row) overrides the
+// column width. The components bring their own titles and text.
 function ContainerFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const text = (key: string) => textOf(fields, key);
+  const set = textSetter(fields, onChange);
+  const grid = text("layout") === "grid";
+
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-xs text-text-muted dark:text-text-muted-dark">
+        Components inside this container share its background and layout. Add them with “+ Add Component Inside”, or use “Move Into
+        Container Above” on the section right below the container. In a grid, set each component&apos;s width in its Layout row.
+      </p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <LabeledField label="Layout">
+          <Select
+            value={grid ? "grid" : "stack"}
+            onChange={set("layout", 5)}
+            options={[
+              { value: "stack", label: "Stack (one under another)" },
+              { value: "grid", label: "Grid (columns)" },
+            ]}
+          />
+        </LabeledField>
+        {grid && (
+          <LabeledField label="Columns (desktop)">
+            <Select
+              value={["2", "3", "4"].includes(text("columns")) ? text("columns") : "2"}
+              onChange={set("columns", 6)}
+              options={["2", "3", "4"].map((n) => ({ value: n, label: `${n} columns` }))}
+            />
+          </LabeledField>
+        )}
+        <LabeledField label="Gap between components">
+          <Select
+            value={text("gap") || (grid ? "m" : "l")}
+            onChange={set("gap", 7)}
+            options={[
+              { value: "s", label: "Small (16px)" },
+              { value: "m", label: "Medium (30px)" },
+              { value: "l", label: "Large (50px)" },
+            ]}
+          />
+        </LabeledField>
+        {grid && (
+          <LabeledField label="Vertical alignment">
+            <Select
+              value={text("align") || "stretch"}
+              onChange={set("align", 8)}
+              options={[
+                { value: "stretch", label: "Stretch (equal height)" },
+                { value: "start", label: "Top" },
+                { value: "center", label: "Middle" },
+                { value: "end", label: "Bottom" },
+              ]}
+            />
+          </LabeledField>
+        )}
+        <LabeledField label="Content width">
+          <Select
+            value={text("contentWidth") || "1270"}
+            onChange={set("contentWidth", 9)}
+            options={[
+              { value: "1270", label: "Boxed (1270px)" },
+              { value: "960", label: "Narrow (960px)" },
+              { value: "768", label: "Reading (768px)" },
+              { value: "full", label: "Full width" },
+            ]}
+          />
+        </LabeledField>
+        <LabeledField label="Space above">
+          <Select value={text("spaceTop") || "m"} onChange={set("spaceTop", 10)} options={SPACE_OPTIONS} />
+        </LabeledField>
+        <LabeledField label="Space below">
+          <Select value={text("spaceBottom") || "m"} onChange={set("spaceBottom", 11)} options={SPACE_OPTIONS} />
+        </LabeledField>
+        <LabeledField label="Text colour inside">
+          <Select value={text("textTone") === "light" ? "light" : "dark"} onChange={set("textTone", 12)} options={TEXT_TONE_OPTIONS} />
+        </LabeledField>
+      </div>
+      <p className="text-xs text-text-muted dark:text-text-muted-dark">
+        Text colour applies to Title &amp; Text (when set to “Follow container”), Rich Text, Image and Video captions and divider lines.
+      </p>
+      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 1, bgFrom: 2, bgTo: 3, bgImage: 4 }} />
+    </div>
+  );
+}
+
+// Image — media library image with optional link, caption, size and
+// alignment (web ImageSection).
+function ImageFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const text = (key: string) => textOf(fields, key);
+  const set = textSetter(fields, onChange);
+  const image = getField(fields, 0, "image");
+
+  return (
+    <div className="flex flex-col gap-4">
+      <ImagePickerField
+        label="Image"
+        mediaId={image?.mediaId ?? null}
+        mediaUrl={image?.mediaUrl ?? null}
+        onChange={(mediaId, url) => onChange(upsertField(fields, 0, "image", "image", 1, { mediaId, mediaUrl: url }))}
+      />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <TextInputField label="Alt text (describes the image)" value={text("alt")} onChange={set("alt", 2)} />
+        <TextInputField label="Caption (optional)" value={text("caption")} onChange={set("caption", 3)} />
+        <TextInputField label="Link (optional)" value={text("linkUrl")} placeholder="/casinos" onChange={set("linkUrl", 4)} />
+        <LabeledField label="Size">
+          <Select value={text("size") || "full"} onChange={set("size", 5)} options={SIZE_OPTIONS} />
+        </LabeledField>
+        <LabeledField label="Alignment">
+          <Select value={text("align") || "center"} onChange={set("align", 6)} options={ALIGN_OPTIONS} />
+        </LabeledField>
+        <LabeledField label="Corners">
+          <Select
+            value={text("rounded") === "no" ? "no" : "yes"}
+            onChange={set("rounded", 7)}
+            options={[
+              { value: "yes", label: "Rounded" },
+              { value: "no", label: "Square" },
+            ]}
+          />
+        </LabeledField>
+      </div>
+    </div>
+  );
+}
+
+// Buttons — one or more link buttons in a row (web ButtonGroupSection).
+function ButtonGroupFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  function addButton() {
+    const idx = nextItemIndex(fields);
+    onChange([...fields, blankField(idx, "button", "button", 1), textField(idx, "buttonStyle", "primary", 2), textField(idx, "newTab", "no", 3)]);
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <RepeaterShell
+        label="Button"
+        idPrefix="button-group-item"
+        itemIndexes={itemIndexes(fields)}
+        onRemove={(itemIndex) => onChange(fields.filter((f) => f.itemIndex !== itemIndex))}
+        onAdd={addButton}
+        addLabel="Add Button"
+        renderItem={(itemIndex) => {
+          const button = getField(fields, itemIndex, "button");
+          const style = getField(fields, itemIndex, "buttonStyle")?.textValue ?? "primary";
+          return (
+            <div className="flex flex-col gap-3">
+              <ButtonField
+                label="Label, link and style"
+                textValue={button?.textValue ?? ""}
+                urlValue={button?.urlValue ?? ""}
+                styleValue={style}
+                onChange={(patch) =>
+                  onChange(
+                    applyButtonFieldPatch(
+                      fields,
+                      itemIndex,
+                      "button",
+                      "buttonStyle",
+                      1,
+                      { textValue: button?.textValue ?? "", urlValue: button?.urlValue ?? "", styleValue: style },
+                      patch
+                    )
+                  )
+                }
+              />
+              <Checkbox
+                checked={getField(fields, itemIndex, "newTab")?.textValue === "yes"}
+                onChange={(e) => onChange(upsertField(fields, itemIndex, "newTab", "text", 3, { textValue: e.target.checked ? "yes" : "no" }))}
+              >
+                Open in a new tab
+              </Checkbox>
+            </div>
+          );
+        }}
+      />
+      <LabeledField label="Alignment">
+        <Select value={textOf(fields, "align") || "left"} onChange={textSetter(fields, onChange)("align", 1)} options={ALIGN_OPTIONS} />
+      </LabeledField>
+    </div>
+  );
+}
+
+// Spacer / Divider — empty space of a preset height, optionally with a line
+// (web SpacerSection).
+function SpacerFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const set = textSetter(fields, onChange);
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <LabeledField label="Height">
+        <Select
+          value={textOf(fields, "size") || "m"}
+          onChange={set("size", 1)}
+          options={[
+            { value: "xs", label: "Extra small (16px)" },
+            { value: "s", label: "Small (25px)" },
+            { value: "m", label: "Medium (50px)" },
+            { value: "l", label: "Large (80px)" },
+            { value: "xl", label: "Extra large (120px)" },
+          ]}
+        />
+      </LabeledField>
+      <LabeledField label="Divider line">
+        <Select
+          value={textOf(fields, "divider") === "yes" ? "yes" : "no"}
+          onChange={set("divider", 2)}
+          options={[
+            { value: "no", label: "No line, just space" },
+            { value: "yes", label: "Line across the middle" },
+          ]}
+        />
+      </LabeledField>
+    </div>
+  );
+}
+
+const VIDEO_URL_PATTERN = /(youtube\.com\/(watch|embed|shorts|live)|youtu\.be\/|vimeo\.com\/)/;
+
+// Video — YouTube or Vimeo link, loaded on click (web VideoSection).
+function VideoFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const text = (key: string) => textOf(fields, key);
+  const set = textSetter(fields, onChange);
+  const url = text("url");
+
+  return (
+    <div className="flex flex-col gap-4">
+      <TextInputField label="YouTube or Vimeo link" value={url} placeholder="https://www.youtube.com/watch?v=…" onChange={set("url", 1)} />
+      {url && !VIDEO_URL_PATTERN.test(url) && (
+        <p className="text-xs text-danger">This doesn&apos;t look like a YouTube or Vimeo link, so the video won&apos;t show.</p>
+      )}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <TextInputField label="Title (for screen readers)" value={text("title")} onChange={set("title", 2)} />
+        <TextInputField label="Caption (optional)" value={text("caption")} onChange={set("caption", 3)} />
+        <LabeledField label="Size">
+          <Select value={text("size") || "full"} onChange={set("size", 4)} options={SIZE_OPTIONS} />
+        </LabeledField>
+        <LabeledField label="Alignment">
+          <Select value={text("align") || "center"} onChange={set("align", 5)} options={ALIGN_OPTIONS} />
+        </LabeledField>
+      </div>
+    </div>
+  );
+}
+
+// Title & Text — Figma "Comp / Title Set": a title (one word can be red)
+// and a short line of text under it (web TitleSetSection).
+function TitleSetFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
   const text = (key: string) => getField(fields, 0, key)?.textValue ?? "";
   const set = (key: string, order: number) => (v: string) => onChange(upsertField(fields, 0, key, "text", order, { textValue: v }));
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-xs text-text-muted dark:text-text-muted-dark">
-        Components inside this container share its background and appear under its title. Add them with “+ Add Component Inside”, or
-        use “Move Into Container Above” on the section right below the container.
-      </p>
-      <TextInputField label="Heading (optional)" value={text("heading")} placeholder="Blacklisted Casinos to Avoid" onChange={set("heading", 1)} />
+      <TextInputField label="Title" value={text("heading")} placeholder="Blacklisted Casinos to Avoid" onChange={set("heading", 1)} />
       <TextInputField
-        label="Highlight word in heading (optional, shown in red)"
+        label="Highlight word in title (optional, shown in red)"
         value={text("highlightText")}
         placeholder="Avoid"
         onChange={set("highlightText", 2)}
       />
-      <LabeledField label="Intro text (optional)">
-        <Input.TextArea autoSize={{ minRows: 2 }} value={text("intro")} onChange={(e) => set("intro", 3)(e.target.value)} />
+      <LabeledField label="Text (optional)">
+        <Input.TextArea autoSize={{ minRows: 2 }} value={text("text")} onChange={(e) => set("text", 3)(e.target.value)} />
       </LabeledField>
-      <LabeledField label="Text colour">
-        <Select
-          value={text("textTone") === "light" ? "light" : "dark"}
-          onChange={set("textTone", 4)}
-          options={[
-            { value: "dark", label: "Dark text (for light backgrounds)" },
-            { value: "light", label: "White text (for dark backgrounds)" },
-          ]}
-        />
-      </LabeledField>
-      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 5, bgFrom: 6, bgTo: 7, bgImage: 8 }} />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <LabeledField label="Title size">
+          <Select value={text("headingSize") === "medium" ? "medium" : "large"} onChange={set("headingSize", 4)} options={HEADING_SIZE_OPTIONS} />
+        </LabeledField>
+        <LabeledField label="Alignment">
+          <Select
+            value={text("align") === "center" ? "center" : "left"}
+            onChange={set("align", 5)}
+            options={[
+              { value: "left", label: "Left" },
+              { value: "center", label: "Centre" },
+            ]}
+          />
+        </LabeledField>
+        <LabeledField label="Text colour">
+          <Select
+            value={["light", "dark"].includes(text("textTone")) ? text("textTone") : "auto"}
+            onChange={set("textTone", 6)}
+            options={TITLE_TONE_OPTIONS}
+          />
+        </LabeledField>
+      </div>
+      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 7, bgFrom: 8, bgTo: 9, bgImage: 10 }} />
     </div>
   );
 }
@@ -1611,7 +1958,7 @@ function ContainerFields({ fields, onChange }: { fields: EditableField[]; onChan
 // Live data block — fetches the most recently added published Blacklist
 // entries (GET /api/blacklist, no region filter) at render time; only the
 // surrounding copy and row count are admin-configured. Inside a Container,
-// leave the heading empty and use the secondary heading beside See All.
+// use the medium heading size (a sub-title under the Title & Text above).
 function BlacklistPreviewFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
   const heading = getField(fields, 0, "heading");
   const subheading = getField(fields, 0, "subheading");
@@ -1636,23 +1983,16 @@ function BlacklistPreviewFields({ fields, onChange }: { fields: EditableField[];
       <TextInputField
         label="Intro text under the heading (optional)"
         value={subheading?.textValue ?? ""}
-        placeholder="We expose rogue casinos that delay withdrawals or scam users."
+        placeholder="Problems such as delays in payouts… have been reported at these casinos."
         onChange={(v) => onChange(upsertField(fields, 0, "subheading", "text", 2, { textValue: v }))}
       />
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <TextInputField
-          label="Secondary heading (optional, beside See All)"
-          value={getField(fields, 0, "secondaryHeading")?.textValue ?? ""}
-          placeholder="What Makes a Casino Get Blacklisted?"
-          onChange={(v) => onChange(upsertField(fields, 0, "secondaryHeading", "text", 11, { textValue: v }))}
+      <LabeledField label="Heading size">
+        <Select
+          value={getField(fields, 0, "headingSize")?.textValue === "medium" ? "medium" : "large"}
+          onChange={(v) => onChange(upsertField(fields, 0, "headingSize", "text", 11, { textValue: v }))}
+          options={HEADING_SIZE_OPTIONS}
         />
-        <TextInputField
-          label="Secondary text (optional)"
-          value={getField(fields, 0, "secondaryText")?.textValue ?? ""}
-          placeholder="We test every casino for licensing, games, payouts, bonuses, and support."
-          onChange={(v) => onChange(upsertField(fields, 0, "secondaryText", "text", 12, { textValue: v }))}
-        />
-      </div>
+      </LabeledField>
       <TextInputField
         label="Max Entries"
         value={limit?.textValue ?? "6"}

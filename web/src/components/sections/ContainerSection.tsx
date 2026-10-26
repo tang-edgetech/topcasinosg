@@ -1,54 +1,45 @@
 import type { CSSProperties, ReactNode } from "react";
 import { field, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 
+const GAP_VALUES: Record<string, string> = { s: "16px", m: "30px", l: "50px" };
+const SPACE_VALUES: Record<string, string> = { none: "0px", s: "25px", m: "50px", l: "80px" };
+const CONTENT_WIDTHS: Record<string, string> = { "1270": "1270px", "960": "960px", "768": "768px", full: "none" };
+const ALIGN_CLASSES: Record<string, string> = { start: "items-start", center: "items-center", end: "items-end", stretch: "items-stretch" };
+const GRID_COLUMNS = ["2", "3", "4"];
+
 // Wraps the sections placed inside it in the editor (PageSection.inContainer)
-// with one shared background and a main title set - heading (one word
-// optionally in red), intro - like Figma's "Blacklisted Casinos to Avoid",
-// whose slider keeps its own secondary heading. Children render as normal
-// sections; sections.css drops their own vertical padding so the container
-// owns the rhythm (50px around and between).
+// with one shared background - e.g. Figma's "Blacklisted Casinos to Avoid"
+// band: a Title & Text component then a Blacklist Preview over a single
+// navy-to-red gradient. layout "stack" keeps them one under another;
+// "grid" puts them in 2/3/4 columns, each child optionally spanning its own
+// width (custom_class section--w-*, see sections.css). Content width, gap and
+// space above/below are presets, and textTone "light" turns the text of
+// Title & Text, Rich Text, Image/Video captions and dividers inside white.
 export default function ContainerSection({ section, children }: { section: PageSection; children: ReactNode }) {
   const text = (key: string) => field(section.fields, 0, key)?.textValue ?? "";
-  const heading = text("heading");
-  const highlightText = text("highlightText");
-  const intro = text("intro");
-  const light = text("textTone") === "light";
+  const grid = text("layout") === "grid";
+  const columns = GRID_COLUMNS.includes(text("columns")) ? text("columns") : "2";
+  const gap = GAP_VALUES[text("gap")] ?? (grid ? GAP_VALUES.m : GAP_VALUES.l);
   const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
-  const headingParts = highlightText && heading.includes(highlightText) ? heading.split(highlightText) : null;
-  const hasTitle = Boolean(heading || intro);
+  const style = {
+    ...bgStyle,
+    "--container-max": CONTENT_WIDTHS[text("contentWidth")] ?? CONTENT_WIDTHS["1270"],
+    "--container-gap": gap,
+  } as CSSProperties;
+  const bodyStyle: CSSProperties = {
+    paddingTop: SPACE_VALUES[text("spaceTop")] ?? SPACE_VALUES.m,
+    paddingBottom: SPACE_VALUES[text("spaceBottom")] ?? SPACE_VALUES.m,
+  };
+  const classes = ["section--container", hasBleedBg && "section--bg", text("textTone") === "light" && "section--tone-light"];
+  const bodyClasses = grid
+    ? `container-section__body--grid container-section__body--cols-${columns} ${ALIGN_CLASSES[text("align")] ?? ALIGN_CLASSES.stretch}`
+    : "container-section__body--stack flex flex-col";
 
   return (
-    <section
-      id={section.customId || undefined}
-      className={sectionClassName(
-        ["section--container", hasBleedBg && "section--bg", light && "section--container-light"].filter(Boolean).join(" "),
-        section
-      )}
-      style={bgStyle as CSSProperties}
-    >
-      {hasTitle && (
-        <div className="section-container relative z-10 pt-[3.125rem]">
-          <div className="section-row">
-            <div className="container-section__title section-col flex flex-col gap-5">
-              {heading && (
-                <h2 className={`section-heading text-[36px] leading-[43px] font-bold ${light ? "text-white" : "text-primary-900"}`}>
-                  {headingParts ? (
-                    <>
-                      {headingParts[0]}
-                      <span className="text-danger">{highlightText}</span>
-                      {headingParts.slice(1).join(highlightText)}
-                    </>
-                  ) : (
-                    heading
-                  )}
-                </h2>
-              )}
-              {intro && <p className={`text-base whitespace-pre-line ${light ? "text-white" : "text-primary-600"}`}>{intro}</p>}
-            </div>
-          </div>
-        </div>
-      )}
-      <div className="container-section__body relative z-10 flex flex-col gap-[3.125rem] py-[3.125rem]">{children}</div>
+    <section id={section.customId || undefined} className={sectionClassName(classes.filter(Boolean).join(" "), section)} style={style}>
+      <div className={`container-section__body relative z-10 ${bodyClasses}`} style={bodyStyle}>
+        {children}
+      </div>
     </section>
   );
 }

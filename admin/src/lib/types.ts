@@ -362,6 +362,11 @@ export interface PageSectionFieldDTO {
 
 export type PageBlockType =
   | "container"
+  | "title_set"
+  | "image"
+  | "button_group"
+  | "spacer"
+  | "video"
   | "hero"
   | "rich_text"
   | "icon_box_group"

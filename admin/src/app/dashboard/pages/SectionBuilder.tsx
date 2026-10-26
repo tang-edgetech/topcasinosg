@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Checkbox, Input, App as AntApp } from "antd";
+import { Checkbox, Input, Select, App as AntApp } from "antd";
 import { api, ApiError } from "@/lib/api";
 import { useConfirm } from "@/components/ConfirmDialog";
 import IconButton from "@/components/IconButton";
@@ -28,7 +28,19 @@ const CONTAINER: PageBlockType = "container";
 const TIGHT_TOP_CLASS = "section--tight-top";
 const DIVIDER_TOP_CLASS = "section--divider-top";
 const WIDE_CONTENT_CLASS = "section--content-960";
-const PRESET_CLASSES = [TIGHT_TOP_CLASS, DIVIDER_TOP_CLASS, WIDE_CONTENT_CLASS];
+// Width of a component inside a grid Container (shared/theme/sections.css
+// .container-section__body--grid); empty = the container's column width.
+const WIDTH_OPTIONS = [
+  { value: "", label: "Auto (column width)" },
+  { value: "section--w-full", label: "Full width" },
+  { value: "section--w-3-4", label: "3/4" },
+  { value: "section--w-2-3", label: "2/3" },
+  { value: "section--w-1-2", label: "1/2" },
+  { value: "section--w-1-3", label: "1/3" },
+  { value: "section--w-1-4", label: "1/4" },
+];
+const WIDTH_CLASSES = WIDTH_OPTIONS.map((o) => o.value).filter(Boolean);
+const PRESET_CLASSES = [TIGHT_TOP_CLASS, DIVIDER_TOP_CLASS, WIDE_CONTENT_CLASS, ...WIDTH_CLASSES];
 // Single-column reading blocks, whose 768px column can widen to 960px.
 const WIDE_CONTENT_BLOCK_TYPES: PageBlockType[] = ["rich_text", "faq"];
 
@@ -39,14 +51,24 @@ const WIDE_CONTENT_BLOCK_TYPES: PageBlockType[] = ["rich_text", "faq"];
 const BLOCK_GROUPS: { label: string; blocks: [PageBlockType, string][] }[] = [
   {
     label: "Layout",
-    blocks: [["container", "Wraps components with a shared background and title"]],
+    blocks: [["container", "Wraps components with one shared background"]],
+  },
+  {
+    label: "Basic",
+    blocks: [
+      ["title_set", "Section title (one word can be red) with a line of text"],
+      ["rich_text", "Heading with formatted text"],
+      ["image", "Image with optional link and caption"],
+      ["button_group", "One or more buttons in a row"],
+      ["spacer", "Empty space, optionally with a divider line"],
+      ["video", "YouTube or Vimeo video, loads on click"],
+    ],
   },
   {
     label: "Headings & text",
     blocks: [
       ["introduction_section", "Page intro banner with page menu"],
       ["hero", "Large banner with image and button"],
-      ["rich_text", "Heading with formatted text"],
       ["highlight_panel", "Two-tone heading, text and optional side-by-side boxes"],
       ["cta_link_list", "Heading with a stack of link buttons"],
     ],
@@ -123,6 +145,15 @@ function composeClasses(extra: string, presets: string[]): string {
   return [extra, ...presets].filter(Boolean).join(" ");
 }
 
+function widthClass(customClass: string): string {
+  return WIDTH_CLASSES.find((cls) => hasClass(customClass, cls)) ?? "";
+}
+
+function setWidthClass(customClass: string, cls: string): string {
+  const presets = PRESET_CLASSES.filter((c) => !WIDTH_CLASSES.includes(c) && hasClass(customClass, c));
+  return composeClasses(extraClasses(customClass), cls ? [...presets, cls] : presets);
+}
+
 function toggleClass(customClass: string, cls: string, on: boolean): string {
   const presets = PRESET_CLASSES.filter((c) => (c === cls ? on : hasClass(customClass, c)));
   return composeClasses(extraClasses(customClass), presets);
@@ -131,11 +162,14 @@ function toggleClass(customClass: string, cls: string, on: boolean): string {
 // Short human summary of a section for its collapsed header: the first
 // heading-like field, stripped of any HTML.
 function sectionSummary(fields: EditableField[]): string {
-  for (const key of ["heading", "secondaryHeading", "headingLine1", "title", "tagline"]) {
+  for (const key of ["heading", "headingLine1", "title", "tagline", "caption", "alt", "url"]) {
     const value = fields.find((f) => f.itemIndex === 0 && f.fieldKey === key)?.textValue;
     if (value) return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   }
-  return "";
+  return fields
+    .filter((f) => f.fieldKey === "button" && f.textValue)
+    .map((f) => f.textValue)
+    .join(" · ");
 }
 
 function itemCount(fields: EditableField[]): number {
@@ -351,6 +385,15 @@ export default function SectionBuilder({
     });
   }
 
+  function containerLayout(index: number): string {
+    for (let i = index - 1; i >= 0; i -= 1) {
+      if (sections[i].blockType === CONTAINER) {
+        return sections[i].fields.find((f) => f.itemIndex === 0 && f.fieldKey === "layout")?.textValue ?? "stack";
+      }
+    }
+    return "stack";
+  }
+
   function canMoveIntoContainer(index: number): boolean {
     const section = sections[index];
     const previous = sections[index - 1];
@@ -418,7 +461,9 @@ export default function SectionBuilder({
   function renderSection(section: EditableSection, index: number, label: string) {
     const isOpen = expanded.has(section.key);
     const isContainer = section.blockType === CONTAINER;
-    const summary = sectionSummary(section.fields);
+    const inGrid = section.inContainer && containerLayout(index) === "grid";
+    const componentCount = isContainer ? unitEnd(sections, index) - index - 1 : 0;
+    const summary = isContainer ? `${componentCount} component${componentCount === 1 ? "" : "s"} inside` : sectionSummary(section.fields);
     const items = itemCount(section.fields);
 
     return (
@@ -543,6 +588,18 @@ export default function SectionBuilder({
                 >
                   Wider content (960px)
                 </Checkbox>
+              )}
+              {inGrid && (
+                <label className="flex items-center gap-2 text-sm">
+                  Width in container
+                  <Select
+                    size="small"
+                    className="min-w-36"
+                    value={widthClass(section.customClass)}
+                    onChange={(cls: string) => updateSection(section.key, { customClass: setWidthClass(section.customClass, cls) })}
+                    options={WIDTH_OPTIONS}
+                  />
+                </label>
               )}
               <button
                 type="button"

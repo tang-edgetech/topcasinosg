@@ -14,10 +14,10 @@ export default function RichTextSection({ section }: { section: PageSection }) {
 
   const textCol = (
     <div className="section-col flex w-full flex-col gap-4">
-      {heading && <h2 className="section-heading text-2xl font-bold text-primary-900">{heading}</h2>}
+      {heading && <h2 className="section-heading tone-heading text-2xl font-bold">{heading}</h2>}
       {body && (
         <div
-          className="rich-text-content caret-list text-base leading-relaxed text-primary-600"
+          className="rich-text-content caret-list tone-text text-base leading-relaxed"
           dangerouslySetInnerHTML={{ __html: sanitizeRichText(body) }}
         />
       )}

@@ -29,6 +29,11 @@ import ReviewColumnsSection from "./ReviewColumnsSection";
 import CtaLinkListSection from "./CtaLinkListSection";
 import InfoCardColumnsSection from "./InfoCardColumnsSection";
 import ContainerSection from "./ContainerSection";
+import TitleSetSection from "./TitleSetSection";
+import ImageSection from "./ImageSection";
+import ButtonGroupSection from "./ButtonGroupSection";
+import SpacerSection from "./SpacerSection";
+import VideoSection from "./VideoSection";
 
 // Dispatches each section to its block-type component. Every instance of a
 // given blockType gets the same canonical CSS class (see sectionClassName /
@@ -64,6 +69,16 @@ export default function SectionRenderer({ sections, regionCode }: { sections: Pa
 
 function renderSection(section: PageSection, regionCode?: string) {
   switch (section.blockType) {
+    case "title_set":
+      return <TitleSetSection key={section.id} section={section} />;
+    case "image":
+      return <ImageSection key={section.id} section={section} />;
+    case "button_group":
+      return <ButtonGroupSection key={section.id} section={section} />;
+    case "spacer":
+      return <SpacerSection key={section.id} section={section} />;
+    case "video":
+      return <VideoSection key={section.id} section={section} />;
     case "hero":
       return <HeroSection key={section.id} section={section} />;
     case "rich_text":
