@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { App as AntApp, Button, DatePicker, Drawer, Select, Table } from "antd";
+import { App as AntApp, Button, DatePicker, Drawer, Dropdown, Select, Table, Tag } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
 import { useAuth } from "@/lib/auth-context";
 import { api, ApiError } from "@/lib/api";
@@ -9,9 +9,16 @@ import type { AuditActorDTO, AuditLogDTO } from "@/lib/types";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { titleCase } from "@/lib/format";
 import PageHeading from "@/components/PageHeading";
+import { activityDebugReport, activityToCSV, activityToJSON, downloadText, formatClientAddress, isFailedActivity } from "@/lib/activityExport";
 
 const ACTIVITY_PAGE_SIZE_OPTIONS = ["10", "20", "50", "75", "100"];
 const DATE_TIME_FORMAT = "D MMM YYYY, h:mm A";
+const EXPORT_PAGE_SIZE = 100;
+const MAX_EXPORT_ENTRIES = 5000;
+
+const OUTCOME_FILTERS = [
+  { value: "error", label: "Errors only" },
+];
 
 const SECTION_LABELS: Record<string, string> = {
   pages: "Pages",
@@ -88,7 +95,18 @@ interface ActivityFilters {
   actorId?: string;
   entityType?: string;
   action?: string;
+  outcome?: string;
   range?: [Dayjs, Dayjs] | null;
+}
+
+function describeFilters(filters: ActivityFilters, actors: AuditActorDTO[]): string {
+  const parts: string[] = [];
+  if (filters.actorId) parts.push(`user: ${actors.find((a) => String(a.id) === filters.actorId)?.name ?? filters.actorId}`);
+  if (filters.entityType) parts.push(`section: ${SECTION_LABELS[filters.entityType] ?? filters.entityType}`);
+  if (filters.action) parts.push(`action: ${actionLabel(filters.action)}`);
+  if (filters.outcome === "error") parts.push("errors only");
+  if (filters.range) parts.push(`dates: ${filters.range[0].format("YYYY-MM-DD")} to ${filters.range[1].format("YYYY-MM-DD")}`);
+  return parts.join(", ");
 }
 
 function buildQuery(filters: ActivityFilters, page: number, pageSize: number): string {
@@ -96,6 +114,7 @@ function buildQuery(filters: ActivityFilters, page: number, pageSize: number): s
   if (filters.actorId) params.set("actorId", filters.actorId);
   if (filters.entityType) params.set("entityType", filters.entityType);
   if (filters.action) params.set("action", filters.action);
+  if (filters.outcome) params.set("outcome", filters.outcome);
   if (filters.range) {
     params.set("from", filters.range[0].startOf("day").toISOString());
     params.set("to", filters.range[1].add(1, "day").startOf("day").toISOString());
@@ -114,6 +133,8 @@ export default function ActivityPage() {
   const [filters, setFilters] = useState<ActivityFilters>({});
   const [actors, setActors] = useState<AuditActorDTO[]>([]);
   const [selected, setSelected] = useState<AuditLogDTO | null>(null);
+  const [checked, setChecked] = useState<Map<number, AuditLogDTO>>(new Map());
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     api
@@ -148,11 +169,78 @@ export default function ActivityPage() {
   if (!user) return null;
 
   const isEditor = user.role === "editor";
-  const hasFilters = Boolean(filters.actorId || filters.entityType || filters.action || filters.range);
+  const hasFilters = Boolean(filters.actorId || filters.entityType || filters.action || filters.outcome || filters.range);
+  const exportScope = checked.size > 0 ? `${checked.size} selected` : `all ${total} matching`;
 
   function updateFilters(next: Partial<ActivityFilters>) {
     setFilters((current) => ({ ...current, ...next }));
     setPage(1);
+  }
+
+  async function loadExportRows(): Promise<AuditLogDTO[]> {
+    if (checked.size > 0) return [...checked.values()].sort((a, b) => b.id - a.id);
+    const rows: AuditLogDTO[] = [];
+    for (let nextPage = 1; rows.length < Math.min(total, MAX_EXPORT_ENTRIES); nextPage++) {
+      const data = await api.get<{ logs: AuditLogDTO[] | null; total: number }>(
+        `/api/admin/activity?${buildQuery(filters, nextPage, EXPORT_PAGE_SIZE)}`,
+      );
+      const batch = data.logs ?? [];
+      rows.push(...batch);
+      if (batch.length < EXPORT_PAGE_SIZE) break;
+    }
+    return rows.slice(0, MAX_EXPORT_ENTRIES);
+  }
+
+  async function withExportRows(run: (rows: AuditLogDTO[]) => Promise<void> | void) {
+    setExporting(true);
+    try {
+      const rows = await loadExportRows();
+      if (rows.length === 0) {
+        message.info("Nothing to export.");
+        return;
+      }
+      await run(rows);
+    } catch (err) {
+      message.error(err instanceof ApiError ? err.message : "Could not export activity.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  function exportFile(format: "json" | "csv") {
+    return withExportRows((rows) => {
+      const stamp = dayjs().format("YYYYMMDD-HHmmss");
+      if (format === "json") downloadText(`activity-${stamp}.json`, activityToJSON(rows), "application/json");
+      else downloadText(`activity-${stamp}.csv`, activityToCSV(rows), "text/csv;charset=utf-8");
+      message.success(`Exported ${rows.length} entr${rows.length === 1 ? "y" : "ies"}.`);
+    });
+  }
+
+  async function copyReport(rows?: AuditLogDTO[]) {
+    const copy = async (list: AuditLogDTO[]) => {
+      await navigator.clipboard.writeText(
+        activityDebugReport(list, { site: window.location.origin, filters: rows ? "single entry" : describeFilters(filters, actors) }),
+      );
+      message.success(`Copied ${list.length} entr${list.length === 1 ? "y" : "ies"} — paste into Claude to debug.`);
+    };
+    if (rows) {
+      try {
+        await copy(rows);
+      } catch {
+        message.error("Could not copy to the clipboard.");
+      }
+      return;
+    }
+    await withExportRows(copy);
+  }
+
+  function toggleChecked(keys: React.Key[], rowsOnPage: AuditLogDTO[]) {
+    setChecked((current) => {
+      const next = new Map(current);
+      for (const log of logs) next.delete(log.id);
+      for (const log of rowsOnPage) if (keys.includes(log.id)) next.set(log.id, log);
+      return next;
+    });
   }
 
   const changeRows = selected
@@ -197,6 +285,15 @@ export default function ActivityPage() {
           onChange={(value) => updateFilters({ action: value })}
           options={ACTION_FILTERS.map((value) => ({ value, label: ACTION_LABELS[value] }))}
         />
+        <Select
+          id="activity-filter-outcome"
+          allowClear
+          placeholder="All outcomes"
+          className="min-w-36"
+          value={filters.outcome}
+          onChange={(value) => updateFilters({ outcome: value })}
+          options={OUTCOME_FILTERS}
+        />
         <DatePicker.RangePicker
           id="activity-filter-dates"
           value={filters.range ?? null}
@@ -204,10 +301,39 @@ export default function ActivityPage() {
           disabledDate={(date) => date.isAfter(dayjs(), "day")}
         />
         {hasFilters && (
-          <Button id="activity-filters-clear" onClick={() => updateFilters({ actorId: undefined, entityType: undefined, action: undefined, range: null })}>
+          <Button id="activity-filters-clear" onClick={() => updateFilters({ actorId: undefined, entityType: undefined, action: undefined, outcome: undefined, range: null })}>
             Clear filters
           </Button>
         )}
+      </div>
+
+      <div id="activity-toolbar" className="activity-toolbar flex flex-wrap items-center gap-3">
+        <span className="text-sm text-text-muted dark:text-text-muted-dark">
+          {checked.size > 0 ? `${checked.size} selected` : "Select entries, or export everything that matches the filters."}
+        </span>
+        {checked.size > 0 && (
+          <Button id="activity-selection-clear" type="link" className="px-0" onClick={() => setChecked(new Map())}>
+            Clear selection
+          </Button>
+        )}
+        <div className="ml-auto flex flex-wrap gap-2">
+          <Dropdown
+            trigger={["click"]}
+            disabled={exporting || total === 0}
+            menu={{
+              items: [
+                { key: "json", label: `JSON (${exportScope})` },
+                { key: "csv", label: `CSV (${exportScope})` },
+              ],
+              onClick: ({ key }) => exportFile(key as "json" | "csv"),
+            }}
+          >
+            <Button id="activity-export" loading={exporting}>Export</Button>
+          </Dropdown>
+          <Button id="activity-copy" type="primary" disabled={exporting || total === 0} onClick={() => copyReport()}>
+            Copy for debugging ({exportScope})
+          </Button>
+        </div>
       </div>
 
       <Table
@@ -215,7 +341,12 @@ export default function ActivityPage() {
         rowKey="id"
         loading={loading}
         dataSource={logs}
-        onRow={(log) => ({ onClick: () => setSelected(log), className: "cursor-pointer" })}
+        onRow={(log) => ({ onClick: () => setSelected(log), className: `cursor-pointer${isFailedActivity(log) ? " activity-row--failed" : ""}` })}
+        rowSelection={{
+          selectedRowKeys: logs.filter((log) => checked.has(log.id)).map((log) => log.id),
+          onChange: (keys) => toggleChecked(keys, logs),
+          columnWidth: 40,
+        }}
         pagination={{
           current: page,
           pageSize,
@@ -252,8 +383,15 @@ export default function ActivityPage() {
             title: "Action",
             key: "action",
             render: (_, log) => (
-              <span className={log.action === "login_failed" || log.action === "delete" ? "font-medium text-danger" : ""}>
-                {actionLabel(log.action)}
+              <span className="flex flex-wrap items-center gap-1.5">
+                <span className={isFailedActivity(log) || log.action === "delete" ? "font-medium text-danger" : ""}>
+                  {actionLabel(log.action)}
+                </span>
+                {isFailedActivity(log) && (
+                  <Tag color="error" className="m-0" title={log.error}>
+                    {log.action === "login_failed" ? "Failed" : `Error ${log.statusCode}`}
+                  </Tag>
+                )}
               </span>
             ),
           },
@@ -268,11 +406,17 @@ export default function ActivityPage() {
               </span>
             ),
           },
-          { title: "IP Address", key: "ip", dataIndex: "ipAddress" },
+          { title: "IP Address", key: "ip", render: (_, log) => <span className="whitespace-nowrap">{formatClientAddress(log) || "—"}</span> },
         ]}
       />
 
-      <Drawer open={selected !== null} onClose={() => setSelected(null)} title="Activity Details" size={560}>
+      <Drawer
+        open={selected !== null}
+        onClose={() => setSelected(null)}
+        title="Activity Details"
+        size={560}
+        extra={selected && <Button id="activity-details-copy" onClick={() => copyReport([selected])}>Copy for debugging</Button>}
+      >
         {selected && (
           <div id="activity-details" className="flex flex-col gap-5 text-sm text-text dark:text-text-dark">
             <dl className="grid grid-cols-[110px_1fr] gap-x-3 gap-y-2">
@@ -289,14 +433,34 @@ export default function ActivityPage() {
                 {selected.entityLabel || "—"}
                 {selected.entityId !== null && ` #${selected.entityId}`}
               </dd>
+              {selected.method && (
+                <>
+                  <dt className="text-text-muted dark:text-text-muted-dark">Request</dt>
+                  <dd className="break-all font-mono text-[12px]">{selected.method} {selected.path}</dd>
+                </>
+              )}
+              {selected.statusCode > 0 && (
+                <>
+                  <dt className="text-text-muted dark:text-text-muted-dark">Result</dt>
+                  <dd className={isFailedActivity(selected) ? "font-medium text-danger" : "text-success"}>
+                    {isFailedActivity(selected) ? `Failed (${selected.statusCode})` : `Succeeded (${selected.statusCode})`}
+                  </dd>
+                </>
+              )}
+              {selected.error && (
+                <>
+                  <dt className="text-text-muted dark:text-text-muted-dark">Error</dt>
+                  <dd className="break-words text-danger">{selected.error}</dd>
+                </>
+              )}
               <dt className="text-text-muted dark:text-text-muted-dark">IP Address</dt>
-              <dd>{selected.ipAddress || "—"}</dd>
+              <dd>{formatClientAddress(selected) || "—"}</dd>
               <dt className="text-text-muted dark:text-text-muted-dark">Browser</dt>
               <dd className="break-words">{selected.userAgent || "—"}</dd>
             </dl>
 
             <div className="flex flex-col gap-2">
-              <h3 className="text-base font-semibold">Changes</h3>
+              <h3 className="text-base font-semibold">{isFailedActivity(selected) ? "Submitted" : "Changes"}</h3>
               {changeRows.length === 0 ? (
                 <p className="text-text-muted dark:text-text-muted-dark">No field changes recorded for this action.</p>
               ) : (

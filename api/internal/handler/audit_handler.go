@@ -30,7 +30,12 @@ type AuditLogDTO struct {
 	EntityLabel string              `json:"entityLabel"`
 	Changes     domain.AuditChanges `json:"changes"`
 	IPAddress   string              `json:"ipAddress"`
+	IPPort      *int                `json:"ipPort"`
 	UserAgent   string              `json:"userAgent"`
+	Method      string              `json:"method"`
+	Path        string              `json:"path"`
+	StatusCode  int                 `json:"statusCode"`
+	Error       string              `json:"error"`
 	CreatedAt   time.Time           `json:"createdAt"`
 }
 
@@ -51,7 +56,12 @@ func toAuditLogDTO(l *domain.AuditLog) AuditLogDTO {
 		EntityLabel: l.EntityLabel,
 		Changes:     l.Changes,
 		IPAddress:   l.IPAddress,
+		IPPort:      l.IPPort,
 		UserAgent:   l.UserAgent,
+		Method:      l.RequestMethod,
+		Path:        l.RequestPath,
+		StatusCode:  l.StatusCode,
+		Error:       l.ErrorMessage,
 		CreatedAt:   l.CreatedAt,
 	}
 }
@@ -73,6 +83,7 @@ func (h *AuditHandler) List(w http.ResponseWriter, r *http.Request) {
 		Action:     query.Get("action"),
 		From:       parseQueryTime(r, "from"),
 		To:         parseQueryTime(r, "to"),
+		ErrorsOnly: query.Get("outcome") == "error",
 		Page:       page,
 		PageSize:   pageSize,
 	}

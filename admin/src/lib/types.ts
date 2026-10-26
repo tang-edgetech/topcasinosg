@@ -449,7 +449,12 @@ export interface AuditLogDTO {
   entityLabel: string;
   changes: Record<string, AuditChange> | null;
   ipAddress: string;
+  ipPort: number | null;
   userAgent: string;
+  method: string;
+  path: string;
+  statusCode: number;
+  error: string;
   createdAt: string;
 }
 

@@ -13,6 +13,9 @@ const (
 	AuditEntityAuth = "auth"
 
 	AuditRetentionDays = 365
+
+	AuditStatusOK           = 200
+	AuditStatusFailedSignIn = 401
 )
 
 // AuditChanges maps a field name to {"from": old, "to": new}. A create has
@@ -34,8 +37,16 @@ type AuditLog struct {
 	Changes     AuditChanges
 	Restricted  bool
 	IPAddress   string
+	IPPort      *int
 	UserAgent   string
-	CreatedAt   time.Time
+	// RequestMethod and RequestPath are the admin request that was made;
+	// StatusCode 400 and above marks a failed one, with ErrorMessage being
+	// the error the admin saw.
+	RequestMethod string
+	RequestPath   string
+	StatusCode    int
+	ErrorMessage  string
+	CreatedAt     time.Time
 }
 
 type AuditFilter struct {
@@ -44,6 +55,7 @@ type AuditFilter struct {
 	Action            string
 	From              *time.Time
 	To                *time.Time
+	ErrorsOnly        bool
 	IncludeRestricted bool
 	OnlyActorID       *int64
 	Page              int

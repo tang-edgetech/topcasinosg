@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"regexp"
 	"time"
 
 	"github.com/tang-edgetech/topcasinosg/api/internal/domain"
@@ -34,9 +35,14 @@ type BonusInput struct {
 	domain.BonusDetails
 }
 
+var bonusSlugPattern = regexp.MustCompile(`^[a-z0-9-]+$`)
+
 func (s *BonusService) Create(ctx context.Context, actor *domain.AdminUser, in BonusInput) (*domain.Bonus, error) {
 	if !in.BonusType.Valid() {
 		return nil, ErrInvalidBonusType
+	}
+	if !bonusSlugPattern.MatchString(in.Slug) {
+		return nil, ErrInvalidBonusSlug
 	}
 	exists, err := s.bonuses.ExistsSlug(ctx, in.Slug, 0)
 	if err != nil {
@@ -61,6 +67,9 @@ func (s *BonusService) Create(ctx context.Context, actor *domain.AdminUser, in B
 func (s *BonusService) Update(ctx context.Context, id int64, in BonusInput) error {
 	if !in.BonusType.Valid() {
 		return ErrInvalidBonusType
+	}
+	if !bonusSlugPattern.MatchString(in.Slug) {
+		return ErrInvalidBonusSlug
 	}
 	exists, err := s.bonuses.ExistsSlug(ctx, in.Slug, id)
 	if err != nil {

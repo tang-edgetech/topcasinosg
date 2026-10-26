@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Checkbox, Input, Select, App as AntApp } from "antd";
+import { Checkbox, Input, App as AntApp } from "antd";
 import { api, ApiError } from "@/lib/api";
 import { useConfirm } from "@/components/ConfirmDialog";
 import IconButton from "@/components/IconButton";
-import { IconChevronUp, IconChevronDown, IconPlus, IconTrash } from "@/components/Icons";
+import { IconChevronUp, IconChevronDown, IconCopy, IconInsertBelow, IconTrash } from "@/components/Icons";
 import BlockFieldEditor, { BLOCK_TYPE_LABELS, defaultFieldsForBlockType, mediaUrl, type EditableField } from "./BlockFields";
 import type { SaveAction } from "./SaveActionBar";
+import ComponentPicker, { type ComponentGroup } from "./ComponentPicker";
 import type { PageBlockType, PageSectionDTO } from "@/lib/types";
 
 interface EditableSection {
@@ -83,22 +84,13 @@ const BLOCK_GROUPS: { label: string; blocks: [PageBlockType, string][] }[] = [
   },
 ];
 
-function buildPickerOptions() {
+function buildPickerGroups(): ComponentGroup[] {
   const grouped = new Set(BLOCK_GROUPS.flatMap((g) => g.blocks.map(([type]) => type)));
   const other = (Object.keys(BLOCK_TYPE_LABELS) as PageBlockType[]).filter((t) => !grouped.has(t));
   const groups = other.length > 0 ? [...BLOCK_GROUPS, { label: "Other", blocks: other.map((t) => [t, ""] as [PageBlockType, string]) }] : BLOCK_GROUPS;
   return groups.map((group) => ({
     label: group.label,
-    options: group.blocks.map(([type, description]) => ({
-      value: type,
-      searchText: `${BLOCK_TYPE_LABELS[type]} ${description}`,
-      label: (
-        <div className="flex flex-col py-0.5">
-          <span className="text-sm">{BLOCK_TYPE_LABELS[type]}</span>
-          {description && <span className="text-xs text-text-muted dark:text-text-muted-dark">{description}</span>}
-        </div>
-      ),
-    })),
+    blocks: group.blocks.map(([type, description]) => ({ type, title: BLOCK_TYPE_LABELS[type], description })),
   }));
 }
 
@@ -171,15 +163,17 @@ function snapshot(sections: EditableSection[]): string {
 // component state and only reach the API on "Save Page Content", which
 // PUTs the whole section/field tree in one shot (see PageRepo.ReplaceSections
 // on the backend). Sections start collapsed to a one-line summary so a long
-// page stays scannable; only the sections being edited are expanded.
+// page stays scannable; only the sections being edited are expanded. "Add
+// Component" and "Save" are handed up as floating actions (onActionsChange)
+// so they're reachable without scrolling back to the top.
 export default function SectionBuilder({
   pageId,
   initialSections,
-  onSaveActionChange,
+  onActionsChange,
 }: {
   pageId: number;
   initialSections: PageSectionDTO[];
-  onSaveActionChange?: (action: SaveAction) => void;
+  onActionsChange?: (actions: SaveAction[]) => void;
 }) {
   const { message } = AntApp.useApp();
   const confirm = useConfirm();
@@ -189,7 +183,9 @@ export default function SectionBuilder({
   const [advancedOpen, setAdvancedOpen] = useState<Set<string>>(() => new Set());
   const [saving, setSaving] = useState(false);
   const scrollToKey = useRef<string | null>(null);
-  const pickerOptions = useMemo(buildPickerOptions, []);
+  const pickerGroups = useMemo(buildPickerGroups, []);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [insertAt, setInsertAt] = useState<number | null>(null);
 
   const dirty = snapshot(sections) !== savedSnapshot;
 
@@ -224,7 +220,15 @@ export default function SectionBuilder({
   }
 
   function addSection(blockType: PageBlockType) {
-    insertSection({ key: nextClientKey(), blockType, customClass: "", customId: "", fields: defaultFieldsForBlockType(blockType) });
+    insertSection(
+      { key: nextClientKey(), blockType, customClass: "", customId: "", fields: defaultFieldsForBlockType(blockType) },
+      insertAt ?? undefined,
+    );
+  }
+
+  function openPicker(atIndex: number | null = null) {
+    setInsertAt(atIndex);
+    setPickerOpen(true);
   }
 
   function duplicateSection(index: number) {
@@ -283,7 +287,10 @@ export default function SectionBuilder({
   }
 
   useEffect(() => {
-    onSaveActionChange?.({ id: "section-builder-save", label: "Save Page Content", onSave: handleSave, saving });
+    onActionsChange?.([
+      { id: "section-builder-add", label: "+ Add Component", onSave: () => openPicker(), variant: "default" },
+      { id: "section-builder-save", label: "Save Page Content", onSave: handleSave, saving },
+    ]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saving, sections]);
 
@@ -309,21 +316,13 @@ export default function SectionBuilder({
               {allExpanded ? "Collapse all" : "Expand all"}
             </button>
           )}
-          <Select<PageBlockType>
-            showSearch
-            placeholder="+ Add a section…"
-            value={null as unknown as PageBlockType}
-            onChange={(v) => v && addSection(v)}
-            options={pickerOptions}
-            optionFilterProp="searchText"
-            popupMatchSelectWidth={340}
-            style={{ width: 240 }}
-          />
         </div>
       </div>
 
+      <ComponentPicker open={pickerOpen} groups={pickerGroups} onPick={addSection} onClose={() => setPickerOpen(false)} />
+
       {sections.length === 0 && (
-        <p className="text-sm text-text-muted dark:text-text-muted-dark">No sections yet — use “Add a section” above to start building this page.</p>
+        <p className="text-sm text-text-muted dark:text-text-muted-dark">No sections yet — use “+ Add Component” to start building this page.</p>
       )}
 
       <div className="flex flex-col gap-3">
@@ -377,10 +376,17 @@ export default function SectionBuilder({
                     disabled={index === sections.length - 1}
                   />
                   <IconButton
+                    id={`section-${section.key}-insert`}
+                    title="Add Component Below"
+                    onClick={() => openPicker(index + 1)}
+                    icon={<IconInsertBelow />}
+                    variant="muted"
+                  />
+                  <IconButton
                     id={`section-${section.key}-duplicate`}
                     title="Duplicate Section"
                     onClick={() => duplicateSection(index)}
-                    icon={<IconPlus />}
+                    icon={<IconCopy />}
                     variant="muted"
                   />
                   <IconButton

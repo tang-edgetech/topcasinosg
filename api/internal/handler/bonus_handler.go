@@ -64,7 +64,7 @@ func bonusErrorStatus(err error) int {
 	switch {
 	case errors.Is(err, service.ErrAlreadyExists):
 		return http.StatusConflict
-	case errors.Is(err, service.ErrInvalidBonusType), errors.Is(err, service.ErrInvalidContentStatus), errors.Is(err, service.ErrPublishAtRequired):
+	case errors.Is(err, service.ErrInvalidBonusType), errors.Is(err, service.ErrInvalidBonusSlug), errors.Is(err, service.ErrInvalidContentStatus), errors.Is(err, service.ErrPublishAtRequired):
 		return http.StatusBadRequest
 	case errors.Is(err, repository.ErrNotFound):
 		return http.StatusNotFound

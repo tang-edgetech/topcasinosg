@@ -35,6 +35,9 @@ var (
 	ErrInvalidRTPPercentage = errors.New("rtpPercentage must be between 0 and 100")
 )
 
+// BonusService validation: mirrors the admin form's slug rule.
+var ErrInvalidBonusSlug = errors.New("slug must be lowercase letters, numbers and hyphens")
+
 // BlacklistEntryService validation.
 var ErrInvalidBlacklistRating = errors.New("rating must be between 0 and 10")
 

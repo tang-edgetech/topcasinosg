@@ -10,15 +10,18 @@ export interface SaveAction {
   variant?: "primary" | "default";
 }
 
-// Renders whichever tab's save action(s) are currently registered, pinned
-// top-right of #page-edit-page. Stays in flow at first (so it sits next to
-// the page title) then sticks 32px from the viewport top once the tab's
-// content scrolls past it — see EditPagePage for how each tab registers.
+// Renders whichever tab's actions are currently registered (Add Component,
+// Save, Publish…) as a dock floating at the bottom-right of the screen, so
+// they're always one click away however far down the page the editor is —
+// see EditPagePage for how each tab registers.
 export default function SaveActionBar({ actions }: { actions: SaveAction[] }) {
   if (actions.length === 0) return null;
 
   return (
-    <div id="page-edit-action-bar" className="page-edit-action-bar sticky top-8 z-20 flex justify-end gap-2">
+    <div
+      id="page-edit-action-bar"
+      className="page-edit-action-bar fixed right-6 bottom-6 z-30 flex flex-wrap justify-end gap-2 rounded-xl border border-border bg-surface/95 p-2 shadow-lg backdrop-blur dark:border-border-dark dark:bg-surface-dark/95"
+    >
       {actions.map((action) => (
         <button
           key={action.id}

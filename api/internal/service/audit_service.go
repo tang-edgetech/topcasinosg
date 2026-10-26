@@ -31,22 +31,42 @@ func (s *AuditService) Record(ctx context.Context, entry *domain.AuditLog) {
 	}
 }
 
+// AuthEvent is one sign-in, failed sign-in or sign-out, as seen by the API.
+type AuthEvent struct {
+	Action    string
+	UserID    int64
+	Login     string
+	IP        string
+	Port      *int
+	UserAgent string
+	Method    string
+	Path      string
+}
+
 // RecordAuth logs a sign-in event. The account is looked up by id, or by the
 // email or username typed in for a failed attempt, so an event on a Super Admin account
 // stays restricted even when nobody is signed in yet.
-func (s *AuditService) RecordAuth(ctx context.Context, action string, userID int64, login, ip, userAgent string) {
+func (s *AuditService) RecordAuth(ctx context.Context, event AuthEvent) {
 	entry := &domain.AuditLog{
-		Action:      action,
-		EntityType:  domain.AuditEntityAuth,
-		EntityLabel: login,
-		IPAddress:   ip,
-		UserAgent:   userAgent,
+		Action:        event.Action,
+		EntityType:    domain.AuditEntityAuth,
+		EntityLabel:   event.Login,
+		IPAddress:     event.IP,
+		IPPort:        event.Port,
+		UserAgent:     event.UserAgent,
+		RequestMethod: event.Method,
+		RequestPath:   event.Path,
+		StatusCode:    domain.AuditStatusOK,
+	}
+	if event.Action == domain.AuditActionLoginFailed {
+		entry.StatusCode = domain.AuditStatusFailedSignIn
+		entry.ErrorMessage = "sign-in failed: wrong email/username, password or 2FA code, or the account is inactive"
 	}
 	var user *domain.AdminUser
-	if userID > 0 {
-		user, _ = s.users.GetByID(ctx, userID)
-	} else if login != "" {
-		user, _ = FindByLogin(ctx, s.users, login)
+	if event.UserID > 0 {
+		user, _ = s.users.GetByID(ctx, event.UserID)
+	} else if event.Login != "" {
+		user, _ = FindByLogin(ctx, s.users, event.Login)
 	}
 	if user != nil {
 		entry.ActorID = &user.ID

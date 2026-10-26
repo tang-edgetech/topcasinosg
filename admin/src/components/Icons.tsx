@@ -391,6 +391,15 @@ export function IconNewspaper(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function IconInsertBelow(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="3" width="18" height="8" rx="2" />
+      <path d="M12 14v7M8.5 17.5h7" />
+    </svg>
+  );
+}
+
 export function IconChevronUp(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base(props)}>

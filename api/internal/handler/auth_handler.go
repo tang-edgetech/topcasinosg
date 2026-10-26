@@ -25,8 +25,11 @@ func NewAuthHandler(auth *service.AuthService, audit *service.AuditService, cfg 
 }
 
 func (h *AuthHandler) recordAuth(r *http.Request, action string, userID int64, login string) {
-	h.audit.RecordAuth(context.WithoutCancel(r.Context()), action, userID, login,
-		middleware.ClientIP(r), r.UserAgent())
+	ip, port := middleware.ClientAddress(r)
+	h.audit.RecordAuth(context.WithoutCancel(r.Context()), service.AuthEvent{
+		Action: action, UserID: userID, Login: login, IP: ip, Port: port,
+		UserAgent: r.UserAgent(), Method: r.Method, Path: r.URL.Path,
+	})
 }
 
 func (h *AuthHandler) recordSignedIn(r *http.Request, outcome *service.LoginOutcome) {

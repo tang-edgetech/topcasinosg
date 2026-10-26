@@ -19,6 +19,9 @@ export interface RowQuery {
   bonusType?: BonusType;
   limit: number;
   excludeCasinoIds?: number[];
+  // Hand-picked casinos, shown in this order instead of best rated first
+  // (only those listed in the region are shown).
+  includeCasinoIds?: number[];
   needsProviders?: boolean;
 }
 
@@ -56,9 +59,11 @@ export async function loadRows(query: RowQuery): Promise<{ rows: DataRow[]; ctx:
   }
 
   const exclude = new Set(query.excludeCasinoIds ?? []);
-  const rows = casinos
+  const picked = query.includeCasinoIds?.length
+    ? query.includeCasinoIds.map((id) => casinoById.get(id)).filter((c): c is NonNullable<typeof c> => c !== undefined)
+    : casinos.slice().sort((a, b) => b.rating - a.rating);
+  const rows = picked
     .filter((c) => !exclude.has(c.id))
-    .sort((a, b) => b.rating - a.rating)
     .slice(0, query.limit)
     .map((casino) => ({
       key: casino.id,

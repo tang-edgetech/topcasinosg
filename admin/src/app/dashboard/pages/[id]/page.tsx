@@ -22,12 +22,12 @@ export default function EditPagePage() {
   const [sections, setSections] = useState<PageSectionDTO[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("content");
-  const [contentAction, setContentAction] = useState<SaveAction | null>(null);
+  const [contentActions, setContentActions] = useState<SaveAction[]>([]);
   const [detailsAction, setDetailsAction] = useState<SaveAction | null>(null);
   const [seoActions, setSeoActions] = useState<SaveAction[]>([]);
 
   const activeActions =
-    activeTab === "content" ? (contentAction ? [contentAction] : [])
+    activeTab === "content" ? contentActions
     : activeTab === "details" ? (detailsAction ? [detailsAction] : [])
     : seoActions;
 
@@ -59,7 +59,7 @@ export default function EditPagePage() {
   }
 
   return (
-    <section id="page-edit-page" className="page-edit-page flex flex-col gap-8">
+    <section id="page-edit-page" className="page-edit-page flex flex-col gap-8 pb-24">
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -83,7 +83,7 @@ export default function EditPagePage() {
           {
             key: "content",
             label: "Content",
-            children: <SectionBuilder pageId={page.id} initialSections={sections} onSaveActionChange={setContentAction} />,
+            children: <SectionBuilder pageId={page.id} initialSections={sections} onActionsChange={setContentActions} />,
           },
           {
             key: "details",

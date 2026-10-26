@@ -210,14 +210,17 @@ export const ADMIN_HELP = {
         heading: "What is recorded",
         points: [
           "Every add, edit, publish, delete and setting change, with the old and new value of each field that changed.",
-          "Sign-ins, failed sign-in attempts and sign-outs, with the IP address and browser.",
+          "Failed actions too (e.g. a save the server rejected), with the error message and what was submitted.",
+          "Sign-ins, failed sign-in attempts and sign-outs, with the IP address (and port, when known) and browser.",
           "Passwords and 2FA codes are never recorded. Entries can't be edited or deleted, and are kept for 12 months.",
         ],
       },
       {
         heading: "Using the log",
         points: [
-          "Filter by user, section, action or date range. Click an entry to see exactly what changed.",
+          "Filter by user, section, action, outcome (Errors only) or date range. Click an entry to see exactly what changed.",
+          "Tick entries (or none, for everything that matches the filters) to Export them as JSON or CSV.",
+          "Copy for debugging copies the entries as a ready-to-paste report, with the failed requests listed first, to hand to Claude or a developer.",
           "Editors see their own activity; Admins see everyone's.",
         ],
       },

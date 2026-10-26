@@ -197,6 +197,15 @@ Repeat for `staging-backoffice` (4101) and `staging-api` (8190). Then apply:
 ```
 The `/.well-known` exclusion keeps AutoSSL renewals working.
 
+**Visitor IP and port in the Activity Log.** The API trusts forwarded headers only
+from the local proxy, and reads the visitor's IP from `CF-Connecting-IP`, then
+`X-Real-IP`, then `X-Forwarded-For`, so nothing extra is needed for the IP.
+Cloudflare doesn't forward the visitor's port by default. To log it, add a
+Cloudflare rule: **Rules → Transform Rules → Modify Request Header → Create**.
+Apply it to all incoming requests to `api.` and `staging-api.`, then **Set dynamic**
+header `X-Client-Port` to the value `to_string(cf.edge.client_port)`.
+Without that rule, the Activity Log shows the IP with no port.
+
 ### 5.6 Keep staging private
 - On `staging` and `staging-backoffice`: cPanel → **Directory Privacy**, or an
   `AuthType Basic` block in the same `proxy.conf`.

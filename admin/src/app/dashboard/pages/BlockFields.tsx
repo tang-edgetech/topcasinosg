@@ -219,8 +219,8 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
     case "top_casinos_by_region":
       return [
         blankField(0, "heading", "text", 1),
-        textField(0, "highlightCount", "3", 2),
-        textField(0, "moreCount", "5", 3),
+        textField(0, "mode", "auto", 2),
+        textField(0, "moreCount", "3", 3),
         blankField(0, "regionCode", "text", 4),
         textField(0, "bgType", "none", 5),
         textField(0, "bgFrom", "primary-900", 6),
@@ -1406,29 +1406,153 @@ function TeamGridFields({ fields, onChange }: { fields: EditableField[]; onChang
 // web's getRegions()), the web renderer fetches that region's casinos
 // (already sorted by rating desc, GET /api/casinos?region=X) and splits them
 // into `highlightCount` highlight cards + the next `moreCount` in a table.
+const TOP_CASINOS_DEFAULT_COLUMNS = ["cashback", "payments", "rating", "safeIndex"];
+
+// Featured cards + "More Online Casinos in …" tables per country. Automatic
+// mode follows the active regions and ratings; custom mode lets the editor
+// pick each country, its featured casino and the casinos in its table.
 function TopCasinosByRegionFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
-  const heading = getField(fields, 0, "heading");
-  const moreCount = getField(fields, 0, "moreCount");
+  const text = (itemIndex: number, key: string) => getField(fields, itemIndex, key)?.textValue ?? "";
+  const set = (key: string, order: number) => (v: string) => onChange(upsertField(fields, 0, key, "text", order, { textValue: v }));
+  const setItem = (itemIndex: number, key: string, order: number) => (v: string) =>
+    onChange(upsertField(fields, itemIndex, key, "text", order, { textValue: v }));
+  const mode = text(0, "mode") === "custom" ? "custom" : "auto";
+  const countries = itemIndexes(fields);
+  const columnValues = text(0, "columns") ? text(0, "columns").split(",").filter(Boolean) : TOP_CASINOS_DEFAULT_COLUMNS;
+  const casinoColumnOptions = DATA_TABLE_COLUMNS.filter((c) => c.source === "casino").map((c) => ({ value: c.value, label: c.label }));
+
+  function addCountry() {
+    const idx = nextItemIndex(fields);
+    onChange([
+      ...fields,
+      blankField(idx, "regionCode", "text", 1),
+      blankField(idx, "casinoId", "text", 2),
+      blankField(idx, "tableCasinoIds", "text", 3),
+      textField(idx, "showTable", "yes", 4),
+    ]);
+  }
 
   return (
     <div className="flex flex-col gap-4">
       <TextInputField
         label="Heading"
-        value={heading?.textValue ?? ""}
+        value={text(0, "heading")}
         placeholder="Top Rated Casino of the Month by Country"
-        onChange={(v) => onChange(upsertField(fields, 0, "heading", "text", 1, { textValue: v }))}
+        onChange={set("heading", 1)}
       />
-      <TextInputField
-        label={'Rows in each "More Online Casinos in …" table'}
-        value={moreCount?.textValue ?? "3"}
-        onChange={(v) => onChange(upsertField(fields, 0, "moreCount", "text", 3, { textValue: v }))}
+      <SourceChoiceField
+        value={mode}
+        onChange={set("mode", 2)}
+        options={[
+          { value: "auto", label: "Automatic", hint: "Every active region, its best-rated casino, then the next best" },
+          { value: "custom", label: "Choose myself", hint: "Pick the countries, featured casinos and table casinos" },
+        ]}
       />
-      <p className="text-xs text-text-muted dark:text-text-muted-dark">
-        Automatic: one card per active region (its best-rated casino, with its welcome bonus), then a table of that region&apos;s next best
-        casinos. Ratings, bonuses and payment methods come from Casinos and Bonuses.
-      </p>
+
+      {mode === "custom" && (
+        <RepeaterShell
+          label="Country"
+          idPrefix="top-casinos-country"
+          itemIndexes={countries}
+          onRemove={(itemIndex) => onChange(fields.filter((f) => f.itemIndex !== itemIndex))}
+          onAdd={addCountry}
+          addLabel="Add Country"
+          renderItem={(itemIndex) => (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <RegionCodeField label="Country" value={text(itemIndex, "regionCode")} onChange={setItem(itemIndex, "regionCode", 1)} />
+              <CasinoPickerField
+                label="Featured card casino (empty = best rated)"
+                value={text(itemIndex, "casinoId")}
+                onChange={setItem(itemIndex, "casinoId", 2)}
+              />
+              <div className="sm:col-span-2">
+                <CasinoMultiPickerField
+                  label={'"More Online Casinos" table — casinos in order (empty = next best automatically)'}
+                  value={text(itemIndex, "tableCasinoIds")}
+                  onChange={setItem(itemIndex, "tableCasinoIds", 3)}
+                />
+              </div>
+              <LabeledField label="Table">
+                <Select
+                  value={text(itemIndex, "showTable") === "no" ? "no" : "yes"}
+                  onChange={setItem(itemIndex, "showTable", 4)}
+                  options={[
+                    { value: "yes", label: "Show the table" },
+                    { value: "no", label: "Card only, no table" },
+                  ]}
+                />
+              </LabeledField>
+            </div>
+          )}
+        />
+      )}
+
+      <div className="flex flex-col gap-3 rounded-md border border-border bg-surface-muted p-4 dark:border-border-dark dark:bg-surface-muted-dark">
+        <span className="text-xs font-semibold tracking-wide text-text-muted uppercase dark:text-text-muted-dark">Cards &amp; tables</span>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <TextInputField label="Card bonus label" value={text(0, "bonusLabel")} placeholder="Welcome Bonus" onChange={set("bonusLabel", 9)} />
+          <TextInputField
+            label="Table heading ({region} = country name)"
+            value={text(0, "tableHeading")}
+            placeholder="More Online Casinos in {region}"
+            onChange={set("tableHeading", 10)}
+          />
+          <TextInputField
+            label="Rows per table (automatic tables)"
+            value={text(0, "moreCount") || "3"}
+            onChange={set("moreCount", 3)}
+          />
+          <TextInputField label="Table button label" value={text(0, "ctaLabel")} placeholder="Visit Site" onChange={set("ctaLabel", 11)} />
+        </div>
+        <LabeledField label="Table columns (between Brand and the button, in order)">
+          <Select
+            mode="multiple"
+            value={columnValues}
+            options={casinoColumnOptions}
+            onChange={(values: string[]) => set("columns", 13)(values.join(","))}
+          />
+        </LabeledField>
+        <p className="text-xs text-text-muted dark:text-text-muted-dark">
+          Logos, ratings, links and payment methods come from each Casino; the card&apos;s offer is the casino&apos;s Welcome bonus in that
+          region.
+        </p>
+      </div>
       <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 5, bgFrom: 6, bgTo: 7, bgImage: 8 }} />
     </div>
+  );
+}
+
+// Several casinos in a chosen order, stored as comma-separated ids.
+function CasinoMultiPickerField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const [casinos, setCasinos] = useState<CasinoDTO[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadCasinos().then((list) => {
+      if (cancelled) return;
+      setCasinos(list);
+      setLoaded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <LabeledField label={label}>
+      <Select
+        mode="multiple"
+        allowClear
+        showSearch
+        optionFilterProp="label"
+        loading={!loaded}
+        placeholder="Next best casinos (automatic)"
+        value={value.split(",").filter(Boolean)}
+        onChange={(values: string[]) => onChange(values.join(","))}
+        options={casinos.map((c) => ({ value: String(c.id), label: c.name }))}
+      />
+    </LabeledField>
   );
 }
 

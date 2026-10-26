@@ -24,6 +24,9 @@ const (
 	auditTextPreviewChars = 300
 	maxAuditUserAgentLen  = 255
 	hiddenAuditValue      = "[hidden]"
+	maxAuditPathLen       = 255
+	maxAuditErrorLen      = 1000
+	clientPortHeader      = "X-Client-Port"
 )
 
 var auditIgnoredFields = map[string]bool{"createdAt": true, "updatedAt": true}
@@ -34,8 +37,10 @@ var auditLabelFields = []string{"name", "title", "fullName", "email", "label", "
 // envelope's data), or nil when there is no such endpoint or it fails.
 type Snapshotter func(r *http.Request, path string) map[string]any
 
-// Audit records every successful state-changing admin request: who, what,
-// which record and the field-level before/after. Before/after come from the
+// Audit records every state-changing admin request: who, what, which record
+// and the field-level before/after. A failed request (status 400 and above)
+// is recorded too, with the error the admin saw and what they submitted, so
+// problems can be traced and copied out for debugging. Before/after come from the
 // resource's own admin GET endpoint, so the log shows exactly what the admin
 // screens show; routes without one fall back to the submitted values.
 // Mount it inside Authenticate so the actor is known.
@@ -61,33 +66,47 @@ func Audit(audit *service.AuditService, snapshot Snapshotter) func(http.Handler)
 
 			recorder := &auditResponseRecorder{ResponseWriter: w, status: http.StatusOK, keepBody: route.isCreate}
 			next.ServeHTTP(recorder, r)
-			if recorder.status < 200 || recorder.status >= 300 {
+			failed := recorder.status >= http.StatusBadRequest
+			if recorder.status < 200 || (recorder.status >= 300 && !failed) {
 				return
 			}
 
 			var after map[string]any
 			switch {
+			case failed:
 			case route.isCreate:
 				after = DecodeEnvelopeData(recorder.body.Bytes())
 			case r.Method != http.MethodDelete && route.snapshotPath != "":
 				after = snapshot(r, route.snapshotPath)
 			}
 
+			ip, port := ClientAddress(r)
 			entry := &domain.AuditLog{
-				ActorID:    &actor.ID,
-				ActorName:  actor.FullName,
-				ActorRole:  string(actor.Role),
-				Action:     route.action,
-				EntityType: route.entityType,
-				EntityID:   route.entityID,
-				IPAddress:  ClientIP(r),
-				UserAgent:  truncate(r.UserAgent(), maxAuditUserAgentLen),
+				ActorID:       &actor.ID,
+				ActorName:     actor.FullName,
+				ActorRole:     string(actor.Role),
+				Action:        route.action,
+				EntityType:    route.entityType,
+				EntityID:      route.entityID,
+				IPAddress:     ip,
+				IPPort:        port,
+				UserAgent:     truncate(r.UserAgent(), maxAuditUserAgentLen),
+				RequestMethod: r.Method,
+				RequestPath:   truncate(r.URL.RequestURI(), maxAuditPathLen),
+				StatusCode:    recorder.status,
+			}
+			if failed {
+				entry.ErrorMessage = truncate(envelopeErrorMessage(recorder.body.Bytes()), maxAuditErrorLen)
 			}
 			if entry.EntityID == nil {
 				entry.EntityID = numericField(after, "id")
 			}
-			entry.EntityLabel = auditLabel(after, before)
-			if before != nil || after != nil {
+			entry.EntityLabel = auditLabel(after, before, body)
+			if failed {
+				if body != nil {
+					entry.Changes = diffAuditSnapshots(nil, body)
+				}
+			} else if before != nil || after != nil {
 				entry.Changes = diffAuditSnapshots(before, after)
 			} else if body != nil {
 				entry.Changes = diffAuditSnapshots(nil, body)
@@ -100,19 +119,80 @@ func Audit(audit *service.AuditService, snapshot Snapshotter) func(http.Handler)
 	}
 }
 
-// ClientIP prefers X-Forwarded-For only when the direct peer is the local
-// reverse proxy (Apache on the same host), so it can't be spoofed remotely.
-func ClientIP(r *http.Request) string {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
+// ClientAddress returns the visitor's IP and, when known, their port.
+// Forwarded headers are trusted only when the direct peer is the local
+// reverse proxy (Apache on the same host), so they can't be spoofed remotely:
+// CF-Connecting-IP (Cloudflare) first, then X-Real-IP, then the first
+// X-Forwarded-For hop. Behind a proxy the port comes from X-Client-Port, set
+// by a Cloudflare Transform Rule from cf.edge.client_port (see DEPLOYMENT.md).
+// Loopback is reported as 127.0.0.1 and IPv4-mapped IPv6 as plain IPv4.
+func ClientAddress(r *http.Request) (string, *int) {
+	host, peerPort, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		host = r.RemoteAddr
 	}
-	if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
-		if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-			return strings.TrimSpace(strings.Split(forwarded, ",")[0])
+	if peer := net.ParseIP(host); peer != nil && peer.IsLoopback() {
+		if forwarded := forwardedClientIP(r); forwarded != "" {
+			return normalizeIP(forwarded), parsePort(r.Header.Get(clientPortHeader))
 		}
 	}
-	return host
+	return normalizeIP(host), parsePort(peerPort)
+}
+
+// ClientIP is ClientAddress without the port.
+func ClientIP(r *http.Request) string {
+	ip, _ := ClientAddress(r)
+	return ip
+}
+
+func forwardedClientIP(r *http.Request) string {
+	for _, header := range []string{"CF-Connecting-IP", "X-Real-IP"} {
+		if value := strings.TrimSpace(r.Header.Get(header)); net.ParseIP(value) != nil {
+			return value
+		}
+	}
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		if first := strings.TrimSpace(strings.Split(forwarded, ",")[0]); net.ParseIP(first) != nil {
+			return first
+		}
+	}
+	return ""
+}
+
+func normalizeIP(value string) string {
+	ip := net.ParseIP(strings.Trim(value, "[]"))
+	if ip == nil {
+		return value
+	}
+	if ip.IsLoopback() {
+		return "127.0.0.1"
+	}
+	if v4 := ip.To4(); v4 != nil {
+		return v4.String()
+	}
+	return ip.String()
+}
+
+func parsePort(value string) *int {
+	port, err := strconv.Atoi(strings.TrimSpace(value))
+	if err != nil || port <= 0 || port > 65535 {
+		return nil
+	}
+	return &port
+}
+
+// envelopeErrorMessage reads {"success":false,"error":{"message":...}};
+// anything else (a plain-text error) is returned as-is.
+func envelopeErrorMessage(raw []byte) string {
+	var envelope struct {
+		Error *struct {
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if json.Unmarshal(raw, &envelope) == nil && envelope.Error != nil {
+		return envelope.Error.Message
+	}
+	return strings.TrimSpace(string(raw))
 }
 
 type auditRoute struct {
@@ -201,7 +281,7 @@ func (w *auditResponseRecorder) WriteHeader(status int) {
 }
 
 func (w *auditResponseRecorder) Write(p []byte) (int, error) {
-	if w.keepBody && w.body.Len() < maxAuditBodyBytes {
+	if (w.keepBody || w.status >= http.StatusBadRequest) && w.body.Len() < maxAuditBodyBytes {
 		w.body.Write(p)
 	}
 	return w.ResponseWriter.Write(p)

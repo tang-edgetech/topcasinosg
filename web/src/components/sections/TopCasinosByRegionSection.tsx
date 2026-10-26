@@ -1,35 +1,82 @@
 import type { CSSProperties } from "react";
-import { field, mediaUrl, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
-import { getRegions, getRegionBonuses } from "@/app/[region]/_lib/api";
+import { field, itemIndexes, mediaUrl, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
+import { getRegions, getRegionBonuses, type RegionDTO } from "@/app/[region]/_lib/api";
 import DataTable from "@/components/data-table/DataTable";
 import { COLUMNS } from "@/components/data-table/columns";
 import { loadRows } from "@/components/data-table/loadRows";
 import { BonusPickCard } from "./TopBonusPicksSection";
 
-const TABLE_COLUMNS = ["cashback", "payments", "rating", "safeIndex"].map((key) => ({ key, label: COLUMNS[key].label, def: COLUMNS[key] }));
-
+const DEFAULT_COLUMNS = ["cashback", "payments", "rating", "safeIndex"];
 const DEFAULT_MORE_COUNT = 3;
+const DEFAULT_BONUS_LABEL = "Welcome Bonus";
+const DEFAULT_TABLE_HEADING = "More Online Casinos in {region}";
+const DEFAULT_CTA_LABEL = "Visit Site";
+const REGION_TOKEN = "{region}";
 
-// Figma Home "Top Rated Casino of the Month by Country": one card per active
-// region (its best-rated casino, with the region's flag and welcome bonus),
-// then a "More Online Casinos in <region>" table per region listing the next
-// best casinos. Fully automatic — "top" is the highest rating, and a newly
-// activated region appears without any editing.
+interface CountryEntry {
+  region: RegionDTO;
+  featuredCasinoId: number | null;
+  tableCasinoIds: number[];
+  showTable: boolean;
+}
+
+function idList(value: string | undefined): number[] {
+  return (value ?? "")
+    .split(",")
+    .map((id) => Number(id.trim()))
+    .filter((id) => Number.isInteger(id) && id > 0);
+}
+
+// Figma Home "Top Rated Casino of the Month by Country": a featured card per
+// country (its casino, flag and welcome bonus), then a "More Online Casinos
+// in <country>" table per country. Automatic by default — every active
+// region, its best-rated casino, then the next best — or, in "custom" mode,
+// the countries, featured casinos and table casinos the editor picked.
 export default async function TopCasinosByRegionSection({ section }: { section: PageSection }) {
-  const heading = field(section.fields, 0, "heading")?.textValue ?? "";
-  const moreCount = Number(field(section.fields, 0, "moreCount")?.textValue) || DEFAULT_MORE_COUNT;
+  const text = (itemIndex: number, key: string) => field(section.fields, itemIndex, key)?.textValue ?? "";
+  const heading = text(0, "heading");
+  const moreCount = Number(text(0, "moreCount")) || DEFAULT_MORE_COUNT;
+  const bonusLabel = text(0, "bonusLabel") || DEFAULT_BONUS_LABEL;
+  const tableHeading = text(0, "tableHeading") || DEFAULT_TABLE_HEADING;
+  const ctaLabel = text(0, "ctaLabel") || DEFAULT_CTA_LABEL;
+  const columnKeys = text(0, "columns").split(",").map((key) => key.trim()).filter((key) => COLUMNS[key]?.source === "casino");
+  const columns = (columnKeys.length > 0 ? columnKeys : DEFAULT_COLUMNS).map((key) => ({ key, label: COLUMNS[key].label, def: COLUMNS[key] }));
   const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
 
-  const regions = (await getRegions()).filter((r) => r.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
+  const regions = (await getRegions()).sort((a, b) => a.sortOrder - b.sortOrder);
+  const entries: CountryEntry[] =
+    text(0, "mode") === "custom"
+      ? itemIndexes(section.fields).flatMap((itemIndex) => {
+          const region = regions.find((r) => r.code === text(itemIndex, "regionCode"));
+          if (!region) return [];
+          return [{
+            region,
+            featuredCasinoId: idList(text(itemIndex, "casinoId"))[0] ?? null,
+            tableCasinoIds: idList(text(itemIndex, "tableCasinoIds")),
+            showTable: text(itemIndex, "showTable") !== "no",
+          }];
+        })
+      : regions.filter((r) => r.isActive).map((region) => ({ region, featuredCasinoId: null, tableCasinoIds: [], showTable: true }));
+
   const perRegion = (
     await Promise.all(
-      regions.map(async (region) => {
-        const { rows: [top] } = await loadRows({ source: "casinos", regionCode: region.code, limit: 1 });
+      entries.map(async ({ region, featuredCasinoId, tableCasinoIds, showTable }) => {
+        const featuredIds = featuredCasinoId ? [featuredCasinoId] : undefined;
+        let { rows: [top] } = await loadRows({ source: "casinos", regionCode: region.code, limit: 1, includeCasinoIds: featuredIds });
+        if (!top?.casino && featuredIds) ({ rows: [top] } = await loadRows({ source: "casinos", regionCode: region.code, limit: 1 }));
         if (!top?.casino) return null;
         const topCasino = top.casino;
         const [welcome, more] = await Promise.all([
           getRegionBonuses(region.code, "welcome"),
-          loadRows({ source: "casinos", regionCode: region.code, limit: moreCount, excludeCasinoIds: [topCasino.id] }),
+          showTable
+            ? loadRows({
+                source: "casinos",
+                regionCode: region.code,
+                limit: tableCasinoIds.length > 0 ? tableCasinoIds.length : moreCount,
+                includeCasinoIds: tableCasinoIds,
+                excludeCasinoIds: [topCasino.id],
+              })
+            : null,
         ]);
         return { region, topCasino, bonus: welcome.find((b) => b.casinoId === topCasino.id), more };
       })
@@ -60,14 +107,14 @@ export default async function TopCasinosByRegionSection({ section }: { section: 
               pick={{ casino: topCasino, bonus }}
               rank={1}
               featured
-              bonusLabel="Welcome Bonus"
+              bonusLabel={bonusLabel}
               flagUrl={mediaUrl(region.flagUrl)}
             />
           ))}
         </div>
 
         {perRegion
-          .filter(({ more }) => more.rows.length > 0)
+          .filter(({ more }) => more && more.rows.length > 0)
           .map(({ region, more }) => (
             <div key={region.id} className="flex flex-col gap-4">
               <div className="section-row">
@@ -76,10 +123,10 @@ export default async function TopCasinosByRegionSection({ section }: { section: 
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={mediaUrl(region.flagUrl) ?? ""} alt="" className="h-6 w-6 rounded-full object-cover" />
                   )}
-                  More Online Casinos in {region.name}
+                  {tableHeading.split(REGION_TOKEN).join(region.name)}
                 </h3>
               </div>
-              <DataTable rows={more.rows} ctx={more.ctx} columns={TABLE_COLUMNS} ctaLabel="Visit Site" moreInfo mobile="swipe" />
+              <DataTable rows={more!.rows} ctx={more!.ctx} columns={columns} ctaLabel={ctaLabel} moreInfo mobile="swipe" />
             </div>
           ))}
       </div>

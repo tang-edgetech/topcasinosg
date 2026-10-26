@@ -36,7 +36,9 @@ export default function TeamGridSection({ section }: { section: PageSection }) {
 
             return (
               <div key={itemIndex} className="team-member section-col flex flex-col items-center gap-1 text-center">
-                <div className="mb-2 flex aspect-[2/1] w-full items-end justify-center overflow-hidden rounded-lg bg-surface-muted">
+                <div
+                  className={`team-member__photo mb-2 flex aspect-[2/1] w-full items-end justify-center overflow-hidden rounded-lg${photo ? "" : " bg-surface-muted"}`}
+                >
                   {photo ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img loading="lazy" decoding="async" src={photo} alt={name} className="h-full w-auto object-contain object-bottom" />
@@ -46,9 +48,13 @@ export default function TeamGridSection({ section }: { section: PageSection }) {
                     </svg>
                   )}
                 </div>
-                {name && <h3 className="text-sm font-bold text-primary-900">{name}</h3>}
-                {title && <p className="text-xs text-primary-500">{title}</p>}
-                {quote && <p className="text-sm text-primary-500">{quote}</p>}
+                {(name || title || quote) && (
+                  <div className="team-member__info flex flex-col items-center gap-1">
+                    {name && <h3 className="team-member__name text-sm font-bold text-primary-900">{name}</h3>}
+                    {title && <p className="team-member__title text-xs text-primary-500">{title}</p>}
+                    {quote && <p className="team-member__quote text-sm text-primary-500">{quote}</p>}
+                  </div>
+                )}
               </div>
             );
           })}

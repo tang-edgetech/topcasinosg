@@ -46,7 +46,7 @@ export default function HeroSection({ section }: { section: PageSection }) {
                   The section must never clip overflow for this to show. */}
               <div className="hero__image-float pointer-events-none absolute inset-x-0 top-full z-10 -translate-y-1/2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={image} alt={heading} className="h-auto w-full rounded-xl object-cover shadow-xl" />
+                <img src={image} alt={heading} className="h-auto w-full rounded-xl object-cover" />
               </div>
             </div>
           )}
