@@ -14,6 +14,21 @@ mkdir -p "$API_DIR/tmp" "$LOG_DIR"
 
 log() { echo "[$(date '+%F %T')] $*"; }
 
+# Exports each KEY=value line of an .env file as is. Read literally rather
+# than sourced, so values like DB_DSN (with & and parentheses) need no
+# quoting; matching surrounding quotes are dropped.
+load_env() {
+  local line key value
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%$'\r'}"
+    case "$line" in ''|'#'*) continue ;; esac
+    key="${line%%=*}"; key="${key//[[:space:]]/}"; key="${key#export}"
+    value="${line#*=}"
+    if [[ "$value" =~ ^\'(.*)\'$ || "$value" =~ ^\"(.*)\"$ ]]; then value="${BASH_REMATCH[1]}"; fi
+    export "$key=$value"
+  done < "$1"
+}
+
 running() {
   [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null
 }
@@ -24,7 +39,7 @@ start() {
   if [ ! -f "$API_DIR/.env" ]; then log "api/.env missing — copy deploy/cpanel/api.env.example"; return 1; fi
   (
     cd "$API_DIR" || exit 1
-    set -a; . ./.env; set +a
+    load_env ./.env
     nohup ./bin/api >> "$LOG_DIR/api.log" 2>&1 &
     echo $! > "$PID_FILE"
   )

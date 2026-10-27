@@ -57,8 +57,18 @@ restart_node_app() {
 
 build_next() {
   local app="$1" app_root="$REPO_DIR/$1"
-  local venv="$HOME/nodevenv/${app_root#"$HOME"/}/$NODE_VERSION/bin/activate"
-  if [ ! -f "$venv" ]; then log "$app: $venv not found — create the Node.js app in cPanel first"; return 1; fi
+  local venv_dir="$HOME/nodevenv/${app_root#"$HOME"/}"
+  local venv="$venv_dir/$NODE_VERSION/bin/activate"
+  # Not on NODE_VERSION: use the version the app was created with, if it
+  # has exactly one.
+  if [ ! -f "$venv" ]; then
+    local found=("$venv_dir"/*/bin/activate)
+    [ "${#found[@]}" = 1 ] && [ -f "${found[0]}" ] && venv="${found[0]}"
+  fi
+  if [ ! -f "$venv" ]; then
+    log "$app: no Node.js environment in $venv_dir — create the Node.js app in cPanel with application root ${app_root#"$HOME"/}"
+    return 1
+  fi
   log "$app: building"
   (
     # shellcheck disable=SC1090
