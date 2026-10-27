@@ -48,7 +48,7 @@ export function favicon() {
 <path d="M10 12 h30 l-9 14 h-8 l-11 24 h-6z" fill="#F7941D"/><path d="M32 26 h20 l-14 24 h-14z" fill="#fff"/></svg>`;
 }
 
-// Name badge for payment methods, game providers, licences and partners.
+// Name badge for payment methods, game providers and licences.
 export function nameBadge(name, color, sub = "") {
   const lines = wrap(name, 14);
   const size = lines.length > 1 ? 22 : name.length > 10 ? 24 : 30;

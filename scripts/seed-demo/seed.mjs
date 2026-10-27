@@ -5,7 +5,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
-import { login, api, list, upsert, uploadSvg, mediaUrlOf, upsertPage, rng, ROOT } from "./lib.mjs";
+import { login, api, list, upsert, uploadSvg, uploadAsset, mediaUrlOf, upsertPage, rng, ROOT } from "./lib.mjs";
 import * as art from "./images.mjs";
 import { REGIONS, LICENSES, PARTNERS, PROVIDERS, PAYMENT_METHOD_STYLES, REGION_PAYMENTS, CASINOS, BLACKLIST, GAMES, GUIDES, NEWS, TEAM } from "./data.mjs";
 import { homeSections, regionHomeSections, paymentSections, calculatorIntro } from "./pages.mjs";
@@ -36,7 +36,7 @@ async function main() {
   m.team = [];
   for (const [i, t] of TEAM.entries()) m.team.push({ ...t, mediaId: await uploadSvg(`team-${slugify(t.name)}.svg`, art.avatar(t.initials, i), t.name) });
   m.partners = [];
-  for (const p of PARTNERS) m.partners.push({ ...p, mediaId: await uploadSvg(`partner-${slugify(p.name)}.svg`, art.nameBadge(p.name, p.color, p.sub), p.name) });
+  for (const p of PARTNERS) m.partners.push({ ...p, mediaId: await uploadAsset(`partner-logo-${p.logo}`, `partners/${p.logo}`, `${p.name} logo`) });
   log("media: icons, illustrations, team, partners");
 
   await uploadSvg("site-logo.svg", art.siteLogo(), "Top Casino");

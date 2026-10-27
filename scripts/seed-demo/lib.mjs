@@ -105,19 +105,29 @@ export async function upsert({ listUrl, match, createUrl = listUrl, body, publis
 
 let mediaIndex = null;
 
-export async function uploadSvg(filename, svg, alt = "") {
+const MIME = { ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp" };
+
+// Uploads once per filename (the media library's originalFilename), so
+// re-runs reuse the existing upload.
+async function upload(filename, data, alt) {
   if (!mediaIndex) {
     mediaIndex = new Map((await list("/api/admin/media")).map((m) => [m.originalFilename, m]));
   }
   const hit = mediaIndex.get(filename);
   if (hit) return hit.id;
   const form = new FormData();
-  form.append("file", new Blob([svg], { type: "image/svg+xml" }), filename);
+  form.append("file", new Blob([data], { type: MIME[path.extname(filename)] }), filename);
   const media = first(await api("POST", "/api/admin/media", form));
-  if (alt) await api("PUT", `/api/admin/media/${media.id}`, { title: filename.replace(/\.svg$/, ""), altText: alt, description: "" });
+  if (alt) await api("PUT", `/api/admin/media/${media.id}`, { title: filename.replace(/\.\w+$/, ""), altText: alt, description: "" });
   mediaIndex.set(filename, media);
   return media.id;
 }
+
+export const uploadSvg = (filename, svg, alt = "") => upload(filename, svg, alt);
+
+// A file shipped in scripts/seed-demo/assets/ (e.g. partners' official logos).
+export const uploadAsset = (filename, assetPath, alt = "") =>
+  upload(filename, readFileSync(path.join(ROOT, "scripts/seed-demo/assets", assetPath)), alt);
 
 export function mediaUrlOf(filename) {
   return mediaIndex?.get(filename)?.url ?? null;

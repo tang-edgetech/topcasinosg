@@ -21,14 +21,16 @@ export const LICENSES = [
   { name: "Anjouan Gaming", color: "#c2410c", sub: "Comoros" },
 ];
 
-// Acknowledgements strip on the homepage: testing labs and safer-gambling bodies.
+// Acknowledgements strip on the homepage: testing labs and safer-gambling
+// bodies. Logos are their official ones, downloaded from each url into
+// assets/partners/, picking the dark-text version where a site's header uses
+// a white one (Gambling Therapy only publishes white text, so it's left out).
 export const PARTNERS = [
-  { name: "eCOGRA", color: "#15803d", sub: "Fair Gaming" },
-  { name: "iTech Labs", color: "#1d4ed8", sub: "RNG Certified" },
-  { name: "GLI", color: "#b91c1c", sub: "Gaming Labs" },
-  { name: "GamCare", color: "#7c3aed", sub: "Player Support" },
-  { name: "BeGambleAware", color: "#0f766e", sub: "Safer Gambling" },
-  { name: "Gambling Therapy", color: "#c2410c", sub: "Help & Advice" },
+  { name: "eCOGRA", logo: "ecogra.png", url: "https://ecogra.org/" },
+  { name: "iTech Labs", logo: "itech-labs.svg", url: "https://itechlabs.com/" },
+  { name: "GLI", logo: "gli.jpg", url: "https://gaminglabs.com/" },
+  { name: "GamCare", logo: "gamcare.svg", url: "https://www.gamcare.org.uk/" },
+  { name: "GambleAware", logo: "gambleaware.png", url: "https://www.gambleaware.org/" },
 ];
 
 export const PROVIDERS = [
