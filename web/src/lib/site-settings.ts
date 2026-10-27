@@ -7,6 +7,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
 const REVALIDATE_SECONDS = 60;
 
 export interface SiteSettings {
+  siteUrl: string;
   seoIndex: boolean;
   seoFollow: boolean;
   faviconUrl: string | null;
@@ -17,12 +18,15 @@ export interface SiteSettings {
   contactEmail: string;
   facebookUrl: string;
   skypeUrl: string;
+  ogImageUrl: string | null;
+  twitterHandle: string;
 }
 
 // Fails "open" (index/follow both true) rather than closed — if the API is
 // briefly unreachable, we'd rather the live site stay indexable than have a
 // transient outage silently deindex it from search engines.
 const DEFAULT_SITE_SETTINGS: SiteSettings = {
+  siteUrl: "",
   seoIndex: true,
   seoFollow: true,
   faviconUrl: null,
@@ -33,6 +37,8 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
   contactEmail: "",
   facebookUrl: "",
   skypeUrl: "",
+  ogImageUrl: null,
+  twitterHandle: "",
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {
@@ -46,6 +52,7 @@ export async function getSiteSettings(): Promise<SiteSettings> {
       ...data,
       siteTitle: data.siteTitle || DEFAULT_SITE_SETTINGS.siteTitle,
       logoUrl: data.logoUrl || null,
+      ogImageUrl: data.ogImageUrl || null,
     };
   } catch {
     return DEFAULT_SITE_SETTINGS;

@@ -109,9 +109,21 @@ const BlockTypeContainer = "container"
 const BlockTypeGlobalSection = "global_section"
 
 const (
-	PageKindPage   = "page"
-	PageKindGlobal = "global"
+	PageKindPage     = "page"
+	PageKindGlobal   = "global"
+	PageKindTemplate = "template"
 )
+
+// SectionTemplate is a saved copy of a section (or a container with its
+// components) that editors insert into pages as an independent copy. Like a
+// GlobalSection it is stored as a hidden page, of kind PageKindTemplate.
+type SectionTemplate struct {
+	ID           int64
+	Name         string
+	SectionCount int
+	BlockTypes   []string
+	UpdatedAt    time.Time
+}
 
 // GlobalSection is a reusable group of sections edited once and shown on
 // every page that places it. It is stored as a page of kind PageKindGlobal

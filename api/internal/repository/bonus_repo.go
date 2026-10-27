@@ -199,6 +199,8 @@ func (r *BonusRepo) SetStatus(ctx context.Context, id int64, status domain.Conte
 }
 
 func (r *BonusRepo) Delete(ctx context.Context, id int64) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM bonuses WHERE id = ?`, id)
-	return err
+	if _, err := r.db.ExecContext(ctx, `DELETE FROM bonuses WHERE id = ?`, id); err != nil {
+		return err
+	}
+	return deleteSeoMeta(ctx, r.db, domain.SeoEntityBonus, id)
 }

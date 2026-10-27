@@ -310,3 +310,39 @@ export function headingAlignClassName(mobile: string | undefined, desktop: strin
   const d = ALIGN_ITEMS_CLASSES[desktop ?? ""] ? desktop! : "left";
   return `${ALIGN_ITEMS_CLASSES[m]} ${ALIGN_TEXT_CLASSES[m]} sm:${ALIGN_ITEMS_CLASSES[d]} sm:${ALIGN_TEXT_CLASSES[d]}`;
 }
+
+// The editor's unsaved sections (GET /api/page-previews/{token}), never
+// cached: every refresh of the backoffice's live preview is a new token.
+export async function getPagePreview(token: string): Promise<PageWithSections | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/page-previews/${encodeURIComponent(token)}`, { cache: "no-store" });
+    if (!res.ok) return null;
+    const body = (await res.json()) as ApiEnvelope<{ page?: PageMeta; sections?: PageSection[] }>;
+    if (!body.success || !body.data?.page) return null;
+    return fillYear({ page: body.data.page, sections: body.data.sections ?? [] });
+  } catch {
+    return null;
+  }
+}
+
+const PANEL_TITLE_KEYS = ["panelTitle", "heading", "headingLine1", "title", "tagline", "caption"];
+
+// Title of a component shown as a tab or accordion item in a Container: its
+// own "Tab / item title", else its heading, else "Tab N".
+export function panelTitle(section: PageSection, index: number): string {
+  for (const key of PANEL_TITLE_KEYS) {
+    const value = field(section.fields, 0, key)?.textValue?.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if (value) return value;
+  }
+  return `Tab ${index + 1}`;
+}
+
+// "Hide on mobile/tablet/desktop" presets (custom_class section--hide-*,
+// shared/theme/sections.css), copied onto a tab button, accordion item or
+// slide so hiding a component also hides its handle.
+export function visibilityClasses(section: Pick<PageSection, "customClass">): string {
+  return section.customClass
+    .split(/\s+/)
+    .filter((cls) => cls.startsWith("section--hide-"))
+    .join(" ");
+}

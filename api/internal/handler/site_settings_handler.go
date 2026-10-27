@@ -34,6 +34,12 @@ type siteSettingsDTO struct {
 	FaviconURL       *string `json:"faviconUrl"`
 	TwoFactorEnabled bool    `json:"twoFactorEnabled"`
 	footerContactJSON
+	socialDefaultsJSON
+}
+
+type socialDefaultsJSON struct {
+	OGImageURL    *string `json:"ogImageUrl"`
+	TwitterHandle string  `json:"twitterHandle"`
 }
 
 type footerContactJSON struct {
@@ -46,16 +52,17 @@ type footerContactJSON struct {
 
 func toSiteSettingsDTO(s *domain.SiteSettings) siteSettingsDTO {
 	return siteSettingsDTO{
-		SiteURL:           s.SiteURL,
-		SiteTitle:         s.SiteTitle,
-		SEOIndex:          s.SEOIndex,
-		SEOFollow:         s.SEOFollow,
-		Timezone:          s.Timezone,
-		Language:          string(s.Language),
-		LogoURL:           s.LogoURL,
-		FaviconURL:        s.FaviconURL,
-		TwoFactorEnabled:  s.TwoFactorEnabled,
-		footerContactJSON: footerContactJSON(s.FooterContact),
+		SiteURL:            s.SiteURL,
+		SiteTitle:          s.SiteTitle,
+		SEOIndex:           s.SEOIndex,
+		SEOFollow:          s.SEOFollow,
+		Timezone:           s.Timezone,
+		Language:           string(s.Language),
+		LogoURL:            s.LogoURL,
+		FaviconURL:         s.FaviconURL,
+		TwoFactorEnabled:   s.TwoFactorEnabled,
+		footerContactJSON:  footerContactJSON(s.FooterContact),
+		socialDefaultsJSON: socialDefaultsJSON(s.SocialDefaults),
 	}
 }
 
@@ -68,7 +75,9 @@ func siteSettingsErrorStatus(err error) int {
 		errors.Is(err, service.ErrContactFieldTooLong),
 		errors.Is(err, service.ErrInvalidContactEmail),
 		errors.Is(err, service.ErrInvalidFacebookURL),
-		errors.Is(err, service.ErrInvalidSkypeURL):
+		errors.Is(err, service.ErrInvalidSkypeURL),
+		errors.Is(err, service.ErrInvalidTwitterHandle),
+		errors.Is(err, service.ErrInvalidShareImage):
 		return http.StatusBadRequest
 	default:
 		return http.StatusInternalServerError
@@ -92,6 +101,7 @@ type updateSiteSettingsRequest struct {
 	Timezone  string `json:"timezone"`
 	Language  string `json:"language"`
 	footerContactJSON
+	socialDefaultsJSON
 }
 
 func (h *SiteSettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
@@ -102,13 +112,14 @@ func (h *SiteSettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	next := &domain.SiteSettings{
-		SiteURL:       req.SiteURL,
-		SiteTitle:     req.SiteTitle,
-		SEOIndex:      req.SEOIndex,
-		SEOFollow:     req.SEOFollow,
-		Timezone:      req.Timezone,
-		Language:      domain.Language(req.Language),
-		FooterContact: domain.FooterContact(req.footerContactJSON),
+		SiteURL:        req.SiteURL,
+		SiteTitle:      req.SiteTitle,
+		SEOIndex:       req.SEOIndex,
+		SEOFollow:      req.SEOFollow,
+		Timezone:       req.Timezone,
+		Language:       domain.Language(req.Language),
+		FooterContact:  domain.FooterContact(req.footerContactJSON),
+		SocialDefaults: domain.SocialDefaults(req.socialDefaultsJSON),
 	}
 	if err := h.settings.Update(r.Context(), actor, next); err != nil {
 		response.Err(w, siteSettingsErrorStatus(err), err.Error())

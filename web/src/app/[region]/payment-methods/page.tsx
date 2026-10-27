@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cmsPageMetadata } from "@/lib/seo";
 import { getActiveRegionByCode } from "../_lib/api";
 import { buildPageMenu, regionMenuLabel } from "../_lib/pageMenu";
 import { getPage } from "@/lib/pages";
@@ -32,11 +33,7 @@ export async function generateMetadata({
   const result = await getPage(`${region}/payment-methods`);
   if (!result) return {};
 
-  const { page } = result;
-  return {
-    title: page.metaTitle || page.title || undefined,
-    description: page.metaDescription || undefined,
-  };
+  return cmsPageMetadata(result.page, `/${region}/payment-methods`);
 }
 
 export default async function RegionPaymentMethodsPage({

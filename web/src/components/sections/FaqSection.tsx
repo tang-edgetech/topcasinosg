@@ -2,11 +2,21 @@ import type { CSSProperties } from "react";
 import { field, itemIndexes, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { sanitizeRichText } from "@/lib/sanitize-html";
 import AccordionItem from "@/components/Accordion";
+import JsonLd from "@/components/JsonLd";
+import { plainText } from "@/lib/seo";
+
+const FAQ_TEXT_MAX_LENGTH = 2000;
 
 export default function FaqSection({ section }: { section: PageSection }) {
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
   const items = itemIndexes(section.fields);
   const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
+  const qa = items
+    .map((itemIndex) => ({
+      question: plainText(field(section.fields, itemIndex, "question")?.textValue, FAQ_TEXT_MAX_LENGTH),
+      answer: plainText(field(section.fields, itemIndex, "answer")?.textValue, FAQ_TEXT_MAX_LENGTH),
+    }))
+    .filter((item) => item.question && item.answer);
 
   return (
     <section
@@ -14,6 +24,15 @@ export default function FaqSection({ section }: { section: PageSection }) {
       className={sectionClassName(hasBleedBg ? "section--faq section--bg" : "section--faq", section)}
       style={bgStyle as CSSProperties}
     >
+      {qa.length > 0 && (
+        <JsonLd
+          data={{
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            mainEntity: qa.map((item) => ({ "@type": "Question", name: item.question, acceptedAnswer: { "@type": "Answer", text: item.answer } })),
+          }}
+        />
+      )}
       <div className="section-container relative z-10 py-16">
         <div className="section-row flex flex-col">
           <div className="section-col section-col--centered mx-auto flex w-full max-w-3xl flex-col gap-8">

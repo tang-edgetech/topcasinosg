@@ -6,6 +6,7 @@ import Link from "next/link";
 import { App as AntApp } from "antd";
 import { useAuth } from "@/lib/auth-context";
 import { api, ApiError } from "@/lib/api";
+import SeoPanel from "@/components/content/SeoPanel";
 import type { NewsArticleDTO } from "@/lib/types";
 import NewsArticleForm from "../NewsArticleForm";
 
@@ -38,7 +39,15 @@ export default function EditNewsArticlePage() {
       {loading ? (
         <p className="text-text-muted dark:text-text-muted-dark">Loading…</p>
       ) : article ? (
-        <NewsArticleForm target={article} />
+        <>
+          <NewsArticleForm target={article} />
+          <SeoPanel
+            entityType="news"
+            entityId={article.id}
+            article
+            defaults={{ title: `${article.title} | Top Casino SG`, description: article.excerpt, image: article.coverUrl, path: `/news/${article.slug}` }}
+          />
+        </>
       ) : (
         <p className="text-text-muted dark:text-text-muted-dark">News article not found.</p>
       )}

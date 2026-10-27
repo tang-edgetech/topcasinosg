@@ -1,13 +1,17 @@
 import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { formatDate, getNewsArticles } from "./_lib/api";
 import IntroductionSection from "@/components/IntroductionSection";
 import PageGrid from "@/components/PageGrid";
 
-export const metadata: Metadata = {
-  title: "News | Top Casino SG",
-  description: "The latest casino industry news, updates, and announcements.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return buildMetadata({
+    path: "/news",
+    title: "News | Top Casino SG",
+    description: "The latest casino industry news, updates, and announcements.",
+  });
+}
 
 export default async function NewsPage() {
   const articles = await getNewsArticles();

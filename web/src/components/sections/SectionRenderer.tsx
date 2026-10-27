@@ -1,4 +1,4 @@
-import { field, type PageSection } from "@/lib/pages";
+import { field, panelTitle, visibilityClasses, type PageSection } from "@/lib/pages";
 import { sanitizeRichText } from "@/lib/sanitize-html";
 import HeroSection from "./HeroSection";
 import RichTextSection from "./RichTextSection";
@@ -73,9 +73,16 @@ export default function SectionRenderer({
     <>
       {groups.map(({ section, children }) =>
         section.blockType === "container" ? (
-          <ContainerSection key={section.id} section={section}>
-            {children.map(render)}
-          </ContainerSection>
+          <ContainerSection
+            key={section.id}
+            section={section}
+            panels={children.map((child, index) => ({
+              id: child.id,
+              title: panelTitle(child, index),
+              visibility: visibilityClasses(child),
+              content: render(child),
+            }))}
+          />
         ) : (
           render(section)
         )

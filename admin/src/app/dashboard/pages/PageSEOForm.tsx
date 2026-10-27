@@ -8,6 +8,7 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { api, ApiError } from "@/lib/api";
 import type { SaveAction } from "./SaveActionBar";
 import type { PageDTO } from "@/lib/types";
+import SeoPanel from "@/components/content/SeoPanel";
 
 const { TextArea } = Input;
 
@@ -88,7 +89,7 @@ export default function PageSEOForm({
   }, [savingSeo, savingSnippets, user?.role]);
 
   return (
-    <div className="flex max-w-2xl flex-col gap-8">
+    <div className="flex max-w-4xl flex-col gap-8">
       <div id="page-seo-form" className="page-seo-form flex flex-col gap-4 rounded-lg border border-border p-5 dark:border-border-dark">
         <h2 className="text-lg font-bold text-text dark:text-text-dark">SEO</h2>
         <Form
@@ -106,7 +107,7 @@ export default function PageSEOForm({
           <Form.Item
             name="metaDescription"
             label="Meta Description"
-            extra="Search engine indexing/following is controlled site-wide — see Dashboard > Settings."
+            extra="Share image, keywords, canonical URL and per-page noindex are in SEO & Social Sharing below."
           >
             <TextArea rows={2} maxLength={300} showCount />
           </Form.Item>
@@ -122,6 +123,17 @@ export default function PageSEOForm({
           )}
         </Form>
       </div>
+
+      <SeoPanel
+        entityType="page"
+        entityId={page.id}
+        showMetaFields={false}
+        defaults={{
+          title: page.metaTitle || page.title,
+          description: page.metaDescription,
+          path: page.slug === "home" ? "/" : `/${page.path}`,
+        }}
+      />
 
       {user && isStaff(user) && (
         <div id="page-snippets-form" className="page-snippets-form flex flex-col gap-4 rounded-lg border border-border p-5 dark:border-border-dark">

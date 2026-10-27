@@ -35,6 +35,16 @@ export const ADMIN_HELP = {
         ],
       },
       {
+        heading: "Page builder tools",
+        points: [
+          "Preview (bottom right) opens the page as the site shows it, unsaved changes included, at desktop, tablet or mobile width.",
+          "A Container can show its components as a stack, grid, tabs, accordion or carousel. With tabs or an accordion, set each component's title at the top of its Content tab.",
+          "Advanced › Hide on hides a component on mobile, tablet or desktop.",
+          "The clipboard button copies a component (a container with everything inside it); paste it on any page from “Paste copied” or + Add Component.",
+          "The layers button saves a component as a template (a copy you insert anywhere) or a global section (linked, edited once).",
+        ],
+      },
+      {
         heading: "Shared region pages",
         points: [
           "\"Region Template\" holds one copy of pages shared by every region (Bonuses, Reviews). Write {region}, {regionAdj}, {currency}, {regionCode} or {year} and each region fills in its own values.",
@@ -165,7 +175,7 @@ export const ADMIN_HELP = {
       {
         heading: "How to use",
         points: [
-          "Create one here and build it like a page (Containers, Title & Text, any component), or click “Save as Global Section” on a section in a page editor to turn it into one.",
+          "Create one here and build it like a page (Containers, Title & Text, any component), or click the layers button (“Save as Template or Global Section”) on a section in a page editor and choose global section.",
           "Place it on a page with the “Global Section” component (Layout group in Add Component).",
           "Saving a global section updates every page that uses it straight away.",
         ],

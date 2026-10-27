@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
 import { getAllCasinos, getCasinos, getRegions, type CasinoDTO } from "@/app/[region]/_lib/api";
 import CasinoLogo from "@/components/CasinoLogo";
 import IntroductionSection from "@/components/IntroductionSection";
@@ -13,11 +14,13 @@ import PageGrid from "@/components/PageGrid";
  * scheduled-publish reviews show up without a rebuild.
  */
 
-export const metadata: Metadata = {
-  title: "Casino Reviews | Top Casino SG",
-  description:
-    "Independent, in-depth reviews of the top online casinos available to Singapore players — ratings, payout speed, payment methods and more.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return buildMetadata({
+    path: "/casinos",
+    title: "Casino Reviews | Top Casino SG",
+    description: "Independent, in-depth reviews of the top online casinos available to Singapore players — ratings, payout speed, payment methods and more.",
+  });
+}
 
 function RatingBadge({ rating }: { rating: number }) {
   return (

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { App as AntApp } from "antd";
 import { useAuth } from "@/lib/auth-context";
 import { api, ApiError } from "@/lib/api";
+import SeoPanel from "@/components/content/SeoPanel";
 import type { BonusDTO, RegionDTO, CasinoDTO } from "@/lib/types";
 import BonusForm from "../BonusForm";
 
@@ -47,7 +48,10 @@ export default function EditBonusPage() {
       {loading ? (
         <p className="text-text-muted dark:text-text-muted-dark">Loading…</p>
       ) : bonus ? (
-        <BonusForm target={bonus} regions={regions} casinos={casinos} />
+        <>
+          <BonusForm target={bonus} regions={regions} casinos={casinos} />
+          <SeoPanel entityType="bonus" entityId={bonus.id} defaults={{ title: bonus.title, description: bonus.terms, path: `/bonuses/${bonus.slug}` }} />
+        </>
       ) : (
         <p className="text-text-muted dark:text-text-muted-dark">Bonus not found.</p>
       )}

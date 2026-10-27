@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cmsPageMetadata } from "@/lib/seo";
 import { getPage } from "@/lib/pages";
 import SectionRenderer from "@/components/sections/SectionRenderer";
 import RawHtmlBlock from "@/components/RawHtmlBlock";
@@ -10,11 +11,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const result = await getPage("home");
   if (!result) return {};
 
-  const { page } = result;
-  return {
-    title: page.metaTitle || page.title || undefined,
-    description: page.metaDescription || undefined,
-  };
+  return cmsPageMetadata(result.page, "/");
 }
 
 export default async function Home() {

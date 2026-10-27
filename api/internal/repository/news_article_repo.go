@@ -140,6 +140,8 @@ func (r *NewsArticleRepo) SetStatus(ctx context.Context, id int64, status domain
 }
 
 func (r *NewsArticleRepo) Delete(ctx context.Context, id int64) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM news_articles WHERE id = ?`, id)
-	return err
+	if _, err := r.db.ExecContext(ctx, `DELETE FROM news_articles WHERE id = ?`, id); err != nil {
+		return err
+	}
+	return deleteSeoMeta(ctx, r.db, domain.SeoEntityNews, id)
 }

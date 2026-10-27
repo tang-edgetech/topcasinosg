@@ -282,8 +282,10 @@ func (r *PageRepo) SetStatus(ctx context.Context, id int64, status domain.Conten
 
 // Delete cascades to page_sections and page_section_fields via their FKs.
 func (r *PageRepo) Delete(ctx context.Context, id int64) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM pages WHERE id = ?`, id)
-	return err
+	if _, err := r.db.ExecContext(ctx, `DELETE FROM pages WHERE id = ?`, id); err != nil {
+		return err
+	}
+	return deleteSeoMeta(ctx, r.db, domain.SeoEntityPage, id)
 }
 
 const sectionFieldColumns = `psf.id, psf.section_id, psf.item_index, psf.field_key, psf.field_type, psf.text_value, psf.media_id, media.url, psf.url_value, psf.sort_order`

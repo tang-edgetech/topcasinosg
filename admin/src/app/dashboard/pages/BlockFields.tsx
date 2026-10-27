@@ -1683,6 +1683,14 @@ function textSetter(fields: EditableField[], onChange: (f: EditableField[]) => v
   return (key: string, order: number) => (v: string) => onChange(upsertField(fields, 0, key, "text", order, { textValue: v }));
 }
 
+export const CONTAINER_LAYOUTS = [
+  { value: "stack", label: "Stack (one under another)" },
+  { value: "grid", label: "Grid (columns)" },
+  { value: "tabs", label: "Tabs (one at a time)" },
+  { value: "accordion", label: "Accordion (expandable items)" },
+  { value: "carousel", label: "Carousel (slider)" },
+];
+
 // Container — one shared background for the components placed inside it
 // (web ContainerSection), laid out as a stack or a 2/3/4-column grid; each
 // component's own "Width in container" (in its Layout row) overrides the
@@ -1690,27 +1698,55 @@ function textSetter(fields: EditableField[], onChange: (f: EditableField[]) => v
 function ContainerFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
   const text = (key: string) => textOf(fields, key);
   const set = textSetter(fields, onChange);
-  const grid = text("layout") === "grid";
+  const layout = CONTAINER_LAYOUTS.some((o) => o.value === text("layout")) ? text("layout") : "stack";
+  const grid = layout === "grid";
 
   return (
     <div className="flex flex-col gap-4">
       <p className="text-xs text-text-muted dark:text-text-muted-dark">
         Components inside this container share its background and layout. Add them with “+ Add Component Inside”, or use “Move Into
         Container Above” on the section right below the container. Layout, spacing, colours and background are in the Style tab; in a
-        grid, set each component&apos;s width in its own Style tab.
+        grid, set each component&apos;s width in its own Style tab. With Tabs or Accordion, each component&apos;s title is set at the top of
+        its own Content tab.
       </p>
       <StyleFields>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <LabeledField label="Layout">
-          <Select
-            value={grid ? "grid" : "stack"}
-            onChange={set("layout", 5)}
-            options={[
-              { value: "stack", label: "Stack (one under another)" },
-              { value: "grid", label: "Grid (columns)" },
-            ]}
-          />
+          <Select value={layout} onChange={set("layout", 5)} options={CONTAINER_LAYOUTS} />
         </LabeledField>
+        {layout === "tabs" && (
+          <LabeledField label="Tab alignment">
+            <Select
+              value={text("tabsAlign") === "center" ? "center" : "start"}
+              onChange={set("tabsAlign", 13)}
+              options={[
+                { value: "start", label: "Left" },
+                { value: "center", label: "Centre" },
+              ]}
+            />
+          </LabeledField>
+        )}
+        {layout === "accordion" && (
+          <LabeledField label="First item">
+            <Select
+              value={text("firstOpen") === "no" ? "no" : "yes"}
+              onChange={set("firstOpen", 14)}
+              options={[
+                { value: "yes", label: "Open" },
+                { value: "no", label: "Closed" },
+              ]}
+            />
+          </LabeledField>
+        )}
+        {layout === "carousel" && (
+          <LabeledField label="Slides visible (desktop)">
+            <Select
+              value={["1", "2", "3", "4"].includes(text("perView")) ? text("perView") : "3"}
+              onChange={set("perView", 15)}
+              options={["1", "2", "3", "4"].map((n) => ({ value: n, label: `${n} slide${n === "1" ? "" : "s"}` }))}
+            />
+          </LabeledField>
+        )}
         {grid && (
           <LabeledField label="Columns (desktop)">
             <Select
@@ -1722,7 +1758,7 @@ function ContainerFields({ fields, onChange }: { fields: EditableField[]; onChan
         )}
         <LabeledField label="Gap between components">
           <Select
-            value={text("gap") || (grid ? "m" : "l")}
+            value={text("gap") || (layout === "stack" ? "l" : "m")}
             onChange={set("gap", 7)}
             options={[
               { value: "s", label: "Small (16px)" },

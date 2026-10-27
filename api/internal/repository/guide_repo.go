@@ -182,6 +182,8 @@ func (r *GuideRepo) SetStatus(ctx context.Context, id int64, status domain.Conte
 }
 
 func (r *GuideRepo) Delete(ctx context.Context, id int64) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM guides WHERE id = ?`, id)
-	return err
+	if _, err := r.db.ExecContext(ctx, `DELETE FROM guides WHERE id = ?`, id); err != nil {
+		return err
+	}
+	return deleteSeoMeta(ctx, r.db, domain.SeoEntityGuide, id)
 }

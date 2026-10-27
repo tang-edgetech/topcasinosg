@@ -6,6 +6,7 @@ import Link from "next/link";
 import { App as AntApp } from "antd";
 import { useAuth } from "@/lib/auth-context";
 import { api, ApiError } from "@/lib/api";
+import SeoPanel from "@/components/content/SeoPanel";
 import type { GuideDTO, RegionDTO } from "@/lib/types";
 import GuideForm from "../GuideForm";
 
@@ -44,7 +45,15 @@ export default function EditGuidePage() {
       {loading ? (
         <p className="text-text-muted dark:text-text-muted-dark">Loading…</p>
       ) : guide ? (
-        <GuideForm target={guide} regions={regions} />
+        <>
+          <GuideForm target={guide} regions={regions} />
+          <SeoPanel
+            entityType="guide"
+            entityId={guide.id}
+            article
+            defaults={{ title: `${guide.title} | Top Casino SG`, description: guide.excerpt, image: guide.coverUrl, path: `/guides/${guide.slug}` }}
+          />
+        </>
       ) : (
         <p className="text-text-muted dark:text-text-muted-dark">Guide not found.</p>
       )}

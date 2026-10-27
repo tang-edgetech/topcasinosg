@@ -172,6 +172,9 @@ export interface CasinoDTO {
   regionIds: number[] | null;
   gameProviderIds: number[] | null;
   licenseIds: number[] | null;
+  publishAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface LicenseDTO {

@@ -43,6 +43,8 @@ export interface SiteSettingsDTO {
   contactEmail: string;
   facebookUrl: string;
   skypeUrl: string;
+  ogImageUrl: string | null;
+  twitterHandle: string;
 }
 
 export type MediaKind = "image" | "document" | "audio" | "video";
@@ -225,6 +227,7 @@ export interface GuideDTO {
   title: string;
   slug: string;
   coverMediaId: number | null;
+  coverUrl?: string | null;
   excerpt: string;
   content: string;
   status: ContentStatus;
@@ -285,6 +288,7 @@ export interface NewsArticleDTO {
   title: string;
   slug: string;
   coverMediaId: number | null;
+  coverUrl?: string | null;
   excerpt: string;
   content: string;
   status: ContentStatus;
@@ -337,6 +341,34 @@ export interface GlobalSectionDTO {
   id: number;
   name: string;
   usageCount: number;
+  updatedAt: string;
+}
+
+// Per-item SEO & social sharing overrides (api/internal/domain/seo.go);
+// every empty value falls back to what the public site builds itself.
+export type SeoEntityType = "page" | "casino" | "guide" | "news" | "bonus";
+
+export interface SeoMetaDTO {
+  metaTitle: string;
+  metaDescription: string;
+  keywords: string;
+  ogTitle: string;
+  ogDescription: string;
+  ogImageMediaId: number | null;
+  ogImageUrl: string | null;
+  canonicalUrl: string;
+  robotsNoindex: boolean;
+  robotsNofollow: boolean;
+  articleAuthor: string;
+}
+
+// A saved section template (api/internal/domain/page.go SectionTemplate):
+// inserting one copies its sections into the page.
+export interface SectionTemplateDTO {
+  id: number;
+  name: string;
+  sectionCount: number;
+  blockTypes: PageBlockType[];
   updatedAt: string;
 }
 

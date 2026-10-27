@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cmsPageMetadata } from "@/lib/seo";
 import { getPage } from "@/lib/pages";
 import SectionRenderer from "@/components/sections/SectionRenderer";
 import RawHtmlBlock from "@/components/RawHtmlBlock";
@@ -13,11 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const result = await getPage("calculator");
   if (!result) return {};
 
-  const { page } = result;
-  return {
-    title: page.metaTitle || undefined,
-    description: page.metaDescription || undefined,
-  };
+  return cmsPageMetadata(result.page, "/calculator");
 }
 
 export default async function CalculatorPage() {

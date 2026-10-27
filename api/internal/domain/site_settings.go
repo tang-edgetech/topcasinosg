@@ -27,7 +27,15 @@ type SiteSettings struct {
 	FaviconURL       *string
 	TwoFactorEnabled bool
 	FooterContact
+	SocialDefaults
 	UpdatedAt time.Time
+}
+
+// SocialDefaults are the site-wide sharing defaults: the image used when a
+// page has no share image of its own, and the site's X/Twitter handle.
+type SocialDefaults struct {
+	OGImageURL    *string
+	TwitterHandle string
 }
 
 // FooterContact is the public site footer's description and contact block.

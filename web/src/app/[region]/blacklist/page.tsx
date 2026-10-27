@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cmsPageMetadata } from "@/lib/seo";
 import { getBlacklistEntries, getActiveRegionByCode } from "../_lib/api";
 import { buildPageMenu, regionMenuLabel } from "../_lib/pageMenu";
 import { getPage, sectionBgColorValue } from "@/lib/pages";
@@ -25,11 +26,7 @@ export async function generateMetadata({
   const result = await getPage(`${region}/blacklist`);
   if (!result) return {};
 
-  const { page } = result;
-  return {
-    title: page.metaTitle || page.title || undefined,
-    description: page.metaDescription || undefined,
-  };
+  return cmsPageMetadata(result.page, `/${region}/blacklist`);
 }
 
 export default async function RegionBlacklistPage({

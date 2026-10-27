@@ -298,7 +298,7 @@ func (s *PageService) Delete(ctx context.Context, id int64) error {
 // rather than silently persisting a section the frontend won't know how to
 // render.
 func (s *PageService) ReplaceSections(ctx context.Context, pageID int64, sections []domain.PageSection) error {
-	if err := validateContainers(sections); err != nil {
+	if err := validateSections(sections); err != nil {
 		return err
 	}
 	page, err := s.pages.GetByID(ctx, pageID)
@@ -307,16 +307,6 @@ func (s *PageService) ReplaceSections(ctx context.Context, pageID int64, section
 	}
 	if page.Kind == domain.PageKindGlobal && hasGlobalSectionBlock(sections) {
 		return ErrNestedGlobal
-	}
-	for i := range sections {
-		if !isKnownBlockType(sections[i].BlockType) {
-			return ErrInvalidBlockType
-		}
-		for j := range sections[i].Fields {
-			if !isKnownFieldType(sections[i].Fields[j].FieldType) {
-				return ErrInvalidFieldType
-			}
-		}
 	}
 	return s.pages.ReplaceSections(ctx, pageID, sections)
 }

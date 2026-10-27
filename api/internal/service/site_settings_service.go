@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/mail"
 	"net/url"
+	"regexp"
 	"strings"
 	"unicode/utf8"
 
@@ -24,6 +25,8 @@ var (
 	ErrInvalidContactEmail      = errors.New("contact email must be a valid email address")
 	ErrInvalidFacebookURL       = errors.New("Facebook URL must start with http:// or https://")
 	ErrInvalidSkypeURL          = errors.New("Skype URL must start with http://, https://, or skype:")
+	ErrInvalidTwitterHandle     = errors.New("X/Twitter handle must be 1-15 letters, numbers or underscores")
+	ErrInvalidShareImage        = errors.New("share image must be an uploaded file or a full http(s) address")
 )
 
 // SiteSettingsService — reads are public (the login page needs the site title
@@ -55,10 +58,40 @@ func (s *SiteSettingsService) Update(ctx context.Context, actor *domain.AdminUse
 	if err != nil {
 		return err
 	}
+	sd, err := normalizeSocialDefaults(next.SocialDefaults)
+	if err != nil {
+		return err
+	}
 	if err := s.settings.Update(ctx, next); err != nil {
 		return err
 	}
-	return s.settings.UpdateFooterContact(ctx, fc)
+	if err := s.settings.UpdateFooterContact(ctx, fc); err != nil {
+		return err
+	}
+	return s.settings.UpdateSocialDefaults(ctx, sd)
+}
+
+var twitterHandlePattern = regexp.MustCompile(`^[A-Za-z0-9_]{1,15}$`)
+
+// normalizeSocialDefaults stores the handle without its "@" and accepts a
+// share image that is an uploaded file path (/uploads/...) or a full URL.
+func normalizeSocialDefaults(sd domain.SocialDefaults) (domain.SocialDefaults, error) {
+	sd.TwitterHandle = strings.TrimPrefix(strings.TrimSpace(sd.TwitterHandle), "@")
+	if sd.TwitterHandle != "" && !twitterHandlePattern.MatchString(sd.TwitterHandle) {
+		return sd, ErrInvalidTwitterHandle
+	}
+	if sd.OGImageURL != nil {
+		image := strings.TrimSpace(*sd.OGImageURL)
+		switch {
+		case image == "":
+			sd.OGImageURL = nil
+		case isWebURL(image) || (strings.HasPrefix(image, "/") && !strings.HasPrefix(image, "//")):
+			sd.OGImageURL = &image
+		default:
+			return sd, ErrInvalidShareImage
+		}
+	}
+	return sd, nil
 }
 
 func normalizeFooterContact(fc domain.FooterContact) (domain.FooterContact, error) {

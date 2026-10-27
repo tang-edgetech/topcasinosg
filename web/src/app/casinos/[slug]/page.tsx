@@ -13,6 +13,9 @@ import {
   type CasinoDTO,
 } from "@/app/[region]/_lib/api";
 import { mediaUrl } from "@/lib/pages";
+import { buildMetadata, getSeoMeta, siteBaseUrl } from "@/lib/seo";
+import { getSiteSettings } from "@/lib/site-settings";
+import JsonLd from "@/components/JsonLd";
 import { sanitizeRichText } from "@/lib/sanitize-html";
 import { DISPLAY_GAME_TYPES } from "@/lib/gameTypes";
 import CasinoLogo from "@/components/CasinoLogo";
@@ -41,10 +44,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const casino = await getCasino(slug);
   if (!casino) return {};
-  return {
+  return buildMetadata({
+    path: `/casinos/${casino.slug}`,
     title: `${casino.name} Casino Review ${new Date().getFullYear()} | Top Casino`,
     description: casino.summary || undefined,
-  };
+    image: mediaUrl(casino.logoUrl),
+    seo: await getSeoMeta("casino", casino.id),
+  });
 }
 
 export default async function CasinoReviewPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -63,9 +69,35 @@ export default async function CasinoReviewPage({ params }: { params: Promise<{ s
   const casinoProviders = providers.filter((p) => (casino.gameProviderIds ?? []).includes(p.id));
   const casinoLicenses = licenses.filter((l) => (casino.licenseIds ?? []).includes(l.id));
   const ctaUrl = casino.ctaUrl || "#";
+  const settings = await getSiteSettings();
+  const siteUrl = siteBaseUrl(settings);
+  const logo = mediaUrl(casino.logoUrl);
+  const reviewJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Review",
+    name: `${casino.name} Casino Review`,
+    url: `${siteUrl}/casinos/${casino.slug}`,
+    itemReviewed: { "@type": "Organization", name: casino.name, ...(logo ? { logo } : {}) },
+    reviewRating: { "@type": "Rating", ratingValue: casino.rating, bestRating: 5, worstRating: 0 },
+    author: { "@type": "Organization", name: settings.siteTitle, url: `${siteUrl}/` },
+    publisher: { "@type": "Organization", name: settings.siteTitle },
+    ...(casino.summary ? { reviewBody: casino.summary } : {}),
+    ...(casino.publishAt || casino.createdAt ? { datePublished: casino.publishAt || casino.createdAt } : {}),
+    ...(casino.updatedAt ? { dateModified: casino.updatedAt } : {}),
+  };
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: `${siteUrl}/` },
+      { "@type": "ListItem", position: 2, name: "Casinos", item: `${siteUrl}/casinos` },
+      { "@type": "ListItem", position: 3, name: casino.name, item: `${siteUrl}/casinos/${casino.slug}` },
+    ],
+  };
 
   return (
     <div id="casino-review-page" className="casino-review flex flex-1 flex-col bg-white">
+      <JsonLd data={[reviewJsonLd, breadcrumbJsonLd]} />
       <nav aria-label="Breadcrumb" className="casino-review__breadcrumb bg-gradient-to-r from-primary-900 to-primary-glow">
         <ol className="section-container flex flex-wrap items-center gap-2 py-3 text-xs text-white">
           <li>

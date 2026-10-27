@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { getBlacklistEntries, getActiveRegions } from "./_lib/api";
 import { sanitizeRichText } from "@/lib/sanitize-html";
@@ -7,11 +8,13 @@ import IntroductionSection from "@/components/IntroductionSection";
 import PageGrid from "@/components/PageGrid";
 import { sectionBgColorValue } from "@/lib/pages";
 
-export const metadata: Metadata = {
-  title: "Blacklisted Casinos | Top Casino SG",
-  description:
-    "Casinos flagged for scams, non-payment, or other serious trust and safety issues. Check before you deposit.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return buildMetadata({
+    path: "/blacklist",
+    title: "Blacklisted Casinos | Top Casino SG",
+    description: "Casinos flagged for scams, non-payment, or other serious trust and safety issues. Check before you deposit.",
+  });
+}
 
 const PAGE_SIZE = 25;
 

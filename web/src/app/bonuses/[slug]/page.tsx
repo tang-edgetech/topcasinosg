@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { sanitizeRichText } from "@/lib/sanitize-html";
+import { buildMetadata, getSeoMeta } from "@/lib/seo";
 
 /**
  * Public bonus detail page (/bonuses/{slug}) — mirrors the Guide detail page
@@ -108,10 +109,12 @@ export async function generateMetadata({
   const bonus = await getBonus(slug);
   if (!bonus) return {};
 
-  return {
+  return buildMetadata({
+    path: `/bonuses/${bonus.slug}`,
     title: bonus.title,
-    description: bonus.terms.slice(0, 160),
-  };
+    description: bonus.terms,
+    seo: await getSeoMeta("bonus", bonus.id),
+  });
 }
 
 export default async function BonusDetailPage({

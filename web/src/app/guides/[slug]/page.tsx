@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { sanitizeRichText } from "@/lib/sanitize-html";
+import { articleJsonLd, buildMetadata, getSeoMeta } from "@/lib/seo";
+import JsonLd from "@/components/JsonLd";
 
 /**
  * Public guide detail page. Content is scheduled-publish aware: the API
@@ -16,6 +19,7 @@ interface GuideDTO {
   title: string;
   slug: string;
   coverMediaId: number | null;
+  coverUrl?: string | null;
   excerpt: string;
   content: string;
   status: string;
@@ -82,6 +86,21 @@ async function getRegions(): Promise<RegionDTO[]> {
   }
 }
 
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const guide = await getGuide(slug);
+  if (!guide) return {};
+  return buildMetadata({
+    path: `/guides/${guide.slug}`,
+    title: `${guide.title} | Top Casino SG`,
+    description: guide.excerpt,
+    image: guide.coverUrl,
+    seo: await getSeoMeta("guide", guide.id),
+    type: "article",
+    article: { publishedTime: guide.publishAt ?? guide.createdAt, modifiedTime: guide.updatedAt, section: "Guides" },
+  });
+}
+
 export default async function GuideDetailPage({
   params,
 }: {
@@ -98,8 +117,20 @@ export default async function GuideDetailPage({
   const regionName =
     guide.regionId != null ? regions.find((region) => region.id === guide.regionId)?.name : null;
 
+  const jsonLd = await articleJsonLd({
+    type: "Article",
+    path: `/guides/${guide.slug}`,
+    headline: guide.title,
+    description: guide.excerpt,
+    image: guide.coverUrl,
+    datePublished: guide.publishAt ?? guide.createdAt,
+    dateModified: guide.updatedAt,
+    seo: await getSeoMeta("guide", guide.id),
+  });
+
   return (
     <div id="guide-detail-page" className="flex flex-1 flex-col bg-surface font-sans">
+      <JsonLd data={jsonLd} />
       <section
         id="guide-detail-breadcrumb"
         className="guide-detail__breadcrumb border-b border-primary-100 bg-primary-50"

@@ -7,6 +7,8 @@ import RawHtmlBlock from "@/components/RawHtmlBlock";
 import ScrollToTop from "@/components/ScrollToTop";
 import { getActiveSnippets } from "@/lib/snippets";
 import { getSiteSettings } from "@/lib/site-settings";
+import { assetUrl, buildMetadata, siteBaseUrl } from "@/lib/seo";
+import JsonLd from "@/components/JsonLd";
 import "./globals.css";
 
 const figtree = Figtree({
@@ -16,11 +18,16 @@ const figtree = Figtree({
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
 
-const DEFAULT_METADATA: Metadata = {
-  title: "Top Casino SG | Singapore's Trusted Online Casino Reviews",
-  description:
-    "Independent online casino reviews, ratings, and bonuses for Singapore players.",
-};
+const DEFAULT_TITLE = "Top Casino SG | Singapore's Trusted Online Casino Reviews";
+const DEFAULT_DESCRIPTION = "Independent online casino reviews, ratings, and bonuses for Singapore players.";
+
+function metadataBase(url: string): URL | undefined {
+  try {
+    return new URL(url);
+  } catch {
+    return undefined;
+  }
+}
 
 // The favicon and robots defaults are per-site settings the admin can change
 // (see admin/dashboard/settings), so they have to be resolved at request time
@@ -30,14 +37,20 @@ const DEFAULT_METADATA: Metadata = {
 // metadata merging replaces rather than deep-merges nested objects) — routes
 // with per-item SEO fields (e.g. the Homepage, see app/page.tsx) combine this
 // site-wide default with their own toggle instead of relying on this alone.
+// The same goes for the canonical/Open Graph/X tags built here from the
+// request path: every route gets them, and routes that know more about
+// themselves (see lib/seo.ts buildMetadata) replace them.
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSiteSettings();
+  const pathname = (await headers()).get("x-pathname") ?? "/";
   const robots = { index: settings.seoIndex, follow: settings.seoFollow };
+  const defaults = await buildMetadata({ path: pathname, title: DEFAULT_TITLE, description: DEFAULT_DESCRIPTION });
+  const base: Metadata = { ...defaults, metadataBase: metadataBase(siteBaseUrl(settings)), robots };
 
-  if (!settings.faviconUrl) return { ...DEFAULT_METADATA, robots };
+  if (!settings.faviconUrl) return base;
 
   const iconUrl = settings.faviconUrl.startsWith("http") ? settings.faviconUrl : `${API_URL}${settings.faviconUrl}`;
-  return { ...DEFAULT_METADATA, robots, icons: { icon: iconUrl } };
+  return { ...base, icons: { icon: iconUrl } };
 }
 
 export default async function RootLayout({
@@ -58,11 +71,29 @@ export default async function RootLayout({
   // <body> instead, ahead of "Body" snippets.
   const topOfBody = [...snippets.head, ...snippets.body].join("\n");
   const bottomOfBody = snippets.footer.join("\n");
+  const settings = await getSiteSettings();
+  const siteUrl = siteBaseUrl(settings);
+  const logo = assetUrl(settings.logoUrl);
+  const sameAs = [settings.facebookUrl, settings.twitterHandle && `https://x.com/${settings.twitterHandle}`].filter(Boolean);
 
   return (
     <html lang="en" className={`${figtree.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col overflow-x-clip font-sans">
         <RawHtmlBlock html={topOfBody} />
+        <JsonLd
+          data={[
+            { "@context": "https://schema.org", "@type": "WebSite", name: settings.siteTitle, url: `${siteUrl}/` },
+            {
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: settings.siteTitle,
+              url: `${siteUrl}/`,
+              ...(logo ? { logo } : {}),
+              ...(settings.contactEmail ? { email: settings.contactEmail } : {}),
+              ...(sameAs.length > 0 ? { sameAs } : {}),
+            },
+          ]}
+        />
         <Header />
         <main id="site-main" className="flex flex-1 flex-col">
           {children}

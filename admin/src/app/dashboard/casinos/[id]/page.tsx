@@ -6,6 +6,7 @@ import Link from "next/link";
 import { App as AntApp } from "antd";
 import { useAuth } from "@/lib/auth-context";
 import { api, ApiError } from "@/lib/api";
+import SeoPanel from "@/components/content/SeoPanel";
 import type { CasinoDTO, RegionDTO, GameProviderDTO, LicenseDTO } from "@/lib/types";
 import CasinoForm from "../CasinoForm";
 
@@ -50,7 +51,19 @@ export default function EditCasinoPage() {
       {loading ? (
         <p className="text-text-muted dark:text-text-muted-dark">Loading…</p>
       ) : casino ? (
-        <CasinoForm target={casino} regions={regions} gameProviders={gameProviders} licenses={licenses} />
+        <>
+          <CasinoForm target={casino} regions={regions} gameProviders={gameProviders} licenses={licenses} />
+          <SeoPanel
+            entityType="casino"
+            entityId={casino.id}
+            defaults={{
+              title: `${casino.name} Casino Review ${new Date().getFullYear()} | Top Casino`,
+              description: casino.summary,
+              image: casino.logoUrl,
+              path: `/casinos/${casino.slug}`,
+            }}
+          />
+        </>
       ) : (
         <p className="text-text-muted dark:text-text-muted-dark">Casino not found.</p>
       )}

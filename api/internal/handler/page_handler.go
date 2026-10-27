@@ -99,7 +99,7 @@ func pageErrorStatus(err error) int {
 		return http.StatusConflict
 	case errors.Is(err, service.ErrInvalidContentStatus), errors.Is(err, service.ErrPublishAtRequired),
 		errors.Is(err, service.ErrInvalidBlockType), errors.Is(err, service.ErrInvalidFieldType),
-		errors.Is(err, service.ErrInvalidContainer), errors.Is(err, service.ErrGlobalNameRequired), errors.Is(err, service.ErrNestedGlobal),
+		errors.Is(err, service.ErrInvalidContainer), errors.Is(err, service.ErrGlobalNameRequired), errors.Is(err, service.ErrNestedGlobal), errors.Is(err, service.ErrTemplateNameRequired), errors.Is(err, service.ErrTemplateEmpty),
 		errors.Is(err, service.ErrHomeSlugLocked), errors.Is(err, service.ErrInvalidParent):
 		return http.StatusBadRequest
 	default:

@@ -1,6 +1,16 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
 import IntroductionSection from "@/components/IntroductionSection";
 import PageGrid from "@/components/PageGrid";
+
+export async function generateMetadata(): Promise<Metadata> {
+  return buildMetadata({
+    path: "/guides",
+    title: "Casino Guides | Top Casino SG",
+    description: "Independently written guides covering game rules, bonus terms, and strategy for online casino players.",
+  });
+}
 
 /**
  * Public guides list — all published guides (global or region-scoped),

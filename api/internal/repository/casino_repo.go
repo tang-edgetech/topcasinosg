@@ -431,6 +431,8 @@ func (r *CasinoRepo) SetStatus(ctx context.Context, id int64, status domain.Cont
 }
 
 func (r *CasinoRepo) Delete(ctx context.Context, id int64) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM casinos WHERE id = ?`, id)
-	return err
+	if _, err := r.db.ExecContext(ctx, `DELETE FROM casinos WHERE id = ?`, id); err != nil {
+		return err
+	}
+	return deleteSeoMeta(ctx, r.db, domain.SeoEntityCasino, id)
 }

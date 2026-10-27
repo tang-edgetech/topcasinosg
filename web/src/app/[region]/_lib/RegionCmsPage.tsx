@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cmsPageMetadata } from "@/lib/seo";
 import { getActiveRegionByCode } from "./api";
 import { buildPageMenu, regionMenuLabel, type PageKey } from "./pageMenu";
 import { getRegionPage } from "./regionPage";
@@ -17,10 +18,7 @@ export async function regionCmsMetadata(region: string, subPath: string): Promis
   const regionData = await getActiveRegionByCode(region);
   const result = regionData ? await getRegionPage(regionData, subPath) : null;
   if (!result) return {};
-  return {
-    title: result.page.metaTitle || result.page.title || undefined,
-    description: result.page.metaDescription || undefined,
-  };
+  return cmsPageMetadata(result.page, `/${region}/${subPath}`);
 }
 
 export default async function RegionCmsPage({ region, subPath, menu, id }: { region: string; subPath: string; menu: PageKey; id: string }) {

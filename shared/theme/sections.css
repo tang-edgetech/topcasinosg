@@ -99,17 +99,20 @@
  * children up to half width pair up two per row and wider ones go full.
  * Children's own containers and bleed backgrounds stay inside their cell.
  */
-.container-section__body--grid {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
+.container-section__body--boxed {
   width: 100%;
   max-width: var(--container-max, 1270px);
   margin-inline: auto;
   padding-inline: 25px;
 }
 
-.main > .primary .container-section__body--grid {
+.main > .primary .container-section__body--boxed {
   padding-inline: 0;
+}
+
+.container-section__body--grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
 }
 
 .container-section__body--grid > .section {
@@ -117,16 +120,172 @@
   min-width: 0;
 }
 
-.container-section__body--grid > .section > .section-container {
+.container-section__body--grid > .section > .section-container,
+.container-panel > .section > .section-container {
   max-width: none;
+  padding-block: 0;
   padding-inline: 0;
 }
 
 .container-section__body--grid > .section--bg::before,
-.main > .primary .container-section__body--grid > .section--bg::before {
+.main > .primary .container-section__body--grid > .section--bg::before,
+.container-panel > .section--bg::before,
+.main > .primary .container-panel > .section--bg::before {
   left: 0;
   width: 100%;
   transform: none;
+}
+
+/*
+ * Tabs / accordion / carousel layouts: each component is a panel
+ * (.container-panel) under a tab, inside an expandable item or on a slide.
+ * Colours follow the container's text tone (tone-* variables above).
+ */
+.container-tabs {
+  gap: var(--container-gap, 30px);
+}
+
+.container-tabs__list {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 30px;
+  overflow-x: auto;
+  border-bottom: 1px solid;
+  scrollbar-width: none;
+}
+
+.container-tabs__tab {
+  flex-shrink: 0;
+  cursor: pointer;
+  margin-bottom: -1px;
+  padding: 0 0 12px;
+  border-bottom: 3px solid transparent;
+  color: var(--tone-text, var(--color-primary-600));
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 19px;
+  white-space: nowrap;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.container-tabs__tab:hover,
+.container-tabs__tab--active {
+  color: var(--tone-heading, var(--color-primary-900));
+}
+
+.container-tabs__tab--active {
+  border-bottom-color: var(--color-danger);
+}
+
+.container-accordion {
+  gap: 12px;
+}
+
+.container-accordion__item {
+  border: 0.5px solid var(--tone-line, var(--color-primary-100));
+  border-radius: 5px;
+  background: var(--color-surface);
+}
+
+.section--tone-light .container-accordion__item {
+  background: rgb(255 255 255 / 0.06);
+}
+
+.container-accordion__summary {
+  display: flex;
+  cursor: pointer;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 22px;
+  list-style: none;
+}
+
+.container-accordion__summary::-webkit-details-marker {
+  display: none;
+}
+
+.container-accordion__icon {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.container-accordion__icon::before,
+.container-accordion__icon::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 14px;
+  height: 2px;
+  background: var(--color-danger);
+  transform: translateY(-50%);
+  transition: transform 0.15s ease;
+}
+
+.container-accordion__icon::after {
+  transform: translateY(-50%) rotate(90deg);
+}
+
+.container-accordion__item[open] .container-accordion__icon::after {
+  transform: translateY(-50%) rotate(0deg);
+}
+
+.container-accordion__panel {
+  padding: 0 20px 20px;
+}
+
+.container-carousel__slide {
+  flex: 0 0 85%;
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .container-carousel--2 .container-carousel__slide,
+  .container-carousel--3 .container-carousel__slide,
+  .container-carousel--4 .container-carousel__slide {
+    flex-basis: calc((100% - 16px) / 2);
+  }
+  .container-carousel--1 .container-carousel__slide {
+    flex-basis: 100%;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container-carousel--3 .container-carousel__slide {
+    flex-basis: calc((100% - 32px) / 3);
+  }
+  .container-carousel--4 .container-carousel__slide {
+    flex-basis: calc((100% - 48px) / 4);
+  }
+}
+
+/*
+ * Show/hide per device (custom_class presets set in the editor's Advanced
+ * tab): mobile below 640px, tablet 640-1199px, desktop 1200px and up - the
+ * same split as columnsClassName in web/src/lib/pages.ts.
+ */
+@media (max-width: 639.98px) {
+  .section--hide-mobile {
+    display: none !important;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1199.98px) {
+  .section--hide-tablet {
+    display: none !important;
+  }
+}
+
+@media (min-width: 1200px) {
+  .section--hide-desktop {
+    display: none !important;
+  }
 }
 
 @media (min-width: 640px) {

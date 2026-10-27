@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Checkbox, Input, Modal, Select, Tabs, App as AntApp } from "antd";
+import { Checkbox, Input, Modal, Radio, Select, Space, Tabs, App as AntApp } from "antd";
 import { api, ApiError } from "@/lib/api";
 import { useConfirm } from "@/components/ConfirmDialog";
 import IconButton from "@/components/IconButton";
 import {
   IconChevronUp,
   IconChevronDown,
+  IconClipboardCopy,
   IconCopy,
   IconGripVertical,
   IconIndent,
@@ -19,7 +20,9 @@ import {
 import BlockFieldEditor, { BLOCK_TYPE_LABELS, StyleTabTarget, defaultFieldsForBlockType, mediaUrl, type EditableField } from "./BlockFields";
 import type { SaveAction } from "./SaveActionBar";
 import ComponentPicker, { type ComponentGroup } from "./ComponentPicker";
-import type { GlobalSectionDTO, PageBlockType, PageSectionDTO } from "@/lib/types";
+import LivePreview from "./LivePreview";
+import { copySectionsToClipboard, useSectionClipboard, type CopiedSection } from "@/lib/sectionClipboard";
+import type { GlobalSectionDTO, PageBlockType, PageSectionDTO, SectionTemplateDTO } from "@/lib/types";
 
 interface EditableSection {
   key: string;
@@ -51,7 +54,18 @@ const WIDTH_OPTIONS = [
   { value: "section--w-1-4", label: "1/4" },
 ];
 const WIDTH_CLASSES = WIDTH_OPTIONS.map((o) => o.value).filter(Boolean);
-const PRESET_CLASSES = [TIGHT_TOP_CLASS, DIVIDER_TOP_CLASS, WIDE_CONTENT_CLASS, ...WIDTH_CLASSES];
+// Hide a component on some devices (shared/theme/sections.css): mobile
+// below 640px, tablet 640-1199px, desktop 1200px and up.
+const VISIBILITY_OPTIONS = [
+  { cls: "section--hide-mobile", label: "Mobile" },
+  { cls: "section--hide-tablet", label: "Tablet" },
+  { cls: "section--hide-desktop", label: "Desktop" },
+];
+const HIDE_CLASSES = VISIBILITY_OPTIONS.map((o) => o.cls);
+const PRESET_CLASSES = [TIGHT_TOP_CLASS, DIVIDER_TOP_CLASS, WIDE_CONTENT_CLASS, ...WIDTH_CLASSES, ...HIDE_CLASSES];
+// Containers whose components each get a title (tab or accordion item).
+const PANEL_TITLE_LABELS: Record<string, string> = { tabs: "Tab title", accordion: "Accordion item title" };
+const PANEL_TITLE_KEY = "panelTitle";
 // Single-column reading blocks, whose 768px column can widen to 960px.
 const WIDE_CONTENT_BLOCK_TYPES: PageBlockType[] = ["rich_text", "faq"];
 
@@ -277,14 +291,29 @@ function applyDrop(list: EditableSection[], dragKey: string, target: DropTarget)
 function SectionEditor({
   section,
   inGrid,
+  panelLabel,
   onUpdate,
 }: {
   section: EditableSection;
   inGrid: boolean;
+  panelLabel: string | null;
   onUpdate: (patch: Partial<EditableSection>) => void;
 }) {
   const [styleTarget, setStyleTarget] = useState<HTMLDivElement | null>(null);
   const [tab, setTab] = useState("content");
+  const panelTitle = section.fields.find((f) => f.itemIndex === 0 && f.fieldKey === PANEL_TITLE_KEY)?.textValue ?? "";
+
+  function setPanelTitle(value: string) {
+    const exists = section.fields.some((f) => f.itemIndex === 0 && f.fieldKey === PANEL_TITLE_KEY);
+    onUpdate({
+      fields: exists
+        ? section.fields.map((f) => (f.itemIndex === 0 && f.fieldKey === PANEL_TITLE_KEY ? { ...f, textValue: value } : f))
+        : [
+            ...section.fields,
+            { itemIndex: 0, fieldKey: PANEL_TITLE_KEY, fieldType: "text", textValue: value, mediaId: null, mediaUrl: null, urlValue: "", sortOrder: section.fields.length + 1 },
+          ],
+    });
+  }
 
   return (
     <StyleTabTarget.Provider value={styleTarget}>
@@ -296,7 +325,22 @@ function SectionEditor({
           {
             key: "content",
             label: "Content",
-            children: <BlockFieldEditor blockType={section.blockType} fields={section.fields} onChange={(fields) => onUpdate({ fields })} />,
+            children: (
+              <div className="flex flex-col gap-4">
+                {panelLabel && (
+                  <Space.Compact block>
+                    <Space.Addon>{panelLabel}</Space.Addon>
+                    <Input
+                      id={`section-${section.key}-panel-title`}
+                      placeholder="Leave empty to use this component's heading"
+                      value={panelTitle}
+                      onChange={(e) => setPanelTitle(e.target.value)}
+                    />
+                  </Space.Compact>
+                )}
+                <BlockFieldEditor blockType={section.blockType} fields={section.fields} onChange={(fields) => onUpdate({ fields })} />
+              </div>
+            ),
           },
           {
             key: "style",
@@ -347,22 +391,42 @@ function SectionEditor({
             key: "advanced",
             label: "Advanced",
             children: (
+              <div className="flex flex-col gap-4">
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-md bg-surface px-4 py-3 dark:bg-surface-muted-dark">
+                <span className="text-xs font-semibold tracking-wide text-text-muted uppercase dark:text-text-muted-dark">Hide on</span>
+                {VISIBILITY_OPTIONS.map((option) => (
+                  <Checkbox
+                    key={option.cls}
+                    id={`section-${section.key}-${option.cls}`}
+                    checked={hasClass(section.customClass, option.cls)}
+                    onChange={(e) => onUpdate({ customClass: toggleClass(section.customClass, option.cls, e.target.checked) })}
+                  >
+                    {option.label}
+                  </Checkbox>
+                ))}
+                <span className="text-xs text-text-muted dark:text-text-muted-dark">Mobile is below 640px, tablet 640–1199px, desktop 1200px and up.</span>
+              </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Input
-                  addonBefore="CSS class"
-                  placeholder="optional"
-                  value={extraClasses(section.customClass)}
-                  onChange={(e) => {
-                    const presets = PRESET_CLASSES.filter((c) => hasClass(section.customClass, c));
-                    onUpdate({ customClass: composeClasses(e.target.value, presets) });
-                  }}
-                />
-                <Input
-                  addonBefore="HTML id"
-                  placeholder="optional, e.g. faqs (for #faqs links)"
-                  value={section.customId}
-                  onChange={(e) => onUpdate({ customId: e.target.value })}
-                />
+                <Space.Compact block>
+                  <Space.Addon>CSS class</Space.Addon>
+                  <Input
+                    placeholder="optional"
+                    value={extraClasses(section.customClass)}
+                    onChange={(e) => {
+                      const presets = PRESET_CLASSES.filter((c) => hasClass(section.customClass, c));
+                      onUpdate({ customClass: composeClasses(e.target.value, presets) });
+                    }}
+                  />
+                </Space.Compact>
+                <Space.Compact block>
+                  <Space.Addon>HTML id</Space.Addon>
+                  <Input
+                    placeholder="optional, e.g. faqs (for #faqs links)"
+                    value={section.customId}
+                    onChange={(e) => onUpdate({ customId: e.target.value })}
+                  />
+                </Space.Compact>
+              </div>
               </div>
             ),
           },
@@ -443,9 +507,13 @@ export default function SectionBuilder({
   const [insertInContainer, setInsertInContainer] = useState(false);
   const pickerGroups = useMemo(() => buildPickerGroups(!insertInContainer, !isGlobal), [insertInContainer, isGlobal]);
   const [globalNames, setGlobalNames] = useState<Map<string, string>>(() => new Map());
-  const [saveGlobalIndex, setSaveGlobalIndex] = useState<number | null>(null);
-  const [globalName, setGlobalName] = useState("");
-  const [savingGlobal, setSavingGlobal] = useState(false);
+  const [libraryIndex, setLibraryIndex] = useState<number | null>(null);
+  const [libraryName, setLibraryName] = useState("");
+  const [libraryKind, setLibraryKind] = useState<"template" | "global">("template");
+  const [savingLibrary, setSavingLibrary] = useState(false);
+  const [templates, setTemplates] = useState<SectionTemplateDTO[]>([]);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const clipboard = useSectionClipboard();
 
   useEffect(() => {
     if (isGlobal) return;
@@ -454,6 +522,19 @@ export default function SectionBuilder({
       .then((data) => setGlobalNames(new Map((data.globalSections ?? []).map((g) => [String(g.id), g.name]))))
       .catch(() => undefined);
   }, [isGlobal]);
+
+  function loadTemplates() {
+    api
+      .get<{ templates: SectionTemplateDTO[] }>("/api/admin/section-templates")
+      .then((data) => setTemplates(data.templates ?? []))
+      .catch(() => undefined);
+  }
+
+  useEffect(loadTemplates, []);
+
+  const pickerTemplates = templates.filter(
+    (t) => !(insertInContainer && t.blockTypes.includes(CONTAINER)) && !(isGlobal && t.blockTypes.includes(GLOBAL_SECTION)),
+  );
 
   const dirty = snapshot(sections) !== savedSnapshot;
 
@@ -517,6 +598,91 @@ export default function SectionBuilder({
     const section = sections[index];
     if (section.inContainer) openPicker(index + 1, true);
     else openPicker(unitEnd(sections, index));
+  }
+
+  // Inserts copies (pasted, or from a template) where the picker was opened:
+  // a lone component goes inside the container there if any; a container
+  // brings its own components and can't go inside another container.
+  function insertCopies(copies: CopiedSection[], what: string, at: number | null = insertAt, inside = insertInContainer): boolean {
+    if (copies.length === 0) return false;
+    const bringsContainer = copies[0].blockType === CONTAINER;
+    if (inside && copies.some((c) => c.blockType === CONTAINER)) {
+      message.warning(`This ${what} has a container, which can't go inside another container. Add it outside the container instead.`);
+      return false;
+    }
+    if (isGlobal && copies.some((c) => c.blockType === GLOBAL_SECTION)) {
+      message.warning(`This ${what} places a global section, which can't go inside another global section.`);
+      return false;
+    }
+    insertSections(
+      copies.map((c, i) => ({
+        key: nextClientKey(),
+        blockType: c.blockType,
+        customClass: c.customClass,
+        customId: "",
+        inContainer: bringsContainer ? i > 0 && c.inContainer : inside,
+        fields: c.fields.map((f) => ({ ...f, mediaUrl: f.mediaUrl ? mediaUrl(f.mediaUrl) : f.mediaUrl })),
+      })),
+      at ?? undefined,
+    );
+    return true;
+  }
+
+  function toCopies(unit: EditableSection[]): CopiedSection[] {
+    return unit.map((s, i) => ({
+      blockType: s.blockType,
+      customClass: s.customClass,
+      customId: s.customId,
+      inContainer: i > 0 && s.inContainer,
+      fields: s.fields.map((f) => ({ ...f })),
+    }));
+  }
+
+  function copySection(index: number) {
+    const unit = sections.slice(index, unitEnd(sections, index));
+    const summary = sectionSummary(unit[0].blockType === CONTAINER ? (unit[1]?.fields ?? []) : unit[0].fields);
+    const label = `${BLOCK_TYPE_LABELS[unit[0].blockType] ?? unit[0].blockType}${summary ? `: ${summary}` : ""}${
+      unit.length > 1 ? ` (+${unit.length - 1} inside)` : ""
+    }`;
+    if (copySectionsToClipboard({ label, sections: toCopies(unit) })) {
+      message.success("Copied. Paste it on any page from “+ Add Component”.");
+    } else {
+      message.error("Could not copy — this browser is blocking local storage.");
+    }
+  }
+
+  function pasteClipboard() {
+    if (clipboard && insertCopies(clipboard.sections, "copied component")) message.success("Pasted. Save Page Content to keep it.");
+  }
+
+  async function insertTemplate(template: SectionTemplateDTO) {
+    try {
+      const data = await api.get<{ sections: PageSectionDTO[] }>(`/api/admin/section-templates/${template.id}`);
+      const copies = (data.sections ?? [])
+        .slice()
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((s) => ({ blockType: s.blockType, customClass: s.customClass, customId: s.customId, inContainer: Boolean(s.inContainer), fields: s.fields }));
+      if (insertCopies(copies, "template")) message.success(`Inserted “${template.name}”. Save Page Content to keep it.`);
+    } catch (err) {
+      message.error(err instanceof ApiError ? err.message : "Could not load the template.");
+    }
+  }
+
+  async function deleteTemplate(template: SectionTemplateDTO) {
+    const ok = await confirm({
+      title: "Delete Template",
+      message: `Delete the template “${template.name}”? Pages that already used it keep their copy.`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await api.del(`/api/admin/section-templates/${template.id}`);
+      message.success("Template deleted.");
+      loadTemplates();
+    } catch (err) {
+      message.error(err instanceof ApiError ? err.message : "Could not delete the template.");
+    }
   }
 
   function duplicateSection(index: number) {
@@ -638,27 +804,31 @@ export default function SectionBuilder({
     return from >= 0 && index >= from && index < unitEnd(sections, from);
   }
 
-  // Turns a section (a container with its components) into a new global
-  // section and puts a Global Section block in its place - the page change
-  // still needs "Save Page Content", the global section is created at once.
-  async function saveAsGlobal() {
-    if (saveGlobalIndex === null) return;
-    const index = saveGlobalIndex;
-    const end = unitEnd(sections, index);
-    const unit = sections.slice(index, end);
-    setSavingGlobal(true);
+  // "Save to Library": a template is a copy inserted later from + Add
+  // Component (this page keeps its section); a global section is linked - it
+  // is created at once and a Global Section block takes the section's place
+  // here, which still needs "Save Page Content".
+  async function saveToLibrary() {
+    if (libraryIndex === null) return;
+    const unit = sections.slice(libraryIndex, unitEnd(sections, libraryIndex));
+    const unitPayload = unit.map((s, i) => ({
+      blockType: s.blockType,
+      customClass: s.customClass,
+      customId: s.customId,
+      inContainer: i > 0 && s.inContainer,
+      sortOrder: i + 1,
+      fields: s.fields.map((f, fi) => ({ ...f, sortOrder: fi + 1 })),
+    }));
+    setSavingLibrary(true);
     try {
-      const data = await api.post<{ globalSection: GlobalSectionDTO }>("/api/admin/global-sections", {
-        name: globalName,
-        sections: unit.map((s, i) => ({
-          blockType: s.blockType,
-          customClass: s.customClass,
-          customId: s.customId,
-          inContainer: i > 0 && s.inContainer,
-          sortOrder: i + 1,
-          fields: s.fields.map((f, fi) => ({ ...f, sortOrder: fi + 1 })),
-        })),
-      });
+      if (libraryKind === "template") {
+        await api.post("/api/admin/section-templates", { name: libraryName, sections: unitPayload });
+        loadTemplates();
+        setLibraryIndex(null);
+        message.success(`Saved “${libraryName.trim()}” as a template. Insert it on any page from “+ Add Component”.`);
+        return;
+      }
+      const data = await api.post<{ globalSection: GlobalSectionDTO }>("/api/admin/global-sections", { name: libraryName, sections: unitPayload });
       const created = data.globalSection;
       setGlobalNames((prev) => new Map(prev).set(String(created.id), created.name));
       const placeholder: EditableSection = {
@@ -673,13 +843,33 @@ export default function SectionBuilder({
         const start = prev.findIndex((s) => s.key === unit[0].key);
         return [...prev.slice(0, start), placeholder, ...prev.slice(start + unit.length)];
       });
-      setSaveGlobalIndex(null);
+      setLibraryIndex(null);
       message.success(`"${created.name}" is now a global section. Save Page Content to keep it on this page.`);
     } catch (err) {
-      message.error(err instanceof ApiError ? err.message : "Could not create the global section.");
+      message.error(err instanceof ApiError ? err.message : "Could not save to the library.");
     } finally {
-      setSavingGlobal(false);
+      setSavingLibrary(false);
     }
+  }
+
+  function openLibrary(index: number) {
+    const section = sections[index];
+    setLibraryName(sectionSummary(section.blockType === CONTAINER ? (sections[index + 1]?.fields ?? []) : section.fields));
+    setLibraryKind("template");
+    setLibraryIndex(index);
+  }
+
+  function sectionsPayload() {
+    return {
+      sections: sections.map((s, i) => ({
+        blockType: s.blockType,
+        customClass: s.customClass,
+        customId: s.customId,
+        inContainer: s.inContainer,
+        sortOrder: i + 1,
+        fields: s.fields.map((f, fi) => ({ ...f, sortOrder: fi + 1 })),
+      })),
+    };
   }
 
   function updateSection(key: string, patch: Partial<EditableSection>) {
@@ -689,17 +879,7 @@ export default function SectionBuilder({
   async function handleSave() {
     setSaving(true);
     try {
-      const payload = {
-        sections: sections.map((s, i) => ({
-          blockType: s.blockType,
-          customClass: s.customClass,
-          customId: s.customId,
-          inContainer: s.inContainer,
-          sortOrder: i + 1,
-          fields: s.fields.map((f, fi) => ({ ...f, sortOrder: fi + 1 })),
-        })),
-      };
-      await api.put(`/api/admin/pages/${pageId}/sections`, payload);
+      await api.put(`/api/admin/pages/${pageId}/sections`, sectionsPayload());
       setSavedSnapshot(snapshot(sections));
       message.success("Page content saved.");
     } catch (err) {
@@ -711,11 +891,12 @@ export default function SectionBuilder({
 
   useEffect(() => {
     onActionsChange?.([
+      { id: "section-builder-preview", label: previewOpen ? "Hide Preview" : "Preview", onSave: () => setPreviewOpen((v) => !v), variant: "default" },
       { id: "section-builder-add", label: "+ Add Component", onSave: () => openPicker(), variant: "default" },
       { id: "section-builder-save", label: "Save Page Content", onSave: handleSave, saving },
     ]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saving, sections]);
+  }, [saving, sections, previewOpen]);
 
   const allExpanded = sections.length > 0 && sections.every((s) => expanded.has(s.key));
 
@@ -738,6 +919,8 @@ export default function SectionBuilder({
         ? (globalNames.get(globalId) ?? `Global section #${globalId}`)
         : sectionSummary(section.fields);
     const items = itemCount(section.fields);
+    const hiddenOn = VISIBILITY_OPTIONS.filter((o) => hasClass(section.customClass, o.cls)).map((o) => o.label.toLowerCase());
+    const panelLabel = section.inContainer ? (PANEL_TITLE_LABELS[containerLayout(index)] ?? null) : null;
 
     const dropHere = dropTarget?.key === section.key ? dropTarget.position : null;
 
@@ -788,6 +971,11 @@ export default function SectionBuilder({
               {summary || <span className="text-text-muted italic dark:text-text-muted-dark">No heading</span>}
             </span>
             {items > 0 && <span className="shrink-0 text-xs text-text-muted dark:text-text-muted-dark">{items} items</span>}
+            {hiddenOn.length > 0 && (
+              <span className="shrink-0 rounded-full bg-surface-muted px-2 py-0.5 text-xs text-text-muted dark:bg-surface-muted-dark dark:text-text-muted-dark">
+                Hidden on {hiddenOn.join(", ")}
+              </span>
+            )}
             <span aria-hidden="true" className="ml-auto shrink-0 text-xs text-text-muted dark:text-text-muted-dark">
               {isOpen ? "▲" : "▼"}
             </span>
@@ -835,18 +1023,20 @@ export default function SectionBuilder({
               icon={<IconInsertBelow />}
               variant="muted"
             />
-            {!isGlobal && section.blockType !== GLOBAL_SECTION && (
-              <IconButton
-                id={`section-${section.key}-save-global`}
-                title={isContainer ? "Save Container as Global Section" : "Save as Global Section"}
-                onClick={() => {
-                  setGlobalName(sectionSummary(isContainer ? (sections[index + 1]?.fields ?? []) : section.fields));
-                  setSaveGlobalIndex(index);
-                }}
-                icon={<IconLayersPlus />}
-                variant="muted"
-              />
-            )}
+            <IconButton
+              id={`section-${section.key}-save-library`}
+              title={isContainer ? "Save Container as Template or Global Section" : "Save as Template or Global Section"}
+              onClick={() => openLibrary(index)}
+              icon={<IconLayersPlus />}
+              variant="muted"
+            />
+            <IconButton
+              id={`section-${section.key}-copy`}
+              title={isContainer ? "Copy Container to Paste on Another Page" : "Copy to Paste on Another Page"}
+              onClick={() => copySection(index)}
+              icon={<IconClipboardCopy />}
+              variant="muted"
+            />
             <IconButton
               id={`section-${section.key}-duplicate`}
               title={isContainer ? "Duplicate Container and Its Components" : "Duplicate Section"}
@@ -866,7 +1056,7 @@ export default function SectionBuilder({
 
         {isOpen && (
           <div className="border-t border-primary-200 px-5 pt-2 pb-5 dark:border-border-dark">
-            <SectionEditor section={section} inGrid={inGrid} onUpdate={(patch) => updateSection(section.key, patch)} />
+            <SectionEditor section={section} inGrid={inGrid} panelLabel={panelLabel} onUpdate={(patch) => updateSection(section.key, patch)} />
           </div>
         )}
       </div>
@@ -884,6 +1074,20 @@ export default function SectionBuilder({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {clipboard && (
+            <button
+              type="button"
+              id="section-builder-paste"
+              title={`Paste at the end: ${clipboard.label}`}
+              onClick={() => {
+                if (insertCopies(clipboard.sections, "copied component", null, false)) message.success("Pasted at the end. Save Page Content to keep it.");
+              }}
+              className="flex max-w-72 cursor-pointer items-center gap-1.5 rounded-md border border-dashed border-primary-300 px-3 py-1.5 text-sm text-primary-600 hover:bg-primary-50 dark:text-text-dark dark:hover:bg-surface-muted-dark"
+            >
+              <IconClipboardCopy className="shrink-0" />
+              <span className="truncate">Paste copied</span>
+            </button>
+          )}
           {sections.length > 0 && (
             <button
               type="button"
@@ -896,30 +1100,59 @@ export default function SectionBuilder({
         </div>
       </div>
 
-      <ComponentPicker open={pickerOpen} groups={pickerGroups} onPick={addSection} onClose={() => setPickerOpen(false)} />
+      <ComponentPicker
+        open={pickerOpen}
+        groups={pickerGroups}
+        templates={pickerTemplates}
+        clipboardLabel={clipboard?.label}
+        onPick={addSection}
+        onPickTemplate={insertTemplate}
+        onDeleteTemplate={deleteTemplate}
+        onPaste={pasteClipboard}
+        onClose={() => setPickerOpen(false)}
+      />
+
+      <LivePreview open={previewOpen} onClose={() => setPreviewOpen(false)} pageId={pageId} payload={sectionsPayload} version={snapshot(sections)} />
 
       <Modal
-        open={saveGlobalIndex !== null}
-        title="Save as Global Section"
-        okText="Create Global Section"
-        onOk={saveAsGlobal}
-        okButtonProps={{ disabled: !globalName.trim(), loading: savingGlobal }}
-        onCancel={() => setSaveGlobalIndex(null)}
+        open={libraryIndex !== null}
+        title="Save to Library"
+        okText={libraryKind === "template" ? "Save Template" : "Create Global Section"}
+        onOk={saveToLibrary}
+        okButtonProps={{ disabled: !libraryName.trim(), loading: savingLibrary }}
+        onCancel={() => setLibraryIndex(null)}
         destroyOnHidden
       >
-        <div className="flex flex-col gap-3 pt-2">
+        <div className="flex flex-col gap-4 pt-2">
           <p className="text-sm text-text-muted">
-            {saveGlobalIndex !== null && sections[saveGlobalIndex]?.blockType === CONTAINER
-              ? "This container and the components inside it become a global section"
-              : "This section becomes a global section"}{" "}
-            you can place on other pages and edit once under Global Sections. Here it&apos;s replaced by a Global Section component
-            showing the same content.
+            {libraryIndex !== null && sections[libraryIndex]?.blockType === CONTAINER
+              ? "Save this container and the components inside it:"
+              : "Save this component:"}
           </p>
+          <Radio.Group value={libraryKind} onChange={(e) => setLibraryKind(e.target.value)} className="flex flex-col gap-3">
+            <Radio value="template" id="save-library-template">
+              <span className="font-semibold">As a template</span>
+              <span className="block text-xs text-text-muted">
+                A starting point you insert from “+ Add Component” on any page. Each page gets its own copy to edit; this page stays as it is.
+              </span>
+            </Radio>
+            <Radio
+              value="global"
+              id="save-library-global"
+              disabled={isGlobal || (libraryIndex !== null && sections[libraryIndex]?.blockType === GLOBAL_SECTION)}
+            >
+              <span className="font-semibold">As a global section</span>
+              <span className="block text-xs text-text-muted">
+                Linked: edited once under Global Sections and the same everywhere it&apos;s placed. Here it&apos;s replaced by a Global
+                Section component showing the same content.
+              </span>
+            </Radio>
+          </Radio.Group>
           <div className="flex flex-col gap-1">
-            <label htmlFor="save-global-name" className="text-xs font-semibold tracking-wide text-text-muted uppercase">
+            <label htmlFor="save-library-name" className="text-xs font-semibold tracking-wide text-text-muted uppercase">
               Name (only shown in the backoffice)
             </label>
-            <Input id="save-global-name" autoFocus value={globalName} onChange={(e) => setGlobalName(e.target.value)} />
+            <Input id="save-library-name" autoFocus value={libraryName} onChange={(e) => setLibraryName(e.target.value)} />
           </div>
         </div>
       </Modal>

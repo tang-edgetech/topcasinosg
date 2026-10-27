@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatDate, getNewsArticleBySlug } from "../_lib/api";
 import { sanitizeRichText } from "@/lib/sanitize-html";
+import { articleJsonLd, buildMetadata, getSeoMeta } from "@/lib/seo";
+import JsonLd from "@/components/JsonLd";
 
 interface NewsDetailPageProps {
   params: Promise<{ slug: string }>;
@@ -16,10 +18,15 @@ export async function generateMetadata({ params }: NewsDetailPageProps): Promise
     return { title: "News | Top Casino SG" };
   }
 
-  return {
+  return buildMetadata({
+    path: `/news/${article.slug}`,
     title: `${article.title} | Top Casino SG`,
     description: article.excerpt,
-  };
+    image: article.coverUrl,
+    seo: await getSeoMeta("news", article.id),
+    type: "article",
+    article: { publishedTime: article.publishAt ?? article.createdAt, modifiedTime: article.updatedAt, section: "News" },
+  });
 }
 
 export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
@@ -31,9 +38,20 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
   }
 
   const publishDate = formatDate(article.publishAt);
+  const jsonLd = await articleJsonLd({
+    type: "NewsArticle",
+    path: `/news/${article.slug}`,
+    headline: article.title,
+    description: article.excerpt,
+    image: article.coverUrl,
+    datePublished: article.publishAt ?? article.createdAt,
+    dateModified: article.updatedAt,
+    seo: await getSeoMeta("news", article.id),
+  });
 
   return (
     <div id="news-detail-page" className="news-detail-page flex flex-1 flex-col bg-white">
+      <JsonLd data={jsonLd} />
       <div className="news-detail-page__content mx-auto w-full max-w-3xl flex-1 px-6 py-10 sm:px-8">
         <nav
           id="news-detail-breadcrumb"

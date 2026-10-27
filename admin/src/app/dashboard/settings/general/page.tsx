@@ -33,6 +33,8 @@ export default function GeneralSettingsPage() {
   const [contactEmail, setContactEmail] = useState("");
   const [facebookUrl, setFacebookUrl] = useState("");
   const [skypeUrl, setSkypeUrl] = useState("");
+  const [ogImageUrl, setOgImageUrl] = useState("");
+  const [twitterHandle, setTwitterHandle] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -40,7 +42,7 @@ export default function GeneralSettingsPage() {
   const logoInputRef = useRef<HTMLInputElement>(null);
   const faviconInputRef = useRef<HTMLInputElement>(null);
   const [uploadError, setUploadError] = useState("");
-  const [mediaPickerField, setMediaPickerField] = useState<"logo" | "favicon" | null>(null);
+  const [mediaPickerField, setMediaPickerField] = useState<"logo" | "favicon" | "ogImage" | null>(null);
 
   useEffect(() => {
     if (!settings) return;
@@ -55,6 +57,8 @@ export default function GeneralSettingsPage() {
     setContactEmail(settings.contactEmail ?? "");
     setFacebookUrl(settings.facebookUrl ?? "");
     setSkypeUrl(settings.skypeUrl ?? "");
+    setOgImageUrl(settings.ogImageUrl ?? "");
+    setTwitterHandle(settings.twitterHandle ?? "");
   }, [settings]);
 
   if (!user) return null;
@@ -84,6 +88,8 @@ export default function GeneralSettingsPage() {
         contactEmail,
         facebookUrl,
         skypeUrl,
+        ogImageUrl,
+        twitterHandle,
       });
       await refresh();
       setSuccess(true);
@@ -229,7 +235,8 @@ export default function GeneralSettingsPage() {
         open={mediaPickerField !== null}
         onClose={() => setMediaPickerField(null)}
         onSelect={(media) => {
-          if (mediaPickerField) handleSelectFromLibrary(mediaPickerField, media);
+          if (mediaPickerField === "ogImage") setOgImageUrl(media.url);
+          else if (mediaPickerField) handleSelectFromLibrary(mediaPickerField, media);
           setMediaPickerField(null);
         }}
       />
@@ -320,6 +327,59 @@ export default function GeneralSettingsPage() {
             Allow Search Engines To Follow Links
           </label>
         </div>
+
+        <fieldset
+          id="settings-seo-social"
+          className="settings-seo-social mt-4 flex flex-col gap-4 rounded-md border border-border p-4 dark:border-border-dark"
+        >
+          <legend className="px-1 text-lg font-bold text-text dark:text-text-dark">SEO &amp; Social Sharing</legend>
+          <p className="text-sm text-text-muted dark:text-text-muted-dark">
+            Used when a page is shared on Facebook, X, WhatsApp, LinkedIn and the like. Each page, casino, guide, news article and
+            bonus can set its own share image and text in its SEO section; these are the defaults.
+          </p>
+          <div className="form-field flex flex-col gap-2">
+            <span className="text-sm font-medium text-text dark:text-text-dark">Default Share Image</span>
+            <div className="flex items-center gap-4">
+              <div className="flex h-[84px] w-40 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-surface-muted dark:border-border-dark dark:bg-surface-muted-dark">
+                {ogImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={assetUrl(ogImageUrl)} alt="Default share image" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="px-2 text-center text-xs text-text-muted dark:text-text-muted-dark">Site logo is used</span>
+                )}
+              </div>
+              <div className="flex flex-col items-start gap-2">
+                <button
+                  type="button"
+                  id="settings-og-image-choose"
+                  onClick={() => setMediaPickerField("ogImage")}
+                  className="cursor-pointer rounded-md border border-primary-300 px-3 py-1.5 text-sm font-medium text-primary-700 hover:bg-primary-50"
+                >
+                  Choose From Media Library
+                </button>
+                {ogImageUrl && (
+                  <button type="button" id="settings-og-image-remove" onClick={() => setOgImageUrl("")} className="cursor-pointer text-sm text-danger hover:underline">
+                    Remove
+                  </button>
+                )}
+                <span className="text-xs text-text-muted dark:text-text-muted-dark">Best at 1200 × 630 px.</span>
+              </div>
+            </div>
+          </div>
+          <div className="form-field flex flex-col gap-1">
+            <label htmlFor="settings-twitter-handle" className="text-sm font-medium text-text dark:text-text-dark">
+              X (Twitter) Handle
+            </label>
+            <input
+              id="settings-twitter-handle"
+              placeholder="@topcasinosg"
+              maxLength={16}
+              value={twitterHandle}
+              onChange={(e) => setTwitterHandle(e.target.value)}
+              className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-primary-500 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark"
+            />
+          </div>
+        </fieldset>
 
         <fieldset
           id="settings-footer-contact"

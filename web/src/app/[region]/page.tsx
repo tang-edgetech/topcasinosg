@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { cmsPageMetadata } from "@/lib/seo";
 import { getPage } from "@/lib/pages";
 import SectionRenderer from "@/components/sections/SectionRenderer";
 import IntroductionSectionBlock from "@/components/sections/IntroductionSectionBlock";
@@ -38,11 +39,7 @@ export async function generateMetadata({
   const result = await getPage(region);
   if (!result) return {};
 
-  const { page } = result;
-  return {
-    title: page.metaTitle || page.title || undefined,
-    description: page.metaDescription || undefined,
-  };
+  return cmsPageMetadata(result.page, `/${region}`);
 }
 
 export default async function RegionOverviewPage({
