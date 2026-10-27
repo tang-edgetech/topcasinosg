@@ -355,7 +355,7 @@ export default function GeneralSettingsPage() {
                   onClick={() => setMediaPickerField("ogImage")}
                   className="cursor-pointer rounded-md border border-primary-300 px-3 py-1.5 text-sm font-medium text-primary-700 hover:bg-primary-50"
                 >
-                  Choose From Media Library
+                  {ogImageUrl ? "Change" : "Choose From Media Library"}
                 </button>
                 {ogImageUrl && (
                   <button type="button" id="settings-og-image-remove" onClick={() => setOgImageUrl("")} className="cursor-pointer text-sm text-danger hover:underline">

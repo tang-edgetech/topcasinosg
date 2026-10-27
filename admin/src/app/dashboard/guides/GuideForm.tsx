@@ -6,8 +6,7 @@ import { Form, Input, Select, App as AntApp } from "antd";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { api, ApiError } from "@/lib/api";
 import type { GuideDTO, RegionDTO, MediaDTO } from "@/lib/types";
-import { IconPhoto } from "@/components/Icons";
-import MediaPicker from "@/components/media/MediaPicker";
+import MediaField from "@/components/media/MediaField";
 import RichTextEditor from "@/components/content/RichTextEditor";
 
 const { TextArea } = Input;
@@ -23,8 +22,7 @@ export default function GuideForm({ target, regions }: { target: GuideDTO | null
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [coverMediaId, setCoverMediaId] = useState<number | null>(target?.coverMediaId ?? null);
-  const [coverUrl, setCoverUrl] = useState<string | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [coverUrl, setCoverUrl] = useState<string | null>(target?.coverUrl ? mediaUrl(target.coverUrl) : null);
 
   async function handleFinish(values: {
     title: string;
@@ -78,23 +76,18 @@ export default function GuideForm({ target, regions }: { target: GuideDTO | null
       >
         <div className="mb-4 flex flex-col gap-2">
           <label className="text-sm font-medium text-text dark:text-text-dark">Cover Image</label>
-          <div className="flex items-center gap-3">
-            <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-md bg-surface-muted dark:bg-surface-muted-dark">
-              {coverUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={coverUrl} alt="Cover" className="h-full w-full object-cover" />
-              ) : (
-                <IconPhoto width={22} height={22} className="text-primary-400" />
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => setPickerOpen(true)}
-              className="cursor-pointer text-sm font-medium text-primary-600 hover:text-primary-900"
-            >
-              Choose From Media Library
-            </button>
-          </div>
+          <MediaField
+            url={coverUrl}
+            alt="Cover"
+            onSelect={(media: MediaDTO) => {
+              setCoverMediaId(media.id);
+              setCoverUrl(mediaUrl(media.url));
+            }}
+            onRemove={() => {
+              setCoverMediaId(null);
+              setCoverUrl(null);
+            }}
+          />
         </div>
 
         <Form.Item name="title" label="Title" rules={[{ required: true }]}>
@@ -132,15 +125,6 @@ export default function GuideForm({ target, regions }: { target: GuideDTO | null
           </button>
         </div>
       </Form>
-
-      <MediaPicker
-        open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        onSelect={(media: MediaDTO) => {
-          setCoverMediaId(media.id);
-          setCoverUrl(mediaUrl(media.url));
-        }}
-      />
     </div>
   );
 }

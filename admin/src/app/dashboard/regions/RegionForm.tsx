@@ -7,7 +7,7 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { api, ApiError } from "@/lib/api";
 import type { RegionDTO, MediaDTO } from "@/lib/types";
 import { IconGlobe } from "@/components/Icons";
-import MediaPicker from "@/components/media/MediaPicker";
+import MediaField from "@/components/media/MediaField";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
 
@@ -26,7 +26,6 @@ export default function RegionForm({ target }: { target: RegionDTO | null }) {
   const [sortOrder, setSortOrder] = useState(target?.sortOrder ?? 0);
   const [flagMediaId, setFlagMediaId] = useState<number | null>(target?.flagMediaId ?? null);
   const [flagUrl, setFlagUrl] = useState<string | null>(target?.flagUrl ?? null);
-  const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -61,24 +60,21 @@ export default function RegionForm({ target }: { target: RegionDTO | null }) {
       <form id="region-form-form" className="flex flex-col gap-4" onSubmit={handleSubmit}>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium text-text dark:text-text-dark">Flag</label>
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-md border border-border bg-surface-muted dark:border-border-dark dark:bg-surface-muted-dark">
-              {flagUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={flagUrl} alt="Flag" className="h-full w-full object-cover" />
-              ) : (
-                <IconGlobe width={20} height={20} className="text-primary-400" />
-              )}
-            </div>
-            <button
-              type="button"
-              id="region-form-flag-button"
-              onClick={() => setPickerOpen(true)}
-              className="cursor-pointer text-sm font-medium text-primary-600 hover:text-primary-900"
-            >
-              Choose From Media Library
-            </button>
-          </div>
+          <MediaField
+            id="region-form-flag"
+            url={flagUrl}
+            alt="Flag"
+            previewClassName="h-12 w-12 border border-border dark:border-border-dark"
+            emptyIcon={<IconGlobe width={20} height={20} className="text-primary-400" />}
+            onSelect={(media: MediaDTO) => {
+              setFlagMediaId(media.id);
+              setFlagUrl(mediaUrl(media.url));
+            }}
+            onRemove={() => {
+              setFlagMediaId(null);
+              setFlagUrl(null);
+            }}
+          />
           <p className="text-xs text-text-muted dark:text-text-muted-dark">
             Square image recommended — displayed as a square for now.
           </p>
@@ -166,15 +162,6 @@ export default function RegionForm({ target }: { target: RegionDTO | null }) {
           </button>
         </div>
       </form>
-
-      <MediaPicker
-        open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        onSelect={(media: MediaDTO) => {
-          setFlagMediaId(media.id);
-          setFlagUrl(mediaUrl(media.url));
-        }}
-      />
     </div>
   );
 }

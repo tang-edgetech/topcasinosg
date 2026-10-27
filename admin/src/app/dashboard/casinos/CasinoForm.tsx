@@ -7,8 +7,7 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { api, ApiError } from "@/lib/api";
 import type { CasinoDTO, RegionDTO, GameProviderDTO, LicenseDTO, MediaDTO, RiskStatus, GameType, PaymentMethodDTO } from "@/lib/types";
 import { GAME_TYPE_LABELS } from "@/lib/types";
-import { IconPhoto } from "@/components/Icons";
-import MediaPicker from "@/components/media/MediaPicker";
+import MediaField from "@/components/media/MediaField";
 import RichTextEditor from "@/components/content/RichTextEditor";
 
 const { TextArea } = Input;
@@ -35,7 +34,6 @@ export default function CasinoForm({
   const [submitting, setSubmitting] = useState(false);
   const [logoMediaId, setLogoMediaId] = useState<number | null>(target?.logoMediaId ?? null);
   const [logoUrl, setLogoUrl] = useState<string | null>(target?.logoUrl ? mediaUrl(target.logoUrl) : null);
-  const [pickerOpen, setPickerOpen] = useState(false);
   const [paymentMethodNames, setPaymentMethodNames] = useState<string[]>([]);
 
   useEffect(() => {
@@ -124,23 +122,18 @@ export default function CasinoForm({
       >
         <div className="mb-4 flex flex-col gap-2">
           <label className="text-sm font-medium text-text dark:text-text-dark">Logo</label>
-          <div className="flex items-center gap-3">
-            <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-md bg-surface-muted dark:bg-surface-muted-dark">
-              {logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={logoUrl} alt="Logo" className="h-full w-full object-cover" />
-              ) : (
-                <IconPhoto width={22} height={22} className="text-primary-400" />
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => setPickerOpen(true)}
-              className="cursor-pointer text-sm font-medium text-primary-600 hover:text-primary-900"
-            >
-              Choose From Media Library
-            </button>
-          </div>
+          <MediaField
+            url={logoUrl}
+            alt="Logo"
+            onSelect={(media: MediaDTO) => {
+              setLogoMediaId(media.id);
+              setLogoUrl(mediaUrl(media.url));
+            }}
+            onRemove={() => {
+              setLogoMediaId(null);
+              setLogoUrl(null);
+            }}
+          />
         </div>
 
         <Form.Item name="name" label="Name" rules={[{ required: true }]}>
@@ -253,15 +246,6 @@ export default function CasinoForm({
           </button>
         </div>
       </Form>
-
-      <MediaPicker
-        open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        onSelect={(media: MediaDTO) => {
-          setLogoMediaId(media.id);
-          setLogoUrl(mediaUrl(media.url));
-        }}
-      />
     </div>
   );
 }

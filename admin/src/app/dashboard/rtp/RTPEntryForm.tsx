@@ -6,8 +6,7 @@ import Link from "next/link";
 import { Form, Input, InputNumber, Radio, Select, App as AntApp } from "antd";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { api, ApiError } from "@/lib/api";
-import { IconPhoto } from "@/components/Icons";
-import MediaPicker from "@/components/media/MediaPicker";
+import MediaField from "@/components/media/MediaField";
 import type { RTPEntryDTO, RTPCategory, RegionDTO, CasinoDTO, GameProviderDTO, MediaDTO } from "@/lib/types";
 
 const RTP_CATEGORY_OPTIONS: { value: RTPCategory; label: string }[] = [
@@ -50,7 +49,6 @@ export default function RTPEntryForm({
   const [providers, setProviders] = useState<GameProviderDTO[]>([]);
   const [imageMediaId, setImageMediaId] = useState<number | null>(target?.imageMediaId ?? null);
   const [imageUrl, setImageUrl] = useState<string | null>(target?.imageUrl ? mediaUrl(target.imageUrl) : null);
-  const [pickerOpen, setPickerOpen] = useState(false);
 
   const gameName = Form.useWatch("gameName", form) ?? target?.gameName ?? "";
   const rtpPercentage = Form.useWatch("rtpPercentage", form) ?? target?.rtpPercentage;
@@ -166,35 +164,18 @@ export default function RTPEntryForm({
 
           <div className="mb-6 flex flex-col gap-2">
             <label className="text-sm font-medium text-text dark:text-text-dark">Card Image</label>
-            <div className="flex items-center gap-3">
-              <div className="flex h-16 w-24 items-center justify-center overflow-hidden rounded-md bg-surface-muted dark:bg-surface-muted-dark">
-                {imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={imageUrl} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <IconPhoto width={22} height={22} className="text-primary-400" />
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => setPickerOpen(true)}
-                className="cursor-pointer text-sm font-medium text-primary-600 hover:text-primary-900"
-              >
-                {imageUrl ? "Change Image" : "Choose From Media Library"}
-              </button>
-              {imageUrl && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setImageMediaId(null);
-                    setImageUrl(null);
-                  }}
-                  className="cursor-pointer text-sm text-text-muted hover:text-danger dark:text-text-muted-dark"
-                >
-                  Remove
-                </button>
-              )}
-            </div>
+            <MediaField
+              url={imageUrl}
+              previewClassName="h-16 w-24"
+              onSelect={(media: MediaDTO) => {
+                setImageMediaId(media.id);
+                setImageUrl(mediaUrl(media.url));
+              }}
+              onRemove={() => {
+                setImageMediaId(null);
+                setImageUrl(null);
+              }}
+            />
           </div>
 
           <div className="flex gap-3">
@@ -239,15 +220,6 @@ export default function RTPEntryForm({
           </div>
         </div>
       </aside>
-
-      <MediaPicker
-        open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        onSelect={(media: MediaDTO) => {
-          setImageMediaId(media.id);
-          setImageUrl(mediaUrl(media.url));
-        }}
-      />
     </div>
   );
 }

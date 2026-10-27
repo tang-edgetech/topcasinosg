@@ -7,7 +7,7 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { api, ApiError } from "@/lib/api";
 import type { LicenseDTO, MediaDTO } from "@/lib/types";
 import { IconCertificate } from "@/components/Icons";
-import MediaPicker from "@/components/media/MediaPicker";
+import MediaField from "@/components/media/MediaField";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
 
@@ -23,7 +23,6 @@ export default function LicenseForm({ target }: { target: LicenseDTO | null }) {
   const [sortOrder, setSortOrder] = useState(target?.sortOrder ?? 0);
   const [logoMediaId, setLogoMediaId] = useState<number | null>(target?.logoMediaId ?? null);
   const [logoUrl, setLogoUrl] = useState<string | null>(target?.logoUrl ?? null);
-  const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -58,24 +57,21 @@ export default function LicenseForm({ target }: { target: LicenseDTO | null }) {
       <form id="license-form-form" className="flex flex-col gap-4" onSubmit={handleSubmit}>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium text-text dark:text-text-dark">Logo</label>
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-md border border-border bg-surface-muted dark:border-border-dark dark:bg-surface-muted-dark">
-              {logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={logoUrl} alt="Logo" className="h-full w-full object-cover" />
-              ) : (
-                <IconCertificate width={20} height={20} className="text-primary-400" />
-              )}
-            </div>
-            <button
-              type="button"
-              id="license-form-logo-button"
-              onClick={() => setPickerOpen(true)}
-              className="cursor-pointer text-sm font-medium text-primary-600 hover:text-primary-900"
-            >
-              Choose From Media Library
-            </button>
-          </div>
+          <MediaField
+            id="license-form-logo"
+            url={logoUrl}
+            alt="Logo"
+            previewClassName="h-12 w-12 border border-border dark:border-border-dark"
+            emptyIcon={<IconCertificate width={20} height={20} className="text-primary-400" />}
+            onSelect={(media: MediaDTO) => {
+              setLogoMediaId(media.id);
+              setLogoUrl(mediaUrl(media.url));
+            }}
+            onRemove={() => {
+              setLogoMediaId(null);
+              setLogoUrl(null);
+            }}
+          />
         </div>
 
         <div className="flex flex-col gap-1">
@@ -122,15 +118,6 @@ export default function LicenseForm({ target }: { target: LicenseDTO | null }) {
           </button>
         </div>
       </form>
-
-      <MediaPicker
-        open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        onSelect={(media: MediaDTO) => {
-          setLogoMediaId(media.id);
-          setLogoUrl(mediaUrl(media.url));
-        }}
-      />
     </div>
   );
 }

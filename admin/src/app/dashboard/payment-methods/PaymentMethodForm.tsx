@@ -6,8 +6,7 @@ import { Form, Input, Select, App as AntApp } from "antd";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { api, ApiError } from "@/lib/api";
 import type { PaymentMethodDTO, RegionDTO, MediaDTO } from "@/lib/types";
-import { IconPhoto } from "@/components/Icons";
-import MediaPicker from "@/components/media/MediaPicker";
+import MediaField from "@/components/media/MediaField";
 
 const { TextArea } = Input;
 
@@ -23,7 +22,6 @@ export default function PaymentMethodForm({ target, regions }: { target: Payment
   const [submitting, setSubmitting] = useState(false);
   const [iconMediaId, setIconMediaId] = useState<number | null>(target?.iconMediaId ?? null);
   const [iconUrl, setIconUrl] = useState<string | null>(target?.iconUrl ? mediaUrl(target.iconUrl) : null);
-  const [pickerOpen, setPickerOpen] = useState(false);
 
   async function handleFinish(values: { regionId: number; name: string; description: string }) {
     const ok = await confirm({
@@ -62,23 +60,18 @@ export default function PaymentMethodForm({ target, regions }: { target: Payment
       >
         <div className="mb-4 flex flex-col gap-2">
           <label className="text-sm font-medium text-text dark:text-text-dark">Icon</label>
-          <div className="flex items-center gap-3">
-            <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-md bg-surface-muted dark:bg-surface-muted-dark">
-              {iconUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={iconUrl} alt="Icon" className="h-full w-full object-cover" />
-              ) : (
-                <IconPhoto width={22} height={22} className="text-primary-400" />
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => setPickerOpen(true)}
-              className="cursor-pointer text-sm font-medium text-primary-600 hover:text-primary-900"
-            >
-              {iconUrl ? "Change Icon" : "Choose From Media Library"}
-            </button>
-          </div>
+          <MediaField
+            url={iconUrl}
+            alt="Icon"
+            onSelect={(media: MediaDTO) => {
+              setIconMediaId(media.id);
+              setIconUrl(mediaUrl(media.url));
+            }}
+            onRemove={() => {
+              setIconMediaId(null);
+              setIconUrl(null);
+            }}
+          />
         </div>
 
         <Form.Item
@@ -115,15 +108,6 @@ export default function PaymentMethodForm({ target, regions }: { target: Payment
           </button>
         </div>
       </Form>
-
-      <MediaPicker
-        open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        onSelect={(media: MediaDTO) => {
-          setIconMediaId(media.id);
-          setIconUrl(mediaUrl(media.url));
-        }}
-      />
     </div>
   );
 }

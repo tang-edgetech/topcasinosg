@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Checkbox, Input, Radio, Select } from "antd";
 import RichTextEditor from "@/components/content/RichTextEditor";
-import MediaPicker from "@/components/media/MediaPicker";
+import MediaField from "@/components/media/MediaField";
 import IconButton from "@/components/IconButton";
 import { IconPhoto, IconPlus, IconTrash } from "@/components/Icons";
 import { api } from "@/lib/api";
@@ -624,32 +624,16 @@ function ImagePickerField({
   label: string;
   mediaId: number | null;
   mediaUrl: string | null;
-  onChange: (mediaId: number, mediaUrl: string) => void;
+  // Both null when the image is removed.
+  onChange: (mediaId: number | null, mediaUrl: string | null) => void;
 }) {
-  const [pickerOpen, setPickerOpen] = useState(false);
   return (
     <LabeledField label={label}>
-      <div className="flex items-center gap-3">
-        <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-md bg-surface-muted dark:bg-surface-muted-dark">
-          {url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={url} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <IconPhoto width={20} height={20} className="text-primary-400" />
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={() => setPickerOpen(true)}
-          className="cursor-pointer text-sm font-medium text-primary-600 hover:text-primary-900"
-        >
-          Choose From Media Library
-        </button>
-      </div>
-      <MediaPicker
-        open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
+      <MediaField
+        url={url}
+        emptyIcon={<IconPhoto width={20} height={20} className="text-primary-400" />}
         onSelect={(media: MediaDTO) => onChange(media.id, mediaUrl(media.url))}
+        onRemove={() => onChange(null, null)}
       />
     </LabeledField>
   );
