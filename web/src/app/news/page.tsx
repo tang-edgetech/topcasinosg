@@ -4,6 +4,7 @@ import Link from "next/link";
 import { formatDate, getNewsArticles } from "./_lib/api";
 import IntroductionSection from "@/components/IntroductionSection";
 import PageGrid from "@/components/PageGrid";
+import Thumbnail from "@/components/Thumbnail";
 
 export async function generateMetadata(): Promise<Metadata> {
   return buildMetadata({
@@ -48,9 +49,7 @@ export default async function NewsPage() {
                     href={`/news/${article.slug}`}
                     className="news-article-card__link flex h-full cursor-pointer flex-col gap-3 rounded-lg border border-primary-100 bg-white p-6 shadow-sm transition-colors hover:border-secondary-600"
                   >
-                    <div className="news-article-card__cover flex h-32 w-full items-center justify-center rounded-md bg-primary-50 text-sm font-medium text-primary-300">
-                      Top Casino SG
-                    </div>
+                    <Thumbnail src={article.coverUrl} className="news-article-card__cover h-32 w-full rounded-md" />
                     {publishDate && (
                       <span className="news-article-card__date text-xs font-medium text-primary-500">
                         {publishDate}

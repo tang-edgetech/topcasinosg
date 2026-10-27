@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { field, itemIndexes, mediaUrl, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { getAllCasinos, getRtpEntries, type RTPCategory } from "@/app/[region]/_lib/api";
 import HorizontalSlider from "@/components/HorizontalSlider";
+import Thumbnail from "@/components/Thumbnail";
 
 const DEFAULT_LIMIT = 10;
 const RTP_CATEGORIES: RTPCategory[] = ["slot", "table", "live", "other"];
@@ -52,15 +53,7 @@ export default async function GameRtpCarouselSection({ section, regionCode: page
                   key={card.key}
                   className="game-rtp-carousel__card flex flex-col overflow-hidden rounded-lg border-2 border-white bg-white shadow-sm"
                 >
-                  {card.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img loading="lazy" decoding="async" src={card.image} alt="" className="h-[130px] w-full object-cover" />
-                  ) : (
-                    <div
-                      aria-hidden="true"
-                      className="h-[130px] w-full bg-[repeating-conic-gradient(#e5e7eb_0%_25%,transparent_0%_50%)] bg-[length:16px_16px]"
-                    />
-                  )}
+                  <Thumbnail src={card.image} className="h-[130px] w-full" />
                   <div className="flex flex-1 flex-col gap-0.5 px-2 pt-2 pb-2">
                     {card.name && <span className="truncate text-sm font-semibold text-primary-900">{card.name}</span>}
                     {card.provider && <span className="text-[10px] text-primary-500">by {card.provider}</span>}

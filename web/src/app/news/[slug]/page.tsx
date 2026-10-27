@@ -5,6 +5,7 @@ import { formatDate, getNewsArticleBySlug } from "../_lib/api";
 import { sanitizeRichText } from "@/lib/sanitize-html";
 import { articleJsonLd, buildMetadata, getSeoMeta } from "@/lib/seo";
 import JsonLd from "@/components/JsonLd";
+import Thumbnail from "@/components/Thumbnail";
 
 interface NewsDetailPageProps {
   params: Promise<{ slug: string }>;
@@ -81,9 +82,7 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
             )}
           </header>
 
-          <div className="news-detail-article__cover flex h-48 w-full items-center justify-center rounded-lg bg-primary-50 text-base font-medium text-primary-300">
-            Top Casino SG
-          </div>
+          <Thumbnail src={article.coverUrl} alt={article.title} className="news-detail-article__cover h-48 w-full rounded-lg sm:h-72" />
 
           {article.excerpt && (
             <p className="news-detail-article__excerpt text-lg leading-relaxed font-medium text-primary-900">

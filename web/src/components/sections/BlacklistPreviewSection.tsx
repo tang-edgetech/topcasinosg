@@ -3,6 +3,7 @@ import { field, headingSizeClassName, mediaUrl, sectionClassName, sectionBgStyle
 import { getBlacklistEntries, type BlacklistEntryDTO } from "@/app/[region]/_lib/api";
 import HorizontalSlider from "@/components/HorizontalSlider";
 import StarRating from "@/components/StarRating";
+import CasinoLogo from "@/components/CasinoLogo";
 
 const MAX_REASONS = 3;
 
@@ -76,14 +77,7 @@ function BlacklistCard({ entry }: { entry: BlacklistEntryDTO }) {
   return (
     <article className="blacklist-card flex flex-col overflow-hidden rounded-lg bg-white">
       <div className="flex flex-col items-center gap-1 px-4 pt-4 pb-3">
-        {logo ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img loading="lazy" decoding="async" src={logo} alt={entry.name} className="h-12 w-24 object-contain" />
-        ) : (
-          <div className="flex h-12 w-24 items-center justify-center rounded bg-primary-50 px-1 text-center text-xs font-semibold text-primary-900">
-            {entry.name}
-          </div>
-        )}
+        <CasinoLogo src={logo} name={entry.name} className="h-12 w-24" />
         {entry.rating != null && (
           <p className="text-danger">
             <span className="text-2xl font-bold">{entry.rating.toFixed(1)}</span>

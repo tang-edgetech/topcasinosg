@@ -3,6 +3,7 @@ import { field, itemIndexes, mediaUrl, sectionClassName, sectionBgStyle, type Pa
 import { sanitizeRichText } from "@/lib/sanitize-html";
 import { getAllCasinos } from "@/app/[region]/_lib/api";
 import SwipeRow from "@/components/SwipeRow";
+import Thumbnail from "@/components/Thumbnail";
 
 // Figma "Event Highlights": admin-authored promo cards - a navy title bar,
 // the event banner, a Brand / Event Duration strip, then Visit Site and
@@ -60,15 +61,7 @@ export default async function EventHighlightsSection({ section }: { section: Pag
                 className="event-card flex flex-col overflow-hidden rounded-lg border border-primary-100 bg-surface-muted"
               >
                 {title && <h3 className="bg-primary-900 px-4 py-2.5 text-center text-base font-bold text-white">{title}</h3>}
-                {image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img loading="lazy" decoding="async" src={image} alt={title} className="aspect-[4/3] w-full object-cover" />
-                ) : (
-                  <div
-                    aria-hidden="true"
-                    className="aspect-[4/3] w-full bg-[repeating-conic-gradient(#e5e7eb_0%_25%,transparent_0%_50%)] bg-[length:16px_16px]"
-                  />
-                )}
+                <Thumbnail src={image} alt={title} className="aspect-[4/3] w-full" />
                 {(brand || dateRange) && (
                   <dl className="grid grid-cols-[auto_1fr] gap-x-6 bg-white px-4 py-2 text-xs text-primary-500">
                     {brand && <dt>Brand</dt>}

@@ -4,6 +4,7 @@ import { field, itemIndexes, mediaUrl, sectionClassName, sectionBgStyle, type Pa
 import { getGuides } from "@/app/[region]/_lib/api";
 import { getNewsArticles } from "@/app/news/_lib/api";
 import HorizontalSlider from "@/components/HorizontalSlider";
+import Thumbnail from "@/components/Thumbnail";
 
 interface CarouselCard {
   slug: string;
@@ -61,12 +62,7 @@ export default async function ContentCarouselSection({ section }: { section: Pag
                   href={card.href}
                   className="content-carousel-card group flex cursor-pointer flex-col overflow-hidden rounded-lg bg-surface"
                 >
-                  {card.cover ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img loading="lazy" decoding="async" src={card.cover} alt="" className="aspect-[31/22] w-full rounded-lg object-cover" />
-                  ) : (
-                    <CoverPlaceholder />
-                  )}
+                  <Thumbnail src={card.cover} className="aspect-[31/22] w-full rounded-lg" />
                   <div className="flex flex-1 flex-col gap-1.5 pt-3">
                     <h3 className="text-base font-bold text-primary-900 group-hover:text-primary-700">{card.title}</h3>
                     <p className="line-clamp-2 text-sm text-primary-600">{card.excerpt}</p>
@@ -90,18 +86,4 @@ async function loadCards(sourceType: string, mode: string, limit: number, manual
   const picked =
     mode === "manual" ? manualSlugs.map((slug) => items.find((item) => item.slug === slug)).filter((item) => item !== undefined) : items;
   return picked.slice(0, limit).map((item) => ({ ...item, cover: mediaUrl(item.cover) }));
-}
-
-function CoverPlaceholder() {
-  return (
-    <div className="flex aspect-[31/22] w-full items-center justify-center rounded-lg bg-gradient-to-br from-primary-100 to-primary-50" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-10 w-10 text-primary-300">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"
-        />
-      </svg>
-    </div>
-  );
 }

@@ -1,6 +1,7 @@
 import { field, itemIndexes, mediaUrl, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { sanitizeRichText } from "@/lib/sanitize-html";
 import type { CSSProperties } from "react";
+import Thumbnail from "@/components/Thumbnail";
 
 // Figma "Most Trusted Payment Methods" pattern: a bordered card per item -
 // heading + description spanning the full card width, then a row below
@@ -52,19 +53,7 @@ export default function FeatureCardsSection({ section }: { section: PageSection 
                 )}
 
                 <div className="feature-card__body flex flex-col gap-[30px] sm:flex-row">
-                  {image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={image}
-                      alt=""
-                      className="feature-card__image h-40 w-full shrink-0 rounded-md object-cover sm:h-auto sm:w-[31.25%]"
-                    />
-                  ) : (
-                    <div
-                      aria-hidden="true"
-                      className="feature-card__image-placeholder h-40 w-full shrink-0 rounded-md bg-[repeating-conic-gradient(#e5e7eb_0%_25%,transparent_0%_50%)] bg-[length:16px_16px] sm:h-auto sm:w-[31.25%]"
-                    />
-                  )}
+                  <Thumbnail src={image} className="feature-card__image h-40 w-full shrink-0 rounded-md sm:h-auto sm:w-[31.25%]" />
                   <div className="flex flex-1 flex-col gap-4">
                     {(detail1Heading || detail1Body) && (
                       <div className="flex flex-col gap-1">

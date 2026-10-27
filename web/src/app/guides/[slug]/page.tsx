@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { sanitizeRichText } from "@/lib/sanitize-html";
 import { articleJsonLd, buildMetadata, getSeoMeta } from "@/lib/seo";
 import JsonLd from "@/components/JsonLd";
+import Thumbnail from "@/components/Thumbnail";
 
 /**
  * Public guide detail page. Content is scheduled-publish aware: the API
@@ -169,25 +170,7 @@ export default async function GuideDetailPage({
           )}
         </header>
 
-        <div
-          id="guide-detail-cover-placeholder"
-          className="guide-detail__cover mt-8 flex h-56 w-full items-center justify-center rounded-lg bg-gradient-to-br from-primary-100 to-primary-50"
-          aria-hidden="true"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.5}
-            className="h-14 w-14 text-primary-300"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"
-            />
-          </svg>
-        </div>
+        <Thumbnail src={guide.coverUrl} alt={guide.title} className="guide-detail__cover mt-8 h-56 w-full rounded-lg sm:h-80" />
 
         <div
           id="guide-detail-content"

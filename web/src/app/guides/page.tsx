@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { buildMetadata } from "@/lib/seo";
 import IntroductionSection from "@/components/IntroductionSection";
 import PageGrid from "@/components/PageGrid";
+import Thumbnail from "@/components/Thumbnail";
 
 export async function generateMetadata(): Promise<Metadata> {
   return buildMetadata({
@@ -14,9 +15,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * Public guides list — all published guides (global or region-scoped),
- * mixed together in one grid. Cover images aren't resolvable from the
- * GuideDTO alone (no media join), so cards use a styled placeholder block
- * instead of fabricating an image URL.
+ * mixed together in one grid. Each card shows the guide's cover, or the
+ * placeholder image when none is set.
  */
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
@@ -27,6 +27,7 @@ interface GuideDTO {
   title: string;
   slug: string;
   coverMediaId: number | null;
+  coverUrl?: string | null;
   excerpt: string;
   content: string;
   status: string;
@@ -93,28 +94,6 @@ async function getRegions(): Promise<RegionDTO[]> {
   }
 }
 
-function GuideCoverPlaceholder() {
-  return (
-    <div
-      className="guide-card__cover flex h-36 w-full items-center justify-center rounded-t-lg bg-gradient-to-br from-primary-100 to-primary-50"
-      aria-hidden="true"
-    >
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={1.5}
-        className="h-10 w-10 text-primary-300"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"
-        />
-      </svg>
-    </div>
-  );
-}
 
 export default async function GuidesPage() {
   const [guides, regions] = await Promise.all([getGuides(), getRegions()]);
@@ -151,7 +130,7 @@ export default async function GuidesPage() {
                   href={`/guides/${guide.slug}`}
                   className="guide-card group flex cursor-pointer flex-col overflow-hidden rounded-lg border border-primary-100 bg-surface shadow-sm transition-shadow hover:shadow-md"
                 >
-                  <GuideCoverPlaceholder />
+                  <Thumbnail src={guide.coverUrl} className="guide-card__cover aspect-[31/22] w-full rounded-t-lg" />
                   <div className="guide-card__body flex flex-1 flex-col gap-2 p-5">
                     {regionName && (
                       <span className="guide-card__region-badge inline-flex w-fit items-center rounded-full bg-secondary-50 px-2.5 py-0.5 text-xs font-semibold text-secondary-800">
