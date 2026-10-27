@@ -87,7 +87,7 @@ export function homeSections(m) {
     section(
       "logo_strip",
       { heading: "Acknowledgements", intro: "We're honoured to have been featured in or recognised by reputable publications and industry bodies.", bgType: "none" },
-      m.partners.map((p) => ({ logo: img(p.mediaId), name: p.name, url: p.url })),
+      m.partners.map((p) => ({ logo: img(p.mediaId), name: p.name, url: "" })),
     ),
     section(
       "stats_counter",

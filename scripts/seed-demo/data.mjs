@@ -23,8 +23,9 @@ export const LICENSES = [
 
 // Acknowledgements strip on the homepage: testing labs and safer-gambling
 // bodies. Logos are their official ones, downloaded from each url into
-// assets/partners/, picking the dark-text version where a site's header uses
-// a white one (Gambling Therapy only publishes white text, so it's left out).
+// assets/partners/ (url is only their source; the strip doesn't link),
+// picking the dark-text version where a site's header uses a white one
+// (Gambling Therapy only publishes white text, so it's left out).
 export const PARTNERS = [
   { name: "eCOGRA", logo: "ecogra.png", url: "https://ecogra.org/" },
   { name: "iTech Labs", logo: "itech-labs.svg", url: "https://itechlabs.com/" },

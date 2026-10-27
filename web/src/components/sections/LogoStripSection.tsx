@@ -16,7 +16,7 @@ export default function LogoStripSection({ section }: { section: PageSection }) 
         {heading && (
           <div className="section-row">
             <div className="section-col">
-              <h2 className="section-heading text-center text-xl font-bold text-primary-900">{heading}</h2>
+              <h2 className="section-heading text-center text-3xl font-bold text-primary-900">{heading}</h2>
             </div>
           </div>
         )}
@@ -30,7 +30,7 @@ export default function LogoStripSection({ section }: { section: PageSection }) 
             // fall back to a text badge instead of a broken <img>.
             const content = logo ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={logo} alt={name} title={name} className="h-10 w-auto grayscale transition-all hover:grayscale-0" />
+              <img src={logo} alt={name} title={name} className="h-7 w-auto max-w-[120px] object-contain grayscale transition-all hover:grayscale-0" />
             ) : (
               <span className="logo-strip__fallback rounded-md bg-surface-muted px-4 py-2 text-sm font-semibold text-primary-700">
                 {name}
