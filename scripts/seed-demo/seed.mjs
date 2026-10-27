@@ -207,15 +207,21 @@ async function main() {
   const pages = await list("/api/admin/pages");
   m.strategyGuides = GUIDES.filter((g) => g.kind === "strategy").map((g) => g.slug);
   m.howtoGuides = GUIDES.filter((g) => g.kind === "howto").map((g) => g.slug);
-  await upsertPage({
-    pages,
-    slug: "home",
-    title: "Homepage",
-    metaTitle: "TopCasinoSG - Best Online Casino Reviews You Can Trust in {year}",
-    metaDescription: "Independent, data-driven online casino reviews for Southeast Asia: licensing, real-money payouts, bonuses and support tested by our experts.",
-    sections: homeSections(m),
-  });
-  log("page: home");
+  // The homepage is only created, never overwritten: once it exists it's
+  // maintained in the admin, so re-running the seed leaves it as it is.
+  if (pages.some((p) => p.slug === "home" && (p.parentId ?? null) === null)) {
+    log("page: home (exists, left as is)");
+  } else {
+    await upsertPage({
+      pages,
+      slug: "home",
+      title: "Homepage",
+      metaTitle: "TopCasinoSG - Best Online Casino Reviews You Can Trust in {year}",
+      metaDescription: "Independent, data-driven online casino reviews for Southeast Asia: licensing, real-money payouts, bonuses and support tested by our experts.",
+      sections: homeSections(m),
+    });
+    log("page: home");
+  }
 
   const eventArt = [];
   for (const [i, [title, prize]] of [["Huat Spin Giveaway", 88888], ["Mega Cashback Week", 50000], ["Live Baccarat Race", 100000]].entries()) {
