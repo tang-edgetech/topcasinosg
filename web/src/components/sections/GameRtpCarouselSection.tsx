@@ -42,6 +42,7 @@ export default async function GameRtpCarouselSection({ section, regionCode: page
           <div className="section-col">
             <HorizontalSlider
               label={heading}
+              slideClassName="w-[190px]"
               showArrows
               seeAllUrl={seeAllUrl || undefined}
               header={heading && <h2 className="section-heading text-2xl font-bold text-primary-900">{heading}</h2>}
@@ -49,7 +50,7 @@ export default async function GameRtpCarouselSection({ section, regionCode: page
               {cards.map((card) => (
                 <article
                   key={card.key}
-                  className="game-rtp-carousel__card flex w-[190px] shrink-0 snap-start flex-col overflow-hidden rounded-lg border-2 border-white bg-white shadow-sm"
+                  className="game-rtp-carousel__card flex flex-col overflow-hidden rounded-lg border-2 border-white bg-white shadow-sm"
                 >
                   {card.image ? (
                     // eslint-disable-next-line @next/next/no-img-element

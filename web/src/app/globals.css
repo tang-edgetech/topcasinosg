@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* In the components layer so Tailwind utilities (slide widths, h-auto) win over Swiper's defaults. */
+@import "swiper/css" layer(components);
 @import "../../../shared/theme/tokens.css";
 @import "../../../shared/theme/rich-text.css";
 @import "../../../shared/theme/sections.css";

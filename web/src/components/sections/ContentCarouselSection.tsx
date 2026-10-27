@@ -45,6 +45,7 @@ export default async function ContentCarouselSection({ section }: { section: Pag
           <div className="section-col">
             <HorizontalSlider
               label={heading || "Articles"}
+              slideClassName="w-[78%] sm:w-[310px]"
               showArrows={cards.length > 1}
               seeAllUrl={seeAllUrl || undefined}
               header={
@@ -58,7 +59,7 @@ export default async function ContentCarouselSection({ section }: { section: Pag
                 <Link
                   key={card.slug}
                   href={card.href}
-                  className="content-carousel-card group flex w-[78%] shrink-0 cursor-pointer snap-start flex-col overflow-hidden rounded-lg bg-surface sm:w-[310px]"
+                  className="content-carousel-card group flex cursor-pointer flex-col overflow-hidden rounded-lg bg-surface"
                 >
                   {card.cover ? (
                     // eslint-disable-next-line @next/next/no-img-element

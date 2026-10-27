@@ -1,5 +1,6 @@
 import Link from "next/link";
 import CasinoBrand from "@/components/CasinoBrand";
+import SwipeRow from "@/components/SwipeRow";
 import VisitSiteLink from "@/components/VisitSiteLink";
 import type { CellContext, ColumnDef, DataRow } from "./columns";
 
@@ -12,10 +13,12 @@ export interface TableColumn {
 const CTA_CLASS =
   "inline-flex cursor-pointer items-center justify-center rounded-md bg-primary-900 px-4 py-2 text-xs font-semibold whitespace-nowrap text-white hover:bg-primary-800";
 
+const CARD_CLASS = "data-table-card flex flex-col gap-3 rounded-lg border border-primary-100 bg-white p-4 text-sm";
+
 // The shared table behind every casino and bonus table: Brand first, the
 // chosen columns, then the CTA (and an arrow to the review page when
 // moreInfo is on). Desktop is a horizontally scrollable table; on mobile the
-// rows become cards — a swipeable row ("swipe") or a vertical list ("stack").
+// rows become cards — a Swiper row ("swipe") or a vertical list ("stack").
 export default function DataTable({
   rows,
   ctx,
@@ -34,42 +37,55 @@ export default function DataTable({
   const hasActions = Boolean(ctaLabel) || moreInfo;
   const swipe = mobile === "swipe";
 
+  const cardBody = (row: DataRow, i: number) => (
+    <>
+      {swipe && <span className="self-start text-sm font-semibold text-primary-500">{i + 1}</span>}
+      {row.casino && <CasinoBrand casino={row.casino} layout={swipe ? "stack" : "row"} />}
+      <dl className={`flex w-full flex-col gap-2 ${swipe ? "items-center" : ""}`}>
+        {columns.map((col) => (
+          <div key={col.key} className="flex flex-col gap-0.5">
+            <dt className="text-xs font-medium text-primary-500">{col.label}</dt>
+            <dd className="text-primary-900">{col.def.render(row, ctx)}</dd>
+          </div>
+        ))}
+      </dl>
+      {row.casino && hasActions && (
+        <div className="mt-auto flex w-full flex-col gap-2">
+          {ctaLabel && (
+            <VisitSiteLink href={row.casino.ctaUrl} fallbackHref={`/casinos/${row.casino.slug}`} className={`${CTA_CLASS} w-full py-2.5 text-sm`}>
+              {ctaLabel}
+            </VisitSiteLink>
+          )}
+          {moreInfo && (
+            <Link href={`/casinos/${row.casino.slug}`} className="cursor-pointer text-xs text-primary-600 hover:text-primary-900">
+              More Info
+            </Link>
+          )}
+        </div>
+      )}
+    </>
+  );
+
   return (
     <>
       <div className="section-row md:hidden">
-        <ol className={`data-table-cards section-col ${swipe ? "flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1" : "flex flex-col gap-3"}`}>
-          {rows.map((row, i) => (
-            <li
-              key={row.key}
-              className={`data-table-card flex flex-col gap-3 rounded-lg border border-primary-100 bg-white p-4 text-sm ${swipe ? "w-[220px] shrink-0 snap-start items-center text-center" : ""}`}
-            >
-              {swipe && <span className="self-start text-sm font-semibold text-primary-500">{i + 1}</span>}
-              {row.casino && <CasinoBrand casino={row.casino} layout={swipe ? "stack" : "row"} />}
-              <dl className={`flex w-full flex-col gap-2 ${swipe ? "items-center" : ""}`}>
-                {columns.map((col) => (
-                  <div key={col.key} className="flex flex-col gap-0.5">
-                    <dt className="text-xs font-medium text-primary-500">{col.label}</dt>
-                    <dd className="text-primary-900">{col.def.render(row, ctx)}</dd>
-                  </div>
-                ))}
-              </dl>
-              {row.casino && hasActions && (
-                <div className="mt-auto flex w-full flex-col gap-2">
-                  {ctaLabel && (
-                    <VisitSiteLink href={row.casino.ctaUrl} fallbackHref={`/casinos/${row.casino.slug}`} className={`${CTA_CLASS} w-full py-2.5 text-sm`}>
-                      {ctaLabel}
-                    </VisitSiteLink>
-                  )}
-                  {moreInfo && (
-                    <Link href={`/casinos/${row.casino.slug}`} className="cursor-pointer text-xs text-primary-600 hover:text-primary-900">
-                      More Info
-                    </Link>
-                  )}
-                </div>
-              )}
-            </li>
-          ))}
-        </ol>
+        {swipe ? (
+          <SwipeRow label="Casinos" className="data-table-cards section-col pb-1" wrapperTag="ol" slideTag="li" slideClassName="w-[220px]" gap={12}>
+            {rows.map((row, i) => (
+              <div key={row.key} className={`${CARD_CLASS} items-center text-center`}>
+                {cardBody(row, i)}
+              </div>
+            ))}
+          </SwipeRow>
+        ) : (
+          <ol className="data-table-cards section-col flex flex-col gap-3">
+            {rows.map((row, i) => (
+              <li key={row.key} className={CARD_CLASS}>
+                {cardBody(row, i)}
+              </li>
+            ))}
+          </ol>
+        )}
       </div>
 
       <div className="section-row hidden md:block">

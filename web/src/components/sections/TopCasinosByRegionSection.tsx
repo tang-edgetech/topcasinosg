@@ -4,6 +4,7 @@ import { getRegions, getRegionBonuses, type RegionDTO } from "@/app/[region]/_li
 import DataTable from "@/components/data-table/DataTable";
 import { COLUMNS } from "@/components/data-table/columns";
 import { loadRows } from "@/components/data-table/loadRows";
+import SwipeRow from "@/components/SwipeRow";
 import { BonusPickCard } from "./TopBonusPicksSection";
 
 const DEFAULT_COLUMNS = ["cashback", "payments", "rating", "safeIndex"];
@@ -100,7 +101,7 @@ export default async function TopCasinosByRegionSection({ section }: { section: 
           </div>
         )}
 
-        <div className="bonus-picks__track section-row flex snap-x snap-mandatory gap-4 overflow-x-auto pb-1 md:grid md:grid-cols-3 md:gap-[30px] md:overflow-visible">
+        <SwipeRow label={heading || "Top casinos by country"} className="bonus-picks__track section-row pb-1" slideClassName="w-[85%]" gridFrom="md" gridColumns={3} gridGap={30}>
           {perRegion.map(({ region, topCasino, bonus }) => (
             <BonusPickCard
               key={region.id}
@@ -111,7 +112,7 @@ export default async function TopCasinosByRegionSection({ section }: { section: 
               flagUrl={mediaUrl(region.flagUrl)}
             />
           ))}
-        </div>
+        </SwipeRow>
 
         {perRegion
           .filter(({ more }) => more && more.rows.length > 0)

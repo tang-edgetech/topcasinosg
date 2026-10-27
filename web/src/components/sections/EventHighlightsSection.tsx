@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { field, itemIndexes, mediaUrl, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { sanitizeRichText } from "@/lib/sanitize-html";
 import { getAllCasinos } from "@/app/[region]/_lib/api";
+import SwipeRow from "@/components/SwipeRow";
 
 // Figma "Event Highlights": admin-authored promo cards - a navy title bar,
 // the event banner, a Brand / Event Duration strip, then Visit Site and
@@ -41,7 +42,7 @@ export default async function EventHighlightsSection({ section }: { section: Pag
             </div>
           </div>
         )}
-        <div className="event-highlights__track section-row flex snap-x snap-mandatory gap-4 overflow-x-auto px-[7.5%] pb-1 md:grid md:grid-cols-3 md:gap-5 md:overflow-visible md:px-0">
+        <SwipeRow label="Event highlights" className="event-highlights__track section-row pb-1" slideClassName="w-[85%]" centered gridFrom="md" gridColumns={3} gridGap={20}>
           {items.map((itemIndex) => {
             const image = mediaUrl(field(section.fields, itemIndex, "image")?.mediaUrl);
             const title = field(section.fields, itemIndex, "title")?.textValue ?? "";
@@ -56,7 +57,7 @@ export default async function EventHighlightsSection({ section }: { section: Pag
             return (
               <article
                 key={itemIndex}
-                className="event-card flex w-[85%] shrink-0 snap-center flex-col overflow-hidden rounded-lg border border-primary-100 bg-surface-muted md:w-auto"
+                className="event-card flex flex-col overflow-hidden rounded-lg border border-primary-100 bg-surface-muted"
               >
                 {title && <h3 className="bg-primary-900 px-4 py-2.5 text-center text-base font-bold text-white">{title}</h3>}
                 {image ? (
@@ -99,7 +100,7 @@ export default async function EventHighlightsSection({ section }: { section: Pag
               </article>
             );
           })}
-        </div>
+        </SwipeRow>
       </div>
     </section>
   );

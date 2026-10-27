@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { field, itemIndexes, mediaUrl, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
+import SwipeRow from "@/components/SwipeRow";
 
 interface Review {
   itemIndex: number;
@@ -50,9 +51,9 @@ export default function ReviewColumnsSection({ section }: { section: PageSection
         )}
         <div className="section-row grid grid-cols-1 gap-6 md:grid-cols-3">
           {positive.length > 0 && (
-            <ReviewGroup label={positiveLabel} tone="positive" reviews={positive} className="md:col-span-2" gridClass="md:grid-cols-2" />
+            <ReviewGroup label={positiveLabel} tone="positive" reviews={positive} className="md:col-span-2" gridColumns={2} />
           )}
-          {complaints.length > 0 && <ReviewGroup label={complaintLabel} tone="complaint" reviews={complaints} gridClass="md:grid-cols-1" />}
+          {complaints.length > 0 && <ReviewGroup label={complaintLabel} tone="complaint" reviews={complaints} gridColumns={1} />}
         </div>
       </div>
     </section>
@@ -64,13 +65,13 @@ function ReviewGroup({
   tone,
   reviews,
   className = "",
-  gridClass,
+  gridColumns,
 }: {
   label: string;
   tone: "positive" | "complaint";
   reviews: Review[];
   className?: string;
-  gridClass: string;
+  gridColumns: number;
 }) {
   const positive = tone === "positive";
   return (
@@ -81,11 +82,11 @@ function ReviewGroup({
         </span>
         <span>{label}</span>
       </h3>
-      <div className={`review-group__track flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 md:grid md:overflow-visible ${gridClass}`}>
+      <SwipeRow label={label} className="review-group__track w-full pb-1" slideClassName="w-[70%]" gap={12} gridFrom="md" gridColumns={gridColumns}>
         {reviews.map((review) => (
           <article
             key={review.itemIndex}
-            className="review-card flex w-[70%] shrink-0 snap-start flex-col overflow-hidden rounded-lg border border-primary-100 bg-white md:w-auto"
+            className="review-card flex flex-col overflow-hidden rounded-lg border border-primary-100 bg-white"
           >
             <div className="flex items-center gap-3 px-3 py-3">
               {review.avatar ? (
@@ -104,7 +105,7 @@ function ReviewGroup({
             </p>
           </article>
         ))}
-      </div>
+      </SwipeRow>
     </div>
   );
 }

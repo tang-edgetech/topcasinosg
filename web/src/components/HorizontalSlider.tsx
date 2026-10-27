@@ -1,13 +1,14 @@
 "use client";
 
-import { useRef, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
+import type { Swiper as SwiperInstance } from "swiper";
+import SwipeRow from "./SwipeRow";
 
-// Touch-swipeable horizontal track (native scroll-snap, so swipe/trackpad/
-// keyboard scrolling all work without JS) with optional prev/next buttons
-// that scroll by roughly one viewport of cards. Used by every Figma
-// "slider" pattern: Avoid These Casinos, and the mobile card rows of Most
-// Popular / Event Highlights / Real Reviews. seeAllUrl adds Figma's "See
+// Swiper-driven horizontal row (see SwipeRow) with optional prev/next
+// buttons. Used by every Figma "slider" pattern with a header: Avoid These
+// Casinos, the guide/news carousels, RTP game sliders and Container
+// carousels. slideClassName sizes each slide. seeAllUrl adds Figma's "See
 // All" button (Comp / CTA 3: 120x39, 0.5px border, 5px radius) 10px before
 // the joined 39x39 arrow pair. Controls line up with the bottom of the
 // header (a title with text under it), or its top (controlsAlign "start",
@@ -18,6 +19,7 @@ export default function HorizontalSlider({
   showArrows = false,
   arrowTheme = "light",
   trackClassName = "",
+  slideClassName = "",
   label,
   seeAllUrl,
   seeAllLabel = "See All",
@@ -28,18 +30,14 @@ export default function HorizontalSlider({
   showArrows?: boolean;
   arrowTheme?: "light" | "dark";
   trackClassName?: string;
+  slideClassName?: string | string[];
   label?: string;
   seeAllUrl?: string;
   seeAllLabel?: string;
   controlsAlign?: "start" | "end";
 }) {
-  const trackRef = useRef<HTMLDivElement>(null);
-
-  function scrollByPage(direction: 1 | -1) {
-    const track = trackRef.current;
-    if (!track) return;
-    track.scrollBy({ left: direction * track.clientWidth * 0.8, behavior: "smooth" });
-  }
+  const [swiper, setSwiper] = useState<SwiperInstance | null>(null);
+  const [edges, setEdges] = useState({ atStart: true, atEnd: false });
 
   const dark = arrowTheme === "dark";
   const controlClass = dark
@@ -68,16 +66,18 @@ export default function HorizontalSlider({
                   <button
                     type="button"
                     aria-label="Previous"
-                    onClick={() => scrollByPage(-1)}
-                    className={`flex h-[38px] w-[39px] cursor-pointer items-center justify-center border-0 border-r-[0.5px] ${arrowClass}`}
+                    disabled={edges.atStart}
+                    onClick={() => swiper?.slidePrev()}
+                    className={`flex h-[38px] w-[39px] cursor-pointer items-center justify-center border-0 border-r-[0.5px] disabled:cursor-default disabled:opacity-40 ${arrowClass}`}
                   >
                     <ArrowIcon direction="left" />
                   </button>
                   <button
                     type="button"
                     aria-label="Next"
-                    onClick={() => scrollByPage(1)}
-                    className={`flex h-[38px] w-[39px] cursor-pointer items-center justify-center border-0 ${arrowClass}`}
+                    disabled={edges.atEnd}
+                    onClick={() => swiper?.slideNext()}
+                    className={`flex h-[38px] w-[39px] cursor-pointer items-center justify-center border-0 disabled:cursor-default disabled:opacity-40 ${arrowClass}`}
                   >
                     <ArrowIcon direction="right" />
                   </button>
@@ -87,14 +87,15 @@ export default function HorizontalSlider({
           )}
         </div>
       )}
-      <div
-        ref={trackRef}
-        role="region"
-        aria-label={label}
-        className={`horizontal-slider__track flex snap-x snap-mandatory gap-4 overflow-x-auto ${trackClassName}`}
+      <SwipeRow
+        label={label}
+        className={`horizontal-slider__track w-full ${trackClassName}`}
+        slideClassName={slideClassName}
+        onSwiper={setSwiper}
+        onPositionChange={(atStart, atEnd) => setEdges({ atStart, atEnd })}
       >
         {children}
-      </div>
+      </SwipeRow>
     </div>
   );
 }

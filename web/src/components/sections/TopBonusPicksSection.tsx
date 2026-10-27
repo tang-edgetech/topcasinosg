@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 import { field, mediaUrl, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { sanitizeRichText } from "@/lib/sanitize-html";
+import SwipeRow from "@/components/SwipeRow";
 import {
   getActiveRegionByCode,
   getRegionBonuses,
@@ -73,7 +74,7 @@ export default async function TopBonusPicksSection({ section, regionCode: pageRe
             </div>
           </div>
         )}
-        <div className="bonus-picks__track section-row flex snap-x snap-mandatory gap-4 overflow-x-auto pb-1 md:grid md:grid-cols-3 md:gap-[30px] md:overflow-visible">
+        <SwipeRow label={heading || "Top bonus picks"} className="bonus-picks__track section-row pb-1" slideClassName="w-[85%]" gridFrom="md" gridColumns={3} gridGap={30}>
           {picks.map((pick, i) => (
             <BonusPickCard
               key={pick.casino.id}
@@ -83,7 +84,7 @@ export default async function TopBonusPicksSection({ section, regionCode: pageRe
               flagUrl={i === 0 ? mediaUrl(region?.flagUrl) : null}
             />
           ))}
-        </div>
+        </SwipeRow>
       </div>
     </section>
   );
@@ -132,7 +133,7 @@ export function BonusPickCard({
 
   return (
     <article
-      className={`bonus-pick section-col relative flex w-[85%] shrink-0 snap-start flex-col overflow-hidden rounded-lg border md:w-auto ${
+      className={`bonus-pick section-col relative flex flex-col overflow-hidden rounded-lg border ${
         featured ? "bonus-pick--featured border-secondary-300 bg-secondary-50" : "border-primary-100 bg-surface"
       }`}
     >

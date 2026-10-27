@@ -100,9 +100,15 @@ function ContainerBody({
     const perView = SLIDES_PER_VIEW.includes(text("perView")) ? text("perView") : "3";
     return (
       <div className={`${base} container-section__body--boxed`} style={style}>
-        <HorizontalSlider showArrows arrowTheme={light ? "dark" : "light"} label="Carousel" trackClassName={`container-carousel container-carousel--${perView}`}>
+        <HorizontalSlider
+          showArrows
+          arrowTheme={light ? "dark" : "light"}
+          label="Carousel"
+          trackClassName={`container-carousel container-carousel--${perView}`}
+          slideClassName={panels.map((panel) => `container-carousel__slide ${panel.visibility}`)}
+        >
           {panels.map((panel) => (
-            <div key={panel.id} className={`container-panel container-carousel__slide snap-start ${panel.visibility}`}>
+            <div key={panel.id} className="container-panel">
               {panel.content}
             </div>
           ))}

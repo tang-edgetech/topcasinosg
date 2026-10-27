@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { field, itemIndexes, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { getSiteStats, type SiteStat } from "@/app/[region]/_lib/api";
 import CountUpNumber from "./CountUpNumber";
+import SwipeRow from "@/components/SwipeRow";
 
 const LIVE_SOURCES: SiteStat[] = ["casinos", "blacklist", "regions", "guides"];
 
@@ -31,7 +32,7 @@ export default async function StatsCounterSection({ section }: { section: PageSe
             </div>
           </div>
         )}
-        <div className="stats-counter__track section-row flex snap-x snap-mandatory gap-4 overflow-x-auto pb-1 lg:grid lg:grid-cols-5 lg:overflow-visible">
+        <SwipeRow label={heading || "Track record"} className="stats-counter__track section-row pb-1" slideClassName="w-[180px]" gridFrom="lg" gridColumns={5}>
           {items.map((itemIndex, i) => {
             const prefix = field(section.fields, itemIndex, "prefix")?.textValue ?? "";
             const typed = field(section.fields, itemIndex, "number")?.textValue ?? "";
@@ -43,7 +44,7 @@ export default async function StatsCounterSection({ section }: { section: PageSe
             return (
               <div
                 key={itemIndex}
-                className="stats-counter-item section-col flex w-[180px] shrink-0 snap-start flex-col items-center gap-1 rounded-lg bg-surface-muted px-4 py-5 text-center lg:w-auto"
+                className="stats-counter-item section-col flex flex-col items-center gap-1 rounded-lg bg-surface-muted px-4 py-5 text-center"
               >
                 <span className="text-3xl font-bold text-primary-glow">
                   <CountUpNumber value={number} prefix={prefix} suffix={suffix} />
@@ -53,7 +54,7 @@ export default async function StatsCounterSection({ section }: { section: PageSe
               </div>
             );
           })}
-        </div>
+        </SwipeRow>
       </div>
     </section>
   );

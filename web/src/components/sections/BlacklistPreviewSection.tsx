@@ -57,7 +57,7 @@ export default async function BlacklistPreviewSection({ section }: { section: Pa
       <div className="section-container relative z-10 py-[3.125rem]">
         <div className="section-row">
           <div className="section-col">
-            <HorizontalSlider label="Blacklisted casinos" showArrows arrowTheme="dark" seeAllUrl={seeAllUrl} header={header} controlsAlign={subheading ? "end" : "start"}>
+            <HorizontalSlider label="Blacklisted casinos" slideClassName="w-[200px]" showArrows arrowTheme="dark" seeAllUrl={seeAllUrl} header={header} controlsAlign={subheading ? "end" : "start"}>
               {entries.map((entry) => (
                 <BlacklistCard key={entry.id} entry={entry} />
               ))}
@@ -74,7 +74,7 @@ function BlacklistCard({ entry }: { entry: BlacklistEntryDTO }) {
   const reasons = (entry.reasons?.length ? entry.reasons : [entry.reason]).filter(Boolean).slice(0, MAX_REASONS);
 
   return (
-    <article className="blacklist-card flex w-[200px] shrink-0 snap-start flex-col overflow-hidden rounded-lg bg-white">
+    <article className="blacklist-card flex flex-col overflow-hidden rounded-lg bg-white">
       <div className="flex flex-col items-center gap-1 px-4 pt-4 pb-3">
         {logo ? (
           // eslint-disable-next-line @next/next/no-img-element

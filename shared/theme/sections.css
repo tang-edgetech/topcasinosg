@@ -828,21 +828,49 @@
 
 /*
  * Swipe rows (Figma "slider" patterns: Most Popular, Event Highlights, Real
- * Reviews, Avoid These Casinos) scroll by touch/arrows with no visible
- * scrollbar, matching the design.
+ * Reviews, Avoid These Casinos) are Swiper sliders (web/src/components/
+ * SwipeRow.tsx). Slides stretch to the tallest card in the row. A row with
+ * gridFrom stops sliding at that breakpoint (Swiper is disabled there) and
+ * becomes a plain grid; Swiper's inline transform and slide margins are
+ * cleared so the grid lines up.
  */
-.horizontal-slider__track,
-.bonus-picks__track,
-.event-highlights__track,
-.review-group__track {
-  scrollbar-width: none;
+@layer components {
+  /* Layered so utilities on a slide (width, visibility) still apply. */
+  .swipe-row .swiper-slide {
+    height: auto;
+    display: flex;
+  }
+
+  .swipe-row .swiper-slide > * {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
 }
 
-.horizontal-slider__track::-webkit-scrollbar,
-.bonus-picks__track::-webkit-scrollbar,
-.event-highlights__track::-webkit-scrollbar,
-.review-group__track::-webkit-scrollbar {
-  display: none;
+@media (min-width: 768px) {
+  .swipe-row--grid-md > .swiper-wrapper {
+    display: grid;
+    grid-template-columns: var(--swipe-row-cols);
+    gap: var(--swipe-row-gap);
+    transform: none !important;
+  }
+  .swipe-row--grid-md > .swiper-wrapper > .swiper-slide {
+    width: auto !important;
+    margin: 0 !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .swipe-row--grid-lg > .swiper-wrapper {
+    display: grid;
+    grid-template-columns: var(--swipe-row-cols);
+    gap: var(--swipe-row-gap);
+    transform: none !important;
+  }
+  .swipe-row--grid-lg > .swiper-wrapper > .swiper-slide {
+    width: auto !important;
+    margin: 0 !important;
+  }
 }
 
 /* Figma "M / Country / TH": section headings are 30px on mobile (36px desktop). */
