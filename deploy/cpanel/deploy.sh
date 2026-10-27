@@ -13,7 +13,7 @@ main() {
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BRANCH="${BRANCH:-main}"
-# The Node.js version picked for all three apps in "Setup Node.js App".
+# Preferred Node.js major version (see find_node below for where it's looked up).
 NODE_VERSION="${NODE_VERSION:-22}"
 GO="${GO:-$HOME/go-sdk/bin/go}"
 LOG_DIR="${LOG_DIR:-$HOME/logs}"
@@ -55,24 +55,39 @@ restart_node_app() {
   touch "$app_root/tmp/restart.txt"
 }
 
+# Node.js for building an app. Two cPanel setups are supported:
+# - CloudLinux "Setup Node.js App": a per-app environment in ~/nodevenv
+#   (prints "venv <activate script>");
+# - cPanel's Application Manager: the server's EasyApache Node.js in
+#   /opt/cpanel/ea-nodejsNN (prints "path <bin dir>").
+find_node() {
+  local app_root="$1"
+  local venv_dir="$HOME/nodevenv/${app_root#"$HOME"/}"
+  if [ -f "$venv_dir/$NODE_VERSION/bin/activate" ]; then echo "venv $venv_dir/$NODE_VERSION/bin/activate"; return; fi
+  # Not on NODE_VERSION: the version the app was created with, if only one.
+  local found=("$venv_dir"/*/bin/activate)
+  if [ "${#found[@]}" = 1 ] && [ -f "${found[0]}" ]; then echo "venv ${found[0]}"; return; fi
+  if [ -x "/opt/cpanel/ea-nodejs$NODE_VERSION/bin/node" ]; then echo "path /opt/cpanel/ea-nodejs$NODE_VERSION/bin"; return; fi
+  local newest
+  newest="$(ls -d /opt/cpanel/ea-nodejs*/bin 2>/dev/null | sort -V | tail -n 1)"
+  if [ -n "$newest" ] && [ -x "$newest/node" ]; then echo "path $newest"; return; fi
+}
+
 build_next() {
   local app="$1" app_root="$REPO_DIR/$1"
-  local venv_dir="$HOME/nodevenv/${app_root#"$HOME"/}"
-  local venv="$venv_dir/$NODE_VERSION/bin/activate"
-  # Not on NODE_VERSION: use the version the app was created with, if it
-  # has exactly one.
-  if [ ! -f "$venv" ]; then
-    local found=("$venv_dir"/*/bin/activate)
-    [ "${#found[@]}" = 1 ] && [ -f "${found[0]}" ] && venv="${found[0]}"
-  fi
-  if [ ! -f "$venv" ]; then
-    log "$app: no Node.js environment in $venv_dir — create the Node.js app in cPanel with application root ${app_root#"$HOME"/}"
+  local node
+  node="$(find_node "$app_root")"
+  if [ -z "$node" ]; then
+    log "$app: no Node.js found — install ea-nodejs22 in WHM (EasyApache 4) or create the Node.js app in cPanel; see deploy/cpanel/README.md"
     return 1
   fi
-  log "$app: building"
+  log "$app: building with ${node#* }"
   (
-    # shellcheck disable=SC1090
-    . "$venv"
+    case "$node" in
+      # shellcheck disable=SC1090
+      venv\ *) . "${node#venv }" ;;
+      path\ *) export PATH="${node#path }:$PATH" ;;
+    esac
     cd "$app_root"
     if changed "$app/package.json" "$app/package-lock.json" || [ ! -d node_modules/next ]; then
       npm install --include=dev --no-audit --no-fund

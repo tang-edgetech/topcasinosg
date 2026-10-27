@@ -1,13 +1,15 @@
 # Deploying to cPanel
 
-The live site runs on cPanel hosting with **Setup Node.js App** (Phusion
-Passenger). One clone of this repo serves all three domains:
+The live site runs on cPanel with Phusion Passenger serving Node.js apps —
+either cPanel's **Application Manager** (startup file `app.js`, Node.js from
+EasyApache) or CloudLinux's **Setup Node.js App** (startup file `server.cjs`).
+`deploy.sh` works with both. One clone of this repo serves all three domains:
 
-| Domain | App root (Setup Node.js App) | Startup file | What runs |
-| --- | --- | --- | --- |
-| `topcasinosg.com.sg` | `apps/topcasinosg/web` | `server.cjs` | Next.js public site |
-| `backoffice.topcasinosg.com.sg` | `apps/topcasinosg/admin` | `server.cjs` | Next.js backoffice |
-| `backapi.topcasinosg.com.sg` | `apps/topcasinosg/api` | `server.cjs` | Node proxy → Go API |
+| Domain | App root / application path | What runs |
+| --- | --- | --- |
+| `topcasinosg.com.sg` | `apps/topcasinosg/web` | Next.js public site |
+| `backoffice.topcasinosg.com.sg` | `apps/topcasinosg/admin` | Next.js backoffice |
+| `backapi.topcasinosg.com.sg` | `apps/topcasinosg/api` | Node proxy → Go API |
 
 - The code lives in `/home/topcasinosg/apps/topcasinosg`, **not** in
   `public_html`: anything under a document root can be downloaded, including
@@ -97,15 +99,26 @@ on the site is missing.
 
 ### 6. The three Node.js apps
 
-In **Setup Node.js App → Create Application**, create each row of the table
-at the top with:
+Use whichever of the two your cPanel has (search "node" in cPanel).
 
-- Node.js version: **22** (if you pick another, set `NODE_VERSION` in the cron
-  line to match)
-- Application mode: **Production**
-- Application root / URL / startup file: from the table
+**Application Manager** (cPanel → Software). If it's missing, enable it in
+WHM as root:
 
-Don't press "Run NPM Install" — the first deploy does it.
+1. **WHM → Software → EasyApache 4 → Customize**: on **Apache Modules** turn
+   on the Passenger module (`ea-apache24-mod-passenger`); on **Additional
+   Packages** turn on `ea-nodejs22`. Review → Provision.
+2. **WHM → Packages → Feature Manager**: edit the account's feature list
+   (usually *default*), tick **Application Manager**, Save.
+
+Then in **Application Manager → Register Application**, for each row of the
+table at the top: application name (`web`, `admin`, `api`), deployment domain,
+base application URL `/`, application path, deployment environment
+**Production**. The startup file is the `app.js` already in each folder.
+
+**Setup Node.js App** (CloudLinux): **Create Application** for each row with
+Node.js **22**, Application mode **Production**, the application root and URL
+from the table, and startup file `server.cjs`. Don't press "Run NPM Install" —
+the first deploy does it.
 
 ### 7. First deploy
 
@@ -158,5 +171,8 @@ account is recreated with that password on the next API start.)
 - **Backoffice login fails / logs straight out**: `COOKIE_DOMAIN` must be
   `.topcasinosg.com.sg` and `CORS_ALLOWED_ORIGINS` must list both https
   origins exactly.
-- **"…/nodevenv/… not found"** in the deploy log: the Node.js app for that
-  folder doesn't exist yet, or its Node version differs from `NODE_VERSION`.
+- **"no Node.js found"** in the deploy log: neither EasyApache's
+  `ea-nodejs22` nor a Setup Node.js App environment exists for that folder —
+  see step 6.
+- **Site shows the cPanel default page**: the domain has no registered Node.js
+  app, or its application path doesn't match the folder in the table.
