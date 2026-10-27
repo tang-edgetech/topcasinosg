@@ -9,6 +9,7 @@ import { BonusPickCard } from "./TopBonusPicksSection";
 
 const DEFAULT_COLUMNS = ["cashback", "payments", "rating", "safeIndex"];
 const DEFAULT_MORE_COUNT = 3;
+const DEFAULT_COUNTRY_COUNT = 3;
 const DEFAULT_BONUS_LABEL = "Welcome Bonus";
 const DEFAULT_TABLE_HEADING = "More Online Casinos in {region}";
 const DEFAULT_CTA_LABEL = "Visit Site";
@@ -30,13 +31,15 @@ function idList(value: string | undefined): number[] {
 
 // Figma Home "Top Rated Casino of the Month by Country": a featured card per
 // country (its casino, flag and welcome bonus), then a "More Online Casinos
-// in <country>" table per country. Automatic by default — every active
-// region, its best-rated casino, then the next best — or, in "custom" mode,
+// in <country>" table per country. Automatic by default — the first
+// countryCount active regions (by sort order), each with its best-rated
+// casino, then the next best — or, in "custom" mode,
 // the countries, featured casinos and table casinos the editor picked.
 export default async function TopCasinosByRegionSection({ section }: { section: PageSection }) {
   const text = (itemIndex: number, key: string) => field(section.fields, itemIndex, key)?.textValue ?? "";
   const heading = text(0, "heading");
   const moreCount = Number(text(0, "moreCount")) || DEFAULT_MORE_COUNT;
+  const countryCount = Number(text(0, "countryCount")) || DEFAULT_COUNTRY_COUNT;
   const bonusLabel = text(0, "bonusLabel") || DEFAULT_BONUS_LABEL;
   const tableHeading = text(0, "tableHeading") || DEFAULT_TABLE_HEADING;
   const ctaLabel = text(0, "ctaLabel") || DEFAULT_CTA_LABEL;
@@ -57,7 +60,7 @@ export default async function TopCasinosByRegionSection({ section }: { section: 
             showTable: text(itemIndex, "showTable") !== "no",
           }];
         })
-      : regions.filter((r) => r.isActive).map((region) => ({ region, featuredCasinoId: null, tableCasinoIds: [], showTable: true }));
+      : regions.filter((r) => r.isActive).slice(0, countryCount).map((region) => ({ region, featuredCasinoId: null, tableCasinoIds: [], showTable: true }));
 
   const perRegion = (
     await Promise.all(

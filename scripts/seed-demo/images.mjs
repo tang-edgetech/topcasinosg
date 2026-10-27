@@ -23,17 +23,6 @@ function textLines(lines, { x, y, size, lh = 1.2, anchor = "start", weight = 800
     .join("");
 }
 
-// Casino wordmark on white, sized for the 3-up cards and table brand cells.
-export function casinoLogo(name, color, accent) {
-  const size = name.length > 6 ? 46 : 58;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" width="320" height="160">
-<rect width="320" height="160" rx="16" fill="#fff"/>
-<path d="M248 52 l26 28 l-26 28" fill="none" stroke="${accent}" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
-<text x="140" y="${80 + size * 0.35}" ${FONT} font-size="${size}" font-weight="900" font-style="italic" fill="${color}" text-anchor="middle" letter-spacing="-1">${esc(name)}</text>
-<text x="140" y="140" ${FONT} font-size="13" font-weight="600" fill="#6b7280" text-anchor="middle" letter-spacing="3">ONLINE CASINO</text>
-</svg>`;
-}
-
 // Site wordmark for the dark header/footer: orange "TOP", white "CASINO".
 export function siteLogo() {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 60" width="220" height="60">

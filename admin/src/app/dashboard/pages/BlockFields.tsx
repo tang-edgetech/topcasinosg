@@ -1515,10 +1515,14 @@ function TopCasinosByRegionFields({ fields, onChange }: { fields: EditableField[
         value={mode}
         onChange={set("mode", 2)}
         options={[
-          { value: "auto", label: "Automatic", hint: "Every active region, its best-rated casino, then the next best" },
+          { value: "auto", label: "Automatic", hint: "The first active regions by sort order, each with its best-rated casino, then the next best" },
           { value: "custom", label: "Choose myself", hint: "Pick the countries, featured casinos and table casinos" },
         ]}
       />
+
+      {mode === "auto" && (
+        <TextInputField label="Number of countries" value={text(0, "countryCount") || "3"} onChange={set("countryCount", 14)} />
+      )}
 
       {mode === "custom" && (
         <RepeaterShell

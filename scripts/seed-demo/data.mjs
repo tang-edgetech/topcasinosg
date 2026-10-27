@@ -91,6 +91,27 @@ export const REGION_PAYMENTS = {
   ph: ["GCash", "Maya", "GrabPay", "ShopeePay", "Visa", "Mastercard", "PayPal", "USDT"],
 };
 
+// Official casino logos in assets/casinos/, taken from the domains the site
+// owner confirmed (many of these brands run dozens of mirror domains); a
+// casino without one gets no logo and the site shows its placeholder image.
+// eu9: uploaded by the site owner. White-text logos sit on a dark tile:
+// 1xbet and 20bet on their #0d1d34 theme colour, gembet on #0e192d, hfive5
+// on a neutral #111827 (its site declares no brand colour). stake.com blocks
+// downloads, and me88, 96m and live22 have no confirmed domain yet.
+export const CASINO_LOGOS = {
+  eu9: "eu9.webp", // site owner's upload
+  "1xbet": "1xbet.svg", // 1xbet.com
+  "20bet": "20bet.svg", // 20bet.com
+  bk8: "bk8.gif", // bk8sgscasino.com
+  yes8: "yes8.png", // yes8evo.com
+  "77w": "77w.png", // 77wbest.com
+  gembet: "gembet.svg", // playgem-sea.com
+  eclbet: "eclbet.png", // eclbet.com.co
+  maxim88: "maxim88.png", // maxim88sgp1.com
+  god55: "god55.png", // god55.buzz
+  hfive5: "hfive5.svg", // h5pgs.com
+};
+
 // Supported game types must come from the API's fixed taxonomy
 // (api/internal/domain/casino.go: AllGameTypes).
 const ALL_GAMES = ["slots", "blackjack", "baccarat", "roulette", "sic_bo", "craps", "poker", "video_poker", "bingo", "pai_gow", "keno"];

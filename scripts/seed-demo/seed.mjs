@@ -7,7 +7,7 @@ import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { login, api, list, upsert, uploadSvg, uploadAsset, mediaUrlOf, upsertPage, rng, ROOT } from "./lib.mjs";
 import * as art from "./images.mjs";
-import { REGIONS, LICENSES, PARTNERS, PROVIDERS, PAYMENT_METHOD_STYLES, REGION_PAYMENTS, CASINOS, BLACKLIST, GAMES, GUIDES, NEWS, TEAM } from "./data.mjs";
+import { REGIONS, LICENSES, PARTNERS, CASINO_LOGOS, PROVIDERS, PAYMENT_METHOD_STYLES, REGION_PAYMENTS, CASINOS, BLACKLIST, GAMES, GUIDES, NEWS, TEAM } from "./data.mjs";
 import { homeSections, regionHomeSections, paymentSections, calculatorIntro } from "./pages.mjs";
 
 const log = (...a) => console.log(...a);
@@ -101,7 +101,9 @@ async function main() {
   const casinoRows = await list("/api/admin/casinos");
   const casino = {};
   for (const c of CASINOS) {
-    const logoMediaId = await uploadSvg(`casino-${c.slug}.svg`, art.casinoLogo(c.name, c.color, c.accent), `${c.name} logo`);
+    const logoMediaId = CASINO_LOGOS[c.slug]
+      ? await uploadAsset(`casino-logo-${CASINO_LOGOS[c.slug]}`, `casinos/${CASINO_LOGOS[c.slug]}`, `${c.name} logo`)
+      : null;
     const regs = c.regions.map((code) => region[code]);
     const payments = [...new Set([...regs.flatMap((r) => REGION_PAYMENTS[r.code].slice(0, 2)), "Visa", "Mastercard", ...(c.crypto ? ["USDT", "Bitcoin"] : []), "Bank Transfer"])];
     const regionNames = regs.map((r) => r.name);
