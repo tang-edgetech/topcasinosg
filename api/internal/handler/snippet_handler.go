@@ -22,12 +22,14 @@ func NewSnippetHandler(snippets *service.SnippetService) *SnippetHandler {
 }
 
 type ConditionDTO struct {
-	ID        int64  `json:"id"`
-	Field     string `json:"field"`
-	Operator  string `json:"operator"`
-	PageID    *int64 `json:"pageId"`
-	Value     string `json:"value"`
-	SortOrder int    `json:"sortOrder"`
+	ID int64 `json:"id"`
+	// GroupIndex: conditions in one group combine with AND, groups with OR.
+	GroupIndex int    `json:"groupIndex"`
+	Field      string `json:"field"`
+	Operator   string `json:"operator"`
+	PageID     *int64 `json:"pageId"`
+	Value      string `json:"value"`
+	SortOrder  int    `json:"sortOrder"`
 }
 
 type SnippetDTO struct {
@@ -54,7 +56,7 @@ func toSnippetDTO(s *domain.SiteSnippet) SnippetDTO {
 	conditions := make([]ConditionDTO, len(s.Conditions))
 	for i, c := range s.Conditions {
 		conditions[i] = ConditionDTO{
-			ID: c.ID, Field: string(c.Field), Operator: string(c.Operator), PageID: c.PageID, Value: c.Value, SortOrder: c.SortOrder,
+			ID: c.ID, GroupIndex: c.GroupIndex, Field: string(c.Field), Operator: string(c.Operator), PageID: c.PageID, Value: c.Value, SortOrder: c.SortOrder,
 		}
 	}
 	return SnippetDTO{
@@ -111,11 +113,12 @@ func (h *SnippetHandler) GetPublic(w http.ResponseWriter, r *http.Request) {
 }
 
 type conditionRequest struct {
-	Field     string `json:"field"`
-	Operator  string `json:"operator"`
-	PageID    *int64 `json:"pageId"`
-	Value     string `json:"value"`
-	SortOrder int    `json:"sortOrder"`
+	GroupIndex int    `json:"groupIndex"`
+	Field      string `json:"field"`
+	Operator   string `json:"operator"`
+	PageID     *int64 `json:"pageId"`
+	Value      string `json:"value"`
+	SortOrder  int    `json:"sortOrder"`
 }
 
 type snippetRequest struct {
@@ -138,7 +141,7 @@ func toSnippetInput(req snippetRequest) service.SnippetInput {
 	conditions := make([]service.ConditionInput, len(req.Conditions))
 	for i, c := range req.Conditions {
 		conditions[i] = service.ConditionInput{
-			Field: domain.ConditionField(c.Field), Operator: domain.ConditionOperator(c.Operator),
+			GroupIndex: c.GroupIndex, Field: domain.ConditionField(c.Field), Operator: domain.ConditionOperator(c.Operator),
 			PageID: c.PageID, Value: c.Value, SortOrder: c.SortOrder,
 		}
 	}

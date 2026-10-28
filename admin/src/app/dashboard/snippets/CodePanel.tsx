@@ -30,10 +30,37 @@ const URL_OPERATOR_OPTIONS: { value: ConditionOperator; label: string }[] = [
   { value: "not_contains", label: "does not contain" },
 ];
 
-type ConditionRow = Omit<SnippetConditionDTO, "id" | "sortOrder">;
+type ConditionRow = Omit<SnippetConditionDTO, "id" | "sortOrder" | "groupIndex">;
 
 function blankCondition(): ConditionRow {
   return { field: "url", operator: "contains", pageId: null, value: "" };
+}
+
+// Conditions as AND groups, from the API's flat list (groupIndex). Groups
+// are renumbered 0.. in order, so gaps from removed groups don't matter.
+function toGroups(conditions: SnippetConditionDTO[]): ConditionRow[][] {
+  const byGroup = new Map<number, ConditionRow[]>();
+  const sorted = [...conditions].sort((a, b) => a.groupIndex - b.groupIndex || a.sortOrder - b.sortOrder);
+  for (const { groupIndex, field, operator, pageId, value } of sorted) {
+    byGroup.set(groupIndex, [...(byGroup.get(groupIndex) ?? []), { field, operator, pageId, value }]);
+  }
+  return [...byGroup.values()];
+}
+
+// One-line summary for the table, e.g. "URL contains /sg AND URL does not
+// contain /review OR Page is Homepage".
+function describeConditions(conditions: SnippetConditionDTO[], pages: PageDTO[]): string {
+  return toGroups(conditions)
+    .map((group) =>
+      group
+        .map((c) => {
+          const op = (c.field === "page" ? PAGE_OPERATOR_OPTIONS : URL_OPERATOR_OPTIONS).find((o) => o.value === c.operator)?.label ?? c.operator;
+          const target = c.field === "page" ? (pages.find((p) => p.id === c.pageId)?.title ?? "(deleted page)") : c.value;
+          return `${c.field === "page" ? "Page" : "URL"} ${op} ${target}`;
+        })
+        .join(" AND "),
+    )
+    .join(" OR ");
 }
 
 // Typed, prioritized, conditionally-targeted the second half of Snippets
@@ -44,12 +71,13 @@ export default function CodePanel({ snippets, pages, onReload }: { snippets: Sni
   const confirm = useConfirm();
   const [form] = Form.useForm();
   const [editingId, setEditingId] = useState<number | "new" | null>(null);
-  const [conditions, setConditions] = useState<ConditionRow[]>([]);
+  // Targeting: OR groups of AND conditions. Empty = everywhere.
+  const [groups, setGroups] = useState<ConditionRow[][]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   function startAdd() {
     form.resetFields();
-    setConditions([]);
+    setGroups([]);
     setEditingId("new");
   }
 
@@ -61,20 +89,26 @@ export default function CodePanel({ snippets, pages, onReload }: { snippets: Sni
       priority: s.priority,
       content: s.content,
     });
-    setConditions(s.conditions.map(({ field, operator, pageId, value }) => ({ field, operator, pageId, value })));
+    setGroups(toGroups(s.conditions));
     setEditingId(s.id);
   }
 
-  function addCondition() {
-    setConditions((prev) => [...prev, blankCondition()]);
+  // A new OR group starts with one condition.
+  function addGroup() {
+    setGroups((prev) => [...prev, [blankCondition()]]);
   }
 
-  function updateCondition(index: number, patch: Partial<ConditionRow>) {
-    setConditions((prev) => prev.map((c, i) => (i === index ? { ...c, ...patch } : c)));
+  function addCondition(group: number) {
+    setGroups((prev) => prev.map((g, gi) => (gi === group ? [...g, blankCondition()] : g)));
   }
 
-  function removeCondition(index: number) {
-    setConditions((prev) => prev.filter((_, i) => i !== index));
+  function updateCondition(group: number, index: number, patch: Partial<ConditionRow>) {
+    setGroups((prev) => prev.map((g, gi) => (gi === group ? g.map((c, i) => (i === index ? { ...c, ...patch } : c)) : g)));
+  }
+
+  // Removing a group's last condition removes the group.
+  function removeCondition(group: number, index: number) {
+    setGroups((prev) => prev.map((g, gi) => (gi === group ? g.filter((_, i) => i !== index) : g)).filter((g) => g.length > 0));
   }
 
   async function handleToggleActive(s: SnippetDTO, active: boolean) {
@@ -100,7 +134,7 @@ export default function CodePanel({ snippets, pages, onReload }: { snippets: Sni
   }
 
   async function handleFinish(values: { name: string; codeType: CodeType; location: SnippetLocation; priority: number; content: string }) {
-    for (const c of conditions) {
+    for (const c of groups.flat()) {
       if (c.field === "page" && !c.pageId) {
         message.error("Every 'Page' condition needs a page selected.");
         return;
@@ -122,7 +156,7 @@ export default function CodePanel({ snippets, pages, onReload }: { snippets: Sni
     const body = {
       ...values,
       kind: "code",
-      conditions: conditions.map((c, i) => ({ ...c, sortOrder: i + 1 })),
+      conditions: groups.flatMap((group, groupIndex) => group.map((c, i) => ({ ...c, groupIndex, sortOrder: i + 1 }))),
     };
     try {
       if (editingId === "new") {
@@ -145,7 +179,7 @@ export default function CodePanel({ snippets, pages, onReload }: { snippets: Sni
     <div id="snippets-code-panel" className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <p className="text-sm text-text-muted dark:text-text-muted-dark">
-          Typed, prioritized, and optionally targeted to specific pages/URLs. No conditions = applies everywhere.
+          Typed, prioritized, and optionally targeted to pages/URLs with AND/OR conditions. No conditions = applies everywhere.
         </p>
         {editingId === null && <IconButton id="code-add" title="Add Code Snippet" onClick={startAdd} icon={<IconPlus />} />}
       </div>
@@ -179,51 +213,102 @@ export default function CodePanel({ snippets, pages, onReload }: { snippets: Sni
               <TextArea rows={8} className="font-mono" />
             </Form.Item>
 
-            <div className="mb-4 flex flex-col gap-3 rounded-md bg-surface-muted p-4 dark:bg-surface-muted-dark">
-              <div className="flex items-center justify-between">
+            <div id="code-conditions" className="mb-4 flex flex-col gap-3 rounded-md bg-surface-muted p-4 dark:bg-surface-muted-dark">
+              <div className="flex flex-col gap-0.5">
                 <span className="text-sm font-semibold text-text dark:text-text-dark">Targeting Conditions</span>
-                <IconButton id="code-condition-add" title="Add Condition" onClick={addCondition} icon={<IconPlus width={14} height={14} />} variant="muted" />
+                <span className="text-xs text-text-muted dark:text-text-muted-dark">
+                  Conditions in a group must all match (AND). The snippet applies when any group matches (OR).
+                </span>
               </div>
-              {conditions.length === 0 && (
+              {groups.length === 0 && (
                 <p className="text-xs text-text-muted dark:text-text-muted-dark">No conditions — this snippet applies to every page.</p>
               )}
-              {conditions.map((c, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <Select
-                    className="w-28"
-                    value={c.field}
-                    onChange={(field: ConditionField) => updateCondition(index, { field, operator: field === "page" ? "is" : "contains", pageId: null, value: "" })}
-                    options={[
-                      { value: "page", label: "Page" },
-                      { value: "url", label: "URL" },
-                    ]}
-                  />
-                  <Select
-                    className="w-40"
-                    value={c.operator}
-                    onChange={(operator) => updateCondition(index, { operator })}
-                    options={c.field === "page" ? PAGE_OPERATOR_OPTIONS : URL_OPERATOR_OPTIONS}
-                  />
-                  {c.field === "page" ? (
-                    <Select
-                      className="flex-1"
-                      placeholder="Select a page"
-                      value={c.pageId ?? undefined}
-                      onChange={(pageId) => updateCondition(index, { pageId })}
-                      options={pages.map((p) => ({ value: p.id, label: p.title }))}
-                    />
-                  ) : (
-                    <Input className="flex-1" placeholder="/casinos" value={c.value} onChange={(e) => updateCondition(index, { value: e.target.value })} />
+              {groups.map((group, groupIndex) => (
+                <div key={groupIndex} className="flex flex-col gap-3">
+                  {groupIndex > 0 && (
+                    <div className="flex items-center gap-3" aria-hidden="true">
+                      <span className="h-px flex-1 bg-border dark:bg-border-dark" />
+                      <span className="rounded-full bg-secondary-100 px-3 py-0.5 text-xs font-bold text-secondary-900">OR</span>
+                      <span className="h-px flex-1 bg-border dark:bg-border-dark" />
+                    </div>
                   )}
-                  <IconButton
-                    id={`code-condition-${index}-remove`}
-                    title="Remove Condition"
-                    onClick={() => removeCondition(index)}
-                    icon={<IconTrash width={14} height={14} />}
-                    variant="danger"
-                  />
+                  <div
+                    id={`code-condition-group-${groupIndex}`}
+                    className="flex flex-col gap-2 rounded-md border border-border bg-surface p-3 dark:border-border-dark dark:bg-surface-dark"
+                  >
+                    <span className="text-xs font-semibold tracking-wide text-text-muted uppercase dark:text-text-muted-dark">
+                      Group {groupIndex + 1}
+                    </span>
+                    {group.map((c, index) => (
+                      <div key={index} className="flex flex-col gap-2">
+                        {index > 0 && (
+                          <span className="w-fit rounded bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700 dark:bg-surface-muted-dark dark:text-text-dark">
+                            AND
+                          </span>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <Select
+                            className="w-28"
+                            value={c.field}
+                            onChange={(field: ConditionField) =>
+                              updateCondition(groupIndex, index, { field, operator: field === "page" ? "is" : "contains", pageId: null, value: "" })
+                            }
+                            options={[
+                              { value: "page", label: "Page" },
+                              { value: "url", label: "URL" },
+                            ]}
+                          />
+                          <Select
+                            className="w-40"
+                            value={c.operator}
+                            onChange={(operator) => updateCondition(groupIndex, index, { operator })}
+                            options={c.field === "page" ? PAGE_OPERATOR_OPTIONS : URL_OPERATOR_OPTIONS}
+                          />
+                          {c.field === "page" ? (
+                            <Select
+                              className="flex-1"
+                              placeholder="Select a page"
+                              value={c.pageId ?? undefined}
+                              onChange={(pageId) => updateCondition(groupIndex, index, { pageId })}
+                              options={pages.map((p) => ({ value: p.id, label: p.title }))}
+                            />
+                          ) : (
+                            <Input
+                              className="flex-1"
+                              placeholder="/casinos"
+                              value={c.value}
+                              onChange={(e) => updateCondition(groupIndex, index, { value: e.target.value })}
+                            />
+                          )}
+                          <IconButton
+                            id={`code-condition-${groupIndex}-${index}-remove`}
+                            title="Remove Condition"
+                            onClick={() => removeCondition(groupIndex, index)}
+                            icon={<IconTrash width={14} height={14} />}
+                            variant="danger"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      id={`code-condition-${groupIndex}-add`}
+                      onClick={() => addCondition(groupIndex)}
+                      className="w-fit cursor-pointer text-xs font-semibold text-primary-700 hover:underline dark:text-text-dark"
+                    >
+                      + AND condition
+                    </button>
+                  </div>
                 </div>
               ))}
+              <button
+                type="button"
+                id="code-condition-group-add"
+                onClick={addGroup}
+                className="btn w-fit cursor-pointer rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-text dark:border-border-dark dark:bg-surface-dark dark:text-text-dark"
+              >
+                {groups.length === 0 ? "+ Add condition" : "+ OR group"}
+              </button>
             </div>
 
             <button
@@ -250,7 +335,7 @@ export default function CodePanel({ snippets, pages, onReload }: { snippets: Sni
           {
             title: "Targeting",
             key: "targeting",
-            render: (_, s) => (s.conditions.length === 0 ? "Everywhere" : `${s.conditions.length} condition(s)`),
+            render: (_, s) => (s.conditions.length === 0 ? "Everywhere" : describeConditions(s.conditions, pages)),
           },
           { title: "Active", key: "active", render: (_, s) => <Switch checked={s.isActive} onChange={(checked) => handleToggleActive(s, checked)} /> },
           {

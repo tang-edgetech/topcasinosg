@@ -34,11 +34,12 @@ func (s *SnippetService) ListMatchingGrouped(ctx context.Context, path string) (
 }
 
 type ConditionInput struct {
-	Field     domain.ConditionField
-	Operator  domain.ConditionOperator
-	PageID    *int64
-	Value     string
-	SortOrder int
+	GroupIndex int
+	Field      domain.ConditionField
+	Operator   domain.ConditionOperator
+	PageID     *int64
+	Value      string
+	SortOrder  int
 }
 
 type SnippetInput struct {
@@ -71,6 +72,9 @@ func (in SnippetInput) validate() error {
 			return ErrInvalidSnippetPriority
 		}
 		for _, c := range in.Conditions {
+			if c.GroupIndex < 0 || c.GroupIndex >= domain.MaxConditionGroups {
+				return ErrInvalidSnippetCondition
+			}
 			if !(domain.SnippetCondition{Field: c.Field, Operator: c.Operator}).Valid() {
 				return ErrInvalidSnippetCondition
 			}
@@ -91,7 +95,7 @@ func toDomainConditions(in []ConditionInput) []domain.SnippetCondition {
 	conditions := make([]domain.SnippetCondition, len(in))
 	for i, c := range in {
 		conditions[i] = domain.SnippetCondition{
-			Field: c.Field, Operator: c.Operator, PageID: c.PageID, Value: c.Value, SortOrder: c.SortOrder,
+			GroupIndex: c.GroupIndex, Field: c.Field, Operator: c.Operator, PageID: c.PageID, Value: c.Value, SortOrder: c.SortOrder,
 		}
 	}
 	return conditions

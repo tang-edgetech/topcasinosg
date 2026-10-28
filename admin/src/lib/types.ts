@@ -451,6 +451,9 @@ export type ConditionOperator = "is" | "is_not" | "contains" | "not_contains";
 
 export interface SnippetConditionDTO {
   id: number;
+  // Conditions in one group combine with AND; groups combine with OR
+  // (domain.ConditionsMatch in api/internal/domain/snippet.go).
+  groupIndex: number;
   field: ConditionField;
   operator: ConditionOperator;
   pageId: number | null;

@@ -97,8 +97,8 @@ func (r *SnippetRepo) conditionsForSnippetIDs(ctx context.Context, ids []any) ([
 	for i := range placeholders {
 		placeholders[i] = "?"
 	}
-	query := `SELECT id, snippet_id, field, operator, page_id, value, sort_order FROM snippet_conditions
-		WHERE snippet_id IN (` + joinPlaceholders(placeholders) + `) ORDER BY snippet_id, sort_order, id`
+	query := `SELECT id, snippet_id, group_index, field, operator, page_id, value, sort_order FROM snippet_conditions
+		WHERE snippet_id IN (` + joinPlaceholders(placeholders) + `) ORDER BY snippet_id, group_index, sort_order, id`
 	rows, err := r.db.QueryContext(ctx, query, ids...)
 	if err != nil {
 		return nil, err
@@ -108,7 +108,7 @@ func (r *SnippetRepo) conditionsForSnippetIDs(ctx context.Context, ids []any) ([
 	var conditions []domain.SnippetCondition
 	for rows.Next() {
 		var c domain.SnippetCondition
-		if err := rows.Scan(&c.ID, &c.SnippetID, &c.Field, &c.Operator, &c.PageID, &c.Value, &c.SortOrder); err != nil {
+		if err := rows.Scan(&c.ID, &c.SnippetID, &c.GroupIndex, &c.Field, &c.Operator, &c.PageID, &c.Value, &c.SortOrder); err != nil {
 			return nil, err
 		}
 		conditions = append(conditions, c)
@@ -162,11 +162,16 @@ func (r *SnippetRepo) replaceConditions(ctx context.Context, exec interface {
 	if _, err := exec.ExecContext(ctx, `DELETE FROM snippet_conditions WHERE snippet_id = ?`, snippetID); err != nil {
 		return err
 	}
-	sort.SliceStable(conditions, func(i, j int) bool { return conditions[i].SortOrder < conditions[j].SortOrder })
+	sort.SliceStable(conditions, func(i, j int) bool {
+		if conditions[i].GroupIndex != conditions[j].GroupIndex {
+			return conditions[i].GroupIndex < conditions[j].GroupIndex
+		}
+		return conditions[i].SortOrder < conditions[j].SortOrder
+	})
 	for _, c := range conditions {
 		if _, err := exec.ExecContext(ctx,
-			`INSERT INTO snippet_conditions (snippet_id, field, operator, page_id, value, sort_order) VALUES (?, ?, ?, ?, ?, ?)`,
-			snippetID, c.Field, c.Operator, c.PageID, c.Value, c.SortOrder,
+			`INSERT INTO snippet_conditions (snippet_id, group_index, field, operator, page_id, value, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			snippetID, c.GroupIndex, c.Field, c.Operator, c.PageID, c.Value, c.SortOrder,
 		); err != nil {
 			return err
 		}
@@ -205,7 +210,7 @@ func (r *SnippetRepo) ResolvePageIDForPath(ctx context.Context, path string) (*i
 
 // ListMatchingGrouped is the public website's read: every active 'global'
 // snippet unconditionally, plus every active 'code' snippet whose
-// conditions (if any) all match this request — grouped by location, global
+// conditions (if any) match this request - see domain.ConditionsMatch — grouped by location, global
 // rows first (by sort_order) then code rows (by priority ascending).
 func (r *SnippetRepo) ListMatchingGrouped(ctx context.Context, path string) (map[domain.SnippetLocation][]string, error) {
 	currentPageID, err := r.ResolvePageIDForPath(ctx, path)
@@ -228,14 +233,7 @@ func (r *SnippetRepo) ListMatchingGrouped(ctx context.Context, path string) (map
 			globalByLoc[s.Location] = append(globalByLoc[s.Location], s)
 			continue
 		}
-		matches := true
-		for _, c := range s.Conditions {
-			if !c.Matches(currentPageID, path) {
-				matches = false
-				break
-			}
-		}
-		if matches {
+		if domain.ConditionsMatch(s.Conditions, currentPageID, path) {
 			codeByLoc[s.Location] = append(codeByLoc[s.Location], s)
 		}
 	}

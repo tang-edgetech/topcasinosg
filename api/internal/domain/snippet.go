@@ -83,18 +83,20 @@ func (l SnippetLocation) Valid() bool {
 	}
 }
 
-// SnippetCondition is one targeting rule on a KindCode snippet. All of a
-// snippet's conditions must match (AND) for it to apply to a request; zero
-// conditions means it applies everywhere, same reach as a KindGlobal
-// snippet.
+// SnippetCondition is one targeting rule on a KindCode snippet. Conditions
+// are grouped (GroupIndex): a snippet applies when every condition in at
+// least one group matches - AND inside a group, OR between groups (see
+// ConditionsMatch). Zero conditions means it applies everywhere, same reach
+// as a KindGlobal snippet.
 type SnippetCondition struct {
-	ID        int64
-	SnippetID int64
-	Field     ConditionField
-	Operator  ConditionOperator
-	PageID    *int64
-	Value     string
-	SortOrder int
+	ID         int64
+	SnippetID  int64
+	GroupIndex int
+	Field      ConditionField
+	Operator   ConditionOperator
+	PageID     *int64
+	Value      string
+	SortOrder  int
 }
 
 type ConditionField string
@@ -157,6 +159,32 @@ func (c SnippetCondition) Matches(currentPageID *int64, path string) bool {
 			return c.Value != "" && strings.Contains(path, c.Value)
 		case ConditionOperatorNotContain:
 			return c.Value == "" || !strings.Contains(path, c.Value)
+		}
+	}
+	return false
+}
+
+// MaxConditionGroups caps the OR groups on one snippet.
+const MaxConditionGroups = 20
+
+// ConditionsMatch reports whether a snippet with these conditions applies to
+// the request: true with no conditions, otherwise when every condition of
+// some group matches (AND within a group, OR between groups).
+func ConditionsMatch(conditions []SnippetCondition, currentPageID *int64, path string) bool {
+	if len(conditions) == 0 {
+		return true
+	}
+	groupOK := map[int]bool{}
+	for _, c := range conditions {
+		ok, seen := groupOK[c.GroupIndex]
+		if !seen {
+			ok = true
+		}
+		groupOK[c.GroupIndex] = ok && c.Matches(currentPageID, path)
+	}
+	for _, ok := range groupOK {
+		if ok {
+			return true
 		}
 	}
 	return false
