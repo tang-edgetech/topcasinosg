@@ -285,20 +285,34 @@ export const ADMIN_HELP = {
       {
         heading: "Tabs",
         points: [
-          "General: logo, favicon, site title and URL, SEO indexing, timezone, language, footer and contact details.",
+          "General: logo, favicon, site title and URL, SEO indexing, timezone and language. The footer has its own Footer page.",
           "Security: whether everyone must use two-factor authentication (enforced on the live site only).",
         ],
       },
     ],
   },
   navigation: {
-    summary: "Navigation controls the website's header menu and footer link columns.",
+    summary: "Navigation controls the website's header menu. The footer's link columns are on the Footer page.",
     sections: [
       {
         heading: "Tips",
         points: [
           "Static items link wherever you set. \"Auto\" items list every active region or casino review by themselves.",
           "Set Sort Order to change an item's position (lower comes first), or add a child item under a parent to build a dropdown.",
+        ],
+      },
+    ],
+  },
+  footer: {
+    summary: "The Footer page controls the footer at the bottom of every page on the website: which blocks show, its link columns, the brand and contact details, and the bottom bar.",
+    sections: [
+      {
+        heading: "Tips",
+        points: [
+          "Layout switches hide or show whole blocks; the drawing under them shows the arrangement before you save.",
+          "Link columns save as you edit them. Everything else saves with Save Footer.",
+          "Badges come from the Media Library. Their order here is their order on the website.",
+          "Write {year} in the copyright line to always show the current year.",
         ],
       },
     ],

@@ -143,6 +143,7 @@ func NewRouter(deps Deps) http.Handler {
 
 	// Site settings, including the site-wide 2FA switch — Super Admin and Admin.
 	mux.Handle("PUT /api/admin/settings/site", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.Update))))
+	mux.Handle("PUT /api/admin/settings/footer", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.UpdateFooter))))
 	mux.Handle("PUT /api/admin/settings/2fa", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.SetTwoFactorEnabled))))
 	mux.Handle("POST /api/admin/settings/site/logo", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.UploadLogo))))
 	mux.Handle("POST /api/admin/settings/site/favicon", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.UploadFavicon))))

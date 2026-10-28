@@ -63,6 +63,30 @@ export interface SiteSettingsDTO {
   skypeUrl: string;
   ogImageUrl: string | null;
   twitterHandle: string;
+  footer: FooterConfigDTO;
+}
+
+// The public footer's arrangement, bottom bar and badges (Footer page).
+// Mirrors domain.FooterConfig in api/internal/domain/site_settings.go.
+export interface FooterConfigDTO {
+  layout: {
+    brandPosition: "left" | "right";
+    showLinks: boolean;
+    showBrand: boolean;
+    showBadges: boolean;
+    showCopyright: boolean;
+  };
+  certifiedByLabel: string;
+  // "{year}" is replaced with the current year.
+  copyright: string;
+  poweredBy: string;
+  badges: FooterBadgeDTO[];
+}
+
+export interface FooterBadgeDTO {
+  name: string;
+  imageUrl: string;
+  linkUrl: string;
 }
 
 export type MediaKind = "image" | "document" | "audio" | "video";

@@ -27,6 +27,10 @@ var (
 	ErrInvalidSkypeURL          = errors.New("Skype URL must start with http://, https://, or skype:")
 	ErrInvalidTwitterHandle     = errors.New("X/Twitter handle must be 1-15 letters, numbers or underscores")
 	ErrInvalidShareImage        = errors.New("share image must be an uploaded file or a full http(s) address")
+	ErrInvalidFooterLayout      = errors.New("brand block position must be 'left' or 'right'")
+	ErrFooterTextTooLong        = errors.New("footer bottom bar text must be at most 200 characters each")
+	ErrTooManyFooterBadges      = errors.New("the footer can show at most 12 badges")
+	ErrInvalidFooterBadge       = errors.New("each badge needs a name (up to 100 characters) and an image; links must be http(s) or start with /")
 )
 
 // SiteSettingsService — reads are public (the login page needs the site title
@@ -54,10 +58,6 @@ func (s *SiteSettingsService) Update(ctx context.Context, actor *domain.AdminUse
 	if !next.Language.Valid() {
 		return ErrInvalidLanguage
 	}
-	fc, err := normalizeFooterContact(next.FooterContact)
-	if err != nil {
-		return err
-	}
 	sd, err := normalizeSocialDefaults(next.SocialDefaults)
 	if err != nil {
 		return err
@@ -65,10 +65,67 @@ func (s *SiteSettingsService) Update(ctx context.Context, actor *domain.AdminUse
 	if err := s.settings.Update(ctx, next); err != nil {
 		return err
 	}
-	if err := s.settings.UpdateFooterContact(ctx, fc); err != nil {
+	return s.settings.UpdateSocialDefaults(ctx, sd)
+}
+
+// UpdateFooter saves the Footer page: the brand/contact block and the
+// footer's layout, bottom bar text and badges.
+func (s *SiteSettingsService) UpdateFooter(ctx context.Context, actor *domain.AdminUser, contact domain.FooterContact, config domain.FooterConfig) error {
+	if !canEditSiteSettings(actor) {
+		return ErrForbidden
+	}
+	fc, err := normalizeFooterContact(contact)
+	if err != nil {
 		return err
 	}
-	return s.settings.UpdateSocialDefaults(ctx, sd)
+	cfg, err := normalizeFooterConfig(config)
+	if err != nil {
+		return err
+	}
+	return s.settings.UpdateFooter(ctx, fc, cfg)
+}
+
+const (
+	maxFooterTextLength      = 200
+	maxFooterBadgeNameLength = 100
+)
+
+func normalizeFooterConfig(cfg domain.FooterConfig) (domain.FooterConfig, error) {
+	if cfg.Layout.BrandPosition != domain.FooterBrandLeft && cfg.Layout.BrandPosition != domain.FooterBrandRight {
+		return cfg, ErrInvalidFooterLayout
+	}
+	cfg.CertifiedByLabel = strings.TrimSpace(cfg.CertifiedByLabel)
+	cfg.Copyright = strings.TrimSpace(cfg.Copyright)
+	cfg.PoweredBy = strings.TrimSpace(cfg.PoweredBy)
+	for _, text := range []string{cfg.CertifiedByLabel, cfg.Copyright, cfg.PoweredBy} {
+		if utf8.RuneCountInString(text) > maxFooterTextLength {
+			return cfg, ErrFooterTextTooLong
+		}
+	}
+	if len(cfg.Badges) > domain.MaxFooterBadges {
+		return cfg, ErrTooManyFooterBadges
+	}
+	badges := make([]domain.FooterBadge, 0, len(cfg.Badges))
+	for _, b := range cfg.Badges {
+		b = domain.FooterBadge{Name: strings.TrimSpace(b.Name), ImageURL: strings.TrimSpace(b.ImageURL), LinkURL: strings.TrimSpace(b.LinkURL)}
+		if b.Name == "" || utf8.RuneCountInString(b.Name) > maxFooterBadgeNameLength {
+			return cfg, ErrInvalidFooterBadge
+		}
+		if !isWebURL(b.ImageURL) && !isSitePath(b.ImageURL) {
+			return cfg, ErrInvalidFooterBadge
+		}
+		if b.LinkURL != "" && !isWebURL(b.LinkURL) && !isSitePath(b.LinkURL) {
+			return cfg, ErrInvalidFooterBadge
+		}
+		badges = append(badges, b)
+	}
+	cfg.Badges = badges
+	return cfg, nil
+}
+
+// isSitePath: a path on this site ("/uploads/x.png"), not a protocol-relative URL.
+func isSitePath(value string) bool {
+	return strings.HasPrefix(value, "/") && !strings.HasPrefix(value, "//")
 }
 
 var twitterHandlePattern = regexp.MustCompile(`^[A-Za-z0-9_]{1,15}$`)

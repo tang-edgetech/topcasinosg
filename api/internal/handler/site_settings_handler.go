@@ -35,6 +35,7 @@ type siteSettingsDTO struct {
 	TwoFactorEnabled bool    `json:"twoFactorEnabled"`
 	footerContactJSON
 	socialDefaultsJSON
+	Footer domain.FooterConfig `json:"footer"`
 }
 
 type socialDefaultsJSON struct {
@@ -63,7 +64,16 @@ func toSiteSettingsDTO(s *domain.SiteSettings) siteSettingsDTO {
 		TwoFactorEnabled:   s.TwoFactorEnabled,
 		footerContactJSON:  footerContactJSON(s.FooterContact),
 		socialDefaultsJSON: socialDefaultsJSON(s.SocialDefaults),
+		Footer:             withFooterBadges(s.Footer),
 	}
+}
+
+// withFooterBadges sends an empty list rather than null.
+func withFooterBadges(cfg domain.FooterConfig) domain.FooterConfig {
+	if cfg.Badges == nil {
+		cfg.Badges = []domain.FooterBadge{}
+	}
+	return cfg
 }
 
 func siteSettingsErrorStatus(err error) int {
@@ -77,7 +87,11 @@ func siteSettingsErrorStatus(err error) int {
 		errors.Is(err, service.ErrInvalidFacebookURL),
 		errors.Is(err, service.ErrInvalidSkypeURL),
 		errors.Is(err, service.ErrInvalidTwitterHandle),
-		errors.Is(err, service.ErrInvalidShareImage):
+		errors.Is(err, service.ErrInvalidShareImage),
+		errors.Is(err, service.ErrInvalidFooterLayout),
+		errors.Is(err, service.ErrFooterTextTooLong),
+		errors.Is(err, service.ErrTooManyFooterBadges),
+		errors.Is(err, service.ErrInvalidFooterBadge):
 		return http.StatusBadRequest
 	default:
 		return http.StatusInternalServerError
@@ -100,7 +114,6 @@ type updateSiteSettingsRequest struct {
 	SEOFollow bool   `json:"seoFollow"`
 	Timezone  string `json:"timezone"`
 	Language  string `json:"language"`
-	footerContactJSON
 	socialDefaultsJSON
 }
 
@@ -118,10 +131,30 @@ func (h *SiteSettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 		SEOFollow:      req.SEOFollow,
 		Timezone:       req.Timezone,
 		Language:       domain.Language(req.Language),
-		FooterContact:  domain.FooterContact(req.footerContactJSON),
 		SocialDefaults: domain.SocialDefaults(req.socialDefaultsJSON),
 	}
 	if err := h.settings.Update(r.Context(), actor, next); err != nil {
+		response.Err(w, siteSettingsErrorStatus(err), err.Error())
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]bool{"updated": true})
+}
+
+// updateFooterRequest is the whole Footer page: the brand/contact block and
+// the footer config (layout, bottom bar text, badges).
+type updateFooterRequest struct {
+	footerContactJSON
+	Footer domain.FooterConfig `json:"footer"`
+}
+
+func (h *SiteSettingsHandler) UpdateFooter(w http.ResponseWriter, r *http.Request) {
+	actor := middleware.UserFromContext(r.Context())
+	var req updateFooterRequest
+	if err := httpx.DecodeJSON(r, &req); err != nil {
+		response.Err(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if err := h.settings.UpdateFooter(r.Context(), actor, domain.FooterContact(req.footerContactJSON), req.Footer); err != nil {
 		response.Err(w, siteSettingsErrorStatus(err), err.Error())
 		return
 	}
