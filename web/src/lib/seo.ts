@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getSiteSettings, type SiteSettings } from "./site-settings";
+import { mediaUrl } from "./pages";
 
 /**
  * Builds every route's <head> SEO from one place: title, description,
@@ -69,9 +70,10 @@ export function absoluteUrl(base: string, url: string): string {
   return `${base}${url.startsWith("/") ? "" : "/"}${url}`;
 }
 
+// Share images and the logo, on this site's own domain like every other
+// media URL (see mediaUrl).
 export function assetUrl(url: string | null | undefined): string | null {
-  if (!url) return null;
-  return /^https?:\/\//i.test(url) ? url : `${API_BASE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
+  return mediaUrl(url);
 }
 
 export function plainText(html: string | null | undefined, maxLength = DESCRIPTION_MAX_LENGTH): string {

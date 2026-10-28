@@ -16,8 +16,6 @@ const figtree = Figtree({
   subsets: ["latin"],
 });
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
-
 const DEFAULT_TITLE = "Top Casino SG | Singapore's Trusted Online Casino Reviews";
 const DEFAULT_DESCRIPTION = "Independent online casino reviews, ratings, and bonuses for Singapore players.";
 
@@ -49,8 +47,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
   if (!settings.faviconUrl) return base;
 
-  const iconUrl = settings.faviconUrl.startsWith("http") ? settings.faviconUrl : `${API_URL}${settings.faviconUrl}`;
-  return { ...base, icons: { icon: iconUrl } };
+  return { ...base, icons: { icon: assetUrl(settings.faviconUrl) ?? settings.faviconUrl } };
 }
 
 export default async function RootLayout({

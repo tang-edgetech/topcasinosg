@@ -90,6 +90,12 @@ Copy your local `api/uploads/` folder to `~/apps/topcasinosg/api/uploads/`
 (File Manager: upload a zip, then Extract). Without it, every uploaded image
 on the site is missing.
 
+The public site shows uploads on its own domain
+(`https://topcasinosg.com.sg/assets/images/<file>`), reading them straight
+from `api/uploads/` next to `web/`. Keep `UPLOAD_DIR` pointing at that folder.
+If you ever move it, set `WEB_UPLOAD_DIR` to the new folder for the web app
+too; otherwise it falls back to asking the API for each file.
+
 ### 5. Domains and SSL
 
 1. **Domains**: add `backoffice.topcasinosg.com.sg` and

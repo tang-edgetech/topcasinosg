@@ -156,9 +156,23 @@ export function itemIndexes(fields: PageSectionField[]): number[] {
   return Array.from(new Set(fields.filter((f) => f.itemIndex > 0).map((f) => f.itemIndex))).sort((a, b) => a - b);
 }
 
+// This site's own address, for media URLs: NEXT_PUBLIC_SITE_URL in
+// production (https://topcasinosg.com.sg), localhost:4000 in development.
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:4000").replace(/\/+$/, "");
+const UPLOADS_PREFIX = "/uploads/";
+
+// mediaUrl turns a stored media path into the address pages use. Uploads
+// (/uploads/<file>, also as a full API URL) are served from this site at
+// /assets/images/<file> — src/app/assets/images/[file]/route.ts reads them
+// from the API's upload folder on this machine — so
+// image addresses are on the website's domain, never the API's. Other full
+// URLs pass through; other paths are this site's own files (e.g. /certifications/...).
 export function mediaUrl(url: string | null | undefined): string | null {
   if (!url) return null;
-  return url.startsWith("http") ? url : `${API_BASE_URL}${url}`;
+  if (url.startsWith(`${API_BASE_URL}${UPLOADS_PREFIX}`)) url = url.slice(API_BASE_URL.length);
+  if (url.startsWith(UPLOADS_PREFIX)) return `${SITE_URL}/assets/images/${url.slice(UPLOADS_PREFIX.length)}`;
+  if (url.startsWith("http") || url.startsWith("//")) return url;
+  return `${SITE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
 }
 
 // Figma title sizes: large = section title (36/43), medium = sub-title
