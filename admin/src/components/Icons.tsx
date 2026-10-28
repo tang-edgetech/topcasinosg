@@ -451,6 +451,16 @@ export function IconCode(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+// A page with a band along the bottom — the Footer page.
+export function IconLayoutBottom(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="4" width="18" height="16" rx="1.5" />
+      <path d="M3 15h18" />
+    </svg>
+  );
+}
+
 export function IconLayout(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base(props)}>

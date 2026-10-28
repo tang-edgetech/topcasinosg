@@ -37,7 +37,8 @@ import {
   IconChevronDown,
   IconHistory,
   IconTransfer,
-  IconCopy
+  IconCopy,
+  IconLayoutBottom,
 } from "@/components/Icons";
 
 // One color scheme for every clickable sidebar item, main nav or footer:
@@ -48,70 +49,74 @@ const SIDEBAR_ITEM_BASE =
   "flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white! transition-colors hover:font-bold! hover:text-yellow-400!";
 const SIDEBAR_ITEM_ACTIVE = "bg-sidebar-active font-bold! text-yellow-400!";
 
-// A nav entry is either a direct link (`href`) or an expandable group
-// (`children` — a flat array of links, one level deep; add more entries to
-// a group's `children` to grow it, no structural changes needed elsewhere).
+// The nav is a list of sections: an optional heading over a flat list of
+// links. A labelled section's heading collapses it; the section holding the
+// current page always stays open. Links a role can't use are hidden, and a
+// section with none left disappears.
 interface NavLink {
   href: string;
   label: string;
   roles: string[];
   icon: (props: { width?: number; height?: number; className?: string }) => React.ReactElement;
 }
-interface NavGroup {
-  label: string;
-  roles: string[];
-  icon: NavLink["icon"];
-  children: NavLink[];
-}
-type NavEntry = NavLink | NavGroup;
-
-function isNavGroup(entry: NavEntry): entry is NavGroup {
-  return "children" in entry;
+interface NavSection {
+  label: string | null;
+  items: NavLink[];
 }
 
-const NAV_ITEMS: NavEntry[] = [
-  { href: "/dashboard", label: "Overview", roles: ["super_admin", "admin", "editor"], icon: IconGrid },
-  { href: "/dashboard/pages", label: "Pages", roles: ["super_admin", "admin", "editor"], icon: IconLayout },
-  { href: "/dashboard/global-sections", label: "Global Sections", roles: ["super_admin", "admin", "editor"], icon: IconCopy },
-  { href: "/dashboard/regions", label: "Regions", roles: ["super_admin", "admin"], icon: IconGlobe },
-  { href: "/dashboard/casinos", label: "Casinos", roles: ["super_admin", "admin", "editor"], icon: IconTag },
+const ALL_ROLES = ["super_admin", "admin", "editor"];
+const STAFF_ROLES = ["super_admin", "admin"];
+
+const NAV_SECTIONS: NavSection[] = [
   {
-    href: "/dashboard/game-providers",
-    label: "Game Providers",
-    roles: ["super_admin", "admin"],
-    icon: IconDice,
+    label: null,
+    items: [{ href: "/dashboard", label: "Overview", roles: ALL_ROLES, icon: IconGrid }],
   },
   {
-    href: "/dashboard/licenses",
-    label: "Licenses",
-    roles: ["super_admin", "admin"],
-    icon: IconCertificate,
-  },
-  { href: "/dashboard/bonuses", label: "Bonuses", roles: ["super_admin", "admin", "editor"], icon: IconGift },
-  {
-    href: "/dashboard/payment-methods",
-    label: "Payment Methods",
-    roles: ["super_admin", "admin", "editor"],
-    icon: IconCreditCard,
-  },
-  { href: "/dashboard/rtp", label: "RTP", roles: ["super_admin", "admin", "editor"], icon: IconPercent },
-  { href: "/dashboard/guides", label: "Guides", roles: ["super_admin", "admin", "editor"], icon: IconBook },
-  { href: "/dashboard/blacklist", label: "Blacklist", roles: ["super_admin", "admin", "editor"], icon: IconBan },
-  { href: "/dashboard/news", label: "News", roles: ["super_admin", "admin", "editor"], icon: IconNewspaper },
-  { href: "/dashboard/media", label: "Media Library", roles: ["super_admin", "admin", "editor"], icon: IconPhoto },
-  { href: "/dashboard/users", label: "Users", roles: ["super_admin", "admin"], icon: IconUsers },
-  {
-    label: "Menu",
-    roles: ["super_admin", "admin"],
-    icon: IconMenu,
-    children: [
-      { href: "/dashboard/navigation", label: "Navigation", roles: ["super_admin", "admin"], icon: IconMenu },
-      { href: "/dashboard/sidebar", label: "Sidebar", roles: ["super_admin", "admin"], icon: IconList },
+    label: "Content",
+    items: [
+      { href: "/dashboard/pages", label: "Pages", roles: ALL_ROLES, icon: IconLayout },
+      { href: "/dashboard/global-sections", label: "Global Sections", roles: ALL_ROLES, icon: IconCopy },
+      { href: "/dashboard/guides", label: "Guides", roles: ALL_ROLES, icon: IconBook },
+      { href: "/dashboard/news", label: "News", roles: ALL_ROLES, icon: IconNewspaper },
+      { href: "/dashboard/media", label: "Media Library", roles: ALL_ROLES, icon: IconPhoto },
     ],
   },
-  { href: "/dashboard/snippets", label: "Snippets", roles: ["super_admin", "admin"], icon: IconCode },
-  { href: "/dashboard/transfer", label: "Export / Import", roles: ["super_admin", "admin"], icon: IconTransfer },
-  { href: "/dashboard/activity", label: "Activity Log", roles: ["super_admin", "admin", "editor"], icon: IconHistory },
+  {
+    label: "Casino Directory",
+    items: [
+      { href: "/dashboard/casinos", label: "Casinos", roles: ALL_ROLES, icon: IconTag },
+      { href: "/dashboard/bonuses", label: "Bonuses", roles: ALL_ROLES, icon: IconGift },
+      { href: "/dashboard/payment-methods", label: "Payment Methods", roles: ALL_ROLES, icon: IconCreditCard },
+      { href: "/dashboard/rtp", label: "RTP", roles: ALL_ROLES, icon: IconPercent },
+      { href: "/dashboard/blacklist", label: "Blacklist", roles: ALL_ROLES, icon: IconBan },
+    ],
+  },
+  {
+    label: "Reference Data",
+    items: [
+      { href: "/dashboard/regions", label: "Regions", roles: STAFF_ROLES, icon: IconGlobe },
+      { href: "/dashboard/game-providers", label: "Game Providers", roles: STAFF_ROLES, icon: IconDice },
+      { href: "/dashboard/licenses", label: "Licenses", roles: STAFF_ROLES, icon: IconCertificate },
+    ],
+  },
+  {
+    label: "Site Layout",
+    items: [
+      { href: "/dashboard/navigation", label: "Navigation", roles: STAFF_ROLES, icon: IconMenu },
+      { href: "/dashboard/sidebar", label: "Sidebar", roles: STAFF_ROLES, icon: IconList },
+      { href: "/dashboard/footer", label: "Footer", roles: STAFF_ROLES, icon: IconLayoutBottom },
+      { href: "/dashboard/snippets", label: "Snippets", roles: STAFF_ROLES, icon: IconCode },
+    ],
+  },
+  {
+    label: "Administration",
+    items: [
+      { href: "/dashboard/users", label: "Users", roles: STAFF_ROLES, icon: IconUsers },
+      { href: "/dashboard/transfer", label: "Export / Import", roles: STAFF_ROLES, icon: IconTransfer },
+      { href: "/dashboard/activity", label: "Activity Log", roles: ALL_ROLES, icon: IconHistory },
+    ],
+  },
 ];
 
 export default function Sidebar({ onNavigate, onClose }: { onNavigate?: () => void; onClose?: () => void }) {
@@ -120,14 +125,14 @@ export default function Sidebar({ onNavigate, onClose }: { onNavigate?: () => vo
   const confirm = useConfirm();
   const pathname = usePathname();
   const router = useRouter();
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   function isLinkActive(href: string) {
     return href === "/dashboard" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
   }
 
-  function toggleGroup(label: string) {
-    setExpandedGroups((prev) => {
+  function toggleSection(label: string) {
+    setCollapsedSections((prev) => {
       const next = new Set(prev);
       if (next.has(label)) next.delete(label);
       else next.add(label);
@@ -176,69 +181,57 @@ export default function Sidebar({ onNavigate, onClose }: { onNavigate?: () => vo
       </div>
 
       <div className="nav-wrapper flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
-        {NAV_ITEMS.filter((item) => !user || item.roles.includes(user.role)).map((item) => {
-          const Icon = item.icon;
-
-          if (isNavGroup(item)) {
-            const children = item.children.filter((c) => !user || c.roles.includes(user.role));
-            if (children.length === 0) return null;
-            const hasActiveChild = children.some((c) => isLinkActive(c.href));
-            const expanded = expandedGroups.has(item.label) || hasActiveChild;
-            return (
-              <div key={item.label} className="sidebar__group flex flex-col gap-1">
-                <button
-                  type="button"
-                  onClick={() => toggleGroup(item.label)}
-                  aria-expanded={expanded}
-                  className={`sidebar__group-toggle ${SIDEBAR_ITEM_BASE} w-full ${hasActiveChild ? SIDEBAR_ITEM_ACTIVE : ""}`}
-                >
-                  <Icon width={18} height={18} />
-                  <span className="flex-1 text-left">{item.label}</span>
-                  <IconChevronDown width={14} height={14} className={`shrink-0 transition-transform ${expanded ? "" : "-rotate-90"}`} />
-                </button>
-                {expanded && (
-                  <div className="sidebar__group-children flex flex-col gap-1 pl-6">
-                    {children.map((child) => {
-                      const ChildIcon = child.icon;
-                      const active = isLinkActive(child.href);
-                      return (
-                        <Link
-                          key={child.href}
-                          href={child.href}
-                          onClick={onNavigate}
-                          className={`sidebar__link ${SIDEBAR_ITEM_BASE} ${active ? SIDEBAR_ITEM_ACTIVE : ""}`}
-                        >
-                          <ChildIcon width={16} height={16} />
-                          {child.label}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          }
+        {NAV_SECTIONS.map((section) => {
+          const items = section.items.filter((item) => !user || item.roles.includes(user.role));
+          if (items.length === 0) return null;
+          const hasActiveItem = items.some((item) => isLinkActive(item.href));
+          const open = !section.label || hasActiveItem || !collapsedSections.has(section.label);
 
           // Overview ("/dashboard") only matches exactly, or every other
           // item would also light it up. Every other item also matches
           // its own sub-routes (e.g. /dashboard/casinos/new, /dashboard/casinos/123)
           // so the parent stays highlighted while creating/editing.
-          const active = isLinkActive(item.href);
+          const links = items.map((item) => {
+            const Icon = item.icon;
+            const active = isLinkActive(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onNavigate}
+                className={`sidebar__link ${SIDEBAR_ITEM_BASE} ${active ? SIDEBAR_ITEM_ACTIVE : ""}`}
+              >
+                <Icon width={18} height={18} />
+                {item.label}
+              </Link>
+            );
+          });
+
+          if (!section.label) {
+            return (
+              <div key="main" className="sidebar__section flex flex-col gap-1">
+                {links}
+              </div>
+            );
+          }
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={onNavigate}
-              className={`sidebar__link ${SIDEBAR_ITEM_BASE} ${active ? SIDEBAR_ITEM_ACTIVE : ""}`}
-            >
-              <Icon width={18} height={18} />
-              {item.label}
-            </Link>
+            <div key={section.label} className="sidebar__section mt-3 flex flex-col gap-1">
+              <button
+                type="button"
+                onClick={() => toggleSection(section.label as string)}
+                aria-expanded={open}
+                className="sidebar__section-toggle flex cursor-pointer items-center justify-between rounded-md px-3 pb-1 text-[11px] font-semibold tracking-wider text-white/60 uppercase transition-colors hover:text-yellow-400"
+              >
+                <span>{section.label}</span>
+                <IconChevronDown width={12} height={12} className={`shrink-0 transition-transform ${open ? "" : "-rotate-90"}`} />
+              </button>
+              {open && links}
+            </div>
           );
         })}
       </div>
 
-      <div className="sidebar__footer flex shrink-0 flex-col gap-3 border-t border-white/15 pt-4">
+      <div className="sidebar__footer flex shrink-0 flex-col gap-0 border-t border-white/15 pt-4">
         <button
           type="button"
           id="sidebar-theme-toggle"
