@@ -112,7 +112,9 @@ build_api() {
     return 1
   fi
   mv "$REPO_DIR/api/bin/api.new" "$REPO_DIR/api/bin/api"
-  bash "$REPO_DIR/deploy/cpanel/api-process.sh" restart
+  # 9>&-: the API keeps running after this script, and would otherwise
+  # inherit the lock and block every later deploy.
+  bash "$REPO_DIR/deploy/cpanel/api-process.sh" restart 9>&-
 }
 
 STATUS=0
