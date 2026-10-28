@@ -48,6 +48,7 @@ func main() {
 	users := repository.NewUserRepo(conn)
 	siteSettings := repository.NewSiteSettingsRepo(conn)
 	refreshTokens := repository.NewRefreshTokenRepo(conn)
+	otpDevices := repository.NewOTPDeviceRepo(conn)
 	mediaRepo := repository.NewMediaRepo(conn)
 	regionRepo := repository.NewRegionRepo(conn)
 	gameProviderRepo := repository.NewGameProviderRepo(conn)
@@ -73,8 +74,8 @@ func main() {
 	}
 	fileStorage := storage.NewLocalStorage(cfg.UploadDir)
 
-	authService := service.NewAuthService(users, siteSettings, refreshTokens, jwtIssuer, secretbox, cfg)
-	userService := service.NewUserService(users, refreshTokens)
+	authService := service.NewAuthService(users, otpDevices, siteSettings, refreshTokens, jwtIssuer, secretbox, cfg)
+	userService := service.NewUserService(users, otpDevices, refreshTokens)
 	if created, err := userService.EnsureDefaultAccounts(context.Background()); err != nil {
 		log.Fatalf("default accounts: %v", err)
 	} else if len(created) > 0 {
@@ -103,6 +104,7 @@ func main() {
 		Config:                cfg,
 		JWT:                   jwtIssuer,
 		Users:                 users,
+		TwoFactorRequired:     authService.TwoFactorRequired,
 		AuthHandler:           handler.NewAuthHandler(authService, auditService, cfg),
 		UserHandler:           handler.NewUserHandler(userService),
 		SiteSettingsHandler:   handler.NewSiteSettingsHandler(siteSettingsService, fileStorage),

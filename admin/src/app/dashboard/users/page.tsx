@@ -213,7 +213,7 @@ export default function UsersPage() {
           {
             title: "2FA",
             key: "otp",
-            render: (_, target) => <span className="text-text-muted dark:text-text-muted-dark">{target.otpEnrolled ? "Enrolled" : "Not Enrolled"}</span>,
+            render: (_, target) => <span className="text-text-muted dark:text-text-muted-dark">{target.otpEnrolled ? `Enrolled (${target.otpDevices} ${target.otpDevices === 1 ? "app" : "apps"})` : "Not Enrolled"}</span>,
           },
           {
             title: "Actions",

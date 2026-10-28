@@ -201,7 +201,7 @@ export default function LoginPage() {
           <form id="otp-setup-form" className="auth-form flex flex-col gap-4" onSubmit={handleConfirmOtpSetup}>
             <p className="text-sm text-text-muted dark:text-text-muted-dark">
               Two-factor authentication is required. Scan this QR code with your authenticator app (e.g. Google
-              Authenticator), or enter the code manually.
+              Authenticator), or enter the code manually. You can add a backup app later under My Account.
             </p>
             {qrDataUrl && (
               // eslint-disable-next-line @next/next/no-img-element

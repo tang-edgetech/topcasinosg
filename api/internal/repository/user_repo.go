@@ -19,13 +19,14 @@ func NewUserRepo(db *sql.DB) *UserRepo {
 }
 
 const userColumns = `id, email, username, password_hash, full_name, role, theme_preference, status,
-	otp_secret_encrypted, otp_confirmed_at, created_by, created_at, updated_at`
+	(SELECT COUNT(*) FROM admin_user_otp_devices d WHERE d.admin_user_id = admin_users.id AND d.confirmed_at IS NOT NULL),
+	created_by, created_at, updated_at`
 
 func scanUser(row interface{ Scan(...any) error }) (*domain.AdminUser, error) {
 	var u domain.AdminUser
 	if err := row.Scan(
 		&u.ID, &u.Email, &u.Username, &u.PasswordHash, &u.FullName, &u.Role, &u.ThemePreference, &u.Status,
-		&u.OTPSecretEncrypted, &u.OTPConfirmedAt, &u.CreatedBy, &u.CreatedAt, &u.UpdatedAt,
+		&u.OTPDeviceCount, &u.CreatedBy, &u.CreatedAt, &u.UpdatedAt,
 	); err != nil {
 		return nil, err
 	}
@@ -151,29 +152,6 @@ func (r *UserRepo) UpdateStatus(ctx context.Context, id int64, status domain.Sta
 
 func (r *UserRepo) UpdatePassword(ctx context.Context, id int64, passwordHash string) error {
 	_, err := r.db.ExecContext(ctx, `UPDATE admin_users SET password_hash = ? WHERE id = ?`, passwordHash, id)
-	return err
-}
-
-func (r *UserRepo) SetOTPSecret(ctx context.Context, id int64, encryptedSecret []byte) error {
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE admin_users SET otp_secret_encrypted = ?, otp_confirmed_at = NULL WHERE id = ?`, encryptedSecret, id,
-	)
-	return err
-}
-
-func (r *UserRepo) ConfirmOTP(ctx context.Context, id int64) error {
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE admin_users SET otp_confirmed_at = NOW() WHERE id = ?`, id,
-	)
-	return err
-}
-
-// ResetOTP clears enrollment so the user must scan a fresh QR next login —
-// used by a higher role helping a lower role who lost their authenticator.
-func (r *UserRepo) ResetOTP(ctx context.Context, id int64) error {
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE admin_users SET otp_secret_encrypted = NULL, otp_confirmed_at = NULL WHERE id = ?`, id,
-	)
 	return err
 }
 

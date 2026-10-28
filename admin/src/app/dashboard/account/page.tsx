@@ -6,6 +6,7 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { api, ApiError } from "@/lib/api";
 import { titleCase } from "@/lib/format";
 import PasswordInput from "@/components/PasswordInput";
+import TwoFactorDevices from "./TwoFactorDevices";
 
 export default function AccountPage() {
   const { user } = useAuth();
@@ -23,13 +24,11 @@ export default function AccountPage() {
             {titleCase(user.role)}
           </span>
         </p>
-        <p className="mt-1 text-sm text-text-muted dark:text-text-muted-dark">
-          Two-Factor Authentication: {user.otpEnrolled ? "Enrolled" : "Not Enrolled"}
-        </p>
       </div>
 
       <ChangeDisplayNameForm />
       <ChangePasswordForm />
+      <TwoFactorDevices />
     </section>
   );
 }

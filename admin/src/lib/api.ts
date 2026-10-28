@@ -37,6 +37,15 @@ function refreshSession(): Promise<boolean> {
   return refreshInFlight;
 }
 
+// Fired when a request's 401 couldn't be fixed by refreshing — the session
+// is over (signed out elsewhere, disabled, or 2FA was switched on and this
+// session never used it). AuthProvider listens and sends the user to sign in.
+export const SESSION_ENDED_EVENT = "admin:session-ended";
+
+function endSession() {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(SESSION_ENDED_EVENT));
+}
+
 async function unwrap<T>(res: Response): Promise<T> {
   const body = (await res.json()) as Envelope<T>;
   if (!body.success) {
@@ -60,6 +69,7 @@ async function request<T>(path: string, options: RequestInit = {}, _retried = fa
     if (refreshed) {
       return request<T>(path, options, true);
     }
+    endSession();
   }
 
   return unwrap<T>(res);
@@ -79,6 +89,7 @@ async function requestForm<T>(path: string, form: FormData, _retried = false): P
     if (refreshed) {
       return requestForm<T>(path, form, true);
     }
+    endSession();
   }
 
   return unwrap<T>(res);
@@ -108,6 +119,7 @@ async function requestBlob(path: string, data: unknown, _retried = false): Promi
     if (refreshed) {
       return requestBlob(path, data, true);
     }
+    endSession();
   }
   if (!res.ok) {
     return unwrap<never>(res);

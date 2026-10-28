@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useSiteSettings } from "@/lib/site-settings-context";
+import { useAuth } from "@/lib/auth-context";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { api, ApiError } from "@/lib/api";
 
@@ -15,6 +16,7 @@ export default function SecuritySettingsPage() {
 
 function TwoFactorSettings() {
   const { settings, refresh } = useSiteSettings();
+  const { refresh: refreshUser } = useAuth();
   const confirm = useConfirm();
   const [error, setError] = useState("");
 
@@ -23,7 +25,7 @@ function TwoFactorSettings() {
     const ok = await confirm({
       title: next ? "Enable Two-Factor Authentication" : "Disable Two-Factor Authentication",
       message: next
-        ? "Every admin user will be required to set up an authenticator app on next login (production only)."
+        ? "Everyone, including you, will be signed out and must sign in again with an authenticator code. Users without an authenticator app set it up straight after entering their password (production only)."
         : "Admin users will no longer be required to use two-factor authentication.",
       confirmLabel: next ? "Enable" : "Disable",
       danger: !next,
@@ -34,6 +36,9 @@ function TwoFactorSettings() {
     try {
       await api.put("/api/admin/settings/2fa", { enabled: next });
       await refresh();
+      // Turning it on ends this session too (it wasn't signed in with a
+      // code); re-checking it sends us to the sign-in page when it has.
+      if (next) await refreshUser();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not update 2FA setting.");
     }

@@ -7,7 +7,7 @@ import (
 )
 
 // UserDTO is the only shape of an admin_users row ever sent over the wire —
-// it deliberately excludes password_hash and otp_secret_encrypted.
+// it deliberately excludes password_hash and every 2FA secret.
 type UserDTO struct {
 	ID              int64     `json:"id"`
 	Email           string    `json:"email"`
@@ -17,6 +17,7 @@ type UserDTO struct {
 	ThemePreference string    `json:"themePreference"`
 	Status          string    `json:"status"`
 	OTPEnrolled     bool      `json:"otpEnrolled"`
+	OTPDevices      int       `json:"otpDevices"`
 	CreatedAt       time.Time `json:"createdAt"`
 }
 
@@ -30,6 +31,7 @@ func toUserDTO(u *domain.AdminUser) UserDTO {
 		ThemePreference: string(u.ThemePreference),
 		Status:          string(u.Status),
 		OTPEnrolled:     u.OTPEnrolled(),
+		OTPDevices:      u.OTPDeviceCount,
 		CreatedAt:       u.CreatedAt,
 	}
 }

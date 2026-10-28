@@ -3,6 +3,7 @@
 package server
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/tang-edgetech/topcasinosg/api/internal/config"
@@ -19,6 +20,7 @@ type Deps struct {
 	Config                config.Config
 	JWT                   *security.JWTIssuer
 	Users                 *repository.UserRepo
+	TwoFactorRequired     func(context.Context) (bool, error)
 	AuthHandler           *handler.AuthHandler
 	UserHandler           *handler.UserHandler
 	SiteSettingsHandler   *handler.SiteSettingsHandler
@@ -89,7 +91,7 @@ func NewRouter(deps Deps) http.Handler {
 	mux.HandleFunc("GET /api/seo/{type}/{id}", deps.SeoHandler.Get)
 	mux.HandleFunc("GET /api/snippets", deps.SnippetHandler.GetPublic)
 
-	authenticateUser := middleware.Authenticate(deps.JWT, deps.Users, deps.Config.CookieName(httpx.AccessCookieName))
+	authenticateUser := middleware.Authenticate(deps.JWT, deps.Users, deps.TwoFactorRequired, deps.Config.CookieName(httpx.AccessCookieName))
 	audit := middleware.Audit(deps.Audit, adminSnapshotter(mux))
 	// Every authenticated route is audited: GETs pass straight through, and
 	// a change is logged only when the inner role check and handler succeed.
@@ -107,6 +109,10 @@ func NewRouter(deps Deps) http.Handler {
 	mux.Handle("POST /api/admin/account/password", authenticate(http.HandlerFunc(deps.UserHandler.SelfChangePassword)))
 	mux.Handle("PUT /api/admin/account/theme", authenticate(http.HandlerFunc(deps.UserHandler.SetTheme)))
 	mux.Handle("PUT /api/admin/account/profile", authenticate(http.HandlerFunc(deps.UserHandler.SelfUpdateProfile)))
+	mux.Handle("GET /api/admin/account/otp-devices", authenticate(http.HandlerFunc(deps.AuthHandler.ListOTPDevices)))
+	mux.Handle("POST /api/admin/account/otp-devices/setup", authenticate(http.HandlerFunc(deps.AuthHandler.StartOTPDeviceSetup)))
+	mux.Handle("POST /api/admin/account/otp-devices/confirm", authenticate(http.HandlerFunc(deps.AuthHandler.ConfirmOTPDeviceSetup)))
+	mux.Handle("POST /api/admin/account/otp-devices/{id}/remove", authenticate(http.HandlerFunc(deps.AuthHandler.RemoveOTPDevice)))
 
 	// Activity log — every role; what each one sees is narrowed in AuditService.
 	mux.Handle("GET /api/admin/activity", authenticate(contentStaff(http.HandlerFunc(deps.AuditHandler.List))))

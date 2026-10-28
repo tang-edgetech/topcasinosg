@@ -15,27 +15,28 @@ func NewRefreshTokenRepo(db *sql.DB) *RefreshTokenRepo {
 	return &RefreshTokenRepo{db: db}
 }
 
-func (r *RefreshTokenRepo) Create(ctx context.Context, userID int64, tokenHash string, expiresAt time.Time) error {
+// Create stores a new session's refresh token. otpVerified records whether
+// that session was signed in with a 2FA code.
+func (r *RefreshTokenRepo) Create(ctx context.Context, userID int64, tokenHash string, otpVerified bool, expiresAt time.Time) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO refresh_tokens (admin_user_id, token_hash, expires_at) VALUES (?, ?, ?)`,
-		userID, tokenHash, expiresAt,
+		`INSERT INTO refresh_tokens (admin_user_id, token_hash, otp_verified, expires_at) VALUES (?, ?, ?, ?)`,
+		userID, tokenHash, otpVerified, expiresAt,
 	)
 	return err
 }
 
-// GetValidUserID returns the owning admin_user_id if tokenHash is unrevoked
-// and unexpired, or ErrNotFound otherwise.
-func (r *RefreshTokenRepo) GetValidUserID(ctx context.Context, tokenHash string) (int64, error) {
-	var userID int64
-	err := r.db.QueryRowContext(ctx, `
-		SELECT admin_user_id FROM refresh_tokens
+// GetValid returns the owning admin_user_id and whether the session was
+// 2FA-verified, if tokenHash is unrevoked and unexpired; ErrNotFound otherwise.
+func (r *RefreshTokenRepo) GetValid(ctx context.Context, tokenHash string) (userID int64, otpVerified bool, err error) {
+	err = r.db.QueryRowContext(ctx, `
+		SELECT admin_user_id, otp_verified FROM refresh_tokens
 		WHERE token_hash = ? AND revoked_at IS NULL AND expires_at > NOW()`,
 		tokenHash,
-	).Scan(&userID)
+	).Scan(&userID, &otpVerified)
 	if errors.Is(err, sql.ErrNoRows) {
-		return 0, ErrNotFound
+		return 0, false, ErrNotFound
 	}
-	return userID, err
+	return userID, otpVerified, err
 }
 
 func (r *RefreshTokenRepo) Revoke(ctx context.Context, tokenHash string) error {

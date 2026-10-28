@@ -20,6 +20,8 @@ var ErrInvalidToken = errors.New("invalid or expired token")
 type AccessClaims struct {
 	UserID int64  `json:"uid"`
 	Role   string `json:"role"`
+	// OTP: the session was signed in with a 2FA code.
+	OTP bool `json:"otp,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -37,10 +39,11 @@ func NewJWTIssuer(secret string) *JWTIssuer {
 	return &JWTIssuer{secret: []byte(secret)}
 }
 
-func (j *JWTIssuer) GenerateAccessToken(userID int64, role string) (string, error) {
+func (j *JWTIssuer) GenerateAccessToken(userID int64, role string, otpVerified bool) (string, error) {
 	claims := AccessClaims{
 		UserID: userID,
 		Role:   role,
+		OTP:    otpVerified,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(AccessTokenTTL)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

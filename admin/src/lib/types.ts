@@ -12,6 +12,8 @@ export interface AdminUserDTO {
   themePreference: ThemePreference;
   status: UserStatus;
   otpEnrolled: boolean;
+  // Number of authenticator apps set up (max 2).
+  otpDevices: number;
   createdAt: string;
 }
 
@@ -26,6 +28,22 @@ export interface LoginResponse {
 export interface OTPSetupResponse {
   secret: string;
   otpauthUrl: string;
+}
+
+// One of the signed-in user's authenticator apps (My Account → Two-Factor
+// Authentication). Mirrors OTPDeviceDTO in api/internal/handler/auth_handler.go.
+export interface OTPDeviceDTO {
+  id: number;
+  name: string;
+  confirmedAt: string | null;
+  lastUsedAt: string | null;
+}
+
+export interface OTPDevicesResponse {
+  devices: OTPDeviceDTO[];
+  maxDevices: number;
+  // Whether 2FA is currently enforced (the Settings > Security switch, in production).
+  required: boolean;
 }
 
 export interface SiteSettingsDTO {

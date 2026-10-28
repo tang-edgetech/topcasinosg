@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api, hasSessionCookie } from "./api";
+import { api, hasSessionCookie, SESSION_ENDED_EVENT } from "./api";
 import { useThemeContext, type Theme } from "./theme-context";
 import { useIdleSession } from "./idle-session";
 import type { AdminUserDTO } from "./types";
@@ -44,6 +44,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // The dashboard layout sends a signed-out user back to the sign-in page.
+  useEffect(() => {
+    const onSessionEnded = () => setUser(null);
+    window.addEventListener(SESSION_ENDED_EVENT, onSessionEnded);
+    return () => window.removeEventListener(SESSION_ENDED_EVENT, onSessionEnded);
+  }, []);
 
   const logout = useCallback(async () => {
     await api.post("/api/admin/auth/logout");

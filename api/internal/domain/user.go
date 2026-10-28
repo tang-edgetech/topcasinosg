@@ -54,26 +54,41 @@ func (t Theme) Valid() bool {
 	return t == ThemeLight || t == ThemeDark
 }
 
-// AdminUser mirrors the admin_users table. PasswordHash and OTPSecretEncrypted
-// are never serialized to JSON — handlers build their own response DTOs.
+// AdminUser mirrors the admin_users table. PasswordHash is never serialized
+// to JSON — handlers build their own response DTOs.
 type AdminUser struct {
-	ID                 int64
-	Email              string
-	Username           string
-	PasswordHash       string
-	FullName           string
-	Role               Role
-	ThemePreference    Theme
-	Status             Status
-	OTPSecretEncrypted []byte
-	OTPConfirmedAt     *time.Time
-	CreatedBy          *int64
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
+	ID              int64
+	Email           string
+	Username        string
+	PasswordHash    string
+	FullName        string
+	Role            Role
+	ThemePreference Theme
+	Status          Status
+	// OTPDeviceCount is the number of confirmed 2FA devices (admin_user_otp_devices).
+	OTPDeviceCount int
+	CreatedBy      *int64
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 func (u AdminUser) OTPEnrolled() bool {
-	return u.OTPConfirmedAt != nil
+	return u.OTPDeviceCount > 0
+}
+
+// MaxOTPDevices is how many authenticator apps one user can register.
+const MaxOTPDevices = 2
+
+// OTPDevice is one registered authenticator app. ConfirmedAt is nil while
+// its setup is still waiting for the first code.
+type OTPDevice struct {
+	ID              int64
+	UserID          int64
+	Name            string
+	SecretEncrypted []byte
+	ConfirmedAt     *time.Time
+	LastUsedAt      *time.Time
+	CreatedAt       time.Time
 }
 
 // DefaultAccount is one of the starting accounts every deployment must have.

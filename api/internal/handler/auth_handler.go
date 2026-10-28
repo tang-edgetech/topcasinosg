@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/tang-edgetech/topcasinosg/api/internal/config"
 	"github.com/tang-edgetech/topcasinosg/api/internal/domain"
@@ -40,8 +41,11 @@ func (h *AuthHandler) recordSignedIn(r *http.Request, outcome *service.LoginOutc
 
 func authErrorStatus(err error) int {
 	switch {
-	case errors.Is(err, service.ErrInvalidCredentials), errors.Is(err, service.ErrInvalidOTP), errors.Is(err, security.ErrInvalidToken):
+	case errors.Is(err, service.ErrInvalidCredentials), errors.Is(err, service.ErrInvalidOTP), errors.Is(err, security.ErrInvalidToken),
+		errors.Is(err, service.ErrTwoFactorRequired):
 		return http.StatusUnauthorized
+	case errors.Is(err, service.ErrOTPNoPendingSetup), errors.Is(err, service.ErrOTPDeviceLimit):
+		return http.StatusBadRequest
 	case errors.Is(err, service.ErrAccountNotActive):
 		return http.StatusForbidden
 	case errors.Is(err, service.ErrAlreadyBootstapped):
@@ -229,4 +233,106 @@ func (h *AuthHandler) respondOutcome(w http.ResponseWriter, outcome *service.Log
 		return
 	}
 	response.JSON(w, http.StatusOK, map[string]any{"status": outcome.Status, "ephemeralToken": outcome.EphemeralToken})
+}
+
+// OTPDeviceDTO is one of the signed-in user's authenticator apps. The secret
+// never leaves the API after setup.
+type OTPDeviceDTO struct {
+	ID          int64      `json:"id"`
+	Name        string     `json:"name"`
+	ConfirmedAt *time.Time `json:"confirmedAt"`
+	LastUsedAt  *time.Time `json:"lastUsedAt"`
+}
+
+// otpDeviceErrorStatus maps My Account 2FA errors. A wrong password or code
+// is a 400 here, not a 401: the session is fine, and a 401 would make the
+// admin app try to refresh it first.
+func otpDeviceErrorStatus(err error) int {
+	switch {
+	case errors.Is(err, service.ErrWrongCurrentPassword), errors.Is(err, service.ErrInvalidOTP),
+		errors.Is(err, service.ErrOTPDeviceLimit), errors.Is(err, service.ErrOTPLastDevice),
+		errors.Is(err, service.ErrOTPNoPendingSetup), errors.Is(err, service.ErrOTPDeviceName):
+		return http.StatusBadRequest
+	case errors.Is(err, service.ErrOTPDeviceNotFound):
+		return http.StatusNotFound
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
+func (h *AuthHandler) ListOTPDevices(w http.ResponseWriter, r *http.Request) {
+	user := middleware.UserFromContext(r.Context())
+	devices, err := h.auth.ListOTPDevices(r.Context(), user)
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "could not load authenticator apps")
+		return
+	}
+	required, err := h.auth.TwoFactorRequired(r.Context())
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "could not load authenticator apps")
+		return
+	}
+	dtos := make([]OTPDeviceDTO, len(devices))
+	for i, d := range devices {
+		dtos[i] = OTPDeviceDTO{ID: d.ID, Name: d.Name, ConfirmedAt: d.ConfirmedAt, LastUsedAt: d.LastUsedAt}
+	}
+	response.JSON(w, http.StatusOK, map[string]any{"devices": dtos, "maxDevices": domain.MaxOTPDevices, "required": required})
+}
+
+type otpDeviceSetupRequest struct {
+	Name     string `json:"name"`
+	Password string `json:"password"`
+}
+
+func (h *AuthHandler) StartOTPDeviceSetup(w http.ResponseWriter, r *http.Request) {
+	var req otpDeviceSetupRequest
+	if err := httpx.DecodeJSON(r, &req); err != nil {
+		response.Err(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	secret, otpauthURL, err := h.auth.StartOTPDeviceSetup(r.Context(), middleware.UserFromContext(r.Context()), req.Name, req.Password)
+	if err != nil {
+		response.Err(w, otpDeviceErrorStatus(err), err.Error())
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]string{"secret": secret, "otpauthUrl": otpauthURL})
+}
+
+type otpDeviceConfirmRequest struct {
+	Code string `json:"code"`
+}
+
+func (h *AuthHandler) ConfirmOTPDeviceSetup(w http.ResponseWriter, r *http.Request) {
+	var req otpDeviceConfirmRequest
+	if err := httpx.DecodeJSON(r, &req); err != nil {
+		response.Err(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if err := h.auth.ConfirmOTPDeviceSetup(r.Context(), middleware.UserFromContext(r.Context()), req.Code); err != nil {
+		response.Err(w, otpDeviceErrorStatus(err), err.Error())
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]bool{"confirmed": true})
+}
+
+type otpDeviceRemoveRequest struct {
+	Password string `json:"password"`
+}
+
+func (h *AuthHandler) RemoveOTPDevice(w http.ResponseWriter, r *http.Request) {
+	id, err := pathID(r)
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+	var req otpDeviceRemoveRequest
+	if err := httpx.DecodeJSON(r, &req); err != nil {
+		response.Err(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if err := h.auth.RemoveOTPDevice(r.Context(), middleware.UserFromContext(r.Context()), id, req.Password); err != nil {
+		response.Err(w, otpDeviceErrorStatus(err), err.Error())
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]bool{"removed": true})
 }

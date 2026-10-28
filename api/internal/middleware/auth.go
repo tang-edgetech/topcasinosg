@@ -17,8 +17,10 @@ const userContextKey contextKey = iota
 // Authenticate reads the access-token cookie (named accessCookie), verifies it, and re-fetches the
 // user from the DB (not just trusting the JWT claims) so a role change or an
 // account disable takes effect immediately instead of waiting out the token's
-// 15-minute lifetime.
-func Authenticate(jwtIssuer *security.JWTIssuer, users *repository.UserRepo, accessCookie string) func(http.Handler) http.Handler {
+// 15-minute lifetime. Likewise, while 2FA is required (twoFactorRequired), a
+// token from a session that wasn't signed in with a code is turned away, so
+// switching 2FA on applies to everyone straight away.
+func Authenticate(jwtIssuer *security.JWTIssuer, users *repository.UserRepo, twoFactorRequired func(context.Context) (bool, error), accessCookie string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			cookie, err := r.Cookie(accessCookie)
@@ -35,6 +37,17 @@ func Authenticate(jwtIssuer *security.JWTIssuer, users *repository.UserRepo, acc
 			if err != nil || user.Status != domain.StatusActive {
 				response.Err(w, http.StatusUnauthorized, "not authenticated")
 				return
+			}
+			if !claims.OTP {
+				required, err := twoFactorRequired(r.Context())
+				if err != nil {
+					response.Err(w, http.StatusInternalServerError, "could not check the 2FA setting")
+					return
+				}
+				if required {
+					response.Err(w, http.StatusUnauthorized, "two-factor authentication is required — please sign in again")
+					return
+				}
 			}
 
 			ctx := context.WithValue(r.Context(), userContextKey, user)

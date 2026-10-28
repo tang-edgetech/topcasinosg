@@ -20,6 +20,14 @@ var (
 	ErrAccountNotActive   = errors.New("this account is inactive")
 	ErrAlreadyBootstapped = errors.New("an admin account already exists")
 	ErrInvalidOTP         = errors.New("invalid or expired code")
+	// ErrTwoFactorRequired: 2FA is on and this session wasn't signed in with
+	// a code (it predates the switch), so the user must sign in again.
+	ErrTwoFactorRequired = errors.New("two-factor authentication is required — please sign in again")
+	ErrOTPDeviceLimit    = errors.New("you can register up to 2 authenticator apps — remove one first")
+	ErrOTPLastDevice     = errors.New("two-factor authentication is required, so you must keep at least one authenticator app")
+	ErrOTPNoPendingSetup = errors.New("no authenticator setup in progress — start again")
+	ErrOTPDeviceNotFound = errors.New("authenticator app not found")
+	ErrOTPDeviceName     = errors.New("name must be 1–60 characters")
 )
 
 // LoginOutcome captures every branch Login/VerifyOTP/ConfirmOTPSetup can end
@@ -35,6 +43,7 @@ type LoginOutcome struct {
 
 type AuthService struct {
 	users         *repository.UserRepo
+	otpDevices    *repository.OTPDeviceRepo
 	siteSettings  *repository.SiteSettingsRepo
 	refreshTokens *repository.RefreshTokenRepo
 	jwt           *security.JWTIssuer
@@ -44,13 +53,14 @@ type AuthService struct {
 
 func NewAuthService(
 	users *repository.UserRepo,
+	otpDevices *repository.OTPDeviceRepo,
 	siteSettings *repository.SiteSettingsRepo,
 	refreshTokens *repository.RefreshTokenRepo,
 	jwt *security.JWTIssuer,
 	secretbox *security.Secretbox,
 	cfg config.Config,
 ) *AuthService {
-	return &AuthService{users: users, siteSettings: siteSettings, refreshTokens: refreshTokens, jwt: jwt, secretbox: secretbox, cfg: cfg}
+	return &AuthService{users: users, otpDevices: otpDevices, siteSettings: siteSettings, refreshTokens: refreshTokens, jwt: jwt, secretbox: secretbox, cfg: cfg}
 }
 
 func (s *AuthService) NeedsBootstrap(ctx context.Context) (bool, error) {
@@ -135,9 +145,9 @@ func usernameFromEmail(email string) string {
 	return username
 }
 
-// twoFactorRequired applies the product decision that 2FA is force-disabled
+// TwoFactorRequired applies the product decision that 2FA is force-disabled
 // outside production, no matter what the DB setting says.
-func (s *AuthService) twoFactorRequired(ctx context.Context) (bool, error) {
+func (s *AuthService) TwoFactorRequired(ctx context.Context) (bool, error) {
 	if !s.cfg.IsProduction() {
 		return false, nil
 	}
@@ -173,12 +183,12 @@ func (s *AuthService) Login(ctx context.Context, login, password string) (*Login
 		return nil, ErrAccountNotActive
 	}
 
-	required, err := s.twoFactorRequired(ctx)
+	required, err := s.TwoFactorRequired(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if !required {
-		return s.issueSession(ctx, user)
+		return s.issueSession(ctx, user, false)
 	}
 
 	if user.OTPEnrolled() {
@@ -208,14 +218,22 @@ func (s *AuthService) VerifyOTP(ctx context.Context, ephemeralToken, code string
 	if user.Status != domain.StatusActive {
 		return nil, ErrAccountNotActive
 	}
-	if !s.validateStoredOTP(user, code) {
+	devices, err := s.otpDevices.ListConfirmed(ctx, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	device := s.matchOTPDevice(devices, code)
+	if device == nil {
 		return nil, ErrInvalidOTP
 	}
-	return s.issueSession(ctx, user)
+	if err := s.otpDevices.MarkUsed(ctx, device.ID); err != nil {
+		return nil, err
+	}
+	return s.issueSession(ctx, user, true)
 }
 
-// SetupOTP generates and stores (unconfirmed) a fresh TOTP secret for the
-// user identified by an "otp_setup_required" ephemeral token.
+// SetupOTP starts enrolling the first device for the user identified by an
+// "otp_setup_required" ephemeral token: a fresh secret, stored unconfirmed.
 func (s *AuthService) SetupOTP(ctx context.Context, ephemeralToken string) (secret, otpauthURL string, err error) {
 	claims, err := s.jwt.ParseEphemeralToken(ephemeralToken, security.PurposeOTPSetup)
 	if err != nil {
@@ -225,19 +243,7 @@ func (s *AuthService) SetupOTP(ctx context.Context, ephemeralToken string) (secr
 	if err != nil {
 		return "", "", err
 	}
-
-	secret, otpauthURL, err = security.GenerateTOTPSecret("Top Casino SG", user.Email)
-	if err != nil {
-		return "", "", err
-	}
-	encrypted, err := s.secretbox.Encrypt(secret)
-	if err != nil {
-		return "", "", err
-	}
-	if err := s.users.SetOTPSecret(ctx, user.ID, encrypted); err != nil {
-		return "", "", err
-	}
-	return secret, otpauthURL, nil
+	return s.startDeviceSetup(ctx, user, "Authenticator app")
 }
 
 func (s *AuthService) ConfirmOTPSetup(ctx context.Context, ephemeralToken, code string) (*LoginOutcome, error) {
@@ -249,28 +255,128 @@ func (s *AuthService) ConfirmOTPSetup(ctx context.Context, ephemeralToken, code 
 	if err != nil {
 		return nil, err
 	}
-	if !s.validateStoredOTP(user, code) {
-		return nil, ErrInvalidOTP
+	if user.Status != domain.StatusActive {
+		return nil, ErrAccountNotActive
 	}
-	if err := s.users.ConfirmOTP(ctx, user.ID); err != nil {
+	if err := s.confirmDeviceSetup(ctx, user, code); err != nil {
 		return nil, err
 	}
-	return s.issueSession(ctx, user)
+	return s.issueSession(ctx, user, true)
 }
 
-func (s *AuthService) validateStoredOTP(user *domain.AdminUser, code string) bool {
-	if len(user.OTPSecretEncrypted) == 0 {
-		return false
-	}
-	secret, err := s.secretbox.Decrypt(user.OTPSecretEncrypted)
+func (s *AuthService) startDeviceSetup(ctx context.Context, user *domain.AdminUser, name string) (secret, otpauthURL string, err error) {
+	secret, otpauthURL, err = security.GenerateTOTPSecret("Top Casino SG", user.Email)
 	if err != nil {
-		return false
+		return "", "", err
 	}
-	return security.ValidateTOTPCode(secret, code)
+	encrypted, err := s.secretbox.Encrypt(secret)
+	if err != nil {
+		return "", "", err
+	}
+	if err := s.otpDevices.CreatePending(ctx, user.ID, name, encrypted); err != nil {
+		return "", "", err
+	}
+	return secret, otpauthURL, nil
 }
 
-func (s *AuthService) issueSession(ctx context.Context, user *domain.AdminUser) (*LoginOutcome, error) {
-	accessToken, err := s.jwt.GenerateAccessToken(user.ID, string(user.Role))
+// confirmDeviceSetup enrolls the user's pending device once its first code
+// checks out, still within the device limit.
+func (s *AuthService) confirmDeviceSetup(ctx context.Context, user *domain.AdminUser, code string) error {
+	pending, err := s.otpDevices.GetPending(ctx, user.ID)
+	if errors.Is(err, repository.ErrNotFound) {
+		return ErrOTPNoPendingSetup
+	}
+	if err != nil {
+		return err
+	}
+	if s.matchOTPDevice([]domain.OTPDevice{*pending}, code) == nil {
+		return ErrInvalidOTP
+	}
+	devices, err := s.otpDevices.ListConfirmed(ctx, user.ID)
+	if err != nil {
+		return err
+	}
+	if len(devices) >= domain.MaxOTPDevices {
+		return ErrOTPDeviceLimit
+	}
+	return s.otpDevices.Confirm(ctx, pending.ID)
+}
+
+// matchOTPDevice returns the device whose current code is code, if any.
+func (s *AuthService) matchOTPDevice(devices []domain.OTPDevice, code string) *domain.OTPDevice {
+	for i := range devices {
+		secret, err := s.secretbox.Decrypt(devices[i].SecretEncrypted)
+		if err != nil {
+			continue
+		}
+		if security.ValidateTOTPCode(secret, code) {
+			return &devices[i]
+		}
+	}
+	return nil
+}
+
+// ListOTPDevices returns the signed-in user's enrolled authenticator apps.
+func (s *AuthService) ListOTPDevices(ctx context.Context, user *domain.AdminUser) ([]domain.OTPDevice, error) {
+	return s.otpDevices.ListConfirmed(ctx, user.ID)
+}
+
+// StartOTPDeviceSetup begins adding an authenticator app from My Account.
+// The current password is asked again, so a signed-in browser left
+// unattended can't be used to add someone else's phone.
+func (s *AuthService) StartOTPDeviceSetup(ctx context.Context, user *domain.AdminUser, name, password string) (secret, otpauthURL string, err error) {
+	name = strings.TrimSpace(name)
+	if name == "" || len([]rune(name)) > 60 {
+		return "", "", ErrOTPDeviceName
+	}
+	if !security.VerifyPassword(user.PasswordHash, password) {
+		return "", "", ErrWrongCurrentPassword
+	}
+	devices, err := s.otpDevices.ListConfirmed(ctx, user.ID)
+	if err != nil {
+		return "", "", err
+	}
+	if len(devices) >= domain.MaxOTPDevices {
+		return "", "", ErrOTPDeviceLimit
+	}
+	return s.startDeviceSetup(ctx, user, name)
+}
+
+func (s *AuthService) ConfirmOTPDeviceSetup(ctx context.Context, user *domain.AdminUser, code string) error {
+	return s.confirmDeviceSetup(ctx, user, code)
+}
+
+// RemoveOTPDevice deletes one of the user's authenticator apps. While 2FA is
+// required the last one can't go: the user would be locked out next sign-in.
+func (s *AuthService) RemoveOTPDevice(ctx context.Context, user *domain.AdminUser, deviceID int64, password string) error {
+	if !security.VerifyPassword(user.PasswordHash, password) {
+		return ErrWrongCurrentPassword
+	}
+	devices, err := s.otpDevices.ListConfirmed(ctx, user.ID)
+	if err != nil {
+		return err
+	}
+	found := false
+	for _, d := range devices {
+		found = found || d.ID == deviceID
+	}
+	if !found {
+		return ErrOTPDeviceNotFound
+	}
+	if len(devices) == 1 {
+		required, err := s.TwoFactorRequired(ctx)
+		if err != nil {
+			return err
+		}
+		if required {
+			return ErrOTPLastDevice
+		}
+	}
+	return s.otpDevices.Delete(ctx, user.ID, deviceID)
+}
+
+func (s *AuthService) issueSession(ctx context.Context, user *domain.AdminUser, otpVerified bool) (*LoginOutcome, error) {
+	accessToken, err := s.jwt.GenerateAccessToken(user.ID, string(user.Role), otpVerified)
 	if err != nil {
 		return nil, err
 	}
@@ -278,7 +384,7 @@ func (s *AuthService) issueSession(ctx context.Context, user *domain.AdminUser) 
 	if err != nil {
 		return nil, err
 	}
-	if err := s.refreshTokens.Create(ctx, user.ID, security.HashToken(refreshToken), time.Now().Add(RefreshTokenTTL)); err != nil {
+	if err := s.refreshTokens.Create(ctx, user.ID, security.HashToken(refreshToken), otpVerified, time.Now().Add(RefreshTokenTTL)); err != nil {
 		return nil, err
 	}
 	return &LoginOutcome{Status: "ok", User: user, AccessToken: accessToken, RefreshToken: refreshToken}, nil
@@ -286,9 +392,11 @@ func (s *AuthService) issueSession(ctx context.Context, user *domain.AdminUser) 
 
 // Refresh rotates a refresh token: the old one is revoked and a new
 // access+refresh pair is issued, so a stolen-but-used token is a dead end.
+// While 2FA is required, a session that wasn't signed in with a code can't
+// be refreshed: its owner has to sign in again and go through 2FA.
 func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*LoginOutcome, error) {
 	hash := security.HashToken(refreshToken)
-	userID, err := s.refreshTokens.GetValidUserID(ctx, hash)
+	userID, otpVerified, err := s.refreshTokens.GetValid(ctx, hash)
 	if errors.Is(err, repository.ErrNotFound) {
 		return nil, ErrInvalidCredentials
 	}
@@ -305,7 +413,16 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*LoginO
 	if err := s.refreshTokens.Revoke(ctx, hash); err != nil {
 		return nil, err
 	}
-	return s.issueSession(ctx, user)
+	if !otpVerified {
+		required, err := s.TwoFactorRequired(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if required {
+			return nil, ErrTwoFactorRequired
+		}
+	}
+	return s.issueSession(ctx, user, otpVerified)
 }
 
 // Logout revokes the refresh token and reports whose session it was (0 when
@@ -315,7 +432,7 @@ func (s *AuthService) Logout(ctx context.Context, refreshToken string) (int64, e
 		return 0, nil
 	}
 	hash := security.HashToken(refreshToken)
-	userID, _ := s.refreshTokens.GetValidUserID(ctx, hash)
+	userID, _, _ := s.refreshTokens.GetValid(ctx, hash)
 	return userID, s.refreshTokens.Revoke(ctx, hash)
 }
 

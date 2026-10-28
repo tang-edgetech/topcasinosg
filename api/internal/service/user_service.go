@@ -25,11 +25,12 @@ var (
 
 type UserService struct {
 	users         *repository.UserRepo
+	otpDevices    *repository.OTPDeviceRepo
 	refreshTokens *repository.RefreshTokenRepo
 }
 
-func NewUserService(users *repository.UserRepo, refreshTokens *repository.RefreshTokenRepo) *UserService {
-	return &UserService{users: users, refreshTokens: refreshTokens}
+func NewUserService(users *repository.UserRepo, otpDevices *repository.OTPDeviceRepo, refreshTokens *repository.RefreshTokenRepo) *UserService {
+	return &UserService{users: users, otpDevices: otpDevices, refreshTokens: refreshTokens}
 }
 
 // visibleRoles mirrors domain.AssignableRoles: what an actor may see is
@@ -194,8 +195,8 @@ func (s *UserService) AdminResetPassword(ctx context.Context, actor *domain.Admi
 	return s.refreshTokens.RevokeAllForUser(ctx, targetID)
 }
 
-// ResetOTP clears a lower role's TOTP enrollment so they re-scan a fresh QR
-// on next login — used when they lose their authenticator device.
+// ResetOTP removes all of a lower role's authenticator apps so they scan a
+// fresh QR on next login — used when they lose their devices.
 func (s *UserService) ResetOTP(ctx context.Context, actor *domain.AdminUser, targetID int64) error {
 	if targetID == actor.ID {
 		return ErrCannotActOnSelf
@@ -203,7 +204,7 @@ func (s *UserService) ResetOTP(ctx context.Context, actor *domain.AdminUser, tar
 	if _, err := s.requireManage(ctx, actor, targetID); err != nil {
 		return err
 	}
-	if err := s.users.ResetOTP(ctx, targetID); err != nil {
+	if err := s.otpDevices.DeleteAllForUser(ctx, targetID); err != nil {
 		return err
 	}
 	return s.refreshTokens.RevokeAllForUser(ctx, targetID)
