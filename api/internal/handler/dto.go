@@ -9,30 +9,35 @@ import (
 // UserDTO is the only shape of an admin_users row ever sent over the wire —
 // it deliberately excludes password_hash and every 2FA secret.
 type UserDTO struct {
-	ID              int64     `json:"id"`
-	Email           string    `json:"email"`
-	Username        string    `json:"username"`
-	FullName        string    `json:"fullName"`
-	Role            string    `json:"role"`
-	ThemePreference string    `json:"themePreference"`
-	Status          string    `json:"status"`
-	OTPEnrolled     bool      `json:"otpEnrolled"`
-	OTPDevices      int       `json:"otpDevices"`
-	CreatedAt       time.Time `json:"createdAt"`
+	ID              int64  `json:"id"`
+	Email           string `json:"email"`
+	Username        string `json:"username"`
+	FullName        string `json:"fullName"`
+	Role            string `json:"role"`
+	ThemePreference string `json:"themePreference"`
+	Status          string `json:"status"`
+	OTPEnrolled     bool   `json:"otpEnrolled"`
+	OTPDevices      int    `json:"otpDevices"`
+	// LockedSeconds: how long a failed sign-in lockout has left (0: not locked).
+	LockedSeconds      int       `json:"lockedSeconds"`
+	MustChangePassword bool      `json:"mustChangePassword"`
+	CreatedAt          time.Time `json:"createdAt"`
 }
 
 func toUserDTO(u *domain.AdminUser) UserDTO {
 	return UserDTO{
-		ID:              u.ID,
-		Email:           u.Email,
-		Username:        u.Username,
-		FullName:        u.FullName,
-		Role:            string(u.Role),
-		ThemePreference: string(u.ThemePreference),
-		Status:          string(u.Status),
-		OTPEnrolled:     u.OTPEnrolled(),
-		OTPDevices:      u.OTPDeviceCount,
-		CreatedAt:       u.CreatedAt,
+		ID:                 u.ID,
+		Email:              u.Email,
+		Username:           u.Username,
+		FullName:           u.FullName,
+		Role:               string(u.Role),
+		ThemePreference:    string(u.ThemePreference),
+		Status:             string(u.Status),
+		OTPEnrolled:        u.OTPEnrolled(),
+		OTPDevices:         u.OTPDeviceCount,
+		LockedSeconds:      u.LockedSeconds,
+		MustChangePassword: u.MustChangePassword,
+		CreatedAt:          u.CreatedAt,
 	}
 }
 

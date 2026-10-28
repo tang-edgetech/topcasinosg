@@ -118,6 +118,15 @@ export function IconLogout(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function IconLockOpen(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <rect x="4" y="11" width="16" height="10" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 7.75-1.4" />
+    </svg>
+  );
+}
+
 export function IconSun(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base(props)}>

@@ -41,6 +41,8 @@ type AuthEvent struct {
 	UserAgent string
 	Method    string
 	Path      string
+	// Error replaces the generic failed sign-in message (e.g. "account locked").
+	Error string
 }
 
 // RecordAuth logs a sign-in event. The account is looked up by id, or by the
@@ -61,6 +63,9 @@ func (s *AuditService) RecordAuth(ctx context.Context, event AuthEvent) {
 	if event.Action == domain.AuditActionLoginFailed {
 		entry.StatusCode = domain.AuditStatusFailedSignIn
 		entry.ErrorMessage = "sign-in failed: wrong email/username, password or 2FA code, or the account is inactive"
+		if event.Error != "" {
+			entry.ErrorMessage = "sign-in failed: " + event.Error
+		}
 	}
 	var user *domain.AdminUser
 	if event.UserID > 0 {

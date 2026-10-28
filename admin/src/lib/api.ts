@@ -46,9 +46,19 @@ function endSession() {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(SESSION_ENDED_EVENT));
 }
 
+// Fired when the API refuses a request because this user must change their
+// password first (RequirePasswordChanged in api/internal/middleware/auth.go,
+// e.g. an admin reset it). AuthProvider re-reads the user, and the dashboard
+// then shows the change-password screen.
+export const PASSWORD_CHANGE_REQUIRED_EVENT = "admin:password-change-required";
+const PASSWORD_CHANGE_REQUIRED_MESSAGE = "you must change your password before continuing";
+
 async function unwrap<T>(res: Response): Promise<T> {
   const body = (await res.json()) as Envelope<T>;
   if (!body.success) {
+    if (res.status === 403 && body.error?.message === PASSWORD_CHANGE_REQUIRED_MESSAGE && typeof window !== "undefined") {
+      window.dispatchEvent(new Event(PASSWORD_CHANGE_REQUIRED_EVENT));
+    }
     throw new ApiError(body.error?.message ?? "Request failed", res.status);
   }
   return body.data;

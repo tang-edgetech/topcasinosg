@@ -11,9 +11,11 @@ import { canManage } from "@/lib/roles";
 import { titleCase } from "@/lib/format";
 import { runBulkAction, bulkResultMessage } from "@/lib/bulk";
 import PasswordInput from "@/components/PasswordInput";
+import { passwordRules } from "@/lib/password-rules";
+import { useSiteSettings } from "@/lib/site-settings-context";
 import BulkActionBar from "@/components/content/BulkActionBar";
 import IconButton from "@/components/IconButton";
-import { IconEdit, IconKey, IconShieldReset, IconTrash, IconPlus } from "@/components/Icons";
+import { IconEdit, IconKey, IconLockOpen, IconLogout, IconShieldReset, IconTrash, IconPlus } from "@/components/Icons";
 import { CLIENT_TABLE_PAGINATION } from "@/lib/pagination";
 import PageHeading from "@/components/PageHeading";
 
@@ -100,6 +102,30 @@ export default function UsersPage() {
       await loadUsers();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not reset 2FA.");
+    }
+  }
+
+  async function handleUnlock(target: AdminUserDTO) {
+    try {
+      await api.post(`/api/admin/users/${target.id}/unlock`);
+      await loadUsers();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not unlock the account.");
+    }
+  }
+
+  async function handleSignOutEverywhere(target: AdminUserDTO) {
+    const ok = await confirm({
+      title: "Sign Out Everywhere",
+      message: `${target.fullName} will be signed out on every device and must sign in again. Their password and 2FA stay the same.`,
+      confirmLabel: "Sign Out",
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await api.post(`/api/admin/users/${target.id}/sign-out`);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not sign the user out.");
     }
   }
 
@@ -216,6 +242,19 @@ export default function UsersPage() {
             render: (_, target) => <span className="text-text-muted dark:text-text-muted-dark">{target.otpEnrolled ? `Enrolled (${target.otpDevices} ${target.otpDevices === 1 ? "app" : "apps"})` : "Not Enrolled"}</span>,
           },
           {
+            title: "Sign-In",
+            key: "signIn",
+            render: (_, target) => (
+              <div className="user-row__sign-in flex flex-col gap-0.5 text-xs">
+                {target.lockedSeconds > 0 && (
+                  <span className="font-semibold text-danger">Locked ({Math.ceil(target.lockedSeconds / 60)} min left)</span>
+                )}
+                {target.mustChangePassword && <span className="text-text-muted dark:text-text-muted-dark">Must change password</span>}
+                {target.lockedSeconds === 0 && !target.mustChangePassword && <span className="text-text-muted dark:text-text-muted-dark">—</span>}
+              </div>
+            ),
+          },
+          {
             title: "Actions",
             key: "actions",
             render: (_, target) => {
@@ -244,6 +283,22 @@ export default function UsersPage() {
                     title="Reset 2FA"
                     onClick={() => handleResetOtp(target)}
                     icon={<IconShieldReset />}
+                    variant="muted"
+                  />
+                  {target.lockedSeconds > 0 && (
+                    <IconButton
+                      id={`user-row-${target.id}-unlock`}
+                      title="Unlock Sign-In"
+                      onClick={() => handleUnlock(target)}
+                      icon={<IconLockOpen />}
+                      variant="muted"
+                    />
+                  )}
+                  <IconButton
+                    id={`user-row-${target.id}-sign-out`}
+                    title="Sign Out Everywhere"
+                    onClick={() => handleSignOutEverywhere(target)}
+                    icon={<IconLogout />}
                     variant="muted"
                   />
                   <IconButton
@@ -281,6 +336,7 @@ function ResetPasswordPanel({
   onReset: () => void;
 }) {
   const confirm = useConfirm();
+  const { settings } = useSiteSettings();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -321,6 +377,10 @@ function ResetPasswordPanel({
         </p>
         <form id="reset-password-form" className="flex flex-col gap-4" onSubmit={handleSubmit}>
           <PasswordInput id="reset-password-new" name="newPassword" label="New Password" value={newPassword} onChange={setNewPassword} autoComplete="new-password" />
+          <p className="-mt-2 text-xs text-text-muted dark:text-text-muted-dark">
+            {passwordRules(settings?.security)}
+            {settings?.security.forcePasswordChange && " They'll be asked to choose their own password at next sign-in."}
+          </p>
           <PasswordInput id="reset-password-confirm" name="confirmPassword" label="Confirm New Password" value={confirmPassword} onChange={setConfirmPassword} autoComplete="new-password" />
           {error && <p className="form-error text-sm text-danger">{error}</p>}
           <div className="mt-2 flex justify-end gap-2">

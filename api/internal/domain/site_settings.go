@@ -26,6 +26,7 @@ type SiteSettings struct {
 	LogoURL          *string
 	FaviconURL       *string
 	TwoFactorEnabled bool
+	Security         SecurityPolicy
 	FooterContact
 	SocialDefaults
 	Footer    FooterConfig

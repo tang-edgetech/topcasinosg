@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 	"time"
@@ -28,7 +29,31 @@ var (
 	ErrOTPNoPendingSetup = errors.New("no authenticator setup in progress — start again")
 	ErrOTPDeviceNotFound = errors.New("authenticator app not found")
 	ErrOTPDeviceName     = errors.New("name must be 1–60 characters")
+	ErrSessionNotFound   = errors.New("session not found or already signed out")
 )
+
+// AccountLockedError: too many wrong passwords or 2FA codes in a row (see
+// domain.SecurityPolicy). JustLocked is set on the attempt that locked it.
+type AccountLockedError struct {
+	Seconds    int
+	JustLocked bool
+}
+
+func (e *AccountLockedError) Error() string {
+	minutes := max(1, (e.Seconds+59)/60)
+	unit := "minutes"
+	if minutes == 1 {
+		unit = "minute"
+	}
+	return fmt.Sprintf("too many failed sign-in attempts — this account is locked, try again in %d %s", minutes, unit)
+}
+
+// ClientInfo is where a sign-in or refresh came from, shown in the session
+// list.
+type ClientInfo struct {
+	IP        string
+	UserAgent string
+}
 
 // LoginOutcome captures every branch Login/VerifyOTP/ConfirmOTPSetup can end
 // in. Exactly one of (EphemeralToken) or (AccessToken+RefreshToken) is set,
@@ -46,6 +71,7 @@ type AuthService struct {
 	otpDevices    *repository.OTPDeviceRepo
 	siteSettings  *repository.SiteSettingsRepo
 	refreshTokens *repository.RefreshTokenRepo
+	sessions      *repository.SessionRepo
 	jwt           *security.JWTIssuer
 	secretbox     *security.Secretbox
 	cfg           config.Config
@@ -56,11 +82,12 @@ func NewAuthService(
 	otpDevices *repository.OTPDeviceRepo,
 	siteSettings *repository.SiteSettingsRepo,
 	refreshTokens *repository.RefreshTokenRepo,
+	sessions *repository.SessionRepo,
 	jwt *security.JWTIssuer,
 	secretbox *security.Secretbox,
 	cfg config.Config,
 ) *AuthService {
-	return &AuthService{users: users, otpDevices: otpDevices, siteSettings: siteSettings, refreshTokens: refreshTokens, jwt: jwt, secretbox: secretbox, cfg: cfg}
+	return &AuthService{users: users, otpDevices: otpDevices, siteSettings: siteSettings, refreshTokens: refreshTokens, sessions: sessions, jwt: jwt, secretbox: secretbox, cfg: cfg}
 }
 
 func (s *AuthService) NeedsBootstrap(ctx context.Context) (bool, error) {
@@ -168,7 +195,34 @@ func FindByLogin(ctx context.Context, users *repository.UserRepo, login string) 
 	return users.GetByUsername(ctx, domain.NormalizeUsername(login))
 }
 
-func (s *AuthService) Login(ctx context.Context, login, password string) (*LoginOutcome, error) {
+// checkLocked refuses a sign-in step while the account is locked out, even
+// with the right password, so guessing can't carry on during the lockout.
+func checkLocked(user *domain.AdminUser) error {
+	if user.LockedSeconds > 0 {
+		return &AccountLockedError{Seconds: user.LockedSeconds}
+	}
+	return nil
+}
+
+// failedSignIn counts a wrong password or 2FA code against the account and
+// returns the error to answer with: wrongErr, or the lockout it triggered.
+func (s *AuthService) failedSignIn(ctx context.Context, user *domain.AdminUser, wrongErr error) error {
+	settings, err := s.siteSettings.Get(ctx)
+	if err != nil {
+		return err
+	}
+	policy := settings.Security
+	locked, err := s.users.RecordFailedLogin(ctx, user.ID, policy.LockoutAttempts, policy.LockoutMinutes)
+	if err != nil {
+		return err
+	}
+	if locked {
+		return &AccountLockedError{Seconds: policy.LockoutMinutes * 60, JustLocked: true}
+	}
+	return wrongErr
+}
+
+func (s *AuthService) Login(ctx context.Context, login, password string, client ClientInfo) (*LoginOutcome, error) {
 	user, err := FindByLogin(ctx, s.users, login)
 	if errors.Is(err, repository.ErrNotFound) {
 		return nil, ErrInvalidCredentials
@@ -176,8 +230,11 @@ func (s *AuthService) Login(ctx context.Context, login, password string) (*Login
 	if err != nil {
 		return nil, err
 	}
+	if err := checkLocked(user); err != nil {
+		return nil, err
+	}
 	if !security.VerifyPassword(user.PasswordHash, password) {
-		return nil, ErrInvalidCredentials
+		return nil, s.failedSignIn(ctx, user, ErrInvalidCredentials)
 	}
 	if user.Status != domain.StatusActive {
 		return nil, ErrAccountNotActive
@@ -188,7 +245,7 @@ func (s *AuthService) Login(ctx context.Context, login, password string) (*Login
 		return nil, err
 	}
 	if !required {
-		return s.issueSession(ctx, user, false)
+		return s.issueSession(ctx, user, false, client)
 	}
 
 	if user.OTPEnrolled() {
@@ -206,7 +263,7 @@ func (s *AuthService) Login(ctx context.Context, login, password string) (*Login
 	return &LoginOutcome{Status: "otp_setup_required", User: user, EphemeralToken: token}, nil
 }
 
-func (s *AuthService) VerifyOTP(ctx context.Context, ephemeralToken, code string) (*LoginOutcome, error) {
+func (s *AuthService) VerifyOTP(ctx context.Context, ephemeralToken, code string, client ClientInfo) (*LoginOutcome, error) {
 	claims, err := s.jwt.ParseEphemeralToken(ephemeralToken, security.PurposeOTPVerify)
 	if err != nil {
 		return nil, err
@@ -218,18 +275,21 @@ func (s *AuthService) VerifyOTP(ctx context.Context, ephemeralToken, code string
 	if user.Status != domain.StatusActive {
 		return nil, ErrAccountNotActive
 	}
+	if err := checkLocked(user); err != nil {
+		return nil, err
+	}
 	devices, err := s.otpDevices.ListConfirmed(ctx, user.ID)
 	if err != nil {
 		return nil, err
 	}
 	device := s.matchOTPDevice(devices, code)
 	if device == nil {
-		return nil, ErrInvalidOTP
+		return nil, s.failedSignIn(ctx, user, ErrInvalidOTP)
 	}
 	if err := s.otpDevices.MarkUsed(ctx, device.ID); err != nil {
 		return nil, err
 	}
-	return s.issueSession(ctx, user, true)
+	return s.issueSession(ctx, user, true, client)
 }
 
 // SetupOTP starts enrolling the first device for the user identified by an
@@ -246,7 +306,7 @@ func (s *AuthService) SetupOTP(ctx context.Context, ephemeralToken string) (secr
 	return s.startDeviceSetup(ctx, user, "Authenticator app")
 }
 
-func (s *AuthService) ConfirmOTPSetup(ctx context.Context, ephemeralToken, code string) (*LoginOutcome, error) {
+func (s *AuthService) ConfirmOTPSetup(ctx context.Context, ephemeralToken, code string, client ClientInfo) (*LoginOutcome, error) {
 	claims, err := s.jwt.ParseEphemeralToken(ephemeralToken, security.PurposeOTPSetup)
 	if err != nil {
 		return nil, err
@@ -258,10 +318,16 @@ func (s *AuthService) ConfirmOTPSetup(ctx context.Context, ephemeralToken, code 
 	if user.Status != domain.StatusActive {
 		return nil, ErrAccountNotActive
 	}
-	if err := s.confirmDeviceSetup(ctx, user, code); err != nil {
+	if err := checkLocked(user); err != nil {
 		return nil, err
 	}
-	return s.issueSession(ctx, user, true)
+	if err := s.confirmDeviceSetup(ctx, user, code); err != nil {
+		if errors.Is(err, ErrInvalidOTP) {
+			return nil, s.failedSignIn(ctx, user, err)
+		}
+		return nil, err
+	}
+	return s.issueSession(ctx, user, true, client)
 }
 
 func (s *AuthService) startDeviceSetup(ctx context.Context, user *domain.AdminUser, name string) (secret, otpauthURL string, err error) {
@@ -375,8 +441,30 @@ func (s *AuthService) RemoveOTPDevice(ctx context.Context, user *domain.AdminUse
 	return s.otpDevices.Delete(ctx, user.ID, deviceID)
 }
 
-func (s *AuthService) issueSession(ctx context.Context, user *domain.AdminUser, otpVerified bool) (*LoginOutcome, error) {
-	accessToken, err := s.jwt.GenerateAccessToken(user.ID, string(user.Role), otpVerified)
+// issueSession signs a user in on a new session (one row in admin_sessions)
+// and clears any failed sign-in count.
+func (s *AuthService) issueSession(ctx context.Context, user *domain.AdminUser, otpVerified bool, client ClientInfo) (*LoginOutcome, error) {
+	sessionID, err := security.GenerateOpaqueToken()
+	if err != nil {
+		return nil, err
+	}
+	// admin_sessions.id is CHAR(32).
+	sessionID = security.HashToken(sessionID)[:32]
+	if err := s.sessions.Create(ctx, &domain.Session{
+		ID: sessionID, UserID: user.ID, IPAddress: client.IP, UserAgent: client.UserAgent,
+		ExpiresAt: time.Now().Add(RefreshTokenTTL),
+	}); err != nil {
+		return nil, err
+	}
+	if err := s.users.ClearFailedLogins(ctx, user.ID); err != nil {
+		return nil, err
+	}
+	return s.issueTokens(ctx, user, sessionID, otpVerified)
+}
+
+// issueTokens hands out a new access+refresh pair for an existing session.
+func (s *AuthService) issueTokens(ctx context.Context, user *domain.AdminUser, sessionID string, otpVerified bool) (*LoginOutcome, error) {
+	accessToken, err := s.jwt.GenerateAccessToken(user.ID, string(user.Role), otpVerified, sessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -384,36 +472,41 @@ func (s *AuthService) issueSession(ctx context.Context, user *domain.AdminUser, 
 	if err != nil {
 		return nil, err
 	}
-	if err := s.refreshTokens.Create(ctx, user.ID, security.HashToken(refreshToken), otpVerified, time.Now().Add(RefreshTokenTTL)); err != nil {
+	if err := s.refreshTokens.Create(ctx, user.ID, sessionID, security.HashToken(refreshToken), otpVerified, time.Now().Add(RefreshTokenTTL)); err != nil {
 		return nil, err
 	}
 	return &LoginOutcome{Status: "ok", User: user, AccessToken: accessToken, RefreshToken: refreshToken}, nil
 }
 
 // Refresh rotates a refresh token: the old one is revoked and a new
-// access+refresh pair is issued, so a stolen-but-used token is a dead end.
-// While 2FA is required, a session that wasn't signed in with a code can't
-// be refreshed: its owner has to sign in again and go through 2FA.
-func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*LoginOutcome, error) {
+// access+refresh pair is issued on the same session, so a stolen-but-used
+// token is a dead end. While 2FA is required, a session that wasn't signed
+// in with a code can't be refreshed: its owner has to sign in again and go
+// through 2FA.
+func (s *AuthService) Refresh(ctx context.Context, refreshToken string, client ClientInfo) (*LoginOutcome, error) {
 	hash := security.HashToken(refreshToken)
-	userID, otpVerified, err := s.refreshTokens.GetValid(ctx, hash)
+	token, err := s.refreshTokens.GetValid(ctx, hash)
 	if errors.Is(err, repository.ErrNotFound) {
 		return nil, ErrInvalidCredentials
 	}
 	if err != nil {
 		return nil, err
 	}
-	user, err := s.users.GetByID(ctx, userID)
+	user, err := s.users.GetByID(ctx, token.UserID)
 	if err != nil {
 		return nil, err
 	}
 	if user.Status != domain.StatusActive {
 		return nil, ErrAccountNotActive
 	}
-	if err := s.refreshTokens.Revoke(ctx, hash); err != nil {
+	claimed, err := s.refreshTokens.Claim(ctx, hash)
+	if err != nil {
 		return nil, err
 	}
-	if !otpVerified {
+	if !claimed {
+		return nil, ErrInvalidCredentials
+	}
+	if !token.OTPVerified {
 		required, err := s.TwoFactorRequired(ctx)
 		if err != nil {
 			return nil, err
@@ -422,18 +515,53 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*LoginO
 			return nil, ErrTwoFactorRequired
 		}
 	}
-	return s.issueSession(ctx, user, otpVerified)
+	if err := s.sessions.Touch(ctx, token.SessionID, client.IP, client.UserAgent, time.Now().Add(RefreshTokenTTL)); err != nil {
+		return nil, err
+	}
+	return s.issueTokens(ctx, user, token.SessionID, token.OTPVerified)
 }
 
-// Logout revokes the refresh token and reports whose session it was (0 when
-// the token was already invalid), so the sign-out can be audited.
+// Logout signs the refresh token's session out and reports whose it was (0
+// when the token was already invalid), so the sign-out can be audited.
 func (s *AuthService) Logout(ctx context.Context, refreshToken string) (int64, error) {
 	if refreshToken == "" {
 		return 0, nil
 	}
-	hash := security.HashToken(refreshToken)
-	userID, _, _ := s.refreshTokens.GetValid(ctx, hash)
-	return userID, s.refreshTokens.Revoke(ctx, hash)
+	token, err := s.refreshTokens.GetValid(ctx, security.HashToken(refreshToken))
+	if err != nil {
+		return 0, nil
+	}
+	_, err = s.sessions.Revoke(ctx, token.UserID, token.SessionID)
+	return token.UserID, err
+}
+
+// SessionActive is the per-request check behind signing a session out:
+// middleware.Authenticate turns away access tokens of a signed-out session.
+func (s *AuthService) SessionActive(ctx context.Context, userID int64, sessionID string) (bool, error) {
+	if sessionID == "" {
+		return false, nil
+	}
+	return s.sessions.Active(ctx, userID, sessionID)
+}
+
+func (s *AuthService) ListSessions(ctx context.Context, user *domain.AdminUser) ([]domain.Session, error) {
+	return s.sessions.ListActive(ctx, user.ID)
+}
+
+func (s *AuthService) RevokeSession(ctx context.Context, user *domain.AdminUser, sessionID string) error {
+	found, err := s.sessions.Revoke(ctx, user.ID, sessionID)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return ErrSessionNotFound
+	}
+	return nil
+}
+
+// RevokeOtherSessions is My Account's "Sign out all other devices".
+func (s *AuthService) RevokeOtherSessions(ctx context.Context, user *domain.AdminUser, currentSessionID string) (int64, error) {
+	return s.sessions.RevokeOthers(ctx, user.ID, currentSessionID)
 }
 
 // PendingUserID identifies whose half-finished 2FA sign-in an ephemeral token

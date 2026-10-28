@@ -8,9 +8,12 @@ import type { AdminUserDTO, Role } from "@/lib/types";
 import { assignableRoles } from "@/lib/roles";
 import { titleCase } from "@/lib/format";
 import PasswordInput from "@/components/PasswordInput";
+import { passwordRules } from "@/lib/password-rules";
+import { useSiteSettings } from "@/lib/site-settings-context";
 import { USERNAME_HINT, USERNAME_PATTERN, normalizeUsername } from "@/lib/username";
 
 export default function AddUserForm({ actor }: { actor: AdminUserDTO }) {
+  const { settings } = useSiteSettings();
   const router = useRouter();
   const confirm = useConfirm();
   const roles = assignableRoles(actor);
@@ -101,6 +104,10 @@ export default function AddUserForm({ actor }: { actor: AdminUserDTO }) {
           </select>
         </div>
         <PasswordInput id="add-user-password" name="password" label="Temporary Password" value={password} onChange={setPassword} autoComplete="new-password" />
+        <p className="-mt-2 text-xs text-text-muted dark:text-text-muted-dark">
+          {passwordRules(settings?.security)}
+          {settings?.security.forcePasswordChange && " They'll be asked to choose their own password at next sign-in."}
+        </p>
         {error && <p className="form-error text-sm text-danger">{error}</p>}
         <div className="mt-2 flex justify-end gap-2">
           <button

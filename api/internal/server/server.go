@@ -21,6 +21,7 @@ type Deps struct {
 	JWT                   *security.JWTIssuer
 	Users                 *repository.UserRepo
 	TwoFactorRequired     func(context.Context) (bool, error)
+	SessionActive         func(ctx context.Context, userID int64, sessionID string) (bool, error)
 	AuthHandler           *handler.AuthHandler
 	UserHandler           *handler.UserHandler
 	SiteSettingsHandler   *handler.SiteSettingsHandler
@@ -43,6 +44,7 @@ type Deps struct {
 	TransferHandler       *handler.TransferHandler
 	ContentImportHandler  *handler.ContentImportHandler
 	SeoHandler            *handler.SeoHandler
+	SystemHandler         *handler.SystemHandler
 	Audit                 *service.AuditService
 }
 
@@ -91,11 +93,16 @@ func NewRouter(deps Deps) http.Handler {
 	mux.HandleFunc("GET /api/seo/{type}/{id}", deps.SeoHandler.Get)
 	mux.HandleFunc("GET /api/snippets", deps.SnippetHandler.GetPublic)
 
-	authenticateUser := middleware.Authenticate(deps.JWT, deps.Users, deps.TwoFactorRequired, deps.Config.CookieName(httpx.AccessCookieName))
+	authenticateUser := middleware.Authenticate(deps.JWT, deps.Users, deps.TwoFactorRequired, deps.SessionActive, deps.Config.CookieName(httpx.AccessCookieName))
 	audit := middleware.Audit(deps.Audit, adminSnapshotter(mux))
 	// Every authenticated route is audited: GETs pass straight through, and
 	// a change is logged only when the inner role check and handler succeed.
+	// A user who must change their password reaches only the routes that
+	// use authenticateForPasswordChange.
 	authenticate := func(next http.Handler) http.Handler {
+		return authenticateUser(audit(middleware.RequirePasswordChanged(next)))
+	}
+	authenticateForPasswordChange := func(next http.Handler) http.Handler {
 		return authenticateUser(audit(next))
 	}
 	staffOnly := middleware.RequireRoles(domain.RoleSuperAdmin, domain.RoleAdmin)
@@ -103,16 +110,19 @@ func NewRouter(deps Deps) http.Handler {
 	// just not other admin accounts — see internal/domain/user.go.
 	contentStaff := middleware.RequireRoles(domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleEditor)
 
-	mux.Handle("GET /api/admin/auth/me", authenticate(http.HandlerFunc(deps.AuthHandler.Me)))
+	mux.Handle("GET /api/admin/auth/me", authenticateForPasswordChange(http.HandlerFunc(deps.AuthHandler.Me)))
 
 	// Account — any authenticated admin user, self-service only.
-	mux.Handle("POST /api/admin/account/password", authenticate(http.HandlerFunc(deps.UserHandler.SelfChangePassword)))
+	mux.Handle("POST /api/admin/account/password", authenticateForPasswordChange(http.HandlerFunc(deps.UserHandler.SelfChangePassword)))
 	mux.Handle("PUT /api/admin/account/theme", authenticate(http.HandlerFunc(deps.UserHandler.SetTheme)))
 	mux.Handle("PUT /api/admin/account/profile", authenticate(http.HandlerFunc(deps.UserHandler.SelfUpdateProfile)))
 	mux.Handle("GET /api/admin/account/otp-devices", authenticate(http.HandlerFunc(deps.AuthHandler.ListOTPDevices)))
 	mux.Handle("POST /api/admin/account/otp-devices/setup", authenticate(http.HandlerFunc(deps.AuthHandler.StartOTPDeviceSetup)))
 	mux.Handle("POST /api/admin/account/otp-devices/confirm", authenticate(http.HandlerFunc(deps.AuthHandler.ConfirmOTPDeviceSetup)))
 	mux.Handle("POST /api/admin/account/otp-devices/{id}/remove", authenticate(http.HandlerFunc(deps.AuthHandler.RemoveOTPDevice)))
+	mux.Handle("GET /api/admin/account/sessions", authenticate(http.HandlerFunc(deps.AuthHandler.ListSessions)))
+	mux.Handle("POST /api/admin/account/sessions/sign-out-others", authenticate(http.HandlerFunc(deps.AuthHandler.RevokeOtherSessions)))
+	mux.Handle("POST /api/admin/account/sessions/{id}/sign-out", authenticate(http.HandlerFunc(deps.AuthHandler.RevokeSession)))
 
 	// Activity log — every role; what each one sees is narrowed in AuditService.
 	mux.Handle("GET /api/admin/activity", authenticate(contentStaff(http.HandlerFunc(deps.AuditHandler.List))))
@@ -140,11 +150,17 @@ func NewRouter(deps Deps) http.Handler {
 	mux.Handle("PUT /api/admin/users/{id}/status", authenticate(staffOnly(http.HandlerFunc(deps.UserHandler.SetStatus))))
 	mux.Handle("POST /api/admin/users/{id}/reset-password", authenticate(staffOnly(http.HandlerFunc(deps.UserHandler.ResetPassword))))
 	mux.Handle("POST /api/admin/users/{id}/reset-otp", authenticate(staffOnly(http.HandlerFunc(deps.UserHandler.ResetOTP))))
+	mux.Handle("POST /api/admin/users/{id}/unlock", authenticate(staffOnly(http.HandlerFunc(deps.UserHandler.Unlock))))
+	mux.Handle("POST /api/admin/users/{id}/sign-out", authenticate(staffOnly(http.HandlerFunc(deps.UserHandler.SignOutEverywhere))))
 
 	// Site settings, including the site-wide 2FA switch — Super Admin and Admin.
 	mux.Handle("PUT /api/admin/settings/site", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.Update))))
 	mux.Handle("PUT /api/admin/settings/footer", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.UpdateFooter))))
 	mux.Handle("PUT /api/admin/settings/2fa", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.SetTwoFactorEnabled))))
+	mux.Handle("PUT /api/admin/settings/security", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.UpdateSecurityPolicy))))
+	// Settings > Log: server version, deploys and log files.
+	mux.Handle("GET /api/admin/system/status", authenticate(staffOnly(http.HandlerFunc(deps.SystemHandler.Status))))
+	mux.Handle("GET /api/admin/system/logs/{key}", authenticate(staffOnly(http.HandlerFunc(deps.SystemHandler.Log))))
 	mux.Handle("POST /api/admin/settings/site/logo", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.UploadLogo))))
 	mux.Handle("POST /api/admin/settings/site/favicon", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.UploadFavicon))))
 	mux.Handle("PUT /api/admin/settings/site/logo", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.SetLogo))))

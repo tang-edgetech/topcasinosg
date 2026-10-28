@@ -33,6 +33,26 @@ func (h *AuthHandler) recordAuth(r *http.Request, action string, userID int64, l
 	})
 }
 
+// recordFailedAuth logs a failed sign-in step, noting when it locked the
+// account.
+func (h *AuthHandler) recordFailedAuth(r *http.Request, err error, userID int64, login string) {
+	ip, port := middleware.ClientAddress(r)
+	event := service.AuthEvent{
+		Action: domain.AuditActionLoginFailed, UserID: userID, Login: login, IP: ip, Port: port,
+		UserAgent: r.UserAgent(), Method: r.Method, Path: r.URL.Path,
+	}
+	var locked *service.AccountLockedError
+	if errors.As(err, &locked) {
+		event.Error = err.Error()
+	}
+	h.audit.RecordAuth(context.WithoutCancel(r.Context()), event)
+}
+
+func clientInfo(r *http.Request) service.ClientInfo {
+	ip, _ := middleware.ClientAddress(r)
+	return service.ClientInfo{IP: ip, UserAgent: r.UserAgent()}
+}
+
 func (h *AuthHandler) recordSignedIn(r *http.Request, outcome *service.LoginOutcome) {
 	if outcome.Status == "ok" && outcome.User != nil {
 		h.recordAuth(r, domain.AuditActionLogin, outcome.User.ID, "")
@@ -40,7 +60,10 @@ func (h *AuthHandler) recordSignedIn(r *http.Request, outcome *service.LoginOutc
 }
 
 func authErrorStatus(err error) int {
+	var locked *service.AccountLockedError
 	switch {
+	case errors.As(err, &locked):
+		return http.StatusTooManyRequests
 	case errors.Is(err, service.ErrInvalidCredentials), errors.Is(err, service.ErrInvalidOTP), errors.Is(err, security.ErrInvalidToken),
 		errors.Is(err, service.ErrTwoFactorRequired):
 		return http.StatusUnauthorized
@@ -83,8 +106,8 @@ func (h *AuthHandler) Bootstrap(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if len(req.Password) < 8 {
-		response.Err(w, http.StatusBadRequest, "password must be at least 8 characters")
+	if problem := domain.DefaultSecurityPolicy().PasswordProblem(req.Password); problem != "" {
+		response.Err(w, http.StatusBadRequest, problem)
 		return
 	}
 
@@ -106,7 +129,7 @@ func (h *AuthHandler) Bootstrap(w http.ResponseWriter, r *http.Request) {
 
 	// Re-fetch via Login rather than reusing the just-created struct so the
 	// response reflects DB-generated fields (created_at, etc.).
-	outcome, err := h.auth.Login(r.Context(), req.Email, req.Password)
+	outcome, err := h.auth.Login(r.Context(), req.Email, req.Password, clientInfo(r))
 	if err != nil {
 		response.Err(w, authErrorStatus(err), err.Error())
 		return
@@ -129,9 +152,9 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outcome, err := h.auth.Login(r.Context(), req.Login, req.Password)
+	outcome, err := h.auth.Login(r.Context(), req.Login, req.Password, clientInfo(r))
 	if err != nil {
-		h.recordAuth(r, domain.AuditActionLoginFailed, 0, req.Login)
+		h.recordFailedAuth(r, err, 0, req.Login)
 		response.Err(w, authErrorStatus(err), err.Error())
 		return
 	}
@@ -150,9 +173,9 @@ func (h *AuthHandler) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	outcome, err := h.auth.VerifyOTP(r.Context(), req.EphemeralToken, req.Code)
+	outcome, err := h.auth.VerifyOTP(r.Context(), req.EphemeralToken, req.Code, clientInfo(r))
 	if err != nil {
-		h.recordAuth(r, domain.AuditActionLoginFailed, h.auth.PendingUserID(req.EphemeralToken), "")
+		h.recordFailedAuth(r, err, h.auth.PendingUserID(req.EphemeralToken), "")
 		response.Err(w, authErrorStatus(err), err.Error())
 		return
 	}
@@ -184,9 +207,9 @@ func (h *AuthHandler) ConfirmOTPSetup(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	outcome, err := h.auth.ConfirmOTPSetup(r.Context(), req.EphemeralToken, req.Code)
+	outcome, err := h.auth.ConfirmOTPSetup(r.Context(), req.EphemeralToken, req.Code, clientInfo(r))
 	if err != nil {
-		h.recordAuth(r, domain.AuditActionLoginFailed, h.auth.PendingUserID(req.EphemeralToken), "")
+		h.recordFailedAuth(r, err, h.auth.PendingUserID(req.EphemeralToken), "")
 		response.Err(w, authErrorStatus(err), err.Error())
 		return
 	}
@@ -200,7 +223,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusUnauthorized, "not authenticated")
 		return
 	}
-	outcome, err := h.auth.Refresh(r.Context(), cookie.Value)
+	outcome, err := h.auth.Refresh(r.Context(), cookie.Value, clientInfo(r))
 	if err != nil {
 		httpx.ClearSessionCookies(w, h.cfg)
 		response.Err(w, authErrorStatus(err), err.Error())
@@ -335,4 +358,54 @@ func (h *AuthHandler) RemoveOTPDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.JSON(w, http.StatusOK, map[string]bool{"removed": true})
+}
+
+// SessionDTO is one of the signed-in user's sessions; Current marks the one
+// making this request.
+type SessionDTO struct {
+	ID         string    `json:"id"`
+	IPAddress  string    `json:"ipAddress"`
+	UserAgent  string    `json:"userAgent"`
+	CreatedAt  time.Time `json:"createdAt"`
+	LastSeenAt time.Time `json:"lastSeenAt"`
+	Current    bool      `json:"current"`
+}
+
+func (h *AuthHandler) ListSessions(w http.ResponseWriter, r *http.Request) {
+	sessions, err := h.auth.ListSessions(r.Context(), middleware.UserFromContext(r.Context()))
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "could not load sessions")
+		return
+	}
+	current := middleware.SessionIDFromContext(r.Context())
+	dtos := make([]SessionDTO, len(sessions))
+	for i, s := range sessions {
+		dtos[i] = SessionDTO{
+			ID: s.ID, IPAddress: s.IPAddress, UserAgent: s.UserAgent,
+			CreatedAt: s.CreatedAt, LastSeenAt: s.LastSeenAt, Current: s.ID == current,
+		}
+	}
+	response.JSON(w, http.StatusOK, map[string]any{"sessions": dtos})
+}
+
+func (h *AuthHandler) RevokeSession(w http.ResponseWriter, r *http.Request) {
+	err := h.auth.RevokeSession(r.Context(), middleware.UserFromContext(r.Context()), r.PathValue("id"))
+	if errors.Is(err, service.ErrSessionNotFound) {
+		response.Err(w, http.StatusNotFound, err.Error())
+		return
+	}
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "could not sign the session out")
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]bool{"signedOut": true})
+}
+
+func (h *AuthHandler) RevokeOtherSessions(w http.ResponseWriter, r *http.Request) {
+	n, err := h.auth.RevokeOtherSessions(r.Context(), middleware.UserFromContext(r.Context()), middleware.SessionIDFromContext(r.Context()))
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "could not sign the other sessions out")
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]int64{"signedOut": n})
 }

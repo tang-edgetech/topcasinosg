@@ -36,6 +36,9 @@ type siteSettingsDTO struct {
 	footerContactJSON
 	socialDefaultsJSON
 	Footer domain.FooterConfig `json:"footer"`
+	// Security: lockout and password rules. Not secret, and the sign-in and
+	// change-password pages show the password rules.
+	Security domain.SecurityPolicy `json:"security"`
 }
 
 type socialDefaultsJSON struct {
@@ -65,6 +68,7 @@ func toSiteSettingsDTO(s *domain.SiteSettings) siteSettingsDTO {
 		footerContactJSON:  footerContactJSON(s.FooterContact),
 		socialDefaultsJSON: socialDefaultsJSON(s.SocialDefaults),
 		Footer:             withFooterBadges(s.Footer),
+		Security:           s.Security,
 	}
 }
 
@@ -91,7 +95,9 @@ func siteSettingsErrorStatus(err error) int {
 		errors.Is(err, service.ErrInvalidFooterLayout),
 		errors.Is(err, service.ErrFooterTextTooLong),
 		errors.Is(err, service.ErrTooManyFooterBadges),
-		errors.Is(err, service.ErrInvalidFooterBadge):
+		errors.Is(err, service.ErrInvalidFooterBadge),
+		errors.Is(err, service.ErrInvalidLockout),
+		errors.Is(err, service.ErrInvalidPasswordLength):
 		return http.StatusBadRequest
 	default:
 		return http.StatusInternalServerError
@@ -277,4 +283,17 @@ func (h *SiteSettingsHandler) saveUpload(w http.ResponseWriter, r *http.Request,
 	}
 
 	return url, true
+}
+
+func (h *SiteSettingsHandler) UpdateSecurityPolicy(w http.ResponseWriter, r *http.Request) {
+	var req domain.SecurityPolicy
+	if err := httpx.DecodeJSON(r, &req); err != nil {
+		response.Err(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if err := h.settings.UpdateSecurityPolicy(r.Context(), middleware.UserFromContext(r.Context()), req); err != nil {
+		response.Err(w, siteSettingsErrorStatus(err), err.Error())
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]bool{"updated": true})
 }

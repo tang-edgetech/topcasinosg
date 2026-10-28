@@ -14,6 +14,10 @@ export interface AdminUserDTO {
   otpEnrolled: boolean;
   // Number of authenticator apps set up (max 2).
   otpDevices: number;
+  // Seconds left on a failed sign-in lockout (0: not locked).
+  lockedSeconds: number;
+  // Must change their password before using the backoffice.
+  mustChangePassword: boolean;
   createdAt: string;
 }
 
@@ -64,6 +68,7 @@ export interface SiteSettingsDTO {
   ogImageUrl: string | null;
   twitterHandle: string;
   footer: FooterConfigDTO;
+  security: SecurityPolicyDTO;
 }
 
 // The public footer's arrangement, bottom bar and badges (Footer page).
@@ -591,4 +596,84 @@ export interface AuditLogDTO {
 export interface AuditActorDTO {
   id: number;
   name: string;
+}
+
+// Settings > Log — mirrors api/internal/service/system_service.go.
+export interface CommitInfoDTO {
+  hash: string;
+  short: string;
+  subject: string;
+  author: string;
+  date: string;
+}
+
+export interface SystemStatusDTO {
+  api: {
+    version: string;
+    commit: string;
+    buildDate: string | null;
+    commitDate: string | null;
+    modified: boolean;
+    goVersion: string;
+    startedAt: string;
+  };
+  repo: {
+    branch: string;
+    head: CommitInfoDTO | null;
+    remote: CommitInfoDTO | null;
+    behind: number;
+    fetchedAt: string | null;
+    error?: string;
+  };
+  deployments: DeploymentDTO[];
+  logs: LogFileInfoDTO[];
+  logDir: string;
+}
+
+export interface DeploymentDTO {
+  startedAt: string;
+  finishedAt: string | null;
+  commit: string;
+  subject: string;
+  previous: string;
+  status: "running" | "success" | "failed" | "interrupted";
+  steps: string[];
+}
+
+export interface LogFileInfoDTO {
+  key: string;
+  name: string;
+  description: string;
+  exists: boolean;
+  size: number;
+  modifiedAt: string | null;
+}
+
+export interface LogTailDTO extends LogFileInfoDTO {
+  lines: string[];
+  partial: boolean;
+}
+
+// Settings > Security: sign-in lockout and password rules. Mirrors
+// domain.SecurityPolicy in api/internal/domain/security_policy.go.
+export interface SecurityPolicyDTO {
+  // 0 turns the lockout off.
+  lockoutAttempts: number;
+  lockoutMinutes: number;
+  passwordMinLength: number;
+  passwordRequireMixed: boolean;
+  passwordRequireNumber: boolean;
+  passwordRequireSymbol: boolean;
+  // New accounts and admin-reset passwords must be changed at next sign-in.
+  forcePasswordChange: boolean;
+}
+
+// One of the signed-in user's sessions (My Account → Signed-In Devices).
+export interface SessionDTO {
+  id: string;
+  ipAddress: string;
+  userAgent: string;
+  createdAt: string;
+  lastSeenAt: string;
+  current: boolean;
 }

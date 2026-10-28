@@ -57,7 +57,7 @@ var TransferTables = []TransferTable{
 	{Name: "sidebar_links", Owner: &TransferOwner{"sidebar_sections", "section_id"}, Refs: map[string]string{"section_id": "sidebar_sections"}},
 	{Name: "site_snippets", Key: []string{"name"}},
 	{Name: "snippet_conditions", Owner: &TransferOwner{"site_snippets", "snippet_id"}, Refs: map[string]string{"snippet_id": "site_snippets", "page_id": "pages"}},
-	{Name: "site_settings", Singleton: true, Skip: []string{"site_url", "two_factor_enabled"}},
+	{Name: "site_settings", Singleton: true, Skip: []string{"site_url", "two_factor_enabled", "security_policy"}},
 }
 
 // SingletonID is the fixed ID of single-row tables (site_settings).

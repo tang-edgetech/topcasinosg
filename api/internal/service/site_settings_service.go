@@ -31,6 +31,8 @@ var (
 	ErrFooterTextTooLong        = errors.New("footer bottom bar text must be at most 200 characters each")
 	ErrTooManyFooterBadges      = errors.New("the footer can show at most 12 badges")
 	ErrInvalidFooterBadge       = errors.New("each badge needs a name (up to 100 characters) and an image; links must be http(s) or start with /")
+	ErrInvalidLockout           = errors.New("lockout: 0 (off) or 3–20 attempts, for 1–1440 minutes")
+	ErrInvalidPasswordLength    = errors.New("minimum password length must be 8–72 characters")
 )
 
 // SiteSettingsService — reads are public (the login page needs the site title
@@ -212,4 +214,24 @@ func (s *SiteSettingsService) SetTwoFactorEnabled(ctx context.Context, actor *do
 		return ErrForbidden
 	}
 	return s.settings.SetTwoFactorEnabled(ctx, enabled)
+}
+
+// UpdateSecurityPolicy saves Settings > Security's lockout and password
+// rules. New password rules apply to passwords set from now on.
+func (s *SiteSettingsService) UpdateSecurityPolicy(ctx context.Context, actor *domain.AdminUser, policy domain.SecurityPolicy) error {
+	if !canEditSiteSettings(actor) {
+		return ErrForbidden
+	}
+	if policy.LockoutAttempts != 0 &&
+		(policy.LockoutAttempts < domain.MinLockoutAttempts || policy.LockoutAttempts > domain.MaxLockoutAttempts ||
+			policy.LockoutMinutes < 1 || policy.LockoutMinutes > domain.MaxLockoutMinutes) {
+		return ErrInvalidLockout
+	}
+	if policy.LockoutAttempts == 0 && policy.LockoutMinutes == 0 {
+		policy.LockoutMinutes = domain.DefaultSecurityPolicy().LockoutMinutes
+	}
+	if policy.PasswordMinLength < domain.MinPasswordLength || policy.PasswordMinLength > domain.MaxPasswordLength {
+		return ErrInvalidPasswordLength
+	}
+	return s.settings.UpdateSecurityPolicy(ctx, policy)
 }

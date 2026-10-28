@@ -48,6 +48,7 @@ func main() {
 	users := repository.NewUserRepo(conn)
 	siteSettings := repository.NewSiteSettingsRepo(conn)
 	refreshTokens := repository.NewRefreshTokenRepo(conn)
+	sessions := repository.NewSessionRepo(conn)
 	otpDevices := repository.NewOTPDeviceRepo(conn)
 	mediaRepo := repository.NewMediaRepo(conn)
 	regionRepo := repository.NewRegionRepo(conn)
@@ -74,9 +75,9 @@ func main() {
 	}
 	fileStorage := storage.NewLocalStorage(cfg.UploadDir)
 
-	authService := service.NewAuthService(users, otpDevices, siteSettings, refreshTokens, jwtIssuer, secretbox, cfg)
-	userService := service.NewUserService(users, otpDevices, refreshTokens)
-	if created, err := userService.EnsureDefaultAccounts(context.Background()); err != nil {
+	authService := service.NewAuthService(users, otpDevices, siteSettings, refreshTokens, sessions, jwtIssuer, secretbox, cfg)
+	userService := service.NewUserService(users, otpDevices, refreshTokens, siteSettings)
+	if created, err := userService.EnsureDefaultAccounts(context.Background(), cfg.IsProduction()); err != nil {
 		log.Fatalf("default accounts: %v", err)
 	} else if len(created) > 0 {
 		log.Printf("default accounts: created %v (password: the default — change it after signing in)", created)
@@ -105,6 +106,7 @@ func main() {
 		JWT:                   jwtIssuer,
 		Users:                 users,
 		TwoFactorRequired:     authService.TwoFactorRequired,
+		SessionActive:         authService.SessionActive,
 		AuthHandler:           handler.NewAuthHandler(authService, auditService, cfg),
 		UserHandler:           handler.NewUserHandler(userService),
 		SiteSettingsHandler:   handler.NewSiteSettingsHandler(siteSettingsService, fileStorage),
@@ -125,6 +127,7 @@ func main() {
 		SidebarHandler:        handler.NewSidebarHandler(sidebarService),
 		AuditHandler:          handler.NewAuditHandler(auditService),
 		TransferHandler:       handler.NewTransferHandler(service.NewTransferService(transferRepo, fileStorage)),
+		SystemHandler:        handler.NewSystemHandler(service.NewSystemService(cfg.LogDir, cfg.RepoDir)),
 		SeoHandler:           handler.NewSeoHandler(service.NewSeoService(repository.NewSeoRepo(conn))),
 		ContentImportHandler: handler.NewContentImportHandler(service.NewContentImportService(
 			regionService, gameProviderService, licenseService, casinoService, bonusService,

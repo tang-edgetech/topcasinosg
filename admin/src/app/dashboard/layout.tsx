@@ -7,6 +7,7 @@ import { ConfirmProvider } from "@/components/ConfirmDialog";
 import { useIsDesktop } from "@/lib/use-is-desktop";
 import Sidebar from "@/components/Sidebar";
 import { IconMenu } from "@/components/Icons";
+import ForcedPasswordChange from "@/components/ForcedPasswordChange";
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -31,6 +32,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
+
+  if (user.mustChangePassword) return <ForcedPasswordChange />;
 
   const showSidebar = isDesktop || sidebarOpen;
 

@@ -22,6 +22,8 @@ type AccessClaims struct {
 	Role   string `json:"role"`
 	// OTP: the session was signed in with a 2FA code.
 	OTP bool `json:"otp,omitempty"`
+	// SID is the admin_sessions row; signing that session out ends this token too.
+	SID string `json:"sid,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -39,11 +41,12 @@ func NewJWTIssuer(secret string) *JWTIssuer {
 	return &JWTIssuer{secret: []byte(secret)}
 }
 
-func (j *JWTIssuer) GenerateAccessToken(userID int64, role string, otpVerified bool) (string, error) {
+func (j *JWTIssuer) GenerateAccessToken(userID int64, role string, otpVerified bool, sessionID string) (string, error) {
 	claims := AccessClaims{
 		UserID: userID,
 		Role:   role,
 		OTP:    otpVerified,
+		SID:    sessionID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(AccessTokenTTL)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

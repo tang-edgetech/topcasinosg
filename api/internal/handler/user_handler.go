@@ -21,6 +21,7 @@ func NewUserHandler(users *service.UserService) *UserHandler {
 }
 
 func userErrorStatus(err error) int {
+	var weak *service.WeakPasswordError
 	switch {
 	case errors.Is(err, service.ErrForbidden), errors.Is(err, service.ErrInvalidRole), errors.Is(err, service.ErrCannotActOnSelf):
 		return http.StatusForbidden
@@ -28,8 +29,10 @@ func userErrorStatus(err error) int {
 		return http.StatusConflict
 	case errors.Is(err, service.ErrUserNotFound):
 		return http.StatusNotFound
-	case errors.Is(err, service.ErrWrongCurrentPassword):
-		return http.StatusUnauthorized
+	// A wrong current password is a 400, not a 401: the session is fine, and
+	// a 401 would make the admin app try to refresh it first.
+	case errors.Is(err, service.ErrWrongCurrentPassword), errors.Is(err, service.ErrSamePassword), errors.As(err, &weak):
+		return http.StatusBadRequest
 	case errors.Is(err, service.ErrInvalidTheme), errors.Is(err, service.ErrFullNameRequired), errors.Is(err, service.ErrInvalidUsername):
 		return http.StatusBadRequest
 	default:
@@ -79,10 +82,6 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req createUserRequest
 	if err := httpx.DecodeJSON(r, &req); err != nil {
 		response.Err(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-	if len(req.Password) < 8 {
-		response.Err(w, http.StatusBadRequest, "password must be at least 8 characters")
 		return
 	}
 
@@ -163,10 +162,6 @@ func (h *UserHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if len(req.NewPassword) < 8 {
-		response.Err(w, http.StatusBadRequest, "password must be at least 8 characters")
-		return
-	}
 	if err := h.users.AdminResetPassword(r.Context(), actor, id, req.NewPassword); err != nil {
 		response.Err(w, userErrorStatus(err), err.Error())
 		return
@@ -198,10 +193,6 @@ func (h *UserHandler) SelfChangePassword(w http.ResponseWriter, r *http.Request)
 	var req selfChangePasswordRequest
 	if err := httpx.DecodeJSON(r, &req); err != nil {
 		response.Err(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-	if len(req.NewPassword) < 8 {
-		response.Err(w, http.StatusBadRequest, "password must be at least 8 characters")
 		return
 	}
 	if err := h.users.SelfChangePassword(r.Context(), actor, req.CurrentPassword, req.NewPassword); err != nil {
@@ -241,6 +232,34 @@ func (h *UserHandler) SetTheme(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.users.SetTheme(r.Context(), actor, domain.Theme(req.Theme)); err != nil {
+		response.Err(w, userErrorStatus(err), err.Error())
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]bool{"updated": true})
+}
+
+// Unlock lifts a failed sign-in lockout.
+func (h *UserHandler) Unlock(w http.ResponseWriter, r *http.Request) {
+	id, err := pathID(r)
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "invalid user id")
+		return
+	}
+	if err := h.users.Unlock(r.Context(), middleware.UserFromContext(r.Context()), id); err != nil {
+		response.Err(w, userErrorStatus(err), err.Error())
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]bool{"updated": true})
+}
+
+// SignOutEverywhere ends every session of the account.
+func (h *UserHandler) SignOutEverywhere(w http.ResponseWriter, r *http.Request) {
+	id, err := pathID(r)
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "invalid user id")
+		return
+	}
+	if err := h.users.SignOutEverywhere(r.Context(), middleware.UserFromContext(r.Context()), id); err != nil {
 		response.Err(w, userErrorStatus(err), err.Error())
 		return
 	}

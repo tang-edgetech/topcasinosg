@@ -11,6 +11,7 @@ import PageHeading from "@/components/PageHeading";
 const SETTINGS_TABS = [
   { href: "/dashboard/settings/general", label: "General" },
   { href: "/dashboard/settings/security", label: "Security" },
+  { href: "/dashboard/settings/log", label: "Log" },
 ];
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {

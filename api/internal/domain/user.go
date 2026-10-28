@@ -67,9 +67,13 @@ type AdminUser struct {
 	Status          Status
 	// OTPDeviceCount is the number of confirmed 2FA devices (admin_user_otp_devices).
 	OTPDeviceCount int
-	CreatedBy      *int64
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	// LockedSeconds is how long a sign-in lockout has left (0: not locked),
+	// worked out by the DB so it uses the DB clock that set it.
+	LockedSeconds      int
+	MustChangePassword bool
+	CreatedBy          *int64
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
 }
 
 func (u AdminUser) OTPEnrolled() bool {
@@ -140,4 +144,16 @@ func AssignableRoles(actorRole Role) []Role {
 	default:
 		return nil
 	}
+}
+
+// Session is one signed-in browser (admin_sessions). Its refresh tokens
+// rotate; the session keeps its id until it is signed out or expires.
+type Session struct {
+	ID         string
+	UserID     int64
+	IPAddress  string
+	UserAgent  string
+	CreatedAt  time.Time
+	LastSeenAt time.Time
+	ExpiresAt  time.Time
 }

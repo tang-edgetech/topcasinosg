@@ -17,15 +17,15 @@ func NewSiteSettingsRepo(db *sql.DB) *SiteSettingsRepo {
 }
 
 const siteSettingsColumns = `site_url, site_title, seo_index, seo_follow, timezone, language,
-	logo_url, favicon_url, og_image_url, twitter_handle, two_factor_enabled,
+	logo_url, favicon_url, og_image_url, twitter_handle, two_factor_enabled, security_policy,
 	footer_description, contact_address, contact_email, facebook_url, skype_url, footer_config, updated_at`
 
 func (r *SiteSettingsRepo) Get(ctx context.Context) (*domain.SiteSettings, error) {
 	var s domain.SiteSettings
-	var footerConfig sql.NullString
+	var footerConfig, securityPolicy sql.NullString
 	err := r.db.QueryRowContext(ctx, `SELECT `+siteSettingsColumns+` FROM site_settings WHERE id = 1`).Scan(
 		&s.SiteURL, &s.SiteTitle, &s.SEOIndex, &s.SEOFollow, &s.Timezone, &s.Language,
-		&s.LogoURL, &s.FaviconURL, &s.OGImageURL, &s.TwitterHandle, &s.TwoFactorEnabled,
+		&s.LogoURL, &s.FaviconURL, &s.OGImageURL, &s.TwitterHandle, &s.TwoFactorEnabled, &securityPolicy,
 		&s.FooterDescription, &s.ContactAddress, &s.ContactEmail, &s.FacebookURL, &s.SkypeURL, &footerConfig, &s.UpdatedAt,
 	)
 	if err != nil {
@@ -38,6 +38,13 @@ func (r *SiteSettingsRepo) Get(ctx context.Context) (*domain.SiteSettings, error
 		var stored domain.FooterConfig
 		if json.Unmarshal([]byte(footerConfig.String), &stored) == nil {
 			s.Footer = stored
+		}
+	}
+	s.Security = domain.DefaultSecurityPolicy()
+	if securityPolicy.Valid && securityPolicy.String != "" {
+		var stored domain.SecurityPolicy
+		if json.Unmarshal([]byte(securityPolicy.String), &stored) == nil {
+			s.Security = stored
 		}
 	}
 	return &s, nil
@@ -88,5 +95,14 @@ func (r *SiteSettingsRepo) UpdateFaviconURL(ctx context.Context, url string) err
 
 func (r *SiteSettingsRepo) SetTwoFactorEnabled(ctx context.Context, enabled bool) error {
 	_, err := r.db.ExecContext(ctx, `UPDATE site_settings SET two_factor_enabled = ? WHERE id = 1`, enabled)
+	return err
+}
+
+func (r *SiteSettingsRepo) UpdateSecurityPolicy(ctx context.Context, policy domain.SecurityPolicy) error {
+	encoded, err := json.Marshal(policy)
+	if err != nil {
+		return err
+	}
+	_, err = r.db.ExecContext(ctx, `UPDATE site_settings SET security_policy = ? WHERE id = 1`, string(encoded))
 	return err
 }

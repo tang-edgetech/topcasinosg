@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api, hasSessionCookie, SESSION_ENDED_EVENT } from "./api";
+import { api, hasSessionCookie, PASSWORD_CHANGE_REQUIRED_EVENT, SESSION_ENDED_EVENT } from "./api";
 import { useThemeContext, type Theme } from "./theme-context";
 import { useIdleSession } from "./idle-session";
 import type { AdminUserDTO } from "./types";
@@ -51,6 +51,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener(SESSION_ENDED_EVENT, onSessionEnded);
     return () => window.removeEventListener(SESSION_ENDED_EVENT, onSessionEnded);
   }, []);
+
+  // Re-read the user when the API says they must change their password, so
+  // the dashboard switches to the change-password screen.
+  useEffect(() => {
+    const onPasswordChangeRequired = () => {
+      refresh();
+    };
+    window.addEventListener(PASSWORD_CHANGE_REQUIRED_EVENT, onPasswordChangeRequired);
+    return () => window.removeEventListener(PASSWORD_CHANGE_REQUIRED_EVENT, onPasswordChangeRequired);
+  }, [refresh]);
 
   const logout = useCallback(async () => {
     await api.post("/api/admin/auth/logout");

@@ -20,13 +20,14 @@ func NewUserRepo(db *sql.DB) *UserRepo {
 
 const userColumns = `id, email, username, password_hash, full_name, role, theme_preference, status,
 	(SELECT COUNT(*) FROM admin_user_otp_devices d WHERE d.admin_user_id = admin_users.id AND d.confirmed_at IS NOT NULL),
+	GREATEST(0, COALESCE(TIMESTAMPDIFF(SECOND, NOW(), locked_until), 0)), must_change_password,
 	created_by, created_at, updated_at`
 
 func scanUser(row interface{ Scan(...any) error }) (*domain.AdminUser, error) {
 	var u domain.AdminUser
 	if err := row.Scan(
 		&u.ID, &u.Email, &u.Username, &u.PasswordHash, &u.FullName, &u.Role, &u.ThemePreference, &u.Status,
-		&u.OTPDeviceCount, &u.CreatedBy, &u.CreatedAt, &u.UpdatedAt,
+		&u.OTPDeviceCount, &u.LockedSeconds, &u.MustChangePassword, &u.CreatedBy, &u.CreatedAt, &u.UpdatedAt,
 	); err != nil {
 		return nil, err
 	}
@@ -157,5 +158,37 @@ func (r *UserRepo) UpdatePassword(ctx context.Context, id int64, passwordHash st
 
 func (r *UserRepo) UpdateTheme(ctx context.Context, id int64, theme domain.Theme) error {
 	_, err := r.db.ExecContext(ctx, `UPDATE admin_users SET theme_preference = ? WHERE id = ?`, theme, id)
+	return err
+}
+
+// RecordFailedLogin counts a wrong password or 2FA code. Once attempts in a
+// row reach maxAttempts (0: lockout off) the account is locked for minutes
+// and the count starts again; locked reports whether this attempt locked it.
+func (r *UserRepo) RecordFailedLogin(ctx context.Context, id int64, maxAttempts, minutes int) (locked bool, err error) {
+	if _, err := r.db.ExecContext(ctx, `UPDATE admin_users SET failed_login_count = failed_login_count + 1 WHERE id = ?`, id); err != nil {
+		return false, err
+	}
+	if maxAttempts <= 0 {
+		return false, nil
+	}
+	res, err := r.db.ExecContext(ctx, `
+		UPDATE admin_users SET locked_until = NOW() + INTERVAL ? MINUTE, failed_login_count = 0
+		WHERE id = ? AND failed_login_count >= ?`, minutes, id, maxAttempts)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	return n > 0, err
+}
+
+// ClearFailedLogins runs after a successful sign-in, and is the Users page's
+// "Unlock".
+func (r *UserRepo) ClearFailedLogins(ctx context.Context, id int64) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE admin_users SET failed_login_count = 0, locked_until = NULL WHERE id = ?`, id)
+	return err
+}
+
+func (r *UserRepo) SetMustChangePassword(ctx context.Context, id int64, must bool) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE admin_users SET must_change_password = ? WHERE id = ?`, must, id)
 	return err
 }

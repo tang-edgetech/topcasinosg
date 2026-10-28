@@ -3,6 +3,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -33,6 +34,12 @@ type Config struct {
 
 	// UploadDir stores logo/favicon uploads, served back at /uploads/.
 	UploadDir string
+
+	// LogDir holds the cPanel log files (deploy.log, api.log, api-process.log)
+	// shown in Settings > Log. RepoDir is the git checkout the server runs,
+	// for the commit shown there; the API runs from api/, so it defaults to "..".
+	LogDir  string
+	RepoDir string
 }
 
 func Load() Config {
@@ -51,7 +58,19 @@ func Load() Config {
 		CookiePrefix:       getEnv("COOKIE_PREFIX", ""),
 
 		UploadDir: getEnv("UPLOAD_DIR", "uploads"),
+
+		LogDir:  getEnv("LOG_DIR", defaultLogDir()),
+		RepoDir: getEnv("REPO_DIR", ".."),
 	}
+}
+
+// defaultLogDir matches deploy.sh and api-process.sh: $HOME/logs.
+func defaultLogDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "logs"
+	}
+	return filepath.Join(home, "logs")
 }
 
 func splitCSV(v string) []string {
