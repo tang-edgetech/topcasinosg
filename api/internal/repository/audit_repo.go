@@ -88,8 +88,11 @@ func (r *AuditRepo) List(ctx context.Context, f domain.AuditFilter) ([]domain.Au
 		where = append(where, "action = ?")
 		args = append(args, f.Action)
 	}
-	if f.ErrorsOnly {
+	switch f.Outcome {
+	case domain.AuditOutcomeFailed:
 		where = append(where, "status_code >= 400")
+	case domain.AuditOutcomeSuccess:
+		where = append(where, "status_code < 400")
 	}
 	if f.From != nil {
 		where = append(where, "created_at >= ?")

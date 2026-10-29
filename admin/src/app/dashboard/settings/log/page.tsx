@@ -139,15 +139,29 @@ function VersionSection({ status }: { status: SystemStatusDTO }) {
           </p>
           <p className="font-mono text-sm font-semibold text-text dark:text-text-dark">
             {build.commit ? build.commit.slice(0, 7) : build.version}
-            {build.modified && <span className="ml-2 font-sans text-xs text-secondary-800">(uncommitted changes)</span>}
+            {build.modified && (
+              <span
+                className="ml-2 font-sans text-xs text-secondary-800"
+                title="The checkout had uncommitted files when the API was built. They may be in the admin or website rather than the API."
+              >
+                (built with uncommitted files)
+              </span>
+            )}
           </p>
           <p className={MUTED_CLASS}>Started {formatTime(build.startedAt)}</p>
           {build.goVersion && <p className={MUTED_CLASS}>{build.goVersion}</p>}
-          {apiBehind && (
-            <p className="mt-2 text-sm font-semibold text-secondary-800">
-              Built from a different commit than the deployed code — check the deploy log.
-            </p>
-          )}
+          {apiBehind &&
+            (build.apiChanged === false ? (
+              <p className="mt-2 text-sm font-semibold text-success">
+                API code is up to date — later commits only changed the admin or website.
+              </p>
+            ) : (
+              <p className="mt-2 text-sm font-semibold text-secondary-800">
+                {build.apiChanged
+                  ? "The API code has changed since this build — restart the API or run a deploy to load it."
+                  : "Built from a different commit than the deployed code — check the deploy log."}
+              </p>
+            ))}
         </div>
       </div>
     </div>

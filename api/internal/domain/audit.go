@@ -16,6 +16,11 @@ const (
 
 	AuditStatusOK           = 200
 	AuditStatusFailedSignIn = 401
+
+	// AuditOutcome* filter entries by result: a status code of 400 and above
+	// is Failed, anything below is Success.
+	AuditOutcomeSuccess = "success"
+	AuditOutcomeFailed  = "error"
 )
 
 // AuditChanges maps a field name to {"from": old, "to": new}. A create has
@@ -55,7 +60,7 @@ type AuditFilter struct {
 	Action            string
 	From              *time.Time
 	To                *time.Time
-	ErrorsOnly        bool
+	Outcome           string // "", AuditOutcomeSuccess or AuditOutcomeFailed
 	IncludeRestricted bool
 	OnlyActorID       *int64
 	Page              int

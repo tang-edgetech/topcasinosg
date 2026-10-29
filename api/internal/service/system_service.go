@@ -77,6 +77,10 @@ type APIBuild struct {
 	Modified   bool       `json:"modified"`
 	GoVersion  string     `json:"goVersion"`
 	StartedAt  time.Time  `json:"startedAt"`
+	// APIChanged says whether anything under api/ changed between Commit and
+	// the checked-out HEAD, so a build from an older commit is only flagged
+	// when the API itself is out of date. Nil when git can't tell.
+	APIChanged *bool `json:"apiChanged"`
 }
 
 type Deployment struct {
@@ -123,9 +127,14 @@ func (s *SystemService) Status(ctx context.Context) SystemStatus {
 	for _, f := range systemLogFiles {
 		logs = append(logs, s.logInfo(f))
 	}
+	build := apiBuild()
+	repo := s.repoStatus(ctx)
+	if repo.Head != nil && build.Commit != "" && !strings.HasPrefix(repo.Head.Hash, build.Commit) {
+		build.APIChanged = s.apiChangedSince(ctx, build.Commit)
+	}
 	return SystemStatus{
-		API:         apiBuild(),
-		Repo:        s.repoStatus(ctx),
+		API:         build,
+		Repo:        repo,
 		Deployments: s.deployments(10),
 		Logs:        logs,
 		LogDir:      s.logDir,
@@ -312,6 +321,19 @@ func (s *SystemService) repoStatus(ctx context.Context) RepoStatus {
 		}
 	}
 	return st
+}
+
+// apiChangedSince reports whether any file under api/ differs between commit
+// and HEAD. Changes elsewhere (admin, web, shared) don't affect the API.
+func (s *SystemService) apiChangedSince(ctx context.Context, commit string) *bool {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	out, err := s.git(ctx, "diff", "--name-only", commit, "HEAD", "--", ":(top)api/")
+	if err != nil {
+		return nil
+	}
+	changed := out != ""
+	return &changed
 }
 
 func (s *SystemService) commit(ctx context.Context, ref string) (*CommitInfo, error) {

@@ -17,7 +17,8 @@ const EXPORT_PAGE_SIZE = 100;
 const MAX_EXPORT_ENTRIES = 5000;
 
 const OUTCOME_FILTERS = [
-  { value: "error", label: "Errors only" },
+  { value: "success", label: "Success" },
+  { value: "error", label: "Failed" },
 ];
 
 const SECTION_LABELS: Record<string, string> = {
@@ -104,7 +105,7 @@ function describeFilters(filters: ActivityFilters, actors: AuditActorDTO[]): str
   if (filters.actorId) parts.push(`user: ${actors.find((a) => String(a.id) === filters.actorId)?.name ?? filters.actorId}`);
   if (filters.entityType) parts.push(`section: ${SECTION_LABELS[filters.entityType] ?? filters.entityType}`);
   if (filters.action) parts.push(`action: ${actionLabel(filters.action)}`);
-  if (filters.outcome === "error") parts.push("errors only");
+  if (filters.outcome) parts.push(`status: ${filters.outcome === "error" ? "failed" : "success"}`);
   if (filters.range) parts.push(`dates: ${filters.range[0].format("YYYY-MM-DD")} to ${filters.range[1].format("YYYY-MM-DD")}`);
   return parts.join(", ");
 }
@@ -288,7 +289,7 @@ export default function ActivityPage() {
         <Select
           id="activity-filter-outcome"
           allowClear
-          placeholder="All outcomes"
+          placeholder="All statuses"
           className="min-w-36"
           value={filters.outcome}
           onChange={(value) => updateFilters({ outcome: value })}
@@ -387,13 +388,22 @@ export default function ActivityPage() {
                 <span className={isFailedActivity(log) || log.action === "delete" ? "font-medium text-danger" : ""}>
                   {actionLabel(log.action)}
                 </span>
-                {isFailedActivity(log) && (
-                  <Tag color="error" className="m-0" title={log.error}>
-                    {log.action === "login_failed" ? "Failed" : `Error ${log.statusCode}`}
-                  </Tag>
-                )}
               </span>
             ),
+          },
+          {
+            title: "Status",
+            key: "status",
+            render: (_, log) =>
+              isFailedActivity(log) ? (
+                <Tag color="error" className="m-0" title={log.error || undefined}>
+                  Failed{log.statusCode ? ` (${log.statusCode})` : ""}
+                </Tag>
+              ) : (
+                <Tag color="success" className="m-0">
+                  Success
+                </Tag>
+              ),
           },
           { title: "Section", key: "section", render: (_, log) => sectionLabel(log.entityType) },
           {
@@ -441,9 +451,9 @@ export default function ActivityPage() {
               )}
               {selected.statusCode > 0 && (
                 <>
-                  <dt className="text-text-muted dark:text-text-muted-dark">Result</dt>
+                  <dt className="text-text-muted dark:text-text-muted-dark">Status</dt>
                   <dd className={isFailedActivity(selected) ? "font-medium text-danger" : "text-success"}>
-                    {isFailedActivity(selected) ? `Failed (${selected.statusCode})` : `Succeeded (${selected.statusCode})`}
+                    {isFailedActivity(selected) ? `Failed (${selected.statusCode})` : `Success (${selected.statusCode})`}
                   </dd>
                 </>
               )}

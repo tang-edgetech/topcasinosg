@@ -83,7 +83,7 @@ func (h *AuditHandler) List(w http.ResponseWriter, r *http.Request) {
 		Action:     query.Get("action"),
 		From:       parseQueryTime(r, "from"),
 		To:         parseQueryTime(r, "to"),
-		ErrorsOnly: query.Get("outcome") == "error",
+		Outcome:    query.Get("outcome"),
 		Page:       page,
 		PageSize:   pageSize,
 	}

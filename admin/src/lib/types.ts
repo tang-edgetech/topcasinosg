@@ -619,6 +619,9 @@ export interface SystemStatusDTO {
     modified: boolean;
     goVersion: string;
     startedAt: string;
+    // Whether api/ changed between the build's commit and HEAD; null when
+    // they're the same commit or git can't tell.
+    apiChanged: boolean | null;
   };
   repo: {
     branch: string;
