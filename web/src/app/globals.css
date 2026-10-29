@@ -27,3 +27,10 @@ body {
 #site-header-tab-1 .mega-menu {
   padding-top: 0;
 }
+
+/* Outside Tailwind's layers on purpose: snippet CSS is unlayered and beats
+   any layered utility, so a snippet rule like `* { position: relative }`
+   would otherwise push this button into the page flow. */
+.scroll-to-top {
+  position: fixed;
+}
