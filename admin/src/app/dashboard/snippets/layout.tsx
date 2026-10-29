@@ -37,7 +37,8 @@ export default function SnippetsLayout({ children }: { children: React.ReactNode
       </div>
       <nav id="snippets-tabs" className="snippets-tabs flex gap-1 border-b border-border dark:border-border-dark" aria-label="Snippet types">
         {SNIPPET_TABS.map((tab) => {
-          const active = pathname === tab.href;
+          // Code stays highlighted on its add/edit routes (code/new, code/{id}).
+          const active = pathname === tab.href || (tab.href !== "/dashboard/snippets" && pathname.startsWith(`${tab.href}/`));
           return (
             <Link
               key={tab.href}
