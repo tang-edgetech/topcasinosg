@@ -1,14 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Checkbox, Input, Modal, Radio, Select, Space, Tabs, App as AntApp } from "antd";
 import { api, ApiError } from "@/lib/api";
 import { useConfirm } from "@/components/ConfirmDialog";
 import IconButton from "@/components/IconButton";
 import {
+  IconAlignCenter,
+  IconAlignJustify,
+  IconAlignLeft,
+  IconAlignRight,
   IconChevronUp,
   IconChevronDown,
   IconClipboardCopy,
+  IconColumnCenter,
+  IconColumnLeft,
+  IconColumnRight,
   IconCopy,
   IconGripVertical,
   IconIndent,
@@ -62,7 +69,62 @@ const VISIBILITY_OPTIONS = [
   { cls: "section--hide-desktop", label: "Desktop" },
 ];
 const HIDE_CLASSES = VISIBILITY_OPTIONS.map((o) => o.cls);
-const PRESET_CLASSES = [TIGHT_TOP_CLASS, DIVIDER_TOP_CLASS, WIDE_CONTENT_CLASS, ...WIDTH_CLASSES, ...HIDE_CLASSES];
+// Style tab "Layout": per-device content max width, column position and text
+// alignment for any component, as section--{prop}-{device}-{value} classes
+// (shared/theme/sections.css). Each device is set on its own; "" = Default,
+// the component's own layout. Options with an icon show as a row of icon
+// buttons instead of a dropdown.
+type LayoutOption = { value: string; label: string; icon?: ReactNode };
+const LAYOUT_DEVICES = [
+  { code: "d", label: "Desktop" },
+  { code: "t", label: "Tablet" },
+  { code: "m", label: "Mobile" },
+];
+const LAYOUT_PROPS: { prop: string; label: string; options: LayoutOption[] }[] = [
+  {
+    prop: "maxw",
+    label: "Content max width",
+    options: [{ value: "", label: "Default" }, ...[400, 480, 560, 640, 720, 800, 960, 1080].map((px) => ({ value: String(px), label: `${px}px` }))],
+  },
+  {
+    prop: "pos",
+    label: "Column position",
+    options: [
+      { value: "", label: "Default" },
+      { value: "left", label: "Left", icon: <IconColumnLeft /> },
+      { value: "center", label: "Center", icon: <IconColumnCenter /> },
+      { value: "right", label: "Right", icon: <IconColumnRight /> },
+    ],
+  },
+  {
+    prop: "align",
+    label: "Text alignment",
+    options: [
+      { value: "", label: "Default" },
+      { value: "left", label: "Left", icon: <IconAlignLeft /> },
+      { value: "center", label: "Center", icon: <IconAlignCenter /> },
+      { value: "right", label: "Right", icon: <IconAlignRight /> },
+      { value: "justify", label: "Justify", icon: <IconAlignJustify /> },
+    ],
+  },
+];
+function layoutClass(prop: string, device: string, value: string): string {
+  return `section--${prop}-${device}-${value}`;
+}
+function layoutGroup(prop: string, device: string): string[] {
+  const options = LAYOUT_PROPS.find((p) => p.prop === prop)?.options ?? [];
+  return options.filter((o) => o.value).map((o) => layoutClass(prop, device, o.value));
+}
+const LAYOUT_CLASSES = LAYOUT_PROPS.flatMap((p) => LAYOUT_DEVICES.flatMap((d) => layoutGroup(p.prop, d.code)));
+// Vertical position of a component in a grid Container's row; "" = stretch.
+const VALIGN_OPTIONS = [
+  { value: "", label: "Stretch (default)" },
+  { value: "section--valign-top", label: "Top" },
+  { value: "section--valign-center", label: "Center" },
+  { value: "section--valign-bottom", label: "Bottom" },
+];
+const VALIGN_CLASSES = VALIGN_OPTIONS.map((o) => o.value).filter(Boolean);
+const PRESET_CLASSES = [TIGHT_TOP_CLASS, DIVIDER_TOP_CLASS, WIDE_CONTENT_CLASS, ...WIDTH_CLASSES, ...HIDE_CLASSES, ...LAYOUT_CLASSES, ...VALIGN_CLASSES];
 // Containers whose components each get a title (tab or accordion item).
 const PANEL_TITLE_LABELS: Record<string, string> = { tabs: "Tab title", accordion: "Accordion item title" };
 const PANEL_TITLE_KEY = "panelTitle";
@@ -173,12 +235,15 @@ function composeClasses(extra: string, presets: string[]): string {
   return [extra, ...presets].filter(Boolean).join(" ");
 }
 
-function widthClass(customClass: string): string {
-  return WIDTH_CLASSES.find((cls) => hasClass(customClass, cls)) ?? "";
+// The class of an exclusive preset group (grid width, a layout setting)
+// that customClass has, or "".
+function groupClass(customClass: string, group: string[]): string {
+  return group.find((cls) => hasClass(customClass, cls)) ?? "";
 }
 
-function setWidthClass(customClass: string, cls: string): string {
-  const presets = PRESET_CLASSES.filter((c) => !WIDTH_CLASSES.includes(c) && hasClass(customClass, c));
+// Sets one class of an exclusive preset group ("" clears the group).
+function setExclusiveClass(customClass: string, group: string[], cls: string): string {
+  const presets = PRESET_CLASSES.filter((c) => !group.includes(c) && hasClass(customClass, c));
   return composeClasses(extraClasses(customClass), cls ? [...presets, cls] : presets);
 }
 
@@ -377,13 +442,14 @@ function SectionEditor({
                       <Select
                         size="small"
                         className="min-w-36"
-                        value={widthClass(section.customClass)}
-                        onChange={(cls: string) => onUpdate({ customClass: setWidthClass(section.customClass, cls) })}
+                        value={groupClass(section.customClass, WIDTH_CLASSES)}
+                        onChange={(cls: string) => onUpdate({ customClass: setExclusiveClass(section.customClass, WIDTH_CLASSES, cls) })}
                         options={WIDTH_OPTIONS}
                       />
                     </label>
                   )}
                 </div>
+                <LayoutSettings section={section} inGrid={inGrid} onUpdate={onUpdate} />
               </div>
             ),
           },
@@ -433,6 +499,94 @@ function SectionEditor({
         ]}
       />
     </StyleTabTarget.Provider>
+  );
+}
+
+// Style tab "Layout": a row per device with its content max width, column
+// position and text alignment, plus the vertical position in a grid
+// Container's row.
+function LayoutSettings({
+  section,
+  inGrid,
+  onUpdate,
+}: {
+  section: EditableSection;
+  inGrid: boolean;
+  onUpdate: (patch: Partial<EditableSection>) => void;
+}) {
+  return (
+    <div className="section-layout-settings flex flex-col gap-3 rounded-md bg-surface px-4 py-3 dark:bg-surface-muted-dark">
+      <span className="text-xs font-semibold tracking-wide text-text-muted uppercase dark:text-text-muted-dark">Layout</span>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[520px] text-sm">
+          <thead>
+            <tr className="text-left text-xs text-text-muted dark:text-text-muted-dark">
+              <th className="pr-3 pb-1 font-medium">Device</th>
+              {LAYOUT_PROPS.map((p) => (
+                <th key={p.prop} className="pr-3 pb-1 font-medium">
+                  {p.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {LAYOUT_DEVICES.map((device) => (
+              <tr key={device.code}>
+                <td className="py-1 pr-3 whitespace-nowrap text-text dark:text-text-dark">{device.label}</td>
+                {LAYOUT_PROPS.map((p) => {
+                  const group = layoutGroup(p.prop, device.code);
+                  const current = groupClass(section.customClass, group);
+                  const id = `section-${section.key}-${p.prop}-${device.code}`;
+                  const value = current ? current.slice(layoutClass(p.prop, device.code, "").length) : "";
+                  const set = (v: string) =>
+                    onUpdate({ customClass: setExclusiveClass(section.customClass, group, v ? layoutClass(p.prop, device.code, v) : "") });
+                  return (
+                    <td key={p.prop} className="py-1 pr-3">
+                      {p.options.some((o) => o.icon) ? (
+                        <Radio.Group
+                          id={id}
+                          size="small"
+                          optionType="button"
+                          buttonStyle="solid"
+                          className="layout-icon-radio flex whitespace-nowrap"
+                          aria-label={`${p.label}, ${device.label}`}
+                          value={value}
+                          onChange={(e) => set(e.target.value)}
+                        >
+                          {p.options.map((o) => (
+                            <Radio.Button key={o.value} id={`${id}-${o.value || "default"}`} value={o.value} title={o.label} aria-label={o.label}>
+                              {o.icon ? <span className="flex h-full items-center">{o.icon}</span> : o.label}
+                            </Radio.Button>
+                          ))}
+                        </Radio.Group>
+                      ) : (
+                        <Select id={id} size="small" className="w-full min-w-28" value={value} onChange={set} options={p.options} />
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {inGrid && (
+        <label className="flex items-center gap-2 text-sm">
+          Vertical position in container
+          <Select
+            size="small"
+            className="min-w-36"
+            value={groupClass(section.customClass, VALIGN_CLASSES)}
+            onChange={(cls: string) => onUpdate({ customClass: setExclusiveClass(section.customClass, VALIGN_CLASSES, cls) })}
+            options={VALIGN_OPTIONS}
+          />
+        </label>
+      )}
+      <span className="text-xs text-text-muted dark:text-text-muted-dark">
+        Default keeps the component&apos;s own layout. Max width is the content&apos;s width; position places it when it is
+        narrower than the page. Mobile is below 640px, tablet 640–1199px, desktop 1200px and up.
+      </span>
+    </div>
   );
 }
 
@@ -920,6 +1074,7 @@ export default function SectionBuilder({
         : sectionSummary(section.fields);
     const items = itemCount(section.fields);
     const hiddenOn = VISIBILITY_OPTIONS.filter((o) => hasClass(section.customClass, o.cls)).map((o) => o.label.toLowerCase());
+    const customLayout = [...LAYOUT_CLASSES, ...VALIGN_CLASSES].some((cls) => hasClass(section.customClass, cls));
     const panelLabel = section.inContainer ? (PANEL_TITLE_LABELS[containerLayout(index)] ?? null) : null;
 
     const dropHere = dropTarget?.key === section.key ? dropTarget.position : null;
@@ -974,6 +1129,11 @@ export default function SectionBuilder({
             {hiddenOn.length > 0 && (
               <span className="shrink-0 rounded-full bg-surface-muted px-2 py-0.5 text-xs text-text-muted dark:bg-surface-muted-dark dark:text-text-muted-dark">
                 Hidden on {hiddenOn.join(", ")}
+              </span>
+            )}
+            {customLayout && (
+              <span className="shrink-0 rounded-full bg-surface-muted px-2 py-0.5 text-xs text-text-muted dark:bg-surface-muted-dark dark:text-text-muted-dark">
+                Custom layout
               </span>
             )}
             <span aria-hidden="true" className="ml-auto shrink-0 text-xs text-text-muted dark:text-text-muted-dark">

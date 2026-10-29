@@ -534,3 +534,65 @@ export function IconRefresh(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+// Text alignment: lines aligned to one edge, or all full width (justify).
+export function IconAlignLeft(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 6h16M4 12h10M4 18h14" />
+    </svg>
+  );
+}
+
+export function IconAlignCenter(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 6h16M7 12h10M5 18h14" />
+    </svg>
+  );
+}
+
+export function IconAlignRight(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 6h16M10 12h10M6 18h14" />
+    </svg>
+  );
+}
+
+export function IconAlignJustify(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  );
+}
+
+// Column position: a content block against the left edge, centred, or
+// against the right edge.
+export function IconColumnLeft(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3 4v16" />
+      <rect x="6" y="7" width="9" height="10" rx="1" />
+    </svg>
+  );
+}
+
+export function IconColumnCenter(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3 4v16M21 4v16" />
+      <rect x="7.5" y="7" width="9" height="10" rx="1" />
+    </svg>
+  );
+}
+
+export function IconColumnRight(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M21 4v16" />
+      <rect x="9" y="7" width="9" height="10" rx="1" />
+    </svg>
+  );
+}

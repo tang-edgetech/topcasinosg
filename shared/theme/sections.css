@@ -929,3 +929,271 @@
     transform: translateX(calc(-50% + (var(--sidebar-w) + var(--sidebar-gap)) / 2));
   }
 }
+
+/*
+ * Style tab "Layout" (admin SectionBuilder's LAYOUT_PROPS): per-device
+ * content max width, column position and text alignment for any component,
+ * stored as preset classes in custom_class:
+ *   section--maxw-{m|t|d}-{px}, section--pos-{m|t|d}-{left|center|right},
+ *   section--align-{m|t|d}-{left|center|right|justify}.
+ * Each device is set on its own (mobile < 640px, tablet 640-1199px, desktop
+ * 1200px+, as "Hide on"); a device left on Default keeps the component's own
+ * layout. They act on the section's content box - its .section-container,
+ * or a Container's body - so they work the same for every block type. The
+ * max width is the content's own width: the box switches to content-box so
+ * the 25px gutter stays outside it.
+ */
+
+/* Mobile */
+@media (max-width: 639px) {
+  section.section.section--maxw-m-400 > :is(.section-container, .container-section__body) {
+    box-sizing: content-box;
+    width: auto;
+    max-width: 400px;
+  }
+  section.section.section--maxw-m-480 > :is(.section-container, .container-section__body) {
+    box-sizing: content-box;
+    width: auto;
+    max-width: 480px;
+  }
+  section.section.section--maxw-m-560 > :is(.section-container, .container-section__body) {
+    box-sizing: content-box;
+    width: auto;
+    max-width: 560px;
+  }
+  section.section.section--maxw-m-640 > :is(.section-container, .container-section__body) {
+    box-sizing: content-box;
+    width: auto;
+    max-width: 640px;
+  }
+  section.section.section--maxw-m-720 > :is(.section-container, .container-section__body) {
+    box-sizing: content-box;
+    width: auto;
+    max-width: 720px;
+  }
+  section.section.section--maxw-m-800 > :is(.section-container, .container-section__body) {
+    box-sizing: content-box;
+    width: auto;
+    max-width: 800px;
+  }
+  section.section.section--maxw-m-960 > :is(.section-container, .container-section__body) {
+    box-sizing: content-box;
+    width: auto;
+    max-width: 960px;
+  }
+  section.section.section--maxw-m-1080 > :is(.section-container, .container-section__body) {
+    box-sizing: content-box;
+    width: auto;
+    max-width: 1080px;
+  }
+  section.section.section--pos-m-left > :is(.section-container, .container-section__body) {
+    margin-left: 0;
+    margin-right: auto;
+  }
+  section.section.section--pos-m-center > :is(.section-container, .container-section__body) {
+    margin-left: auto;
+    margin-right: auto;
+  }
+  section.section.section--pos-m-right > :is(.section-container, .container-section__body) {
+    margin-left: auto;
+    margin-right: 0;
+  }
+  section.section.section--align-m-left > :is(.section-container, .container-section__body),
+  section.section.section--align-m-left > :is(.section-container, .container-section__body) * {
+    text-align: left;
+  }
+  section.section.section--align-m-left > :is(.section-container, .container-section__body) .section-col:is(.items-start, .items-center, .items-end) {
+    align-items: flex-start;
+  }
+  section.section.section--align-m-center > :is(.section-container, .container-section__body),
+  section.section.section--align-m-center > :is(.section-container, .container-section__body) * {
+    text-align: center;
+  }
+  section.section.section--align-m-center > :is(.section-container, .container-section__body) .section-col:is(.items-start, .items-center, .items-end) {
+    align-items: center;
+  }
+  section.section.section--align-m-right > :is(.section-container, .container-section__body),
+  section.section.section--align-m-right > :is(.section-container, .container-section__body) * {
+    text-align: right;
+  }
+  section.section.section--align-m-right > :is(.section-container, .container-section__body) .section-col:is(.items-start, .items-center, .items-end) {
+    align-items: flex-end;
+  }
+  section.section.section--align-m-justify > :is(.section-container, .container-section__body),
+  section.section.section--align-m-justify > :is(.section-container, .container-section__body) * {
+    text-align: justify;
+  }
+}
+
+/* Tablet */
+@media (min-width: 640px) and (max-width: 1199px) {
+  section.section.section--maxw-t-400 > :is(.section-container, .container-section__body) {
+    box-sizing: content-box;
+    width: auto;
+    max-width: 400px;
+  }
+  section.section.section--maxw-t-480 > :is(.section-container, .container-section__body) {
+    box-sizing: content-box;
+    width: auto;
+    max-width: 480px;
+  }
+  section.section.section--maxw-t-560 > :is(.section-container, .container-section__body) {
+    box-sizing: content-box;
+    width: auto;
+    max-width: 560px;
+  }
+  section.section.section--maxw-t-640 > :is(.section-container, .container-section__body) {
+    box-sizing: content-box;
+    width: auto;
+    max-width: 640px;
+  }
+  section.section.section--maxw-t-720 > :is(.section-container, .container-section__body) {
+    box-sizing: content-box;
+    width: auto;
+    max-width: 720px;
+  }
+  section.section.section--maxw-t-800 > :is(.section-container, .container-section__body) {
+    box-sizing: content-box;
+    width: auto;
+    max-width: 800px;
+  }
+  section.section.section--maxw-t-960 > :is(.section-container, .container-section__body) {
+    box-sizing: content-box;
+    width: auto;
+    max-width: 960px;
+  }
+  section.section.section--maxw-t-1080 > :is(.section-container, .container-section__body) {
+    box-sizing: content-box;
+    width: auto;
+    max-width: 1080px;
+  }
+  section.section.section--pos-t-left > :is(.section-container, .container-section__body) {
+    margin-left: 0;
+    margin-right: auto;
+  }
+  section.section.section--pos-t-center > :is(.section-container, .container-section__body) {
+    margin-left: auto;
+    margin-right: auto;
+  }
+  section.section.section--pos-t-right > :is(.section-container, .container-section__body) {
+    margin-left: auto;
+    margin-right: 0;
+  }
+  section.section.section--align-t-left > :is(.section-container, .container-section__body),
+  section.section.section--align-t-left > :is(.section-container, .container-section__body) * {
+    text-align: left;
+  }
+  section.section.section--align-t-left > :is(.section-container, .container-section__body) .section-col:is(.items-start, .items-center, .items-end) {
+    align-items: flex-start;
+  }
+  section.section.section--align-t-center > :is(.section-container, .container-section__body),
+  section.section.section--align-t-center > :is(.section-container, .container-section__body) * {
+    text-align: center;
+  }
+  section.section.section--align-t-center > :is(.section-container, .container-section__body) .section-col:is(.items-start, .items-center, .items-end) {
+    align-items: center;
+  }
+  section.section.section--align-t-right > :is(.section-container, .container-section__body),
+  section.section.section--align-t-right > :is(.section-container, .container-section__body) * {
+    text-align: right;
+  }
+  section.section.section--align-t-right > :is(.section-container, .container-section__body) .section-col:is(.items-start, .items-center, .items-end) {
+    align-items: flex-end;
+  }
+  section.section.section--align-t-justify > :is(.section-container, .container-section__body),
+  section.section.section--align-t-justify > :is(.section-container, .container-section__body) * {
+    text-align: justify;
+  }
+}
+
+/* Desktop */
+@media (min-width: 1200px) {
+  section.section.section--maxw-d-400 > :is(.section-container, .container-section__body) {
+    box-sizing: content-box;
+    width: auto;
+    max-width: 400px;
+  }
+  section.section.section--maxw-d-480 > :is(.section-container, .container-section__body) {
+    box-sizing: content-box;
+    width: auto;
+    max-width: 480px;
+  }
+  section.section.section--maxw-d-560 > :is(.section-container, .container-section__body) {
+    box-sizing: content-box;
+    width: auto;
+    max-width: 560px;
+  }
+  section.section.section--maxw-d-640 > :is(.section-container, .container-section__body) {
+    box-sizing: content-box;
+    width: auto;
+    max-width: 640px;
+  }
+  section.section.section--maxw-d-720 > :is(.section-container, .container-section__body) {
+    box-sizing: content-box;
+    width: auto;
+    max-width: 720px;
+  }
+  section.section.section--maxw-d-800 > :is(.section-container, .container-section__body) {
+    box-sizing: content-box;
+    width: auto;
+    max-width: 800px;
+  }
+  section.section.section--maxw-d-960 > :is(.section-container, .container-section__body) {
+    box-sizing: content-box;
+    width: auto;
+    max-width: 960px;
+  }
+  section.section.section--maxw-d-1080 > :is(.section-container, .container-section__body) {
+    box-sizing: content-box;
+    width: auto;
+    max-width: 1080px;
+  }
+  section.section.section--pos-d-left > :is(.section-container, .container-section__body) {
+    margin-left: 0;
+    margin-right: auto;
+  }
+  section.section.section--pos-d-center > :is(.section-container, .container-section__body) {
+    margin-left: auto;
+    margin-right: auto;
+  }
+  section.section.section--pos-d-right > :is(.section-container, .container-section__body) {
+    margin-left: auto;
+    margin-right: 0;
+  }
+  section.section.section--align-d-left > :is(.section-container, .container-section__body),
+  section.section.section--align-d-left > :is(.section-container, .container-section__body) * {
+    text-align: left;
+  }
+  section.section.section--align-d-left > :is(.section-container, .container-section__body) .section-col:is(.items-start, .items-center, .items-end) {
+    align-items: flex-start;
+  }
+  section.section.section--align-d-center > :is(.section-container, .container-section__body),
+  section.section.section--align-d-center > :is(.section-container, .container-section__body) * {
+    text-align: center;
+  }
+  section.section.section--align-d-center > :is(.section-container, .container-section__body) .section-col:is(.items-start, .items-center, .items-end) {
+    align-items: center;
+  }
+  section.section.section--align-d-right > :is(.section-container, .container-section__body),
+  section.section.section--align-d-right > :is(.section-container, .container-section__body) * {
+    text-align: right;
+  }
+  section.section.section--align-d-right > :is(.section-container, .container-section__body) .section-col:is(.items-start, .items-center, .items-end) {
+    align-items: flex-end;
+  }
+  section.section.section--align-d-justify > :is(.section-container, .container-section__body),
+  section.section.section--align-d-justify > :is(.section-container, .container-section__body) * {
+    text-align: justify;
+  }
+}
+
+/* Style tab "Vertical position" for a component inside a grid Container. */
+.container-section__body--grid > .section.section--valign-top {
+  align-self: start;
+}
+.container-section__body--grid > .section.section--valign-center {
+  align-self: center;
+}
+.container-section__body--grid > .section.section--valign-bottom {
+  align-self: end;
+}
