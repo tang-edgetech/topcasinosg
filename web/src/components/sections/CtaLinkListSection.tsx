@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 import { field, itemIndexes, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { sanitizeRichText } from "@/lib/sanitize-html";
+import SectionTag from "./SectionTag";
 
 // Figma "Ready to Win? Start Playing Smart in Thai Casinos": a heading,
 // short intro, and a stacked list of link buttons - outlined on desktop,
@@ -19,7 +20,7 @@ export default function CtaLinkListSection({ section }: { section: PageSection }
   const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
 
   return (
-    <section
+    <SectionTag section={section}
       id={section.customId || undefined}
       className={sectionClassName(hasBleedBg ? "section--cta-link-list section--bg" : "section--cta-link-list", section)}
       style={bgStyle as CSSProperties}
@@ -51,6 +52,6 @@ export default function CtaLinkListSection({ section }: { section: PageSection }
           </ul>
         </div>
       </div>
-    </section>
+    </SectionTag>
   );
 }

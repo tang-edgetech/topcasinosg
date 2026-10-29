@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { field, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import HorizontalSlider from "@/components/HorizontalSlider";
 import ContainerTabs from "./ContainerTabs";
+import SectionTag from "./SectionTag";
 
 const GAP_VALUES: Record<string, string> = { s: "16px", m: "30px", l: "50px" };
 const SPACE_VALUES: Record<string, string> = { none: "0px", s: "25px", m: "50px", l: "80px" };
@@ -48,9 +49,9 @@ export default function ContainerSection({ section, panels }: { section: PageSec
   const classes = ["section--container", `section--container-${layout || "stack"}`, hasBleedBg && "section--bg", light && "section--tone-light"];
 
   return (
-    <section id={section.customId || undefined} className={sectionClassName(classes.filter(Boolean).join(" "), section)} style={style}>
+    <SectionTag section={section} id={section.customId || undefined} className={sectionClassName(classes.filter(Boolean).join(" "), section)} style={style}>
       <ContainerBody layout={layout} light={light} columns={columns} text={text} panels={panels} style={bodyStyle} />
-    </section>
+    </SectionTag>
   );
 }
 

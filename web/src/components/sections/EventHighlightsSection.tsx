@@ -4,6 +4,7 @@ import { sanitizeRichText } from "@/lib/sanitize-html";
 import { getAllCasinos } from "@/app/[region]/_lib/api";
 import SwipeRow from "@/components/SwipeRow";
 import Thumbnail from "@/components/Thumbnail";
+import SectionTag from "./SectionTag";
 
 // Figma "Event Highlights": admin-authored promo cards - a navy title bar,
 // the event banner, a Brand / Event Duration strip, then Visit Site and
@@ -24,7 +25,7 @@ export default async function EventHighlightsSection({ section }: { section: Pag
   const casinoById = new Map((needsCasinos ? await getAllCasinos() : []).map((c) => [String(c.id), c]));
 
   return (
-    <section
+    <SectionTag section={section}
       id={section.customId || undefined}
       className={sectionClassName(hasBleedBg ? "section--event-highlights section--bg" : "section--event-highlights", section)}
       style={bgStyle as CSSProperties}
@@ -95,6 +96,6 @@ export default async function EventHighlightsSection({ section }: { section: Pag
           })}
         </SwipeRow>
       </div>
-    </section>
+    </SectionTag>
   );
 }

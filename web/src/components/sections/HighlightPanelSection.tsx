@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 import { field, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { sanitizeRichText } from "@/lib/sanitize-html";
+import SectionTag from "./SectionTag";
 
 const HEADING_COLOR_CLASSES: Record<string, string> = {
   primary: "text-primary-900",
@@ -46,7 +47,7 @@ export default function HighlightPanelSection({ section }: { section: PageSectio
   const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
 
   return (
-    <section
+    <SectionTag section={section}
       id={section.customId || undefined}
       className={sectionClassName(
         ["section--highlight-panel", hasBleedBg && "section--bg", dark && "section--highlight-panel-dark"].filter(Boolean).join(" "),
@@ -134,6 +135,6 @@ export default function HighlightPanelSection({ section }: { section: PageSectio
           </div>
         )}
       </div>
-    </section>
+    </SectionTag>
   );
 }

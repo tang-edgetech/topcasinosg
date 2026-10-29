@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { field, mediaUrl, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { sanitizeRichText } from "@/lib/sanitize-html";
+import SectionTag from "./SectionTag";
 
 // align "left" keeps the text to a narrow left column (Figma Home "Why Trust
 // Our Casino Reviews?", which sits beside the hero art); the default centres
@@ -25,7 +26,7 @@ export default function RichTextSection({ section }: { section: PageSection }) {
   );
 
   return (
-    <section
+    <SectionTag section={section}
       id={section.customId || undefined}
       className={sectionClassName(hasBleedBg ? "section--rich-text section--bg" : "section--rich-text", section)}
       style={bgStyle as CSSProperties}
@@ -45,6 +46,6 @@ export default function RichTextSection({ section }: { section: PageSection }) {
           </div>
         )}
       </div>
-    </section>
+    </SectionTag>
   );
 }

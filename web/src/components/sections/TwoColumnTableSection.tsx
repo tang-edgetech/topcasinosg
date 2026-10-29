@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { field, itemIndexes, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { sanitizeRichText } from "@/lib/sanitize-html";
+import SectionTag from "./SectionTag";
 
 // Figma "Comp / Table / Bonus Page - Standard": a heading, optional intro, a
 // two-column table (a tinted label column and an explanation column, header
@@ -21,7 +22,7 @@ export default function TwoColumnTableSection({ section }: { section: PageSectio
   if (rows.length === 0 && !heading) return null;
 
   return (
-    <section
+    <SectionTag section={section}
       id={section.customId || undefined}
       className={sectionClassName(hasBleedBg ? "section--two-column-table section--bg" : "section--two-column-table", section)}
       style={bgStyle as CSSProperties}
@@ -66,6 +67,6 @@ export default function TwoColumnTableSection({ section }: { section: PageSectio
           </div>
         )}
       </div>
-    </section>
+    </SectionTag>
   );
 }

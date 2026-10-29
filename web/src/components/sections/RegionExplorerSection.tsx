@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 import { field, mediaUrl, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { getRegions } from "@/app/[region]/_lib/api";
+import SectionTag from "./SectionTag";
 
 // Figma Home "Explore Online Casinos by Region": an amber gradient panel of
 // region cards (flag, "Online Casino <region>", arrow), one per active
@@ -16,7 +17,7 @@ export default async function RegionExplorerSection({ section }: { section: Page
   const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
 
   return (
-    <section
+    <SectionTag section={section}
       id={section.customId || undefined}
       className={sectionClassName(hasBleedBg ? "section--region-explorer section--bg" : "section--region-explorer", section)}
       style={bgStyle as CSSProperties}
@@ -57,6 +58,6 @@ export default async function RegionExplorerSection({ section }: { section: Page
           </div>
         </div>
       </div>
-    </section>
+    </SectionTag>
   );
 }

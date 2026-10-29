@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { field, itemIndexes, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { sanitizeRichText } from "@/lib/sanitize-html";
+import SectionTag from "./SectionTag";
 
 interface InfoCard {
   itemIndex: number;
@@ -32,7 +33,7 @@ export default function InfoCardColumnsSection({ section }: { section: PageSecti
   }
 
   return (
-    <section
+    <SectionTag section={section}
       id={section.customId || undefined}
       className={sectionClassName(hasBleedBg ? "section--info-card-columns section--bg" : "section--info-card-columns", section)}
       style={bgStyle as CSSProperties}
@@ -72,6 +73,6 @@ export default function InfoCardColumnsSection({ section }: { section: PageSecti
           ))}
         </div>
       </div>
-    </section>
+    </SectionTag>
   );
 }

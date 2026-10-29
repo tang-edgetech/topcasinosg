@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { sanitizeRichText } from "@/lib/sanitize-html";
+import SectionTag from "./SectionTag";
 
 // The wrapper every page section repeats: canonical class + editor classes,
 // optional bleed background (bgType/bgFrom/bgTo fields), custom id, and the
@@ -20,13 +21,13 @@ export function SectionShell({
 }) {
   const { hasBleedBg, style } = sectionBgStyle(section.fields, bgDefaults);
   return (
-    <section
+    <SectionTag section={section}
       id={section.customId || undefined}
       className={sectionClassName(hasBleedBg ? `section--${name} section--bg` : `section--${name}`, section)}
       style={style as CSSProperties}
     >
       <div className={`section-container relative z-10 py-[3.125rem] ${containerClassName}`}>{children}</div>
-    </section>
+    </SectionTag>
   );
 }
 

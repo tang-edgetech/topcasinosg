@@ -4,6 +4,7 @@ import { getBlacklistEntries, type BlacklistEntryDTO } from "@/app/[region]/_lib
 import HorizontalSlider from "@/components/HorizontalSlider";
 import StarRating from "@/components/StarRating";
 import CasinoLogo from "@/components/CasinoLogo";
+import SectionTag from "./SectionTag";
 
 const MAX_REASONS = 3;
 
@@ -50,7 +51,7 @@ export default async function BlacklistPreviewSection({ section }: { section: Pa
   );
 
   return (
-    <section
+    <SectionTag section={section}
       id={section.customId || undefined}
       className={sectionClassName(hasBleedBg ? "section--blacklist-preview section--bg" : "section--blacklist-preview", section)}
       style={bgStyle as CSSProperties}
@@ -66,7 +67,7 @@ export default async function BlacklistPreviewSection({ section }: { section: Pa
           </div>
         </div>
       </div>
-    </section>
+    </SectionTag>
   );
 }
 

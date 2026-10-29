@@ -1,5 +1,6 @@
 import { field, itemIndexes, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import type { CSSProperties } from "react";
+import SectionTag from "./SectionTag";
 
 // Figma "Trust Factors" / "Safety Tips" / "Your Role" pattern: a single
 // tinted callout box, split into a left label column (italic serif heading
@@ -37,7 +38,7 @@ export default function ChecklistCalloutSection({ section }: { section: PageSect
   );
 
   return (
-    <section
+    <SectionTag section={section}
       id={section.customId || undefined}
       className={sectionClassName(hasBleedBg ? "section--checklist-callout section--bg" : "section--checklist-callout", section)}
       style={bgStyle as CSSProperties}
@@ -61,6 +62,6 @@ export default function ChecklistCalloutSection({ section }: { section: PageSect
           )}
         </div>
       </div>
-    </section>
+    </SectionTag>
   );
 }

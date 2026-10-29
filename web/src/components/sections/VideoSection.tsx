@@ -1,6 +1,7 @@
 import { field, sectionClassName, type PageSection } from "@/lib/pages";
 import { mediaSizeClassName, mediaAlignClassName } from "./mediaLayout";
 import VideoEmbed, { type VideoSource } from "./VideoEmbed";
+import SectionTag from "./SectionTag";
 
 const YOUTUBE_PATTERNS = [
   /youtube\.com\/watch\?(?:.*&)?v=([\w-]{11})/,
@@ -30,7 +31,7 @@ export default function VideoSection({ section }: { section: PageSection }) {
   const align = text("align");
 
   return (
-    <section id={section.customId || undefined} className={sectionClassName("section--video", section)}>
+    <SectionTag section={section} id={section.customId || undefined} className={sectionClassName("section--video", section)}>
       <div className="section-container py-[3.125rem]">
         <div className="section-row">
           <figure className={`video-block section-col flex w-full flex-col gap-2 ${mediaSizeClassName(text("size"))} ${mediaAlignClassName(align)}`}>
@@ -39,6 +40,6 @@ export default function VideoSection({ section }: { section: PageSection }) {
           </figure>
         </div>
       </div>
-    </section>
+    </SectionTag>
   );
 }

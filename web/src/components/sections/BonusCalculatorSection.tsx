@@ -2,6 +2,7 @@
 
 import { useState, type CSSProperties } from "react";
 import { field, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
+import SectionTag from "./SectionTag";
 
 type InputKey = "depositAmount" | "bonusPercentage" | "maxBonusAmount" | "wageringRequirement" | "gameContributionRate";
 type WagerBasis = "bonus" | "deposit_bonus";
@@ -124,7 +125,7 @@ export default function BonusCalculatorSection({ section, introHtml }: { section
   );
 
   return (
-    <section
+    <SectionTag section={section}
       id={section.customId || undefined}
       className={sectionClassName(hasBleedBg ? "section--bonus-calculator section--bg" : "section--bonus-calculator", section)}
       style={bgStyle as CSSProperties}
@@ -227,7 +228,7 @@ export default function BonusCalculatorSection({ section, introHtml }: { section
           </div>
         </div>
       </div>
-    </section>
+    </SectionTag>
   );
 }
 

@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { field, headingSizeClassName, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
+import SectionTag from "./SectionTag";
 
 // Figma "Comp / Title Set": a section title with one optional word in red
 // (e.g. "Blacklisted Casinos to Avoid") and a short line of text under it,
@@ -22,7 +23,7 @@ export default function TitleSetSection({ section }: { section: PageSection }) {
   if (!heading && !body) return null;
 
   return (
-    <section
+    <SectionTag section={section}
       id={section.customId || undefined}
       className={sectionClassName(hasBleedBg ? "section--title-set section--bg" : "section--title-set", section)}
       style={bgStyle as CSSProperties}
@@ -47,6 +48,6 @@ export default function TitleSetSection({ section }: { section: PageSection }) {
           </div>
         </div>
       </div>
-    </section>
+    </SectionTag>
   );
 }

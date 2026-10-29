@@ -16,6 +16,7 @@ import CasinoLogo from "@/components/CasinoLogo";
 import { MAX_CASINOS_FOR_LOOKUP } from "@/components/data-table/loadRows";
 import ScoreDisplay from "@/components/ScoreDisplay";
 import VisitSiteLink from "@/components/VisitSiteLink";
+import SectionTag from "./SectionTag";
 
 const MAX_PROS = 4;
 
@@ -55,7 +56,7 @@ export default async function TopBonusPicksSection({ section, regionCode: pageRe
   if (picks.length === 0) return null;
 
   return (
-    <section
+    <SectionTag section={section}
       id={section.customId || undefined}
       className={sectionClassName(hasBleedBg ? "section--top-bonus-picks section--bg" : "section--top-bonus-picks", section)}
       style={bgStyle as CSSProperties}
@@ -86,7 +87,7 @@ export default async function TopBonusPicksSection({ section, regionCode: pageRe
           ))}
         </SwipeRow>
       </div>
-    </section>
+    </SectionTag>
   );
 }
 

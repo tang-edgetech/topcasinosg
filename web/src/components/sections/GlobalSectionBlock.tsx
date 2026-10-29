@@ -17,5 +17,8 @@ export default async function GlobalSectionBlock({ section, regionCode }: { sect
     ? sections.map((s) => (s.inContainer ? s : { ...s, customClass: [s.customClass, section.customClass].filter(Boolean).join(" ") }))
     : sections;
 
-  return <SectionRenderer sections={placed} regionCode={regionCode} insideGlobal />;
+  // Placed inside a Container, the global section's own sections are nested too.
+  const nested = section.nested ? placed.map((s) => ({ ...s, nested: true })) : placed;
+
+  return <SectionRenderer sections={nested} regionCode={regionCode} insideGlobal />;
 }

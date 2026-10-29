@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import Link from "next/link";
 import { field, mediaUrl, sectionClassName, sectionBgStyle, buttonClassName, type PageSection } from "@/lib/pages";
+import SectionTag from "./SectionTag";
 
 export default function HeroSection({ section }: { section: PageSection }) {
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
@@ -19,7 +20,7 @@ export default function HeroSection({ section }: { section: PageSection }) {
     .join(" ");
 
   return (
-    <section id={section.customId || undefined} className={sectionClasses} style={bgStyle as CSSProperties}>
+    <SectionTag section={section} id={section.customId || undefined} className={sectionClasses} style={bgStyle as CSSProperties}>
       {/* section > container > row > column(s), matching the same nesting
           every section follows. Columns default to grid's stretch alignment
           (no items-center override) so the image column gets a real,
@@ -52,6 +53,6 @@ export default function HeroSection({ section }: { section: PageSection }) {
           )}
         </div>
       </div>
-    </section>
+    </SectionTag>
   );
 }

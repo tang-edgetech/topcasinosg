@@ -15,6 +15,7 @@ import {
 import { sanitizeRichText } from "@/lib/sanitize-html";
 import AccordionItem from "@/components/Accordion";
 import ExpandableCard from "@/components/ExpandableCard";
+import SectionTag from "./SectionTag";
 
 const plainText = (html: string) =>
   html
@@ -60,7 +61,7 @@ export default function IconBoxGroupSection({ section }: { section: PageSection 
   const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields, { bgType: "color", bgFrom: "surface-muted" });
 
   return (
-    <section
+    <SectionTag section={section}
       id={section.customId || undefined}
       className={sectionClassName(hasBleedBg ? "section--icon-box-group section--bg" : "section--icon-box-group", section)}
       style={bgStyle as CSSProperties}
@@ -148,6 +149,6 @@ export default function IconBoxGroupSection({ section }: { section: PageSection 
           })}
         </div>
       </div>
-    </section>
+    </SectionTag>
   );
 }

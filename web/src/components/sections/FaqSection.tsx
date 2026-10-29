@@ -4,6 +4,7 @@ import { sanitizeRichText } from "@/lib/sanitize-html";
 import AccordionItem from "@/components/Accordion";
 import JsonLd from "@/components/JsonLd";
 import { plainText } from "@/lib/seo";
+import SectionTag from "./SectionTag";
 
 const FAQ_TEXT_MAX_LENGTH = 2000;
 
@@ -19,7 +20,7 @@ export default function FaqSection({ section }: { section: PageSection }) {
     .filter((item) => item.question && item.answer);
 
   return (
-    <section
+    <SectionTag section={section}
       id={section.customId || undefined}
       className={sectionClassName(hasBleedBg ? "section--faq section--bg" : "section--faq", section)}
       style={bgStyle as CSSProperties}
@@ -58,6 +59,6 @@ export default function FaqSection({ section }: { section: PageSection }) {
           </div>
         </div>
       </div>
-    </section>
+    </SectionTag>
   );
 }

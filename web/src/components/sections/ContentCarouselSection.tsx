@@ -5,6 +5,7 @@ import { getGuides } from "@/app/[region]/_lib/api";
 import { getNewsArticles } from "@/app/news/_lib/api";
 import HorizontalSlider from "@/components/HorizontalSlider";
 import Thumbnail from "@/components/Thumbnail";
+import SectionTag from "./SectionTag";
 
 interface CarouselCard {
   slug: string;
@@ -36,7 +37,7 @@ export default async function ContentCarouselSection({ section }: { section: Pag
   const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
 
   return (
-    <section
+    <SectionTag section={section}
       id={section.customId || undefined}
       className={sectionClassName(hasBleedBg ? "section--content-carousel section--bg" : "section--content-carousel", section)}
       style={bgStyle as CSSProperties}
@@ -74,7 +75,7 @@ export default async function ContentCarouselSection({ section }: { section: Pag
           </div>
         </div>
       </div>
-    </section>
+    </SectionTag>
   );
 }
 

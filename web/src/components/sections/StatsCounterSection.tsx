@@ -3,6 +3,7 @@ import { field, itemIndexes, sectionClassName, sectionBgStyle, type PageSection 
 import { getSiteStats, type SiteStat } from "@/app/[region]/_lib/api";
 import CountUpNumber from "./CountUpNumber";
 import SwipeRow from "@/components/SwipeRow";
+import SectionTag from "./SectionTag";
 
 const LIVE_SOURCES: SiteStat[] = ["casinos", "blacklist", "regions", "guides"];
 
@@ -19,7 +20,7 @@ export default async function StatsCounterSection({ section }: { section: PageSe
   const stats = sources.some((s) => LIVE_SOURCES.includes(s as SiteStat)) ? await getSiteStats() : null;
 
   return (
-    <section
+    <SectionTag section={section}
       id={section.customId || undefined}
       className={sectionClassName(hasBleedBg ? "section--stats-counter section--bg" : "section--stats-counter", section)}
       style={bgStyle as CSSProperties}
@@ -56,6 +57,6 @@ export default async function StatsCounterSection({ section }: { section: PageSe
           })}
         </SwipeRow>
       </div>
-    </section>
+    </SectionTag>
   );
 }

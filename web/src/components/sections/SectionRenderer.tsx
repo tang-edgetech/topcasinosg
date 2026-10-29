@@ -80,7 +80,7 @@ export default function SectionRenderer({
               id: child.id,
               title: panelTitle(child, index),
               visibility: visibilityClasses(child),
-              content: render(child),
+              content: render({ ...child, nested: true }),
             }))}
           />
         ) : (

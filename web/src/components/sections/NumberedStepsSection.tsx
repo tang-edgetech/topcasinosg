@@ -1,6 +1,7 @@
 import { field, itemIndexes, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { sanitizeRichText } from "@/lib/sanitize-html";
 import type { CSSProperties } from "react";
+import SectionTag from "./SectionTag";
 
 const ACCENT_CLASSES: Record<string, string> = {
   primary: "text-primary-glow",
@@ -26,7 +27,7 @@ export default function NumberedStepsSection({ section }: { section: PageSection
   const headingParts = highlightText && heading.includes(highlightText) ? heading.split(highlightText) : null;
 
   return (
-    <section
+    <SectionTag section={section}
       id={section.customId || undefined}
       className={sectionClassName(hasBleedBg ? "section--numbered-steps section--bg" : "section--numbered-steps", section)}
       style={bgStyle as CSSProperties}
@@ -81,6 +82,6 @@ export default function NumberedStepsSection({ section }: { section: PageSection
           })}
         </div>
       </div>
-    </section>
+    </SectionTag>
   );
 }

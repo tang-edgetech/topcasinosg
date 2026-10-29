@@ -3,6 +3,7 @@ import { field, sectionClassName, sectionBgStyle, type PageSection } from "@/lib
 import { getCasinos } from "@/app/[region]/_lib/api";
 import { MAX_CASINOS_FOR_LOOKUP } from "@/components/data-table/loadRows";
 import GameCasinoFinder, { type FinderCasino } from "./GameCasinoFinder";
+import SectionTag from "./SectionTag";
 
 const DEFAULT_RESULTS = 3;
 
@@ -34,7 +35,7 @@ export default async function GameCasinoFinderSection({ section, regionCode: pag
     }));
 
   return (
-    <section
+    <SectionTag section={section}
       id={section.customId || undefined}
       className={sectionClassName(hasBleedBg ? "section--game-casino-finder section--bg" : "section--game-casino-finder", section)}
       style={bgStyle as CSSProperties}
@@ -53,6 +54,6 @@ export default async function GameCasinoFinderSection({ section, regionCode: pag
           </div>
         </div>
       </div>
-    </section>
+    </SectionTag>
   );
 }

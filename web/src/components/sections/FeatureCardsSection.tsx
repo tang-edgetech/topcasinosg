@@ -2,6 +2,7 @@ import { field, itemIndexes, mediaUrl, sectionClassName, sectionBgStyle, type Pa
 import { sanitizeRichText } from "@/lib/sanitize-html";
 import type { CSSProperties } from "react";
 import Thumbnail from "@/components/Thumbnail";
+import SectionTag from "./SectionTag";
 
 // Figma "Most Trusted Payment Methods" pattern: a bordered card per item -
 // heading + description spanning the full card width, then a row below
@@ -15,7 +16,7 @@ export default function FeatureCardsSection({ section }: { section: PageSection 
   const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
 
   return (
-    <section
+    <SectionTag section={section}
       id={section.customId || undefined}
       className={sectionClassName(hasBleedBg ? "section--feature-cards section--bg" : "section--feature-cards", section)}
       style={bgStyle as CSSProperties}
@@ -84,6 +85,6 @@ export default function FeatureCardsSection({ section }: { section: PageSection 
           })}
         </div>
       </div>
-    </section>
+    </SectionTag>
   );
 }

@@ -43,7 +43,7 @@
  * .section--rich-text below) rather than narrowing a second time.
  */
 @media (min-width: 1024px) {
-  .section--hero.has-hero-image + section .section-row > .section-col:only-child {
+  .section--hero.has-hero-image + .section .section-row > .section-col:only-child {
     max-width: 50%;
     margin-inline: 0;
   }

@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { field, itemIndexes, mediaUrl, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
+import SectionTag from "./SectionTag";
 
 // Figma Home "Expert Team Behind the Reviews": heading + intro, then member
 // cards — a tinted photo panel (cut-out portrait), name, job title and a
@@ -13,7 +14,7 @@ export default function TeamGridSection({ section }: { section: PageSection }) {
   if (items.length === 0) return null;
 
   return (
-    <section
+    <SectionTag section={section}
       id={section.customId || undefined}
       className={sectionClassName(hasBleedBg ? "section--team-grid section--bg" : "section--team-grid", section)}
       style={bgStyle as CSSProperties}
@@ -60,6 +61,6 @@ export default function TeamGridSection({ section }: { section: PageSection }) {
           })}
         </div>
       </div>
-    </section>
+    </SectionTag>
   );
 }

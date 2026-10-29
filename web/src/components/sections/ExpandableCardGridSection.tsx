@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { field, itemIndexes, mediaUrl, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { sanitizeRichText } from "@/lib/sanitize-html";
 import ExpandableCard from "@/components/ExpandableCard";
+import SectionTag from "./SectionTag";
 
 // Figma region-page pattern shared by "Bonuses You Can Claim", "Trusted
 // Payment Methods", "Game Strategy & Winning Tips" and "RTP & Bonus
@@ -17,7 +18,7 @@ export default function ExpandableCardGridSection({ section }: { section: PageSe
   const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
 
   return (
-    <section
+    <SectionTag section={section}
       id={section.customId || undefined}
       className={sectionClassName(hasBleedBg ? "section--expandable-card-grid section--bg" : "section--expandable-card-grid", section)}
       style={bgStyle as CSSProperties}
@@ -78,6 +79,6 @@ export default function ExpandableCardGridSection({ section }: { section: PageSe
           </div>
         )}
       </div>
-    </section>
+    </SectionTag>
   );
 }

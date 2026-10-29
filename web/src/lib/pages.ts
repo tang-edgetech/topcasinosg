@@ -69,6 +69,9 @@ export interface PageSection {
   customClass: string;
   customId: string;
   inContainer?: boolean;
+  // Render-only: set for sections drawn inside a Container, which render as
+  // <div> instead of <section> (see SectionTag).
+  nested?: boolean;
   sortOrder: number;
   fields: PageSectionField[];
 }

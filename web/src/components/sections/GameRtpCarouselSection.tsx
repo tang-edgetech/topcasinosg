@@ -3,6 +3,7 @@ import { field, itemIndexes, mediaUrl, sectionClassName, sectionBgStyle, type Pa
 import { getAllCasinos, getRtpEntries, type RTPCategory } from "@/app/[region]/_lib/api";
 import HorizontalSlider from "@/components/HorizontalSlider";
 import Thumbnail from "@/components/Thumbnail";
+import SectionTag from "./SectionTag";
 
 const DEFAULT_LIMIT = 10;
 const RTP_CATEGORIES: RTPCategory[] = ["slot", "table", "live", "other"];
@@ -33,7 +34,7 @@ export default async function GameRtpCarouselSection({ section, regionCode: page
   if (cards.length === 0) return null;
 
   return (
-    <section
+    <SectionTag section={section}
       id={section.customId || undefined}
       className={sectionClassName(hasBleedBg ? "section--game-rtp-carousel section--bg" : "section--game-rtp-carousel", section)}
       style={bgStyle as CSSProperties}
@@ -75,7 +76,7 @@ export default async function GameRtpCarouselSection({ section, regionCode: page
           </div>
         </div>
       </div>
-    </section>
+    </SectionTag>
   );
 }
 

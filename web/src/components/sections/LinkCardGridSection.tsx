@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 import { field, itemIndexes, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { sanitizeRichText } from "@/lib/sanitize-html";
+import SectionTag from "./SectionTag";
 
 // Figma "Types of Bonuses Explained" pattern: a heading + intro, then a
 // grid of bordered cards - each a large blue title (optionally linking to
@@ -16,7 +17,7 @@ export default function LinkCardGridSection({ section }: { section: PageSection 
   const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
 
   return (
-    <section
+    <SectionTag section={section}
       id={section.customId || undefined}
       className={sectionClassName(hasBleedBg ? "section--link-card-grid section--bg" : "section--link-card-grid", section)}
       style={bgStyle as CSSProperties}
@@ -57,6 +58,6 @@ export default function LinkCardGridSection({ section }: { section: PageSection 
           })}
         </div>
       </div>
-    </section>
+    </SectionTag>
   );
 }

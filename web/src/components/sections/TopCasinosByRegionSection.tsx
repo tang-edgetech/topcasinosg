@@ -6,6 +6,7 @@ import { COLUMNS } from "@/components/data-table/columns";
 import { loadRows } from "@/components/data-table/loadRows";
 import SwipeRow from "@/components/SwipeRow";
 import { BonusPickCard } from "./TopBonusPicksSection";
+import SectionTag from "./SectionTag";
 
 const DEFAULT_COLUMNS = ["cashback", "payments", "rating", "safeIndex"];
 const DEFAULT_MORE_COUNT = 3;
@@ -90,7 +91,7 @@ export default async function TopCasinosByRegionSection({ section }: { section: 
   if (perRegion.length === 0) return null;
 
   return (
-    <section
+    <SectionTag section={section}
       id={section.customId || undefined}
       className={sectionClassName(hasBleedBg ? "section--top-casinos-by-region section--bg" : "section--top-casinos-by-region", section)}
       style={bgStyle as CSSProperties}
@@ -134,6 +135,6 @@ export default async function TopCasinosByRegionSection({ section }: { section: 
             </div>
           ))}
       </div>
-    </section>
+    </SectionTag>
   );
 }

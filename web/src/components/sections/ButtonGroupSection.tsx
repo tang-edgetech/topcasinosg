@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { buttonClassName, field, itemIndexes, sectionClassName, type PageSection } from "@/lib/pages";
+import SectionTag from "./SectionTag";
 
 const JUSTIFY_CLASSES: Record<string, string> = { left: "justify-start", center: "justify-center", right: "justify-end" };
 
@@ -19,7 +20,7 @@ export default function ButtonGroupSection({ section }: { section: PageSection }
   const align = field(section.fields, 0, "align")?.textValue ?? "left";
 
   return (
-    <section id={section.customId || undefined} className={sectionClassName("section--button-group", section)}>
+    <SectionTag section={section} id={section.customId || undefined} className={sectionClassName("section--button-group", section)}>
       <div className="section-container py-[3.125rem]">
         <div className="section-row">
           <div className={`button-group section-col flex flex-wrap gap-3 ${JUSTIFY_CLASSES[align] ?? JUSTIFY_CLASSES.left}`}>
@@ -37,6 +38,6 @@ export default function ButtonGroupSection({ section }: { section: PageSection }
           </div>
         </div>
       </div>
-    </section>
+    </SectionTag>
   );
 }

@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { field, itemIndexes, mediaUrl, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import SwipeRow from "@/components/SwipeRow";
+import SectionTag from "./SectionTag";
 
 interface Review {
   itemIndex: number;
@@ -38,7 +39,7 @@ export default function ReviewColumnsSection({ section }: { section: PageSection
   if (positive.length === 0 && complaints.length === 0) return null;
 
   return (
-    <section
+    <SectionTag section={section}
       id={section.customId || undefined}
       className={sectionClassName(hasBleedBg ? "section--review-columns section--bg" : "section--review-columns", section)}
       style={bgStyle as CSSProperties}
@@ -56,7 +57,7 @@ export default function ReviewColumnsSection({ section }: { section: PageSection
           {complaints.length > 0 && <ReviewGroup label={complaintLabel} tone="complaint" reviews={complaints} gridColumns={1} />}
         </div>
       </div>
-    </section>
+    </SectionTag>
   );
 }
 
