@@ -6,10 +6,9 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { api, ApiError } from "@/lib/api";
 import type { SnippetDTO, SnippetConditionDTO, SnippetLocation, CodeType, ConditionField, ConditionOperator, PageDTO } from "@/lib/types";
 import IconButton from "@/components/IconButton";
+import CodeEditor from "@/components/CodeEditor";
 import { IconEdit, IconTrash, IconPlus, IconClose } from "@/components/Icons";
 import { LOCATION_LABELS } from "./HeaderFooterPanel";
-
-const { TextArea } = Input;
 
 const CODE_TYPE_LABELS: Record<CodeType, string> = {
   html: "HTML",
@@ -209,8 +208,15 @@ export default function CodePanel({ snippets, pages, onReload }: { snippets: Sni
                 <InputNumber className="w-full" min={0} max={100} />
               </Form.Item>
             </div>
-            <Form.Item name="content" label="Content" rules={[{ required: true }]}>
-              <TextArea rows={8} className="font-mono" />
+            <Form.Item noStyle dependencies={["codeType"]}>
+              {({ getFieldValue }) => {
+                const codeType: CodeType = getFieldValue("codeType") ?? "html";
+                return (
+                  <Form.Item name="content" label={`Content (${CODE_TYPE_LABELS[codeType]})`} rules={[{ required: true }]}>
+                    <CodeEditor id="code-content" language={codeType} />
+                  </Form.Item>
+                );
+              }}
             </Form.Item>
 
             <div id="code-conditions" className="mb-4 flex flex-col gap-3 rounded-md bg-surface-muted p-4 dark:bg-surface-muted-dark">
