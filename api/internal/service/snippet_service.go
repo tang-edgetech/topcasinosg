@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 
 	"github.com/tang-edgetech/topcasinosg/api/internal/domain"
 	"github.com/tang-edgetech/topcasinosg/api/internal/repository"
@@ -58,6 +59,13 @@ type SnippetInput struct {
 // the public renderer or admin editor won't know how to handle. Same
 // validate-then-write shape as PageService.ReplaceSections.
 func (in SnippetInput) validate() error {
+	// Both kinds' admin forms require these; whitespace-only counts as blank.
+	if strings.TrimSpace(in.Name) == "" {
+		return ErrSnippetNameRequired
+	}
+	if strings.TrimSpace(in.Content) == "" {
+		return ErrSnippetContentRequired
+	}
 	if !in.Kind.Valid() {
 		return ErrInvalidSnippetKind
 	}

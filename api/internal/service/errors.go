@@ -58,4 +58,6 @@ var (
 	ErrInvalidCodeType         = errors.New("codeType is required (html/css/js/universal) for 'code' snippets and must be omitted for 'global' ones")
 	ErrInvalidSnippetPriority  = errors.New("priority must be between 0 and 100")
 	ErrInvalidSnippetCondition = errors.New("invalid targeting condition")
+	ErrSnippetNameRequired     = errors.New("name is required")
+	ErrSnippetContentRequired  = errors.New("content is required")
 )

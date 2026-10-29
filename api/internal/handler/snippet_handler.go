@@ -72,7 +72,8 @@ func snippetErrorStatus(err error) int {
 		return http.StatusNotFound
 	case errors.Is(err, service.ErrInvalidSnippetLocation), errors.Is(err, service.ErrInvalidSnippetKind),
 		errors.Is(err, service.ErrInvalidCodeType), errors.Is(err, service.ErrInvalidSnippetPriority),
-		errors.Is(err, service.ErrInvalidSnippetCondition):
+		errors.Is(err, service.ErrInvalidSnippetCondition), errors.Is(err, service.ErrSnippetNameRequired),
+		errors.Is(err, service.ErrSnippetContentRequired):
 		return http.StatusBadRequest
 	default:
 		return http.StatusInternalServerError
