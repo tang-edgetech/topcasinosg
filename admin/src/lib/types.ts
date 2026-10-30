@@ -647,11 +647,15 @@ export interface SystemStatusDTO {
     error?: string;
   };
   deployments: DeploymentDTO[];
-  logs: LogFileInfoDTO[];
-  logDir: string;
+  // How many deployments the list shows (1-50), and how many logged ones
+  // were removed from it.
+  deploymentLimit: number;
+  removed: number;
 }
 
 export interface DeploymentDTO {
+  // "<log timestamp>|<commit>", for resolve/remove.
+  id: string;
   startedAt: string;
   finishedAt: string | null;
   commit: string;
@@ -659,20 +663,10 @@ export interface DeploymentDTO {
   previous: string;
   status: "running" | "success" | "failed" | "interrupted";
   steps: string[];
-}
-
-export interface LogFileInfoDTO {
-  key: string;
-  name: string;
-  description: string;
-  exists: boolean;
-  size: number;
-  modifiedAt: string | null;
-}
-
-export interface LogTailDTO extends LogFileInfoDTO {
-  lines: string[];
-  partial: boolean;
+  // The end of the build output logged during this deploy.
+  output: string[];
+  // Set once a failed/interrupted deploy was marked resolved.
+  resolved: { at: string; byName: string; note: string } | null;
 }
 
 // Settings > Security: sign-in lockout and password rules. Mirrors

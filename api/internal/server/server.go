@@ -158,9 +158,11 @@ func NewRouter(deps Deps) http.Handler {
 	mux.Handle("PUT /api/admin/settings/footer", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.UpdateFooter))))
 	mux.Handle("PUT /api/admin/settings/2fa", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.SetTwoFactorEnabled))))
 	mux.Handle("PUT /api/admin/settings/security", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.UpdateSecurityPolicy))))
-	// Settings > Log: server version, deploys and log files.
+	// Settings > Log: server version and deploys; resolving/removing deploys.
 	mux.Handle("GET /api/admin/system/status", authenticate(staffOnly(http.HandlerFunc(deps.SystemHandler.Status))))
-	mux.Handle("GET /api/admin/system/logs/{key}", authenticate(staffOnly(http.HandlerFunc(deps.SystemHandler.Log))))
+	mux.Handle("PUT /api/admin/system/deployments/limit", authenticate(staffOnly(http.HandlerFunc(deps.SystemHandler.SetDeploymentLimit))))
+	mux.Handle("POST /api/admin/system/deployments/resolve", authenticate(staffOnly(http.HandlerFunc(deps.SystemHandler.ResolveDeployment))))
+	mux.Handle("POST /api/admin/system/deployments/remove", authenticate(staffOnly(http.HandlerFunc(deps.SystemHandler.RemoveDeployment))))
 	mux.Handle("POST /api/admin/settings/site/logo", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.UploadLogo))))
 	mux.Handle("POST /api/admin/settings/site/favicon", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.UploadFavicon))))
 	mux.Handle("PUT /api/admin/settings/site/logo", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.SetLogo))))

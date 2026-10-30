@@ -15,40 +15,41 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tang-edgetech/topcasinosg/api/internal/repository"
 	"github.com/tang-edgetech/topcasinosg/api/internal/version"
 )
 
-var ErrUnknownLogFile = errors.New("unknown log file")
+var (
+	ErrDeploymentNotFound       = errors.New("deployment not found in deploy.log")
+	ErrDeploymentNotResolvable  = errors.New("only a failed or interrupted deployment can be marked resolved")
+	ErrDeploymentNeedsResolving = errors.New("mark this deployment resolved before removing it")
+	ErrDeploymentRunning        = errors.New("a deployment that is still running can't be removed")
+	ErrInvalidDeploymentLimit   = errors.New("the list limit must be between 1 and 50")
+)
+
+// MaxDeploymentLimit caps how many deployments the list can show.
+const MaxDeploymentLimit = 50
+
+// Build output kept per deployment (the newest lines), enough to see why a
+// build failed without a separate log viewer.
+const maxDeploymentOutputLines = 80
 
 // SystemService reports what the server is running for Settings > Log: the
-// git checkout, the API build, recent deploys (parsed from deploy.log) and the
-// tail of the cPanel log files. Only the files in systemLogFiles can be read.
+// git checkout, the API build and recent deploys (parsed from deploy.log),
+// and records which deploys admins resolved or removed from the list.
 type SystemService struct {
 	logDir  string
 	repoDir string
+	reviews *repository.DeploymentReviewRepo
 }
 
-func NewSystemService(logDir, repoDir string) *SystemService {
-	return &SystemService{logDir: logDir, repoDir: repoDir}
-}
-
-type systemLogFile struct {
-	Key, File, Description string
-}
-
-// Written by deploy/cpanel/deploy.sh and api-process.sh (see their cron lines
-// in deploy/cpanel/README.md).
-var systemLogFiles = []systemLogFile{
-	{"api", "api.log", "API output: startup messages and errors."},
-	{"deploy", "deploy.log", "Each deploy: what was built and restarted, with build output."},
-	{"api-process", "api-process.log", "API starts, stops and automatic restarts."},
+func NewSystemService(logDir, repoDir string, reviews *repository.DeploymentReviewRepo) *SystemService {
+	return &SystemService{logDir: logDir, repoDir: repoDir, reviews: reviews}
 }
 
 // Log reads stop at this many bytes from the end of a file, so a huge log
 // can't make a request slow or large.
 const maxLogReadBytes = 2 << 20
-
-const MaxLogLines = 2000
 
 type CommitInfo struct {
 	Hash    string    `json:"hash"`
@@ -84,6 +85,8 @@ type APIBuild struct {
 }
 
 type Deployment struct {
+	// ID identifies the deployment for resolve/remove: "<log timestamp>|<commit>".
+	ID         string     `json:"id"`
 	StartedAt  time.Time  `json:"startedAt"`
 	FinishedAt *time.Time `json:"finishedAt"`
 	Commit     string     `json:"commit"`
@@ -93,106 +96,118 @@ type Deployment struct {
 	// started without this one logging an end).
 	Status string   `json:"status"`
 	Steps  []string `json:"steps"`
+	// Output is the end of the build output logged during this deploy.
+	Output []string `json:"output"`
+	// Resolved is set once an admin marked a failed/interrupted deploy resolved.
+	Resolved *DeploymentResolution `json:"resolved"`
 }
 
-type LogFileInfo struct {
-	Key         string     `json:"key"`
-	Name        string     `json:"name"`
-	Description string     `json:"description"`
-	Exists      bool       `json:"exists"`
-	Size        int64      `json:"size"`
-	ModifiedAt  *time.Time `json:"modifiedAt"`
+type DeploymentResolution struct {
+	At     time.Time `json:"at"`
+	ByName string    `json:"byName"`
+	Note   string    `json:"note"`
 }
 
 type SystemStatus struct {
-	API         APIBuild      `json:"api"`
-	Repo        RepoStatus    `json:"repo"`
-	Deployments []Deployment  `json:"deployments"`
-	Logs        []LogFileInfo `json:"logs"`
-	LogDir      string        `json:"logDir"`
-}
-
-type LogTail struct {
-	LogFileInfo
-	Lines []string `json:"lines"`
-	// Partial is true when the file is bigger than what was read, so older
-	// lines (and older matches, with errorsOnly) aren't included.
-	Partial bool `json:"partial"`
+	API         APIBuild     `json:"api"`
+	Repo        RepoStatus   `json:"repo"`
+	Deployments []Deployment `json:"deployments"`
+	// DeploymentLimit is how many deployments the list shows; Removed counts
+	// the logged deploys admins removed from it.
+	DeploymentLimit int `json:"deploymentLimit"`
+	Removed         int `json:"removed"`
 }
 
 var startedAt = time.Now()
 
-func (s *SystemService) Status(ctx context.Context) SystemStatus {
-	logs := make([]LogFileInfo, 0, len(systemLogFiles))
-	for _, f := range systemLogFiles {
-		logs = append(logs, s.logInfo(f))
+func (s *SystemService) Status(ctx context.Context) (SystemStatus, error) {
+	limit, err := s.reviews.Limit(ctx)
+	if err != nil {
+		return SystemStatus{}, err
 	}
+	reviews, err := s.reviews.All(ctx)
+	if err != nil {
+		return SystemStatus{}, err
+	}
+	// Removed deploys drop out, so the list still fills up to the limit.
+	deployments := []Deployment{}
+	removed := 0
+	for _, d := range s.deployments() {
+		rv, ok := reviews[d.ID]
+		if ok && rv.Removed {
+			removed++
+			continue
+		}
+		if ok && rv.ResolvedAt != nil {
+			d.Resolved = &DeploymentResolution{At: *rv.ResolvedAt, ByName: rv.ResolvedByName, Note: rv.ResolutionNote}
+		}
+		if len(deployments) < limit {
+			deployments = append(deployments, d)
+		}
+	}
+
 	build := apiBuild()
 	repo := s.repoStatus(ctx)
 	if repo.Head != nil && build.Commit != "" && !strings.HasPrefix(repo.Head.Hash, build.Commit) {
 		build.APIChanged = s.apiChangedSince(ctx, build.Commit)
 	}
-	return SystemStatus{
-		API:         build,
-		Repo:        repo,
-		Deployments: s.deployments(10),
-		Logs:        logs,
-		LogDir:      s.logDir,
+	return SystemStatus{API: build, Repo: repo, Deployments: deployments, DeploymentLimit: limit, Removed: removed}, nil
+}
+
+func (s *SystemService) SetDeploymentLimit(ctx context.Context, limit int) error {
+	if limit < 1 || limit > MaxDeploymentLimit {
+		return ErrInvalidDeploymentLimit
 	}
+	return s.reviews.SetLimit(ctx, limit)
 }
 
-func (s *SystemService) logInfo(f systemLogFile) LogFileInfo {
-	info := LogFileInfo{Key: f.Key, Name: f.File, Description: f.Description}
-	if st, err := os.Stat(filepath.Join(s.logDir, f.File)); err == nil && st.Mode().IsRegular() {
-		mod := st.ModTime()
-		info.Exists, info.Size, info.ModifiedAt = true, st.Size(), &mod
-	}
-	return info
-}
-
-// errorLinePattern marks the lines "errors only" keeps.
-var errorLinePattern = regexp.MustCompile(`(?i)\b(error|errors|err|fail|failed|failure|panic|fatal|denied|refused|cannot|can't|timeout|exception|killed)\b`)
-
-func IsErrorLogLine(line string) bool {
-	return errorLinePattern.MatchString(line)
-}
-
-// Tail returns the last `lines` lines of a log file, or of its error lines.
-func (s *SystemService) Tail(key string, lines int, errorsOnly bool) (*LogTail, error) {
-	var file *systemLogFile
-	for i := range systemLogFiles {
-		if systemLogFiles[i].Key == key {
-			file = &systemLogFiles[i]
+func (s *SystemService) findDeployment(id string) (*Deployment, error) {
+	for _, d := range s.deployments() {
+		if d.ID == id {
+			return &d, nil
 		}
 	}
-	if file == nil {
-		return nil, ErrUnknownLogFile
-	}
-	lines = max(1, min(lines, MaxLogLines))
+	return nil, ErrDeploymentNotFound
+}
 
-	tail := &LogTail{LogFileInfo: s.logInfo(*file), Lines: []string{}}
-	if !tail.Exists {
-		return tail, nil
-	}
-	all, partial, err := readLogEnd(filepath.Join(s.logDir, file.File))
+// ResolveDeployment marks a failed or interrupted deploy as dealt with, which
+// lets it be removed from the list.
+func (s *SystemService) ResolveDeployment(ctx context.Context, id string, by int64, note string) error {
+	d, err := s.findDeployment(id)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	tail.Partial = partial
-	if errorsOnly {
-		matched := all[:0:0]
-		for _, l := range all {
-			if IsErrorLogLine(l) {
-				matched = append(matched, l)
-			}
+	if d.Status != "failed" && d.Status != "interrupted" {
+		return ErrDeploymentNotResolvable
+	}
+	note = strings.TrimSpace(note)
+	if len([]rune(note)) > 500 {
+		note = string([]rune(note)[:500])
+	}
+	return s.reviews.Resolve(ctx, id, by, note)
+}
+
+// RemoveDeployment hides a deploy from the list (deploy.log isn't changed).
+// Successful deploys go straight away; failed or interrupted ones only once
+// resolved, so a problem can't be dismissed without someone looking at it.
+func (s *SystemService) RemoveDeployment(ctx context.Context, id string, by int64) error {
+	d, err := s.findDeployment(id)
+	if err != nil {
+		return err
+	}
+	switch d.Status {
+	case "running":
+		return ErrDeploymentRunning
+	case "failed", "interrupted":
+		reviews, err := s.reviews.All(ctx)
+		if err != nil {
+			return err
 		}
-		all = matched
+		if rv, ok := reviews[id]; !ok || rv.ResolvedAt == nil {
+			return ErrDeploymentNeedsResolving
+		}
 	}
-	if len(all) > lines {
-		all = all[len(all)-lines:]
-	}
-	tail.Lines = all
-	return tail, nil
+	return s.reviews.Remove(ctx, id, by)
 }
 
 // readLogEnd reads up to maxLogReadBytes from the end of a file as lines,
@@ -240,9 +255,9 @@ var (
 )
 
 // deployments parses deploy.log (see log() in deploy/cpanel/deploy.sh) into
-// the latest runs, newest first. Untimestamped lines are build output and
-// are left to the log viewer.
-func (s *SystemService) deployments(limit int) []Deployment {
+// runs, newest first. Untimestamped lines are build output, kept (the last
+// maxDeploymentOutputLines) on the run they were logged in.
+func (s *SystemService) deployments() []Deployment {
 	out := []Deployment{}
 	lines, _, err := readLogEnd(filepath.Join(s.logDir, "deploy.log"))
 	if err != nil {
@@ -252,6 +267,12 @@ func (s *SystemService) deployments(limit int) []Deployment {
 	for _, line := range lines {
 		m := deployLinePattern.FindStringSubmatch(line)
 		if m == nil {
+			if current != nil && current.Status == "running" && strings.TrimSpace(line) != "" {
+				current.Output = append(current.Output, line)
+				if len(current.Output) > maxDeploymentOutputLines {
+					current.Output = current.Output[1:]
+				}
+			}
 			continue
 		}
 		at, err := time.ParseInLocation("2006-01-02 15:04:05", m[1], time.Local)
@@ -264,8 +285,8 @@ func (s *SystemService) deployments(limit int) []Deployment {
 				current.Status = "interrupted"
 			}
 			out = append(out, Deployment{
-				StartedAt: at, Commit: start[1], Subject: start[2], Previous: start[3],
-				Status: "running", Steps: []string{},
+				ID: m[1] + "|" + start[1], StartedAt: at, Commit: start[1], Subject: start[2], Previous: start[3],
+				Status: "running", Steps: []string{}, Output: []string{},
 			})
 			current = &out[len(out)-1]
 			continue
@@ -282,12 +303,9 @@ func (s *SystemService) deployments(limit int) []Deployment {
 			current.Steps = append(current.Steps, msg)
 		}
 	}
-	// Newest first, at most limit.
+	// Newest first.
 	for i, j := 0, len(out)-1; i < j; i, j = i+1, j-1 {
 		out[i], out[j] = out[j], out[i]
-	}
-	if len(out) > limit {
-		out = out[:limit]
 	}
 	return out
 }

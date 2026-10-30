@@ -249,7 +249,7 @@ export const ADMIN_HELP = {
       {
         heading: "Using the log",
         points: [
-          "Filter by user, section, action, outcome (Errors only) or date range. Click an entry to see exactly what changed.",
+          "Filter by user, section, action, status (Success or Failed) or date range. Click an entry to see exactly what changed.",
           "Tick entries (or none, for everything that matches the filters) to Export them as JSON or CSV.",
           "Copy for debugging copies the entries as a ready-to-paste report, with the failed requests listed first, to hand to Claude or a developer.",
           "Editors see their own activity; Admins see everyone's.",

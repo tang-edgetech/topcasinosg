@@ -127,7 +127,7 @@ func main() {
 		SidebarHandler:        handler.NewSidebarHandler(sidebarService),
 		AuditHandler:          handler.NewAuditHandler(auditService),
 		TransferHandler:       handler.NewTransferHandler(service.NewTransferService(transferRepo, fileStorage)),
-		SystemHandler:        handler.NewSystemHandler(service.NewSystemService(cfg.LogDir, cfg.RepoDir)),
+		SystemHandler:        handler.NewSystemHandler(service.NewSystemService(cfg.LogDir, cfg.RepoDir, repository.NewDeploymentReviewRepo(conn))),
 		SeoHandler:           handler.NewSeoHandler(service.NewSeoService(repository.NewSeoRepo(conn))),
 		ContentImportHandler: handler.NewContentImportHandler(service.NewContentImportService(
 			regionService, gameProviderService, licenseService, casinoService, bonusService,

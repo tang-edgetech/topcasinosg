@@ -55,7 +55,7 @@ var ErrInvalidSidebarSections = errors.New("sidebar sections must match the exis
 var (
 	ErrInvalidSnippetLocation  = errors.New("location must be 'head', 'body', or 'footer'")
 	ErrInvalidSnippetKind      = errors.New("kind must be 'global' or 'code'")
-	ErrInvalidCodeType         = errors.New("codeType is required (html/css/js/universal) for 'code' snippets and must be omitted for 'global' ones")
+	ErrInvalidCodeType         = errors.New("codeType is required (html/css/js/jquery/universal) for 'code' snippets and must be omitted for 'global' ones")
 	ErrInvalidSnippetPriority  = errors.New("priority must be between 0 and 100")
 	ErrInvalidSnippetCondition = errors.New("invalid targeting condition")
 	ErrSnippetNameRequired     = errors.New("name is required")
