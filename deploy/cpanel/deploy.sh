@@ -41,9 +41,12 @@ log "deploying $(git log -1 --format='%h %s' "$NEW") (was ${OLD:0:7})"
 git reset --hard --quiet "$NEW"
 git fetch --quiet --tags origin
 
+# Paths are from the repo root. -C matters: build_next calls this from inside
+# an app folder, where git would read "admin/package.json" as
+# admin/admin/package.json and never see a change.
 changed() {
   [ "$FORCE" = 1 ] && return 0
-  git diff --quiet "$OLD" "$NEW" -- "$@" && return 1 || return 0
+  git -C "$REPO_DIR" diff --quiet "$OLD" "$NEW" -- "$@" && return 1 || return 0
 }
 
 # Public settings baked into both frontends at build time.
@@ -89,8 +92,13 @@ build_next() {
       path\ *) export PATH="${node#path }:$PATH" ;;
     esac
     cd "$app_root"
-    if changed "$app/package.json" "$app/package-lock.json" || [ ! -d node_modules/next ]; then
+    # Install whenever node_modules wasn't installed from this exact lockfile
+    # (stamp written after a successful install), not only when this deploy
+    # changed it — so a deploy after a failed or skipped install catches up.
+    if changed "$app/package.json" "$app/package-lock.json" || [ ! -d node_modules/next ] \
+      || ! cmp -s package-lock.json node_modules/.deploy-package-lock.json; then
       npm install --include=dev --no-audit --no-fund
+      cp package-lock.json node_modules/.deploy-package-lock.json
     fi
     # Keep the last good build so a failed build doesn't take the site down.
     rm -rf .next.prev
