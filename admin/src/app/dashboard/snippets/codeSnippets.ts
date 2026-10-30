@@ -7,6 +7,7 @@ export const CODE_TYPE_LABELS: Record<CodeType, string> = {
   html: "HTML",
   css: "CSS",
   js: "JavaScript",
+  jquery: "jQuery",
   universal: "Universal (mixed HTML/CSS/JS)",
 };
 

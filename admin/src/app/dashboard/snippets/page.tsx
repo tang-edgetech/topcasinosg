@@ -3,7 +3,8 @@
 import HeaderFooterPanel from "./HeaderFooterPanel";
 import { useSnippets } from "./useSnippets";
 
-// Snippets → Header & Footer (/dashboard/snippets). The Code tab is
+// Snippets → Header & Footer (/dashboard/snippets); add/edit are
+// header-footer/new and header-footer/{id}. The Code tab is
 // /dashboard/snippets/code.
 export default function HeaderFooterSnippetsPage() {
   const { snippets, reload } = useSnippets("global");

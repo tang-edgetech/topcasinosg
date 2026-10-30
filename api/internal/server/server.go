@@ -169,6 +169,8 @@ func NewRouter(deps Deps) http.Handler {
 	// Snippets — Super Admin and Admin. Raw HTML/JS injected into every page;
 	// same trust tier as Settings, not a content-editing capability.
 	mux.Handle("GET /api/admin/snippets", authenticate(staffOnly(http.HandlerFunc(deps.SnippetHandler.List))))
+	mux.Handle("GET /api/admin/snippets/{id}", authenticate(staffOnly(http.HandlerFunc(deps.SnippetHandler.Get))))
+	mux.Handle("GET /api/admin/snippets/{id}/revisions", authenticate(staffOnly(http.HandlerFunc(deps.SnippetHandler.Revisions))))
 	mux.Handle("POST /api/admin/snippets", authenticate(staffOnly(http.HandlerFunc(deps.SnippetHandler.Create))))
 	mux.Handle("PUT /api/admin/snippets/{id}", authenticate(staffOnly(http.HandlerFunc(deps.SnippetHandler.Update))))
 	mux.Handle("PUT /api/admin/snippets/{id}/active", authenticate(staffOnly(http.HandlerFunc(deps.SnippetHandler.SetActive))))

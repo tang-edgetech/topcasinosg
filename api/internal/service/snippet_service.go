@@ -109,21 +109,23 @@ func toDomainConditions(in []ConditionInput) []domain.SnippetCondition {
 	return conditions
 }
 
-func (s *SnippetService) Create(ctx context.Context, in SnippetInput) (*domain.SiteSnippet, error) {
+// Create and Update record each save as a revision; savedBy is the admin
+// saving it (nil when unknown).
+func (s *SnippetService) Create(ctx context.Context, in SnippetInput, savedBy *int64) (*domain.SiteSnippet, error) {
 	if err := in.validate(); err != nil {
 		return nil, err
 	}
 	id, err := s.snippets.Create(ctx, &domain.SiteSnippet{
 		Name: in.Name, Kind: in.Kind, CodeType: in.CodeType, Location: in.Location, Content: in.Content,
 		IsActive: true, SortOrder: in.SortOrder, Priority: in.Priority, Conditions: toDomainConditions(in.Conditions),
-	})
+	}, savedBy)
 	if err != nil {
 		return nil, err
 	}
 	return s.snippets.GetByID(ctx, id)
 }
 
-func (s *SnippetService) Update(ctx context.Context, id int64, in SnippetInput) error {
+func (s *SnippetService) Update(ctx context.Context, id int64, in SnippetInput, savedBy *int64) error {
 	if err := in.validate(); err != nil {
 		return err
 	}
@@ -134,7 +136,16 @@ func (s *SnippetService) Update(ctx context.Context, id int64, in SnippetInput) 
 	return s.snippets.Update(ctx, id, &domain.SiteSnippet{
 		Name: in.Name, Kind: in.Kind, CodeType: in.CodeType, Location: in.Location, Content: in.Content,
 		IsActive: existing.IsActive, SortOrder: in.SortOrder, Priority: in.Priority, Conditions: toDomainConditions(in.Conditions),
-	})
+	}, existing, savedBy)
+}
+
+// Revisions lists a snippet's saved versions, newest first. An unknown
+// snippet is ErrNotFound rather than an empty list.
+func (s *SnippetService) Revisions(ctx context.Context, id int64) ([]domain.SnippetRevision, error) {
+	if _, err := s.snippets.GetByID(ctx, id); err != nil {
+		return nil, err
+	}
+	return s.snippets.ListRevisions(ctx, id)
 }
 
 func (s *SnippetService) SetActive(ctx context.Context, id int64, active bool) error {

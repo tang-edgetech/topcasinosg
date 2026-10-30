@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"sort"
 
@@ -116,8 +117,15 @@ func (r *SnippetRepo) conditionsForSnippetIDs(ctx context.Context, ids []any) ([
 	return conditions, rows.Err()
 }
 
-func (r *SnippetRepo) Create(ctx context.Context, s *domain.SiteSnippet) (int64, error) {
-	res, err := r.db.ExecContext(ctx,
+// Create inserts the snippet and records it as its first revision.
+func (r *SnippetRepo) Create(ctx context.Context, s *domain.SiteSnippet, savedBy *int64) (int64, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	res, err := tx.ExecContext(ctx,
 		`INSERT INTO site_snippets (name, kind, code_type, location, content, is_active, sort_order, priority) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		s.Name, s.Kind, s.CodeType, s.Location, s.Content, s.IsActive, s.SortOrder, s.Priority,
 	)
@@ -128,18 +136,34 @@ func (r *SnippetRepo) Create(ctx context.Context, s *domain.SiteSnippet) (int64,
 	if err != nil {
 		return 0, err
 	}
-	if err := r.replaceConditions(ctx, r.db, id, s.Conditions); err != nil {
+	if err := r.replaceConditions(ctx, tx, id, s.Conditions); err != nil {
 		return 0, err
 	}
-	return id, nil
+	if err := addRevision(ctx, tx, id, s.Snapshot(), savedBy); err != nil {
+		return 0, err
+	}
+	return id, tx.Commit()
 }
 
-func (r *SnippetRepo) Update(ctx context.Context, id int64, s *domain.SiteSnippet) error {
+// Update saves the snippet and records the result as a new revision. A
+// snippet saved before revisions existed has none yet, so its previous state
+// is recorded first - otherwise its first edit couldn't be undone.
+func (r *SnippetRepo) Update(ctx context.Context, id int64, s *domain.SiteSnippet, previous *domain.SiteSnippet, savedBy *int64) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
+
+	var revisions int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM snippet_revisions WHERE snippet_id = ?`, id).Scan(&revisions); err != nil {
+		return err
+	}
+	if revisions == 0 && previous != nil {
+		if err := addRevision(ctx, tx, id, previous.Snapshot(), nil); err != nil {
+			return err
+		}
+	}
 
 	if _, err := tx.ExecContext(ctx,
 		`UPDATE site_snippets SET name = ?, kind = ?, code_type = ?, location = ?, content = ?, sort_order = ?, priority = ? WHERE id = ?`,
@@ -150,7 +174,56 @@ func (r *SnippetRepo) Update(ctx context.Context, id int64, s *domain.SiteSnippe
 	if err := r.replaceConditions(ctx, tx, id, s.Conditions); err != nil {
 		return err
 	}
+	if err := addRevision(ctx, tx, id, s.Snapshot(), savedBy); err != nil {
+		return err
+	}
 	return tx.Commit()
+}
+
+// addRevision stores a snapshot and drops all but the newest
+// domain.MaxSnippetRevisions for that snippet.
+func addRevision(ctx context.Context, tx *sql.Tx, snippetID int64, snapshot domain.SnippetSnapshot, savedBy *int64) error {
+	encoded, err := json.Marshal(snapshot)
+	if err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO snippet_revisions (snippet_id, snapshot, saved_by) VALUES (?, ?, ?)`, snippetID, encoded, savedBy,
+	); err != nil {
+		return err
+	}
+	// MariaDB can't LIMIT inside an IN subquery, hence the derived table.
+	_, err = tx.ExecContext(ctx, `
+		DELETE FROM snippet_revisions WHERE snippet_id = ? AND id NOT IN (
+			SELECT id FROM (SELECT id FROM snippet_revisions WHERE snippet_id = ? ORDER BY id DESC LIMIT ?) AS keep
+		)`, snippetID, snippetID, domain.MaxSnippetRevisions)
+	return err
+}
+
+// ListRevisions returns a snippet's saved versions, newest first.
+func (r *SnippetRepo) ListRevisions(ctx context.Context, snippetID int64) ([]domain.SnippetRevision, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT rv.id, rv.snippet_id, rv.snapshot, rv.saved_by, COALESCE(u.full_name, ''), rv.created_at
+		FROM snippet_revisions rv LEFT JOIN admin_users u ON u.id = rv.saved_by
+		WHERE rv.snippet_id = ? ORDER BY rv.id DESC`, snippetID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var revisions []domain.SnippetRevision
+	for rows.Next() {
+		var rv domain.SnippetRevision
+		var snapshot []byte
+		if err := rows.Scan(&rv.ID, &rv.SnippetID, &snapshot, &rv.SavedByID, &rv.SavedByName, &rv.CreatedAt); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(snapshot, &rv.Snapshot); err != nil {
+			return nil, err
+		}
+		revisions = append(revisions, rv)
+	}
+	return revisions, rows.Err()
 }
 
 // replaceConditions fully replaces a snippet's condition rows in one go —
@@ -270,7 +343,18 @@ func renderSnippetContent(s domain.SiteSnippet) string {
 		return "<style>" + s.Content + "</style>"
 	case domain.CodeTypeJS:
 		return "<script>" + s.Content + "</script>"
+	case domain.CodeTypeJQuery:
+		return "<script>" + jqueryLoader + "(function($){$(function(){\n" + s.Content + "\n});});</script>"
 	default:
 		return s.Content
 	}
 }
+
+// jqueryLoader is the start of a jQuery snippet's <script>: it calls the
+// snippet with jQuery as $, loading jQuery from its CDN first (once per page,
+// shared by every jQuery snippet) when the site doesn't already have it.
+const jqueryLoader = `(function(run){var w=window;if(w.jQuery){run(w.jQuery);return;}` +
+	`var q=w.__snippetJQuery=w.__snippetJQuery||[];q.push(run);if(q.length>1)return;` +
+	`var s=document.createElement("script");s.src="https://code.jquery.com/jquery-3.7.1.min.js";` +
+	`s.integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=";s.crossOrigin="anonymous";` +
+	`s.onload=function(){while(q.length)q.shift()(w.jQuery);};document.head.appendChild(s);})`

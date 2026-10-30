@@ -445,7 +445,7 @@ export interface PageDTO {
 
 export type SnippetLocation = "head" | "body" | "footer";
 export type SnippetKind = "global" | "code";
-export type CodeType = "html" | "css" | "js" | "universal";
+export type CodeType = "html" | "css" | "js" | "jquery" | "universal";
 export type ConditionField = "page" | "url";
 export type ConditionOperator = "is" | "is_not" | "contains" | "not_contains";
 
@@ -474,6 +474,21 @@ export interface SnippetDTO {
   conditions: SnippetConditionDTO[];
   createdAt: string;
   updatedAt: string;
+}
+
+// One saved version of a snippet (newest first, the last 5 kept) — see
+// SnippetRevisionDTO in api/internal/handler/snippet_handler.go.
+export interface SnippetRevisionDTO {
+  id: number;
+  savedByName: string;
+  createdAt: string;
+  name: string;
+  codeType: CodeType | null;
+  location: SnippetLocation;
+  content: string;
+  sortOrder: number;
+  priority: number;
+  conditions: SnippetConditionDTO[];
 }
 
 export type PageFieldType = "text" | "richtext" | "image" | "button";

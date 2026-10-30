@@ -47,18 +47,27 @@ type SnippetDTO struct {
 	UpdatedAt  time.Time      `json:"updatedAt"`
 }
 
-func toSnippetDTO(s *domain.SiteSnippet) SnippetDTO {
-	var codeType *string
-	if s.CodeType != nil {
-		v := string(*s.CodeType)
-		codeType = &v
+func toCodeTypeDTO(t *domain.CodeType) *string {
+	if t == nil {
+		return nil
 	}
-	conditions := make([]ConditionDTO, len(s.Conditions))
-	for i, c := range s.Conditions {
+	v := string(*t)
+	return &v
+}
+
+func toConditionDTOs(in []domain.SnippetCondition) []ConditionDTO {
+	conditions := make([]ConditionDTO, len(in))
+	for i, c := range in {
 		conditions[i] = ConditionDTO{
 			ID: c.ID, GroupIndex: c.GroupIndex, Field: string(c.Field), Operator: string(c.Operator), PageID: c.PageID, Value: c.Value, SortOrder: c.SortOrder,
 		}
 	}
+	return conditions
+}
+
+func toSnippetDTO(s *domain.SiteSnippet) SnippetDTO {
+	codeType := toCodeTypeDTO(s.CodeType)
+	conditions := toConditionDTOs(s.Conditions)
 	return SnippetDTO{
 		ID: s.ID, Name: s.Name, Kind: string(s.Kind), CodeType: codeType, Location: string(s.Location), Content: s.Content,
 		IsActive: s.IsActive, SortOrder: s.SortOrder, Priority: s.Priority, Conditions: conditions,
@@ -78,6 +87,66 @@ func snippetErrorStatus(err error) int {
 	default:
 		return http.StatusInternalServerError
 	}
+}
+
+// SnippetRevisionDTO is one saved version, with the fields the admin form
+// loads back when restoring it.
+type SnippetRevisionDTO struct {
+	ID          int64          `json:"id"`
+	SavedByName string         `json:"savedByName"`
+	CreatedAt   time.Time      `json:"createdAt"`
+	Name        string         `json:"name"`
+	CodeType    *string        `json:"codeType"`
+	Location    string         `json:"location"`
+	Content     string         `json:"content"`
+	SortOrder   int            `json:"sortOrder"`
+	Priority    int            `json:"priority"`
+	Conditions  []ConditionDTO `json:"conditions"`
+}
+
+// actorID is the signed-in admin's id, recorded on the revision a save makes.
+func actorID(r *http.Request) *int64 {
+	if actor := requireActor(r); actor != nil {
+		return &actor.ID
+	}
+	return nil
+}
+
+func (h *SnippetHandler) Get(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "invalid snippet id")
+		return
+	}
+	snippet, err := h.snippets.GetByID(r.Context(), id)
+	if err != nil {
+		response.Err(w, snippetErrorStatus(err), "could not load snippet")
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]any{"snippet": toSnippetDTO(snippet)})
+}
+
+func (h *SnippetHandler) Revisions(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "invalid snippet id")
+		return
+	}
+	revisions, err := h.snippets.Revisions(r.Context(), id)
+	if err != nil {
+		response.Err(w, snippetErrorStatus(err), "could not load revisions")
+		return
+	}
+	dtos := make([]SnippetRevisionDTO, len(revisions))
+	for i, rv := range revisions {
+		snap := rv.Snapshot
+		dtos[i] = SnippetRevisionDTO{
+			ID: rv.ID, SavedByName: rv.SavedByName, CreatedAt: rv.CreatedAt,
+			Name: snap.Name, CodeType: toCodeTypeDTO(snap.CodeType), Location: string(snap.Location), Content: snap.Content,
+			SortOrder: snap.SortOrder, Priority: snap.Priority, Conditions: toConditionDTOs(snap.Conditions),
+		}
+	}
+	response.JSON(w, http.StatusOK, map[string]any{"revisions": dtos})
 }
 
 func (h *SnippetHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -158,7 +227,7 @@ func (h *SnippetHandler) Create(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	snippet, err := h.snippets.Create(r.Context(), toSnippetInput(req))
+	snippet, err := h.snippets.Create(r.Context(), toSnippetInput(req), actorID(r))
 	if err != nil {
 		response.Err(w, snippetErrorStatus(err), err.Error())
 		return
@@ -177,7 +246,7 @@ func (h *SnippetHandler) Update(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if err := h.snippets.Update(r.Context(), id, toSnippetInput(req)); err != nil {
+	if err := h.snippets.Update(r.Context(), id, toSnippetInput(req), actorID(r)); err != nil {
 		response.Err(w, snippetErrorStatus(err), err.Error())
 		return
 	}

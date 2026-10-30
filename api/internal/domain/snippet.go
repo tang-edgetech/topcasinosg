@@ -45,21 +45,22 @@ func (k SnippetKind) Valid() bool {
 }
 
 // CodeType has no runtime effect beyond auto-wrapping (css -> <style>, js ->
-// <script>) — there's no PHP (or any server-side) interpreter in this
-// stack, so this is a fixed 4-value set, not an open VARCHAR like
-// page_sections.block_type.
+// <script>, jquery -> <script> run on DOM ready with $ bound) — there's no
+// PHP (or any server-side) interpreter in this stack, so this is a fixed
+// set, not an open VARCHAR like page_sections.block_type.
 type CodeType string
 
 const (
 	CodeTypeHTML      CodeType = "html"
 	CodeTypeCSS       CodeType = "css"
 	CodeTypeJS        CodeType = "js"
+	CodeTypeJQuery    CodeType = "jquery"
 	CodeTypeUniversal CodeType = "universal"
 )
 
 func (t CodeType) Valid() bool {
 	switch t {
-	case CodeTypeHTML, CodeTypeCSS, CodeTypeJS, CodeTypeUniversal:
+	case CodeTypeHTML, CodeTypeCSS, CodeTypeJS, CodeTypeJQuery, CodeTypeUniversal:
 		return true
 	default:
 		return false
@@ -188,4 +189,39 @@ func ConditionsMatch(conditions []SnippetCondition, currentPageID *int64, path s
 		}
 	}
 	return false
+}
+
+// MaxSnippetRevisions is how many saved versions each snippet keeps.
+const MaxSnippetRevisions = 5
+
+// SnippetRevision is one saved version of a snippet: a full snapshot of what
+// was saved, kept so an edit can be rolled back from the admin.
+type SnippetRevision struct {
+	ID          int64
+	SnippetID   int64
+	Snapshot    SnippetSnapshot
+	SavedByID   *int64
+	SavedByName string
+	CreatedAt   time.Time
+}
+
+// SnippetSnapshot is the editable part of a snippet, stored as JSON on a
+// revision. IsActive isn't part of it: restoring an old version shouldn't
+// switch a snippet on or off.
+type SnippetSnapshot struct {
+	Name       string             `json:"name"`
+	CodeType   *CodeType          `json:"codeType"`
+	Location   SnippetLocation    `json:"location"`
+	Content    string             `json:"content"`
+	SortOrder  int                `json:"sortOrder"`
+	Priority   int                `json:"priority"`
+	Conditions []SnippetCondition `json:"conditions"`
+}
+
+// Snapshot captures the snippet's editable fields for a revision.
+func (s *SiteSnippet) Snapshot() SnippetSnapshot {
+	return SnippetSnapshot{
+		Name: s.Name, CodeType: s.CodeType, Location: s.Location, Content: s.Content,
+		SortOrder: s.SortOrder, Priority: s.Priority, Conditions: s.Conditions,
+	}
 }
