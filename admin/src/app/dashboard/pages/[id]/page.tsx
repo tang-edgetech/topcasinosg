@@ -9,6 +9,7 @@ import type { PageDTO, PageSectionDTO } from "@/lib/types";
 import PageMetaForm from "../PageMetaForm";
 import PageSEOForm from "../PageSEOForm";
 import SectionBuilder from "../SectionBuilder";
+import PageRevisions from "../PageRevisions";
 import SaveActionBar, { type SaveAction } from "../SaveActionBar";
 import RegionTemplateNotice from "@/components/content/RegionTemplateNotice";
 
@@ -25,11 +26,25 @@ export default function EditPagePage() {
   const [contentActions, setContentActions] = useState<SaveAction[]>([]);
   const [detailsAction, setDetailsAction] = useState<SaveAction | null>(null);
   const [seoActions, setSeoActions] = useState<SaveAction[]>([]);
+  // Bumped when a revision is restored, so the Content tab reloads it.
+  const [contentVersion, setContentVersion] = useState(0);
 
   const activeActions =
     activeTab === "content" ? contentActions
     : activeTab === "details" ? (detailsAction ? [detailsAction] : [])
-    : seoActions;
+    : activeTab === "seo" ? seoActions
+    : [];
+
+  async function reloadContent() {
+    try {
+      const data = await api.get<{ page: PageDTO; sections: PageSectionDTO[] | null }>(`/api/admin/pages/${pageId}`);
+      setSections(data.sections ?? []);
+      setContentVersion((v) => v + 1);
+      setActiveTab("content");
+    } catch (err) {
+      message.error(err instanceof ApiError ? err.message : "Could not reload the page content.");
+    }
+  }
 
   useEffect(() => {
     async function load() {
@@ -83,7 +98,7 @@ export default function EditPagePage() {
           {
             key: "content",
             label: "Content",
-            children: <SectionBuilder pageId={page.id} initialSections={sections} onActionsChange={setContentActions} />,
+            children: <SectionBuilder key={contentVersion} pageId={page.id} initialSections={sections} onActionsChange={setContentActions} />,
           },
           {
             key: "details",
@@ -94,6 +109,11 @@ export default function EditPagePage() {
             key: "seo",
             label: "SEO",
             children: <PageSEOForm page={page} onSaved={(updated) => setPage(updated)} onSaveActionsChange={setSeoActions} />,
+          },
+          {
+            key: "revisions",
+            label: "Revisions",
+            children: <PageRevisions pageId={page.id} active={activeTab === "revisions"} onRestored={reloadContent} />,
           },
         ]}
       />

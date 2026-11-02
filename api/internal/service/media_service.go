@@ -171,3 +171,7 @@ func (s *MediaService) Delete(ctx context.Context, id int64) error {
 	}
 	return s.storage.Delete(ctx, m.URL)
 }
+
+func (s *MediaService) Get(ctx context.Context, id int64) (*domain.Media, error) {
+	return s.media.GetByID(ctx, id)
+}

@@ -692,3 +692,77 @@ export interface SessionDTO {
   lastSeenAt: string;
   current: boolean;
 }
+
+// Content API keys — APIKeyDTO in api/internal/handler/content_api_handler.go.
+export type APIScope = "pages" | "news" | "media";
+
+export interface APIKeyDTO {
+  id: number;
+  name: string;
+  prefix: string;
+  scopes: APIScope[];
+  createdByName: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+}
+
+// A change proposed through the Content API (AI Changes) — ContentChangeDTO
+// in api/internal/handler/content_api_handler.go. `change` holds only the
+// fields the tool sent: anything missing stays as it is.
+export interface ContentFieldInput {
+  itemIndex: number;
+  fieldKey: string;
+  fieldType: string;
+  textValue: string;
+  mediaId: number | null;
+  mediaUrl?: string | null;
+  urlValue: string;
+  sortOrder: number;
+}
+
+export interface ContentSectionInput {
+  blockType: string;
+  customClass: string;
+  customId: string;
+  inContainer: boolean;
+  fields: ContentFieldInput[];
+}
+
+export interface ContentChangeDTO {
+  id: number;
+  contentType: "page" | "news";
+  action: "create" | "update";
+  targetId: number | null;
+  label: string;
+  note: string;
+  status: "pending" | "approved" | "rejected" | "withdrawn";
+  outdated: boolean;
+  apiKeyName: string;
+  reviewNote: string;
+  reviewedByName: string;
+  reviewedAt: string | null;
+  resultId: number | null;
+  createdAt: string;
+  change: {
+    parentId?: number | null;
+    slug?: string;
+    title?: string;
+    metaTitle?: string;
+    metaDescription?: string;
+    sections?: ContentSectionInput[];
+    excerpt?: string;
+    content?: string;
+    coverMediaId?: number | null;
+  };
+}
+
+// A saved version of a page's sections — PageRevisionDTO in
+// api/internal/handler/content_api_handler.go.
+export interface PageRevisionDTO {
+  id: number;
+  savedByName: string;
+  source: "editor" | "ai_change" | "original";
+  createdAt: string;
+  sections: PageSectionDTO[];
+}

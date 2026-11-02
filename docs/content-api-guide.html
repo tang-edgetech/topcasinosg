@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TopCasinoSG — Updating Website Content with AI</title>
+<!-- Source of docs/content-api-guide.pdf. Regenerate with:
+     chrome --headless --no-pdf-header-footer --print-to-pdf=docs/content-api-guide.pdf docs/content-api-guide.html -->
+<style>
+  @page { size: A4; margin: 15mm 16mm 16mm; }
+  :root {
+    --ink: #1c2033; --muted: #5b6178; --line: #dfe2ec; --soft: #f4f5fa;
+    --brand: #2b3480; --brand-soft: #e8eaf7; --gold: #f5b800; --gold-soft: #fff6d6;
+    --green: #17804a; --green-soft: #e3f4ea; --red: #b42318; --red-soft: #fdebe9;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { margin: 0; font-family: "Segoe UI", Arial, sans-serif; font-size: 10.2pt; line-height: 1.5; color: var(--ink); background: #fff; }
+  h1, h2, h3 { line-height: 1.25; margin: 0; }
+  h2 { font-size: 17pt; color: var(--brand); margin: 0 0 4mm; padding-top: 2mm; }
+  h3 { font-size: 12pt; margin: 6mm 0 2mm; }
+  p { margin: 0 0 3mm; }
+  ul, ol { margin: 0 0 3mm; padding-left: 6mm; }
+  li { margin-bottom: 1.2mm; }
+  code, .mono { font-family: Consolas, "Courier New", monospace; font-size: 9.2pt; }
+  code { background: var(--soft); border: 1px solid var(--line); border-radius: 3px; padding: 0 1.2mm; }
+  .page { page-break-after: always; break-after: page; }
+  .page:last-child { page-break-after: auto; break-after: auto; }
+  .keep { break-inside: avoid; page-break-inside: avoid; }
+  .lead { font-size: 12pt; color: var(--muted); }
+  .eyebrow { font-size: 9pt; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-bottom: 2mm; }
+
+  /* Cover */
+  .cover { height: 260mm; display: flex; flex-direction: column; }
+  .cover-band { background: var(--brand); color: #fff; border-radius: 6mm; padding: 16mm 14mm 14mm; position: relative; overflow: hidden; }
+  .cover-band::after { content: ""; position: absolute; right: -25mm; top: -25mm; width: 80mm; height: 80mm; border-radius: 50%; background: var(--gold); opacity: .9; }
+  .cover-band .eyebrow { color: #c9cdf0; }
+  .cover h1 { font-size: 30pt; max-width: 125mm; position: relative; z-index: 1; }
+  .cover .sub { font-size: 13pt; color: #dfe2ff; margin-top: 5mm; max-width: 125mm; position: relative; z-index: 1; }
+  .cover-points { margin-top: 12mm; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5mm; }
+  .cover-point { border: 1px solid var(--line); border-radius: 4mm; padding: 5mm; }
+  .cover-point b { display: block; font-size: 11.5pt; margin-bottom: 1.5mm; color: var(--brand); }
+  .cover-point span { color: var(--muted); font-size: 9.8pt; }
+  .cover-foot { margin-top: auto; display: flex; justify-content: space-between; color: var(--muted); font-size: 9pt; border-top: 1px solid var(--line); padding-top: 4mm; }
+
+  /* Boxes */
+  .box { border-radius: 3mm; padding: 4mm 5mm; margin: 4mm 0; }
+  .box b.t { display: block; margin-bottom: 1mm; }
+  .box.info { background: var(--brand-soft); }
+  .box.tip { background: var(--gold-soft); border-left: 1.5mm solid var(--gold); }
+  .box.safe { background: var(--green-soft); border-left: 1.5mm solid var(--green); }
+  .box.warn { background: var(--red-soft); border-left: 1.5mm solid var(--red); }
+
+  /* Steps */
+  .steps { counter-reset: step; list-style: none; padding: 0; }
+  .steps > li { counter-increment: step; position: relative; padding-left: 11mm; margin-bottom: 3.5mm; }
+  .steps > li::before { content: counter(step); position: absolute; left: 0; top: -.3mm; width: 7mm; height: 7mm; border-radius: 50%; background: var(--brand); color: #fff; font-weight: 700; font-size: 9.5pt; display: flex; align-items: center; justify-content: center; }
+  .ui { font-weight: 600; background: var(--soft); border: 1px solid var(--line); border-radius: 2px; padding: 0 1.2mm; white-space: nowrap; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 9.8pt; }
+  th { text-align: left; background: var(--soft); color: var(--muted); font-size: 8.5pt; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+  th, td { padding: 2.2mm 3mm; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr { break-inside: avoid; }
+  .yes { color: var(--green); font-weight: 700; }
+  .no { color: var(--red); font-weight: 700; }
+  .verb { display: inline-block; min-width: 11mm; text-align: center; font-weight: 700; font-size: 8pt; border-radius: 2px; padding: 0 1mm; color: #fff; }
+  .verb.get { background: #2f7d5b; } .verb.post { background: var(--brand); }
+
+  /* Flow diagram */
+  .flow { margin: 5mm 0 6mm; }
+
+  /* Prompt / code blocks */
+  pre { background: #1d2135; color: #e9ebf5; border-radius: 3mm; padding: 4mm 5mm; font-family: Consolas, "Courier New", monospace; font-size: 8.6pt; line-height: 1.45; white-space: pre-wrap; word-break: break-word; margin: 2mm 0 4mm; }
+  pre .c { color: #9aa3c7; }
+  .prompt { background: #fff; color: var(--ink); border: 1.2px dashed var(--brand); }
+
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+  .faq dt { font-weight: 700; margin-top: 3.5mm; }
+  .faq dd { margin: 1mm 0 0; color: var(--ink); }
+  .toc { list-style: none; padding: 0; columns: 2; column-gap: 10mm; }
+  .toc li { border-bottom: 1px dotted var(--line); padding: 1.5mm 0; break-inside: avoid; }
+  .toc b { color: var(--brand); display: inline-block; width: 7mm; }
+  .small { font-size: 9pt; color: var(--muted); }
+  .compact td, .compact th { padding: 1.6mm 2.5mm; }
+</style>
+</head>
+<body>
+
+<!-- ============ COVER ============ -->
+<section class="page cover">
+  <div class="cover-band">
+    <div class="eyebrow">TopCasinoSG · Guide for the content team</div>
+    <h1>Updating website content with AI</h1>
+    <p class="sub">How an AI assistant can suggest changes to the website's pages and news, and how your team reviews and approves them, step by step.</p>
+  </div>
+
+  <div class="cover-points">
+    <div class="cover-point"><b>AI suggests</b><span>The assistant reads the site and writes improvements or new articles.</span></div>
+    <div class="cover-point"><b>You decide</b><span>Every suggestion waits in the dashboard until someone on your team approves it.</span></div>
+    <div class="cover-point"><b>Always undoable</b><span>Each page keeps its last 10 versions, so any change can be rolled back.</span></div>
+  </div>
+
+  <div style="margin-top:12mm">
+    <h3 style="margin-top:0">What's inside</h3>
+    <ul class="toc">
+      <li><b>1</b>How it works</li>
+      <li><b>2</b>Creating a key for the AI</li>
+      <li><b>3</b>Connecting your AI assistant</li>
+      <li><b>4</b>Reviewing AI Changes</li>
+      <li><b>5</b>Undoing a change (Revisions)</li>
+      <li><b>6</b>What the AI can and can't do</li>
+      <li><b>7</b>Keeping it safe</li>
+      <li><b>8</b>Messages you may see</li>
+      <li><b>9</b>Questions &amp; answers</li>
+      <li><b>A</b>Appendix: technical reference</li>
+    </ul>
+  </div>
+
+  <div class="cover-foot">
+    <span>Dashboard: backoffice.topcasinosg.com.sg</span>
+    <span>Version 1 · November 2026</span>
+  </div>
+</section>
+
+<!-- ============ 1. HOW IT WORKS ============ -->
+<section class="page">
+  <div class="eyebrow">Part 1</div>
+  <h2>How it works</h2>
+  <p class="lead">Think of the AI assistant as a helpful writer who can't press "Publish". It drafts the change, and your team decides whether it goes on the website.</p>
+
+  <svg class="flow" viewBox="0 0 700 190" width="100%" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial" font-size="13">
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2b3480"/></marker>
+    </defs>
+    <g>
+      <rect x="5" y="40" width="150" height="90" rx="14" fill="#e8eaf7"/>
+      <text x="80" y="75" text-anchor="middle" font-weight="700" fill="#2b3480">1. AI assistant</text>
+      <text x="80" y="96" text-anchor="middle" fill="#5b6178" font-size="11.5">reads the page and</text>
+      <text x="80" y="112" text-anchor="middle" fill="#5b6178" font-size="11.5">suggests a change</text>
+    </g>
+    <line x1="160" y1="85" x2="210" y2="85" stroke="#2b3480" stroke-width="2.5" marker-end="url(#arrow)"/>
+    <g>
+      <rect x="215" y="40" width="150" height="90" rx="14" fill="#fff6d6" stroke="#f5b800" stroke-width="2"/>
+      <text x="290" y="75" text-anchor="middle" font-weight="700" fill="#1c2033">2. AI Changes</text>
+      <text x="290" y="96" text-anchor="middle" fill="#5b6178" font-size="11.5">waits in the dashboard</text>
+      <text x="290" y="112" text-anchor="middle" fill="#5b6178" font-size="11.5">for your review</text>
+    </g>
+    <line x1="370" y1="85" x2="420" y2="85" stroke="#2b3480" stroke-width="2.5" marker-end="url(#arrow)"/>
+    <g>
+      <rect x="425" y="40" width="130" height="90" rx="14" fill="#e8eaf7"/>
+      <text x="490" y="75" text-anchor="middle" font-weight="700" fill="#2b3480">3. You review</text>
+      <text x="490" y="96" text-anchor="middle" fill="#5b6178" font-size="11.5">compare, preview,</text>
+      <text x="490" y="112" text-anchor="middle" fill="#5b6178" font-size="11.5">approve or reject</text>
+    </g>
+    <line x1="560" y1="70" x2="600" y2="40" stroke="#17804a" stroke-width="2.5" marker-end="url(#arrow)"/>
+    <line x1="560" y1="100" x2="600" y2="140" stroke="#b42318" stroke-width="2.5" marker-end="url(#arrow)"/>
+    <g>
+      <rect x="600" y="8" width="95" height="56" rx="12" fill="#e3f4ea"/>
+      <text x="647" y="32" text-anchor="middle" font-weight="700" fill="#17804a">Approved</text>
+      <text x="647" y="50" text-anchor="middle" fill="#17804a" font-size="11">goes on the site</text>
+    </g>
+    <g>
+      <rect x="600" y="118" width="95" height="56" rx="12" fill="#fdebe9"/>
+      <text x="647" y="142" text-anchor="middle" font-weight="700" fill="#b42318">Rejected</text>
+      <text x="647" y="160" text-anchor="middle" fill="#b42318" font-size="11">nothing changes</text>
+    </g>
+  </svg>
+
+  <h3>The three pieces</h3>
+  <table class="keep">
+    <tr><th style="width:30%">Piece</th><th>What it is</th><th style="width:28%">Where</th></tr>
+    <tr><td><b>API key</b></td><td>A long secret code, like a password made for software. It lets the AI assistant talk to the website, but only for what you allow.</td><td>Dashboard › <span class="ui">Settings</span> › <span class="ui">API Keys</span></td></tr>
+    <tr><td><b>AI Changes</b></td><td>The inbox where every suggestion from the AI waits. The menu shows how many are waiting.</td><td>Dashboard › <span class="ui">AI Changes</span> (under Content)</td></tr>
+    <tr><td><b>Revisions</b></td><td>The history of each page: the last 10 saved versions, ready to restore.</td><td>Any page › <span class="ui">Revisions</span> tab</td></tr>
+  </table>
+
+  <h3>What happens when you approve</h3>
+  <ul>
+    <li><b>A change to an existing page or article</b> goes on the website straight away (if that page is already published). The page's previous version is kept under Revisions.</li>
+    <li><b>A new page or article</b> is created as a <b>draft</b>. Nobody sees it until you open it and publish it the usual way.</li>
+  </ul>
+
+  <div class="box safe keep"><b class="t">The AI never publishes on its own.</b>Whatever the AI sends, nothing on the website changes until a person on your team clicks Approve.</div>
+</section>
+
+<!-- ============ 2. CREATE A KEY ============ -->
+<section class="page">
+  <div class="eyebrow">Part 2</div>
+  <h2>Creating a key for the AI</h2>
+  <p class="lead">Only a <b>Super Admin</b> or an <b>Admin</b> can create keys. It takes about a minute.</p>
+
+  <ol class="steps">
+    <li>Sign in to the dashboard and open <span class="ui">Settings</span>, then the <span class="ui">API Keys</span> tab.</li>
+    <li>Click <span class="ui">+ Create Key</span>.</li>
+    <li>Give it a <b>name</b> that says who or what uses it, for example <i>"Content team AI assistant"</i>. The name appears next to everything this key does, in AI Changes and in the Activity Log.</li>
+    <li>Tick what it may use:
+      <table style="margin-top:2mm">
+        <tr><th style="width:22%">Choice</th><th>What it allows</th></tr>
+        <tr><td><b>Pages</b></td><td>Read the website's pages and suggest changes or new pages.</td></tr>
+        <tr><td><b>News</b></td><td>Read news articles and suggest changes or new articles.</td></tr>
+        <tr><td><b>Media</b></td><td>See the Media Library and upload images to it (for use in suggested content).</td></tr>
+      </table>
+      Only tick what's needed. A key that only writes news doesn't need Pages.</li>
+    <li>Click <span class="ui">Create Key</span>. The key is shown <b>once</b>. It starts with <code>tcs_</code>. Click <span class="ui">Copy</span> and keep it somewhere safe, such as your company's password manager.</li>
+    <li>Click <span class="ui">I've copied it</span>. From now on the list shows only the first few characters, never the whole key.</li>
+  </ol>
+
+  <div class="box warn keep"><b class="t">Treat the key like a password.</b>Don't paste it in emails, chat groups, documents or screenshots. Give it only to the AI tool that needs it. If you think it has been seen by someone else, revoke it (below) and create a new one; it takes a minute.</div>
+
+  <h3>Revoking a key</h3>
+  <p>In <span class="ui">Settings</span> › <span class="ui">API Keys</span>, click <span class="ui">Revoke</span> next to the key. It stops working immediately. Suggestions it already sent stay in AI Changes, and you can still review them.</p>
+  <p>A key also stops working automatically if the admin who created it is disabled or removed. When a team member leaves, their keys go with them.</p>
+
+  <p class="small">In the key list, <b>Key</b> shows the first characters (to tell keys apart), <b>Can use</b> the permissions you ticked, and <b>Last used</b> when the AI last used it ("Never" means it hasn't been connected yet).</p>
+</section>
+
+<!-- ============ 3. CONNECT THE AI ============ -->
+<section class="page">
+  <div class="eyebrow">Part 3</div>
+  <h2>Connecting your AI assistant</h2>
+  <p class="lead">The website talks to AI tools through a <b>Content API</b>: a set of web addresses that software can call. Your AI tool needs two things: the address and the key.</p>
+
+  <table class="keep">
+    <tr><th style="width:28%">What</th><th>Value</th></tr>
+    <tr><td><b>Address</b></td><td class="mono">https://backapi.topcasinosg.com.sg/api/v1</td></tr>
+    <tr><td><b>Key</b></td><td>The <code>tcs_…</code> key you copied, sent with every request as <code>Authorization: Bearer tcs_…</code></td></tr>
+  </table>
+
+  <h3>Which AI tools can use it</h3>
+  <p>Any AI tool or automation that can call web addresses ("make HTTP requests") with a key can use it. For example:</p>
+  <ul>
+    <li><b>AI assistants with tools or actions</b>: Claude (with a connector or Claude Code), ChatGPT custom GPTs with Actions.</li>
+    <li><b>Automation platforms</b>: Make, Zapier, n8n (e.g. "every Monday, draft a news post from this feed").</li>
+    <li><b>Your own scripts</b>, if you have a developer.</li>
+  </ul>
+  <div class="box info keep"><b class="t">Coming next</b>A ready-made connector, so Claude (and other assistants that support connectors) can be linked by pasting the address and key into its settings, with no setup by a developer. Until then, whoever sets up your AI tool can use the technical reference at the end of this guide.</div>
+
+  <div class="box tip keep"><b class="t">Tip: ask for small, clear changes</b>"Update the introduction on the Thailand page for 2026" works better than "improve the website". Small suggestions are quicker to review.</div>
+</section>
+
+<section class="page">
+  <div class="eyebrow">Part 3, continued</div>
+  <h3 style="margin-top:0; font-size:14pt; color:var(--brand)">Instructions to give your AI assistant</h3>
+  <p>Paste the text below into your AI assistant's instructions (in ChatGPT: the custom GPT's instructions; in Claude: the project instructions). Don't paste the key here: put it in the tool's own key setting.</p>
+<pre class="prompt">You help update the TopCasinoSG website through its Content API at
+https://backapi.topcasinosg.com.sg/api/v1 (send the API key as "Authorization: Bearer &lt;key&gt;").
+
+How to work:
+1. Start with GET /schema. It explains how pages are built and lists each block type's fields.
+2. To change a page: GET /pages to find it, GET /pages/{id} to read it, change only the text
+   that needs changing, and send the whole "sections" list back to POST /pages/{id}/changes.
+   Keep every section you didn't change exactly as it was, in the same order.
+3. For news: GET /news and GET /news/{id}; suggest changes with POST /news/{id}/changes,
+   or a new article with POST /news (title, slug, excerpt, content).
+4. Always include a short "note" saying what you changed and why.
+5. Check first with "dryRun": true. Fix anything in "error" or "warnings", then send without dryRun.
+6. Your changes are suggestions: a person reviews them in the dashboard before anything goes live.
+   Tell the user what you submitted and share the "previewUrl" if there is one.
+7. Use GET /changes to see whether earlier suggestions were approved or rejected, and read
+   "reviewNote" for feedback.
+
+Writing rules: match the tone and spelling already used on the site; be factual; never invent
+bonus amounts, licences or other facts; keep the existing headings and structure unless asked;
+no scripts or styles in HTML.</pre>
+
+  <div class="box info keep"><b class="t">Where the key goes</b>Most tools have a separate, hidden place for keys or "credentials" (for example, the Authentication setting of a ChatGPT Action, or a connection in Make or Zapier). Put the <code>tcs_…</code> key there, choose "Bearer" if asked, and never inside the instructions text.</div>
+</section>
+
+<!-- ============ 4. REVIEW ============ -->
+<section class="page">
+  <div class="eyebrow">Part 4</div>
+  <h2>Reviewing AI Changes</h2>
+  <p class="lead">Anyone with dashboard access (Super Admin, Admin or Editor) can review. The number next to <span class="ui">AI Changes</span> in the menu is how many are waiting.</p>
+
+  <ol class="steps">
+    <li>Open <span class="ui">AI Changes</span> in the menu (under Content). The <span class="ui">Waiting for Review</span> tab lists every suggestion with its title, type, which key sent it, when, and the AI's note.</li>
+    <li>Click a suggestion. You'll see:
+      <ul style="margin-top:1.5mm">
+        <li><b>Why</b>: the AI's own explanation of the change.</li>
+        <li><b>What changes</b>: a table with the place on the page, the text <b>Now</b> (highlighted red) and the <b>Proposed</b> text (highlighted green). Only the parts that differ are listed.</li>
+      </ul>
+    </li>
+    <li>For page changes, click <span class="ui">Preview on Site</span> to open the page as it would look with the change, in a new tab. Nothing is saved; the preview link works for one hour.</li>
+    <li>Optionally write a <b>Note to the tool</b>, e.g. <i>"Keep the bonus amounts as they are."</i> The AI can read it and try again.</li>
+    <li>Decide:
+      <table style="margin-top:2mm">
+        <tr><th style="width:30%">Button</th><th>What happens</th></tr>
+        <tr><td><span class="ui">Approve and Apply</span></td><td>The update is put on the site straight away. The previous version stays under the page's Revisions.</td></tr>
+        <tr><td><span class="ui">Approve as Draft</span></td><td>(new pages and articles) It's created as a draft. Click <span class="ui">Open Page</span> / <span class="ui">Open Article</span>, check it, then publish as usual.</td></tr>
+        <tr><td><span class="ui">Reject</span></td><td>Nothing changes. The suggestion moves to the Rejected tab with your note.</td></tr>
+      </table>
+    </li>
+  </ol>
+
+  <div class="box tip keep"><b class="t">"Edited since"</b>If someone edited the page after the AI read it, the suggestion shows <b>Edited since</b> and a yellow notice. The comparison is against the latest version. Approving would replace those edits where they overlap, so the button changes to <span class="ui">Approve Anyway</span>. If in doubt, reject it with a note asking the AI to start again from the latest version.</div>
+
+  <p class="small">The other tabs keep the history: <b>Approved</b> and <b>Rejected</b> show who decided and when, with their note; <b>Withdrawn</b> lists suggestions the AI took back itself before review.</p>
+</section>
+
+<!-- ============ 5. REVISIONS + 6. CAN / CAN'T ============ -->
+<section class="page">
+  <div class="eyebrow">Part 5</div>
+  <h2>Undoing a change (Revisions)</h2>
+  <p>Every time a page's content is saved, by a person in the editor or by approving an AI change, the website keeps that version. Each page keeps its <b>last 10</b>.</p>
+  <ol class="steps">
+    <li>Open the page in <span class="ui">Pages</span> and click the <span class="ui">Revisions</span> tab.</li>
+    <li>Each version shows when it was saved, how (<i>Saved in the editor</i> or <i>Approved AI change</i>) and by whom. The top one is marked <b>Current</b>.</li>
+    <li>Click <span class="ui">Preview</span> to see an older version on the site without changing anything.</li>
+    <li>Click <span class="ui">Restore</span> to bring that version back. If the page is published, the website shows it straight away. The version you replaced stays in the list, so you can switch back.</li>
+  </ol>
+  <p class="small">Revisions cover the page content (its sections). The title, address and SEO fields aren't part of a revision.</p>
+
+  <div class="eyebrow" style="margin-top:8mm">Part 6</div>
+  <h2>What the AI can and can't do</h2>
+  <div class="two">
+    <table class="keep">
+      <tr><th>The AI can</th></tr>
+      <tr><td><span class="yes">✓</span> Read pages, news articles and the Media Library (as allowed by its key)</td></tr>
+      <tr><td><span class="yes">✓</span> Suggest text and layout changes to existing pages</td></tr>
+      <tr><td><span class="yes">✓</span> Suggest new pages and new news articles</td></tr>
+      <tr><td><span class="yes">✓</span> Change a page's title and SEO title/description (as a suggestion)</td></tr>
+      <tr><td><span class="yes">✓</span> Upload images to the Media Library</td></tr>
+      <tr><td><span class="yes">✓</span> Withdraw its own suggestions and read your review notes</td></tr>
+    </table>
+    <table class="keep">
+      <tr><th>The AI can't</th></tr>
+      <tr><td><span class="no">✕</span> Publish, unpublish or schedule anything</td></tr>
+      <tr><td><span class="no">✕</span> Delete pages, articles or images</td></tr>
+      <tr><td><span class="no">✕</span> Change a page's web address or move it in the page tree</td></tr>
+      <tr><td><span class="no">✕</span> Edit casinos, bonuses, payment methods, RTP, guides or the blacklist (for now)</td></tr>
+      <tr><td><span class="no">✕</span> Change navigation, footer, sidebar, global sections or snippets</td></tr>
+      <tr><td><span class="no">✕</span> See or change users, settings, keys or the Activity Log</td></tr>
+    </table>
+  </div>
+  <p class="small">Images uploaded by the AI go into the Media Library straight away (like any upload), but they only appear on the website once an approved change uses them.</p>
+</section>
+
+<!-- ============ 7. SAFETY + 8. MESSAGES ============ -->
+<section class="page">
+  <div class="eyebrow">Part 7</div>
+  <h2>Keeping it safe</h2>
+  <ul>
+    <li><b>Nothing goes live without a person.</b> Every page and news suggestion needs approval.</li>
+    <li><b>Everything is recorded.</b> The Activity Log shows each suggestion, upload and review, with the key's name, e.g. <i>"Jane Tan (API key: Content team AI assistant)"</i>.</li>
+    <li><b>The website checks every suggestion</b> with the same rules as the page editor. A broken layout is refused before it reaches you.</li>
+    <li><b>Speed limit.</b> Each key can make up to 120 requests a minute, so a misbehaving tool can't flood the website.</li>
+    <li><b>Keys are stored safely.</b> The website keeps only a scrambled fingerprint of each key, never the key itself. That's why it's shown only once.</li>
+    <li><b>Mistakes are reversible.</b> Use Revisions to restore any of the last 10 versions of a page.</li>
+  </ul>
+
+  <div class="eyebrow" style="margin-top:8mm">Part 8</div>
+  <h2>Messages you may see</h2>
+  <p>When the AI tool gets an error, it usually shows the website's message. Here's what each kind means.</p>
+  <table>
+    <tr><th style="width:23%">Message type</th><th>What it means</th><th style="width:34%">What to do</th></tr>
+    <tr><td><b>Not valid / revoked</b> <span class="small">(401)</span></td><td>The key is wrong, was revoked, or its admin is no longer active.</td><td>Check the key was copied fully; create a new key if needed.</td></tr>
+    <tr><td><b>This key can't use…</b> <span class="small">(403)</span></td><td>The key doesn't have that permission (e.g. Pages).</td><td>Create a key with the right boxes ticked.</td></tr>
+    <tr><td><b>Invalid change</b> <span class="small">(400)</span></td><td>The suggestion breaks a rule, e.g. a component outside a Container. The message says exactly where.</td><td>The AI should fix it and send again. It usually does this by itself.</td></tr>
+    <tr><td><b>Not found</b> <span class="small">(404)</span></td><td>The page, article or suggestion doesn't exist (or was deleted).</td><td>Ask the AI to list pages or articles again.</td></tr>
+    <tr><td><b>Already reviewed / edited since</b> <span class="small">(409)</span></td><td>Someone already approved or rejected it, or the content changed in the meantime.</td><td>Refresh AI Changes and check the latest state.</td></tr>
+    <tr><td><b>Too many requests</b> <span class="small">(429)</span></td><td>The key went over 120 requests a minute.</td><td>Wait a minute; the tool can then carry on.</td></tr>
+    <tr><td><b>Warning: field may not show</b></td><td>The AI used a field name that no section of that kind uses, often a typo.</td><td>The AI should use one of the field names the warning lists.</td></tr>
+  </table>
+</section>
+
+<!-- ============ 9. FAQ ============ -->
+<section class="page">
+  <div class="eyebrow">Part 9</div>
+  <h2>Questions &amp; answers</h2>
+  <dl class="faq">
+    <dt>Can the AI break the website?</dt>
+    <dd>No. It can only suggest. Suggestions that would break a page's structure are refused automatically, and anything you approve can be undone with Revisions.</dd>
+    <dt>Who can approve suggestions?</dt>
+    <dd>Anyone who can edit content in the dashboard: Super Admins, Admins and Editors. Approving a suggestion is the same as making that edit yourself.</dd>
+    <dt>Who can create or revoke keys?</dt>
+    <dd>Super Admins and Admins, under Settings › API Keys.</dd>
+    <dt>We lost the key. Can we see it again?</dt>
+    <dd>No, it's shown only once. Revoke the old one and create a new key, then update it in your AI tool.</dd>
+    <dt>Should each tool or person have its own key?</dt>
+    <dd>Yes. Separate keys make it clear in AI Changes and the Activity Log who sent what, and you can revoke one without affecting the others.</dd>
+    <dt>Two people edited the same page. Whose version wins?</dt>
+    <dd>The website notices when a page changed after the AI read it and marks the suggestion "Edited since", so you can check before approving. Approving replaces the overlapping parts.</dd>
+    <dt>Does the AI see unpublished drafts?</dt>
+    <dd>Yes, it can read draft pages and articles (with the right permission), so it can help finish them. It still can't publish them.</dd>
+    <dt>How long are suggestions kept?</dt>
+    <dd>All suggestions stay in AI Changes, including approved and rejected ones, as a record.</dd>
+    <dt>Can the AI update casinos, bonuses or other listings?</dt>
+    <dd>Not yet. This first version covers pages, news and images. Other content types can be added in the same safe "suggest, then approve" way.</dd>
+  </dl>
+</section>
+
+<!-- ============ APPENDIX ============ -->
+<section class="page">
+  <div class="eyebrow">Appendix · for the person who connects the AI tool</div>
+  <h2>Technical reference</h2>
+  <p>Base address <code>https://backapi.topcasinosg.com.sg/api/v1</code>. Every request sends <code>Authorization: Bearer tcs_…</code> (or <code>X-API-Key: tcs_…</code>). Requests and responses are JSON. Responses look like <code>{"success": true, "data": {…}}</code> or <code>{"success": false, "error": {"message": "…"}}</code>.</p>
+  <table class="compact">
+    <tr><th style="width:9%"></th><th style="width:33%">Address</th><th>What it does</th><th style="width:12%">Needs</th></tr>
+    <tr><td><span class="verb get">GET</span></td><td class="mono">/me</td><td>Which key this is, its permissions and the speed limit.</td><td>any key</td></tr>
+    <tr><td><span class="verb get">GET</span></td><td class="mono">/schema</td><td>Page-building rules, field types, and every block type with the fields it uses (with examples).</td><td>any key</td></tr>
+    <tr><td><span class="verb get">GET</span></td><td class="mono">/pages</td><td>All pages: id, path, title, status.</td><td>Pages</td></tr>
+    <tr><td><span class="verb get">GET</span></td><td class="mono">/pages/{id}</td><td>One page with its full list of sections.</td><td>Pages</td></tr>
+    <tr><td><span class="verb post">POST</span></td><td class="mono">/pages/{id}/changes</td><td>Suggest an update: any of <code>title</code>, <code>metaTitle</code>, <code>metaDescription</code>, <code>sections</code> (replaces the whole list), plus <code>note</code>.</td><td>Pages</td></tr>
+    <tr><td><span class="verb post">POST</span></td><td class="mono">/pages</td><td>Suggest a new page: <code>title</code>, <code>slug</code>, optional <code>parentId</code>, <code>metaTitle</code>, <code>metaDescription</code>, <code>sections</code>, <code>note</code>.</td><td>Pages</td></tr>
+    <tr><td><span class="verb get">GET</span></td><td class="mono">/global-sections</td><td>Reusable sections that can be placed on a page.</td><td>Pages</td></tr>
+    <tr><td><span class="verb get">GET</span></td><td class="mono">/news?page=1&amp;pageSize=20</td><td>News articles (without the full text).</td><td>News</td></tr>
+    <tr><td><span class="verb get">GET</span></td><td class="mono">/news/{id}</td><td>One article with its full text.</td><td>News</td></tr>
+    <tr><td><span class="verb post">POST</span></td><td class="mono">/news/{id}/changes</td><td>Suggest an update: any of <code>title</code>, <code>slug</code>, <code>excerpt</code>, <code>content</code>, <code>coverMediaId</code>, plus <code>note</code>.</td><td>News</td></tr>
+    <tr><td><span class="verb post">POST</span></td><td class="mono">/news</td><td>Suggest a new article (<code>title</code> and <code>slug</code> required).</td><td>News</td></tr>
+    <tr><td><span class="verb get">GET</span></td><td class="mono">/media</td><td>The Media Library (ids and image addresses).</td><td>Media</td></tr>
+    <tr><td><span class="verb post">POST</span></td><td class="mono">/media</td><td>Upload a file (form field <code>file</code>); returns its id.</td><td>Media</td></tr>
+    <tr><td><span class="verb get">GET</span></td><td class="mono">/changes?status=pending</td><td>This key's suggestions and their status and review notes.</td><td>any key</td></tr>
+    <tr><td><span class="verb get">GET</span></td><td class="mono">/changes/{id}</td><td>One of this key's suggestions.</td><td>any key</td></tr>
+    <tr><td><span class="verb post">POST</span></td><td class="mono">/changes/{id}/withdraw</td><td>Take back a suggestion that's still waiting.</td><td>any key</td></tr>
+  </table>
+</section>
+
+<section class="page">
+  <div class="eyebrow">Appendix · continued</div>
+  <h2>Page rules in short</h2>
+  <ul>
+    <li>A page is an ordered list of sections. Level 0 (<code>"inContainer": false</code>) holds only a <code>container</code> or a <code>global_section</code>.</li>
+    <li>Every other block is a component: it follows a container with <code>"inContainer": true</code> and belongs to the nearest container before it.</li>
+    <li>Fields: <code>text</code> (plain text), <code>richtext</code> (HTML), <code>image</code> (<code>mediaId</code>), <code>button</code> (label in <code>textValue</code>, link in <code>urlValue</code>). Repeated items (e.g. FAQ questions) use <code>itemIndex</code> 0, 1, 2…</li>
+    <li>Add <code>"dryRun": true</code> (or <code>?dryRun=1</code>) to check a suggestion without submitting it. Unknown JSON fields are refused, so typos don't go unnoticed.</li>
+  </ul>
+
+  <h3>Example: suggesting a new news article</h3>
+<pre>POST https://backapi.topcasinosg.com.sg/api/v1/news
+Authorization: Bearer tcs_••••••••
+Content-Type: application/json
+
+{
+  "note": "Weekly news round-up.",
+  "title": "New Responsible Gambling Rules in Singapore",
+  "slug": "new-responsible-gambling-rules-singapore",
+  "excerpt": "What the new rules mean for players.",
+  "content": "&lt;p&gt;From January, …&lt;/p&gt;"
+}</pre>
+  <p class="small">After approval, the article is created as a draft. Publish it from News in the dashboard.</p>
+</section>
+
+<section class="page">
+  <div class="eyebrow">Appendix · example</div>
+  <h2>Example: suggesting a page update</h2>
+  <p>Read the page, change the text, and send the sections back with a note.</p>
+<pre><span class="c"># 1. Read the page</span>
+GET https://backapi.topcasinosg.com.sg/api/v1/pages/12
+Authorization: Bearer tcs_••••••••
+
+<span class="c"># 2. Check the suggestion first (nothing is stored)</span>
+POST https://backapi.topcasinosg.com.sg/api/v1/pages/12/changes
+Authorization: Bearer tcs_••••••••
+Content-Type: application/json
+
+{
+  "note": "Updated the introduction for 2026.",
+  "dryRun": true,
+  "metaTitle": "Best Online Casinos in Thailand 2026",
+  "sections": [
+    { "blockType": "container", "inContainer": false, "fields": [] },
+    { "blockType": "rich_text", "inContainer": true, "fields": [
+      { "itemIndex": 0, "fieldKey": "body", "fieldType": "richtext",
+        "textValue": "&lt;p&gt;Our updated guide to playing safely in 2026…&lt;/p&gt;" }
+    ] }
+  ]
+}
+
+<span class="c"># Answer</span>
+{ "success": true, "data": { "valid": true, "warnings": [],
+  "message": "This change is valid. Send it again without dryRun to submit it for approval." } }
+
+<span class="c"># 3. Send the same request without "dryRun". Answer:</span>
+{ "success": true, "data": {
+  "change": { "id": 41, "status": "pending", "label": "Thailand", … },
+  "previewUrl": "https://topcasinosg.com.sg/preview/…",
+  "message": "Submitted. It goes live only after an admin approves it in the dashboard (AI Changes)." } }</pre>
+
+  <div class="box info keep"><b class="t">In a real request, send every section of the page</b>The example is shortened. <code>sections</code> replaces the page's whole section list, so always start from what <code>GET /pages/{id}</code> returned and change only what's needed.</div>
+</section>
+
+</body>
+</html>

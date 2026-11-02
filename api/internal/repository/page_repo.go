@@ -367,12 +367,29 @@ func joinPlaceholders(parts []string) string {
 // transaction — simpler and less error-prone than diffing adds/reorders/
 // removals against the previous tree, and section/field IDs have no
 // external references worth preserving across a save.
-func (r *PageRepo) ReplaceSections(ctx context.Context, pageID int64, sections []domain.PageSection) error {
+//
+// With a revision, the saved sections are also kept as a page revision
+// (see addPageRevision); templates and new global sections pass nil.
+func (r *PageRepo) ReplaceSections(ctx context.Context, pageID int64, sections []domain.PageSection, revision *domain.PageRevision) error {
+	var previous []domain.PageSection
+	if revision != nil {
+		var err error
+		if previous, err = r.GetSectionsWithFields(ctx, pageID); err != nil {
+			return err
+		}
+	}
+
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
+
+	if revision != nil {
+		if err := addPageRevision(ctx, tx, pageID, previous, sections, revision); err != nil {
+			return err
+		}
+	}
 
 	if _, err := tx.ExecContext(ctx, `DELETE FROM page_sections WHERE page_id = ?`, pageID); err != nil {
 		return err

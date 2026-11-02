@@ -23,6 +23,30 @@ const PUBLISHING = {
 };
 
 export const ADMIN_HELP = {
+  aiChanges: {
+    summary:
+      "Changes that an AI assistant (or any tool with an API key) has proposed through the Content API. Nothing here is on the website until someone approves it.",
+    sections: [
+      {
+        heading: "Reviewing a change",
+        points: [
+          "Click a change to see what it would change: the current text next to the proposed text, section by section.",
+          "Preview on Site opens the page as it would look with the change, before anything is saved.",
+          "Approve and Apply puts an update on the site straight away. The page keeps its previous version, so it can be restored from the page's Revisions tab.",
+          "Approve as Draft creates a new page or article as a draft; open it, check it and publish it as usual.",
+          "Reject closes it without changing anything. The note you write is passed back to the tool, so it can try again.",
+        ],
+      },
+      {
+        heading: "Good to know",
+        points: [
+          "\"Edited since\" means someone changed that page or article after the tool read it. Check the comparison: approving replaces those edits where they overlap.",
+          "The number next to AI Changes in the menu is how many are waiting.",
+          "Keys are created and revoked under Settings › API Keys.",
+        ],
+      },
+    ],
+  },
   pages: {
     summary: "Pages are the website's content pages, each built from sections (banner, text, tables, FAQ…). The list is a tree: child pages sit under their parent and share its URL.",
     sections: [
@@ -31,6 +55,7 @@ export const ADMIN_HELP = {
         points: [
           "Open a page, then add, reorder or remove sections on the Content tab. Live blocks (casino tables, bonus tables, sliders) fill themselves from your records.",
           "Page Details sets the title, URL slug and parent page; the SEO tab sets the browser title and description.",
+          "Revisions keeps the last 10 saved versions of the page's content (yours, and AI Changes you approved). Preview one, or restore it.",
           "Drag the handle on the left to reorder pages under the same parent. Dragging is off while filters are active.",
         ],
       },
@@ -288,6 +313,7 @@ export const ADMIN_HELP = {
         points: [
           "General: logo, favicon, site title and URL, SEO indexing, timezone and language. The footer has its own Footer page.",
           "Security: whether everyone must use two-factor authentication (enforced on the live site only).",
+          "API Keys: keys that let a tool such as an AI assistant read content and propose changes. Its changes wait in AI Changes for approval. A key is shown only once, when it is created.",
         ],
       },
     ],

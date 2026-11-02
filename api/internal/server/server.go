@@ -45,6 +45,8 @@ type Deps struct {
 	ContentImportHandler  *handler.ContentImportHandler
 	SeoHandler            *handler.SeoHandler
 	SystemHandler         *handler.SystemHandler
+	ContentAPIHandler     *handler.ContentAPIHandler
+	AuthenticateAPIKey    middleware.APIKeyAuthenticator
 	Audit                 *service.AuditService
 }
 
@@ -297,6 +299,46 @@ func NewRouter(deps Deps) http.Handler {
 	mux.Handle("PUT /api/admin/news/{id}", authenticate(contentStaff(http.HandlerFunc(deps.NewsArticleHandler.Update))))
 	mux.Handle("PUT /api/admin/news/{id}/status", authenticate(contentStaff(http.HandlerFunc(deps.NewsArticleHandler.SetStatus))))
 	mux.Handle("DELETE /api/admin/news/{id}", authenticate(contentStaff(http.HandlerFunc(deps.NewsArticleHandler.Delete))))
+
+	// API keys and AI Changes. Keys are created and revoked by Super Admin
+	// and Admin; any content-management role reviews what keys propose,
+	// since approving one is the same as editing that content directly.
+	mux.Handle("GET /api/admin/api-keys", authenticate(staffOnly(http.HandlerFunc(deps.ContentAPIHandler.ListKeys))))
+	mux.Handle("POST /api/admin/api-keys", authenticate(staffOnly(http.HandlerFunc(deps.ContentAPIHandler.CreateKey))))
+	mux.Handle("POST /api/admin/api-keys/{id}/revoke", authenticate(staffOnly(http.HandlerFunc(deps.ContentAPIHandler.RevokeKey))))
+	mux.Handle("GET /api/admin/content-changes", authenticate(contentStaff(http.HandlerFunc(deps.ContentAPIHandler.ListChanges))))
+	mux.Handle("GET /api/admin/content-changes/count", authenticate(contentStaff(http.HandlerFunc(deps.ContentAPIHandler.CountPending))))
+	mux.Handle("GET /api/admin/content-changes/{id}", authenticate(contentStaff(http.HandlerFunc(deps.ContentAPIHandler.GetChange))))
+	mux.Handle("POST /api/admin/content-changes/{id}/approve", authenticate(contentStaff(http.HandlerFunc(deps.ContentAPIHandler.ApproveChange))))
+	mux.Handle("POST /api/admin/content-changes/{id}/reject", authenticate(contentStaff(http.HandlerFunc(deps.ContentAPIHandler.RejectChange))))
+	mux.Handle("POST /api/admin/content-changes/{id}/preview", authenticateUser(contentStaff(http.HandlerFunc(deps.ContentAPIHandler.PreviewChange))))
+	mux.Handle("GET /api/admin/pages/{id}/revisions", authenticate(contentStaff(http.HandlerFunc(deps.ContentAPIHandler.PageRevisions))))
+
+	// Content API - outside tools (e.g. an AI assistant) with an API key
+	// instead of a sign-in. Reads are direct; pages and news can only be
+	// proposed (see service.ContentChangeService), media uploads go
+	// straight into the Media Library. Each key is limited to its scopes.
+	withKey := middleware.AuthenticateAPIKey(deps.AuthenticateAPIKey)
+	scoped := func(scope string, h http.HandlerFunc) http.Handler {
+		return withKey(middleware.RequireScope(scope)(h))
+	}
+	api := deps.ContentAPIHandler
+	mux.Handle("GET /api/v1/me", withKey(http.HandlerFunc(api.Me)))
+	mux.Handle("GET /api/v1/schema", withKey(http.HandlerFunc(api.Schema)))
+	mux.Handle("GET /api/v1/changes", withKey(http.HandlerFunc(api.ListOwnChanges)))
+	mux.Handle("GET /api/v1/changes/{id}", withKey(http.HandlerFunc(api.GetOwnChange)))
+	mux.Handle("POST /api/v1/changes/{id}/withdraw", withKey(http.HandlerFunc(api.WithdrawOwnChange)))
+	mux.Handle("GET /api/v1/pages", scoped(domain.APIScopePages, api.ListPages))
+	mux.Handle("GET /api/v1/pages/{id}", scoped(domain.APIScopePages, api.GetPage))
+	mux.Handle("POST /api/v1/pages", scoped(domain.APIScopePages, api.ProposePage))
+	mux.Handle("POST /api/v1/pages/{id}/changes", scoped(domain.APIScopePages, api.ProposePage))
+	mux.Handle("GET /api/v1/global-sections", scoped(domain.APIScopePages, api.ListGlobalSections))
+	mux.Handle("GET /api/v1/news", scoped(domain.APIScopeNews, api.ListNews))
+	mux.Handle("GET /api/v1/news/{id}", scoped(domain.APIScopeNews, api.GetNews))
+	mux.Handle("POST /api/v1/news", scoped(domain.APIScopeNews, api.ProposeNews))
+	mux.Handle("POST /api/v1/news/{id}/changes", scoped(domain.APIScopeNews, api.ProposeNews))
+	mux.Handle("GET /api/v1/media", scoped(domain.APIScopeMedia, api.ListMedia))
+	mux.Handle("POST /api/v1/media", scoped(domain.APIScopeMedia, api.UploadMedia))
 
 	return middleware.CORS(deps.Config.CORSAllowedOrigins)(mux)
 }

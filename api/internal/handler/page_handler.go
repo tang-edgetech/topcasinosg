@@ -362,7 +362,8 @@ func (h *PageHandler) ReplaceSections(w http.ResponseWriter, r *http.Request) {
 
 	sections := toDomainSections(req.Sections, id)
 
-	if err := h.pages.ReplaceSections(r.Context(), id, sections); err != nil {
+	actorID := requireActor(r).ID
+	if err := h.pages.ReplaceSections(r.Context(), id, sections, &actorID, domain.PageRevisionEditor); err != nil {
 		response.Err(w, pageErrorStatus(err), err.Error())
 		return
 	}

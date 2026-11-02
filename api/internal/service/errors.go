@@ -65,3 +65,12 @@ var (
 	ErrSnippetNameRequired     = errors.New("name is required")
 	ErrSnippetContentRequired  = errors.New("content is required")
 )
+
+// Content API (API keys and proposed changes).
+var (
+	ErrAPIKeyNameRequired = errors.New("an API key needs a name")
+	ErrInvalidAPIScopes   = errors.New("choose at least one of: pages, news, media")
+	ErrInvalidChange      = errors.New("invalid change")
+	ErrChangeNotPending   = errors.New("this change has already been reviewed or withdrawn")
+	ErrChangeOutdated     = errors.New("the content was edited after this change was proposed; review the latest version, then approve anyway to overwrite it")
+)

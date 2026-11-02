@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -8,6 +8,7 @@ import { useSiteSettings } from "@/lib/site-settings-context";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { titleCase } from "@/lib/format";
 import { isStaff } from "@/lib/roles";
+import { api } from "@/lib/api";
 import BrandMark from "@/components/BrandMark";
 import AppVersion from "@/components/AppVersion";
 import {
@@ -57,6 +58,8 @@ interface NavLink {
   href: string;
   label: string;
   roles: string[];
+  // "aiChanges" shows how many AI Changes are waiting for review.
+  badge?: "aiChanges";
   icon: (props: { width?: number; height?: number; className?: string }) => React.ReactElement;
 }
 interface NavSection {
@@ -80,6 +83,7 @@ const NAV_SECTIONS: NavSection[] = [
       { href: "/dashboard/guides", label: "Guides", roles: ALL_ROLES, icon: IconBook },
       { href: "/dashboard/news", label: "News", roles: ALL_ROLES, icon: IconNewspaper },
       { href: "/dashboard/media", label: "Media Library", roles: ALL_ROLES, icon: IconPhoto },
+      { href: "/dashboard/ai-changes", label: "AI Changes", roles: ALL_ROLES, icon: IconEdit, badge: "aiChanges" },
     ],
   },
   {
@@ -126,6 +130,20 @@ export default function Sidebar({ onNavigate, onClose }: { onNavigate?: () => vo
   const pathname = usePathname();
   const router = useRouter();
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [pendingChanges, setPendingChanges] = useState(0);
+
+  // Refreshed on every navigation and whenever the AI Changes page reviews one.
+  useEffect(() => {
+    if (!user) return;
+    const refresh = () =>
+      api
+        .get<{ pending: number }>("/api/admin/content-changes/count")
+        .then((data) => setPendingChanges(data.pending))
+        .catch(() => undefined);
+    refresh();
+    window.addEventListener("ai-changes-updated", refresh);
+    return () => window.removeEventListener("ai-changes-updated", refresh);
+  }, [user, pathname]);
 
   function isLinkActive(href: string) {
     return href === "/dashboard" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
@@ -203,6 +221,11 @@ export default function Sidebar({ onNavigate, onClose }: { onNavigate?: () => vo
               >
                 <Icon width={18} height={18} />
                 {item.label}
+                {item.badge === "aiChanges" && pendingChanges > 0 && (
+                  <span className="ml-auto rounded-full bg-yellow-400 px-2 py-0.5 text-xs font-bold text-sidebar" title="Waiting for review">
+                    {pendingChanges}
+                  </span>
+                )}
               </Link>
             );
           });

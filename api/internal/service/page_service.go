@@ -296,25 +296,47 @@ func (s *PageService) Delete(ctx context.Context, id int64) error {
 // ReplaceSections validates the whole submitted block tree before writing
 // anything — an unknown field_type/empty block_type fails the entire save
 // rather than silently persisting a section the frontend won't know how to
-// render.
-func (s *PageService) ReplaceSections(ctx context.Context, pageID int64, sections []domain.PageSection) error {
-	if err := validateSections(sections); err != nil {
-		return err
-	}
+// render. Pages and global sections keep the saved version as a revision
+// (savedBy and source say who saved it and how); templates don't.
+func (s *PageService) ReplaceSections(ctx context.Context, pageID int64, sections []domain.PageSection, savedBy *int64, source string) error {
 	page, err := s.pages.GetByID(ctx, pageID)
 	if err != nil {
 		return err
 	}
-	if page.Kind == domain.PageKindGlobal && hasGlobalSectionBlock(sections) {
+	if err := checkSections(page.Kind, sections); err != nil {
+		return err
+	}
+	var revision *domain.PageRevision
+	if page.Kind != domain.PageKindTemplate {
+		revision = &domain.PageRevision{SavedByID: savedBy, Source: source}
+	}
+	return s.pages.ReplaceSections(ctx, pageID, sections, revision)
+}
+
+// checkSections is every rule a save of sections into a page of this kind
+// must pass.
+func checkSections(kind string, sections []domain.PageSection) error {
+	if err := validateSections(sections); err != nil {
+		return err
+	}
+	if kind == domain.PageKindGlobal && hasGlobalSectionBlock(sections) {
 		return ErrNestedGlobal
 	}
 	// Templates may hold a single component: it is inserted into a Container.
-	if page.Kind != domain.PageKindTemplate {
+	if kind != domain.PageKindTemplate {
 		if err := validateHierarchy(sections); err != nil {
 			return err
 		}
 	}
-	return s.pages.ReplaceSections(ctx, pageID, sections)
+	return nil
+}
+
+// Revisions lists a page's saved versions, newest first.
+func (s *PageService) Revisions(ctx context.Context, pageID int64) ([]domain.PageRevision, error) {
+	if _, err := s.pages.GetByID(ctx, pageID); err != nil {
+		return nil, err
+	}
+	return s.pages.ListRevisions(ctx, pageID)
 }
 
 func hasGlobalSectionBlock(sections []domain.PageSection) bool {
@@ -357,7 +379,7 @@ func (s *PageService) CreateGlobal(ctx context.Context, name string, sections []
 		return nil, err
 	}
 	if len(sections) > 0 {
-		if err := s.ReplaceSections(ctx, id, sections); err != nil {
+		if err := s.ReplaceSections(ctx, id, sections, nil, domain.PageRevisionEditor); err != nil {
 			_ = s.pages.Delete(ctx, id)
 			return nil, err
 		}
@@ -443,4 +465,9 @@ func isKnownFieldType(t string) bool {
 	default:
 		return false
 	}
+}
+
+// FieldCatalog lists the fields each block type uses on stored pages.
+func (s *PageService) FieldCatalog(ctx context.Context) ([]repository.FieldUsage, error) {
+	return s.pages.FieldCatalog(ctx)
 }

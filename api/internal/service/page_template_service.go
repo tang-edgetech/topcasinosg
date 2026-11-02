@@ -58,7 +58,7 @@ func (s *PageService) CreateTemplate(ctx context.Context, name string, sections 
 	if err != nil {
 		return 0, err
 	}
-	if err := s.pages.ReplaceSections(ctx, id, sections); err != nil {
+	if err := s.pages.ReplaceSections(ctx, id, sections, nil); err != nil {
 		_ = s.pages.Delete(ctx, id)
 		return 0, err
 	}

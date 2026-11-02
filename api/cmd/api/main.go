@@ -100,6 +100,8 @@ func main() {
 	sidebarService := service.NewSidebarService(sidebarRepo)
 	auditService := service.NewAuditService(auditRepo, users)
 	go purgeExpiredAuditLogs(auditService)
+	apiKeyService := service.NewAPIKeyService(repository.NewAPIKeyRepo(conn), users)
+	contentChangeService := service.NewContentChangeService(repository.NewContentChangeRepo(conn), pageService, newsArticleService, mediaService)
 
 	deps := server.Deps{
 		Config:                cfg,
@@ -127,13 +129,17 @@ func main() {
 		SidebarHandler:        handler.NewSidebarHandler(sidebarService),
 		AuditHandler:          handler.NewAuditHandler(auditService),
 		TransferHandler:       handler.NewTransferHandler(service.NewTransferService(transferRepo, fileStorage)),
-		SystemHandler:        handler.NewSystemHandler(service.NewSystemService(cfg.LogDir, cfg.RepoDir, repository.NewDeploymentReviewRepo(conn))),
-		SeoHandler:           handler.NewSeoHandler(service.NewSeoService(repository.NewSeoRepo(conn))),
+		SystemHandler:         handler.NewSystemHandler(service.NewSystemService(cfg.LogDir, cfg.RepoDir, repository.NewDeploymentReviewRepo(conn))),
+		SeoHandler:            handler.NewSeoHandler(service.NewSeoService(repository.NewSeoRepo(conn))),
 		ContentImportHandler: handler.NewContentImportHandler(service.NewContentImportService(
 			regionService, gameProviderService, licenseService, casinoService, bonusService,
 			paymentMethodService, rtpEntryService, blacklistEntryService, guideService, newsArticleService,
 		)),
-		Audit: auditService,
+		ContentAPIHandler: handler.NewContentAPIHandler(
+			apiKeyService, contentChangeService, pageService, newsArticleService, mediaService, siteSettingsService, auditService,
+		),
+		AuthenticateAPIKey: apiKeyService.Authenticate,
+		Audit:              auditService,
 	}
 	router := server.NewRouter(deps)
 
