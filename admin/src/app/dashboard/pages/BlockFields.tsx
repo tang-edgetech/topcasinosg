@@ -1688,14 +1688,16 @@ function ContainerFields({ fields, onChange }: { fields: EditableField[]; onChan
   const set = textSetter(fields, onChange);
   const layout = CONTAINER_LAYOUTS.some((o) => o.value === text("layout")) ? text("layout") : "stack";
   const grid = layout === "grid";
+  // "own": each component keeps its own padding and width (stack only).
+  const ownSpacing = layout === "stack" && text("componentSpacing") === "own";
 
   return (
     <div className="flex flex-col gap-4">
       <p className="text-xs text-text-muted dark:text-text-muted-dark">
-        Components inside this container share its background and layout. Add them with “+ Add Component Inside”, or use “Move Into
-        Container Above” on the section right below the container. Layout, spacing, colours and background are in the Style tab; in a
-        grid, set each component&apos;s width in its own Style tab. With Tabs or Accordion, each component&apos;s title is set at the top of
-        its own Content tab.
+        A Container is the only thing placed directly on a page (level 0, rendered as &lt;section&gt;); every component sits inside one
+        (level 1, rendered as &lt;div&gt;) and shares its background and layout. Add components with “+ Add Component Inside”, or drag them
+        in. Layout, spacing, colours and background are in the Style tab; in a grid, set each component&apos;s width in its own Style tab.
+        With Tabs or Accordion, each component&apos;s title is set at the top of its own Content tab.
       </p>
       <StyleFields>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -1744,17 +1746,31 @@ function ContainerFields({ fields, onChange }: { fields: EditableField[]; onChan
             />
           </LabeledField>
         )}
-        <LabeledField label="Gap between components">
-          <Select
-            value={text("gap") || (layout === "stack" ? "l" : "m")}
-            onChange={set("gap", 7)}
-            options={[
-              { value: "s", label: "Small (16px)" },
-              { value: "m", label: "Medium (30px)" },
-              { value: "l", label: "Large (50px)" },
-            ]}
-          />
-        </LabeledField>
+        {layout === "stack" && (
+          <LabeledField label="Spacing">
+            <Select
+              value={ownSpacing ? "own" : "container"}
+              onChange={set("componentSpacing", 16)}
+              options={[
+                { value: "container", label: "Set by this container" },
+                { value: "own", label: "Each component keeps its own" },
+              ]}
+            />
+          </LabeledField>
+        )}
+        {!ownSpacing && (
+          <LabeledField label="Gap between components">
+            <Select
+              value={text("gap") || (layout === "stack" ? "l" : "m")}
+              onChange={set("gap", 7)}
+              options={[
+                { value: "s", label: "Small (16px)" },
+                { value: "m", label: "Medium (30px)" },
+                { value: "l", label: "Large (50px)" },
+              ]}
+            />
+          </LabeledField>
+        )}
         {grid && (
           <LabeledField label="Vertical alignment">
             <Select
@@ -1769,24 +1785,28 @@ function ContainerFields({ fields, onChange }: { fields: EditableField[]; onChan
             />
           </LabeledField>
         )}
-        <LabeledField label="Content width">
-          <Select
-            value={text("contentWidth") || "1270"}
-            onChange={set("contentWidth", 9)}
-            options={[
-              { value: "1270", label: "Boxed (1270px)" },
-              { value: "960", label: "Narrow (960px)" },
-              { value: "768", label: "Reading (768px)" },
-              { value: "full", label: "Full width" },
-            ]}
-          />
-        </LabeledField>
-        <LabeledField label="Space above">
-          <Select value={text("spaceTop") || "m"} onChange={set("spaceTop", 10)} options={SPACE_OPTIONS} />
-        </LabeledField>
-        <LabeledField label="Space below">
-          <Select value={text("spaceBottom") || "m"} onChange={set("spaceBottom", 11)} options={SPACE_OPTIONS} />
-        </LabeledField>
+        {!ownSpacing && (
+          <>
+            <LabeledField label="Content width">
+              <Select
+                value={text("contentWidth") || "1270"}
+                onChange={set("contentWidth", 9)}
+                options={[
+                  { value: "1270", label: "Boxed (1270px)" },
+                  { value: "960", label: "Narrow (960px)" },
+                  { value: "768", label: "Reading (768px)" },
+                  { value: "full", label: "Full width" },
+                ]}
+              />
+            </LabeledField>
+            <LabeledField label="Space above">
+              <Select value={text("spaceTop") || "m"} onChange={set("spaceTop", 10)} options={SPACE_OPTIONS} />
+            </LabeledField>
+            <LabeledField label="Space below">
+              <Select value={text("spaceBottom") || "m"} onChange={set("spaceBottom", 11)} options={SPACE_OPTIONS} />
+            </LabeledField>
+          </>
+        )}
         <LabeledField label="Text colour inside">
           <Select value={text("textTone") === "light" ? "light" : "dark"} onChange={set("textTone", 12)} options={TEXT_TONE_OPTIONS} />
         </LabeledField>

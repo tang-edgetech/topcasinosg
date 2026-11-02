@@ -29,24 +29,37 @@ export interface ContainerPanel {
 // and "carousel" as a swipeable slider. Content width, gap and space
 // above/below are presets, and textTone "light" turns the text of Title &
 // Text, Rich Text, Image/Video captions and dividers inside white.
+// componentSpacing "own" (stack layout only) leaves spacing to the components:
+// each keeps its own padding and width and the container adds none - what
+// the wrapper Containers from migration 0084 use, so pages that predate the
+// Container-only top level look exactly as they did.
 export default function ContainerSection({ section, panels }: { section: PageSection; panels: ContainerPanel[] }) {
   const text = (key: string) => field(section.fields, 0, key)?.textValue ?? "";
   const layout = text("layout");
   const grid = layout === "grid";
+  const ownSpacing = (layout || "stack") === "stack" && text("componentSpacing") === "own";
   const light = text("textTone") === "light";
   const columns = GRID_COLUMNS.includes(text("columns")) ? text("columns") : "2";
-  const gap = GAP_VALUES[text("gap")] ?? (grid || PANEL_LAYOUTS.includes(layout) ? GAP_VALUES.m : GAP_VALUES.l);
+  const gap = ownSpacing ? "0px" : (GAP_VALUES[text("gap")] ?? (grid || PANEL_LAYOUTS.includes(layout) ? GAP_VALUES.m : GAP_VALUES.l));
   const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
   const style = {
     ...bgStyle,
     "--container-max": CONTENT_WIDTHS[text("contentWidth")] ?? CONTENT_WIDTHS["1270"],
     "--container-gap": gap,
   } as CSSProperties;
-  const bodyStyle: CSSProperties = {
-    paddingTop: SPACE_VALUES[text("spaceTop")] ?? SPACE_VALUES.m,
-    paddingBottom: SPACE_VALUES[text("spaceBottom")] ?? SPACE_VALUES.m,
-  };
-  const classes = ["section--container", `section--container-${layout || "stack"}`, hasBleedBg && "section--bg", light && "section--tone-light"];
+  const bodyStyle: CSSProperties = ownSpacing
+    ? {}
+    : {
+        paddingTop: SPACE_VALUES[text("spaceTop")] ?? SPACE_VALUES.m,
+        paddingBottom: SPACE_VALUES[text("spaceBottom")] ?? SPACE_VALUES.m,
+      };
+  const classes = [
+    "section--container",
+    `section--container-${layout || "stack"}`,
+    ownSpacing && "section--container-own",
+    hasBleedBg && "section--bg",
+    light && "section--tone-light",
+  ];
 
   return (
     <SectionTag section={section} id={section.customId || undefined} className={sectionClassName(classes.filter(Boolean).join(" "), section)} style={style}>

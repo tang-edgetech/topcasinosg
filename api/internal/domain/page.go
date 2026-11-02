@@ -94,7 +94,9 @@ type PageSection struct {
 	CustomID    string
 	// InContainer puts this section inside the nearest Container section
 	// before it (see BlockTypeContainer); a Container itself is never inside
-	// another one.
+	// another one. Pages have two levels: level 0 holds only Containers
+	// (rendered as <section>) and Global Sections; every other component is
+	// at level 1, inside a Container, rendered as <div>.
 	InContainer bool
 	SortOrder   int
 	Fields      []PageSectionField

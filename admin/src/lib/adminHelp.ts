@@ -38,9 +38,10 @@ export const ADMIN_HELP = {
         heading: "Page builder tools",
         points: [
           "Preview (bottom right) opens the page as the site shows it, unsaved changes included, at desktop, tablet or mobile width.",
+          "Pages have two levels. Level 0 (directly on the page, a <section>) takes only Containers and Global Sections; every other component goes inside a Container (level 1, a <div>). A component dropped between containers gets a Container of its own.",
           "A Container can show its components as a stack, grid, tabs, accordion or carousel. With tabs or an accordion, set each component's title at the top of its Content tab.",
           "Advanced › Hide on hides a component on mobile, tablet or desktop.",
-          "The clipboard button copies a component (a container with everything inside it); paste it on any page from “Paste copied” or + Add Component.",
+          "The clipboard button copies a component (a container with everything inside it); paste it on any page from “Paste copied” or + Add Container.",
           "The layers button saves a component as a template (a copy you insert anywhere) or a global section (linked, edited once).",
         ],
       },

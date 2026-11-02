@@ -33,6 +33,10 @@ var (
 	ErrInvalidParent        = errors.New("a page cannot be its own parent or a descendant of itself")
 )
 
+// ErrComponentOutsideContainer: only Containers and Global Sections can be
+// placed directly on a page (see validateHierarchy).
+var ErrComponentOutsideContainer = errors.New("only a Container or a Global Section can be placed directly on a page; put this component inside a Container")
+
 // CasinoService validation.
 var (
 	ErrInvalidRiskStatus    = errors.New("riskStatus must be 'low', 'medium', or 'high'")

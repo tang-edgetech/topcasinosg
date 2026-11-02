@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cmsPageMetadata } from "@/lib/seo";
+import { splitIntro } from "@/lib/pages";
 import { getActiveRegionByCode } from "./api";
 import { buildPageMenu, regionMenuLabel, type PageKey } from "./pageMenu";
 import { getRegionPage } from "./regionPage";
@@ -27,8 +28,8 @@ export default async function RegionCmsPage({ region, subPath, menu, id }: { reg
 
   const result = await getRegionPage(regionData, subPath);
   const sections = (result?.sections ?? []).slice().sort((a, b) => a.sortOrder - b.sortOrder);
-  const [first, ...rest] = sections;
-  const hasIntro = first?.blockType === "introduction_section";
+  const { intro: first, rest } = splitIntro(sections);
+  const hasIntro = first !== null;
   const pageMenu = buildPageMenu(region, regionMenuLabel(regionData.name), menu);
 
   return (

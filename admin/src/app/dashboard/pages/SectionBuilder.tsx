@@ -20,7 +20,7 @@ import {
   IconGripVertical,
   IconIndent,
   IconInsertBelow,
-  IconOutdent,
+  
   IconLayersPlus,
   IconTrash,
 } from "@/components/Icons";
@@ -203,7 +203,13 @@ const BLOCK_GROUPS: { label: string; blocks: [PageBlockType, string][] }[] = [
   },
 ];
 
-function buildPickerGroups(includeContainer: boolean, includeGlobal: boolean): ComponentGroup[] {
+// Page levels: level 0 (directly on the page) takes only a Container or a
+// Global Section; everything else is added inside a Container (level 1),
+// where a Container itself can't go. The API enforces the same
+// (validateHierarchy in api/internal/service/page_service.go).
+function buildPickerGroups(insideContainer: boolean, isGlobal: boolean): ComponentGroup[] {
+  const allowed = (type: PageBlockType) =>
+    insideContainer ? type !== CONTAINER && (!isGlobal || type !== GLOBAL_SECTION) : type === CONTAINER || (!isGlobal && type === GLOBAL_SECTION);
   const grouped = new Set(BLOCK_GROUPS.flatMap((g) => g.blocks.map(([type]) => type)));
   const other = (Object.keys(BLOCK_TYPE_LABELS) as PageBlockType[]).filter((t) => !grouped.has(t));
   const groups = other.length > 0 ? [...BLOCK_GROUPS, { label: "Other", blocks: other.map((t) => [t, ""] as [PageBlockType, string]) }] : BLOCK_GROUPS;
@@ -211,7 +217,7 @@ function buildPickerGroups(includeContainer: boolean, includeGlobal: boolean): C
     .map((group) => ({
       label: group.label,
       blocks: group.blocks
-        .filter(([type]) => (includeContainer || type !== CONTAINER) && (includeGlobal || type !== GLOBAL_SECTION))
+        .filter(([type]) => allowed(type))
         .map(([type, description]) => ({ type, title: BLOCK_TYPE_LABELS[type], description })),
     }))
     .filter((group) => group.blocks.length > 0);
@@ -271,16 +277,59 @@ function itemCount(fields: EditableField[]): number {
 
 // A container's components are the in-container sections right after it,
 // mirroring the API (PageSection.InContainer) and the public renderer.
-// Anything that would leave a component outside a container (a container
-// removed or moved) turns it back into a normal top-level section.
+// Level 0 holds only Containers and Global Sections, so a component that
+// would end up there (dropped between containers, a lone component from a
+// template or paste) gets a Container of its own - one that keeps the
+// component's own spacing, so it looks the same as it would on its own.
 function normalizeContainers(sections: EditableSection[]): EditableSection[] {
+  const out: EditableSection[] = [];
   let open = false;
-  return sections.map((s) => {
-    const isContainer = s.blockType === CONTAINER;
-    const inContainer = !isContainer && s.inContainer && open;
-    open = isContainer || inContainer;
-    return inContainer === s.inContainer ? s : { ...s, inContainer };
-  });
+  for (const s of sections) {
+    if (s.blockType === CONTAINER) {
+      out.push(s.inContainer ? { ...s, inContainer: false } : s);
+      open = true;
+    } else if (s.inContainer && open) {
+      out.push(s);
+    } else if (s.blockType === GLOBAL_SECTION) {
+      out.push(s.inContainer ? { ...s, inContainer: false } : s);
+      open = false;
+    } else {
+      out.push(wrapperContainer(), s.inContainer ? s : { ...s, inContainer: true });
+      open = true;
+    }
+  }
+  return out;
+}
+
+// A Container that leaves spacing to its components (componentSpacing
+// "own", no space of its own) - what normalizeContainers and migration 0084
+// wrap a lone component in.
+function wrapperContainer(): EditableSection {
+  const extra = [
+    ["componentSpacing", "own", 16],
+    ["spaceTop", "none", 10],
+    ["spaceBottom", "none", 11],
+  ] as const;
+  return {
+    key: nextClientKey(),
+    blockType: CONTAINER,
+    customClass: "",
+    customId: "",
+    inContainer: false,
+    fields: [
+      ...defaultFieldsForBlockType(CONTAINER),
+      ...extra.map(([fieldKey, textValue, sortOrder]) => ({
+        itemIndex: 0,
+        fieldKey,
+        fieldType: "text" as const,
+        textValue,
+        mediaId: null,
+        mediaUrl: null,
+        urlValue: "",
+        sortOrder,
+      })),
+    ],
+  };
 }
 
 // End (exclusive) of the top-level unit starting at index: a container plus
@@ -617,6 +666,11 @@ function fromDTO(sections: PageSectionDTO[]): EditableSection[] {
   );
 }
 
+function initialEditable(sections: PageSectionDTO[]): EditableSection[] {
+  if (sections.length > 0) return fromDTO(sections);
+  return [{ key: nextClientKey(), blockType: CONTAINER, customClass: "", customId: "", inContainer: false, fields: defaultFieldsForBlockType(CONTAINER) }];
+}
+
 function snapshot(sections: EditableSection[]): string {
   return JSON.stringify(
     sections.map(({ blockType, customClass, customId, inContainer, fields }) => ({ blockType, customClass, customId, inContainer, fields })),
@@ -649,8 +703,10 @@ export default function SectionBuilder({
 }) {
   const { message } = AntApp.useApp();
   const confirm = useConfirm();
-  const [sections, setSections] = useState<EditableSection[]>(() => fromDTO(initialSections));
-  const [savedSnapshot, setSavedSnapshot] = useState(() => snapshot(fromDTO(initialSections)));
+  // A page with no content yet starts with one empty Container (level 0),
+  // ready for "+ Add Component Inside"; it's only stored once saved.
+  const [sections, setSections] = useState<EditableSection[]>(() => initialEditable(initialSections));
+  const [savedSnapshot, setSavedSnapshot] = useState(() => snapshot(initialEditable(initialSections)));
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [dragKey, setDragKey] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
@@ -659,7 +715,7 @@ export default function SectionBuilder({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [insertAt, setInsertAt] = useState<number | null>(null);
   const [insertInContainer, setInsertInContainer] = useState(false);
-  const pickerGroups = useMemo(() => buildPickerGroups(!insertInContainer, !isGlobal), [insertInContainer, isGlobal]);
+  const pickerGroups = useMemo(() => buildPickerGroups(insertInContainer, isGlobal), [insertInContainer, isGlobal]);
   const [globalNames, setGlobalNames] = useState<Map<string, string>>(() => new Map());
   const [libraryIndex, setLibraryIndex] = useState<number | null>(null);
   const [libraryName, setLibraryName] = useState("");
@@ -847,19 +903,26 @@ export default function SectionBuilder({
     );
   }
 
+  // A Container goes with its components: they can't stay on the page
+  // outside a Container (level 0 takes only Containers).
   async function removeSection(index: number) {
     const section = sections[index];
     const isContainer = section.blockType === CONTAINER;
+    const unit = isContainer ? sections.slice(index, unitEnd(sections, index)) : [section];
+    const inside = unit.length - 1;
     const ok = await confirm({
       title: isContainer ? "Remove Container" : "Remove Section",
       message: isContainer
-        ? "Remove this container? The components inside it stay on the page, outside any container. This only takes effect once you save."
+        ? inside > 0
+          ? `Remove this container and the ${inside} component${inside === 1 ? "" : "s"} inside it? To keep a component, drag it into another container first. This only takes effect once you save.`
+          : "Remove this empty container? This only takes effect once you save."
         : "Remove this section from the page? This only takes effect once you save.",
       confirmLabel: "Remove",
       danger: true,
     });
     if (!ok) return;
-    update((prev) => prev.filter((s) => s.key !== section.key));
+    const keys = new Set(unit.map((s) => s.key));
+    update((prev) => prev.filter((s) => !keys.has(s.key)));
   }
 
   function canMove(index: number, direction: -1 | 1): boolean {
@@ -905,15 +968,6 @@ export default function SectionBuilder({
   function moveIntoContainer(index: number) {
     if (!canMoveIntoContainer(index)) return;
     update((prev) => prev.map((s, i) => (i === index ? { ...s, inContainer: true } : s)));
-  }
-
-  function moveOutOfContainer(index: number) {
-    update((prev) => {
-      let end = index + 1;
-      while (end < prev.length && prev[end].inContainer) end += 1;
-      const moved = { ...prev[index], inContainer: false };
-      return [...prev.slice(0, index), ...prev.slice(index + 1, end), moved, ...prev.slice(end)];
-    });
   }
 
   function dragOver(e: React.DragEvent<HTMLElement>, key: string, position?: DropPosition) {
@@ -964,7 +1018,11 @@ export default function SectionBuilder({
   // here, which still needs "Save Page Content".
   async function saveToLibrary() {
     if (libraryIndex === null) return;
-    const unit = sections.slice(libraryIndex, unitEnd(sections, libraryIndex));
+    const picked = sections.slice(libraryIndex, unitEnd(sections, libraryIndex));
+    // A global section's own content follows the page levels too, so a lone
+    // component is saved inside a Container of its own.
+    const unit =
+      libraryKind === "global" && picked[0].blockType !== CONTAINER ? [wrapperContainer(), { ...picked[0], inContainer: true }] : picked;
     const unitPayload = unit.map((s, i) => ({
       blockType: s.blockType,
       customClass: s.customClass,
@@ -990,12 +1048,12 @@ export default function SectionBuilder({
         blockType: GLOBAL_SECTION,
         customClass: "",
         customId: "",
-        inContainer: unit[0].inContainer,
+        inContainer: picked[0].inContainer,
         fields: [{ itemIndex: 0, fieldKey: "globalId", fieldType: "text", textValue: String(created.id), mediaId: null, mediaUrl: null, urlValue: "", sortOrder: 1 }],
       };
       update((prev) => {
-        const start = prev.findIndex((s) => s.key === unit[0].key);
-        return [...prev.slice(0, start), placeholder, ...prev.slice(start + unit.length)];
+        const start = prev.findIndex((s) => s.key === picked[0].key);
+        return [...prev.slice(0, start), placeholder, ...prev.slice(start + picked.length)];
       });
       setLibraryIndex(null);
       message.success(`"${created.name}" is now a global section. Save Page Content to keep it on this page.`);
@@ -1046,7 +1104,7 @@ export default function SectionBuilder({
   useEffect(() => {
     onActionsChange?.([
       { id: "section-builder-preview", label: previewOpen ? "Hide Preview" : "Preview", onSave: () => setPreviewOpen((v) => !v), variant: "default" },
-      { id: "section-builder-add", label: "+ Add Component", onSave: () => openPicker(), variant: "default" },
+      { id: "section-builder-add", label: "+ Add Container", onSave: () => openPicker(), variant: "default" },
       { id: "section-builder-save", label: "Save Page Content", onSave: handleSave, saving },
     ]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1122,6 +1180,12 @@ export default function SectionBuilder({
             >
               {BLOCK_TYPE_LABELS[section.blockType] ?? section.blockType}
             </span>
+            <span
+              title={section.inContainer ? "Level 1: inside a Container, renders as <div>" : "Level 0: directly on the page, renders as <section>"}
+              className="shrink-0 rounded border border-border px-1.5 py-0.5 font-mono text-[11px] text-text-muted dark:border-border-dark dark:text-text-muted-dark"
+            >
+              {section.inContainer ? "L1 · div" : isContainer ? "L0 · section" : "L0"}
+            </span>
             <span className="truncate text-sm text-text dark:text-text-dark">
               {summary || <span className="text-text-muted italic dark:text-text-muted-dark">No heading</span>}
             </span>
@@ -1157,28 +1221,18 @@ export default function SectionBuilder({
               variant="muted"
               disabled={!canMove(index, 1)}
             />
-            {section.inContainer ? (
+            {canMoveIntoContainer(index) && (
               <IconButton
-                id={`section-${section.key}-outdent`}
-                title="Move Out of Container"
-                onClick={() => moveOutOfContainer(index)}
-                icon={<IconOutdent />}
+                id={`section-${section.key}-indent`}
+                title="Move Into Container Above"
+                onClick={() => moveIntoContainer(index)}
+                icon={<IconIndent />}
                 variant="muted"
               />
-            ) : (
-              canMoveIntoContainer(index) && (
-                <IconButton
-                  id={`section-${section.key}-indent`}
-                  title="Move Into Container Above"
-                  onClick={() => moveIntoContainer(index)}
-                  icon={<IconIndent />}
-                  variant="muted"
-                />
-              )
             )}
             <IconButton
               id={`section-${section.key}-insert`}
-              title={isContainer ? "Add Component Below Container" : "Add Component Below"}
+              title={section.inContainer ? "Add Component Below" : "Add Container Below"}
               onClick={() => insertBelow(index)}
               icon={<IconInsertBelow />}
               variant="muted"
@@ -1265,6 +1319,12 @@ export default function SectionBuilder({
         groups={pickerGroups}
         templates={pickerTemplates}
         clipboardLabel={clipboard?.label}
+        title={insertInContainer ? "Add Component" : "Add Container"}
+        hint={
+          insertInContainer
+            ? "Inside a Container (level 1, rendered as <div>)."
+            : `Directly on the page (level 0, rendered as <section>): a Container${isGlobal ? "" : " or a Global Section"}. Components go inside a Container.`
+        }
         onPick={addSection}
         onPickTemplate={insertTemplate}
         onDeleteTemplate={deleteTemplate}
@@ -1318,7 +1378,9 @@ export default function SectionBuilder({
       </Modal>
 
       {sections.length === 0 && (
-        <p className="text-sm text-text-muted dark:text-text-muted-dark">No sections yet — use “+ Add Component” to start building this page.</p>
+        <p className="text-sm text-text-muted dark:text-text-muted-dark">
+          No content yet — use “+ Add Container” to start. Components go inside Containers.
+        </p>
       )}
 
       <div className="flex flex-col gap-3">
@@ -1337,7 +1399,7 @@ export default function SectionBuilder({
                 {children.map((child, i) => renderSection(child, start + 1 + i, `${number}.${i + 1}`))}
                 {children.length === 0 && (
                   <p className="px-1 py-2 text-xs text-text-muted dark:text-text-muted-dark">
-                    This container is empty — add a component inside it, or use “Move Into Container Above” on the section below.
+                    This container is empty — add a component inside it, or drag one in.
                   </p>
                 )}
                 <div

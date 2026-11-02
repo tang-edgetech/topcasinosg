@@ -151,6 +151,20 @@ export async function getGlobalSections(id: number): Promise<PageSection[] | nul
   }
 }
 
+// The page-header Introduction section renders in PageGrid's intro slot
+// rather than in the section flow when it opens the page: on its own, or
+// alone in the first Container (every component sits in a Container - see
+// validateHierarchy in the API). Returns it and the sections after it.
+export function splitIntro(sections: PageSection[]): { intro: PageSection | null; rest: PageSection[] } {
+  const ordered = sections.slice().sort((a, b) => a.sortOrder - b.sortOrder);
+  const [first, second, third] = ordered;
+  if (first?.blockType === "introduction_section") return { intro: first, rest: ordered.slice(1) };
+  if (first?.blockType === "container" && second?.inContainer && second.blockType === "introduction_section" && !third?.inContainer) {
+    return { intro: second, rest: ordered.slice(2) };
+  }
+  return { intro: null, rest: ordered };
+}
+
 export function field(fields: PageSectionField[], itemIndex: number, key: string): PageSectionField | undefined {
   return fields.find((f) => f.itemIndex === itemIndex && f.fieldKey === key);
 }

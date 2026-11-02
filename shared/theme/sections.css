@@ -43,7 +43,15 @@
  * .section--rich-text below) rather than narrowing a second time.
  */
 @media (min-width: 1024px) {
-  .section--hero.has-hero-image + .section .section-row > .section-col:only-child {
+  .section--hero.has-hero-image + .section .section-row > .section-col:only-child,
+  /* Same, when Hero and the next component each sit in their own Container
+     (every component is inside one; see .section--container-own below). */
+  .section--container:has(> .container-section__body > .section--hero.has-hero-image:last-child)
+    + .section--container
+    > .container-section__body
+    > .section:first-child
+    .section-row
+    > .section-col:only-child {
     max-width: 50%;
     margin-inline: 0;
   }
@@ -81,13 +89,15 @@
  * Container block (ContainerSection.tsx): the sections inside it keep their
  * own markup, but the container owns the vertical rhythm - its space
  * above/below and the gap between them - so their own section padding is
- * dropped, and its content width (--container-max) caps theirs.
+ * dropped, and its content width (--container-max) caps theirs. With
+ * "Each component keeps its own spacing" (.section--container-own) it
+ * doesn't: the components lay out exactly as they would on their own.
  */
 .container-section__body {
   gap: var(--container-gap, 50px);
 }
 
-.container-section__body > .section > .section-container {
+:where(.section--container:not(.section--container-own)) > .container-section__body > .section > .section-container {
   padding-block: 0;
   max-width: var(--container-max, 1270px);
 }
@@ -492,6 +502,7 @@
 .main > .primary {
   flex: 1 1 0%;
   min-width: 0;
+  z-index: 0;
 }
 
 /*
@@ -515,6 +526,7 @@
 .main > .sidebar {
   display: flex;
   flex-direction: column;
+  z-index: 1;
   flex: 0 0 var(--sidebar-w);
   width: var(--sidebar-w);
   padding-top: 20px;
@@ -941,248 +953,250 @@
  * layout. They act on the section's content box - its .section-container,
  * or a Container's body - so they work the same for every block type. The
  * max width is the content's own width: the box switches to content-box so
- * the 25px gutter stays outside it.
+ * the 25px gutter stays outside it. They match <section> and <div> alike: a
+ * component inside a Container renders as a <div> (SectionTag.tsx);
+ * :is(section, div) keeps the old section.section specificity.
  */
 
 /* Mobile */
 @media (max-width: 639px) {
-  section.section.section--maxw-m-400 > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--maxw-m-400 > :is(.section-container, .container-section__body) {
     box-sizing: content-box;
     width: auto;
     max-width: 400px;
   }
-  section.section.section--maxw-m-480 > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--maxw-m-480 > :is(.section-container, .container-section__body) {
     box-sizing: content-box;
     width: auto;
     max-width: 480px;
   }
-  section.section.section--maxw-m-560 > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--maxw-m-560 > :is(.section-container, .container-section__body) {
     box-sizing: content-box;
     width: auto;
     max-width: 560px;
   }
-  section.section.section--maxw-m-640 > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--maxw-m-640 > :is(.section-container, .container-section__body) {
     box-sizing: content-box;
     width: auto;
     max-width: 640px;
   }
-  section.section.section--maxw-m-720 > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--maxw-m-720 > :is(.section-container, .container-section__body) {
     box-sizing: content-box;
     width: auto;
     max-width: 720px;
   }
-  section.section.section--maxw-m-800 > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--maxw-m-800 > :is(.section-container, .container-section__body) {
     box-sizing: content-box;
     width: auto;
     max-width: 800px;
   }
-  section.section.section--maxw-m-960 > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--maxw-m-960 > :is(.section-container, .container-section__body) {
     box-sizing: content-box;
     width: auto;
     max-width: 960px;
   }
-  section.section.section--maxw-m-1080 > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--maxw-m-1080 > :is(.section-container, .container-section__body) {
     box-sizing: content-box;
     width: auto;
     max-width: 1080px;
   }
-  section.section.section--pos-m-left > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--pos-m-left > :is(.section-container, .container-section__body) {
     margin-left: 0;
     margin-right: auto;
   }
-  section.section.section--pos-m-center > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--pos-m-center > :is(.section-container, .container-section__body) {
     margin-left: auto;
     margin-right: auto;
   }
-  section.section.section--pos-m-right > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--pos-m-right > :is(.section-container, .container-section__body) {
     margin-left: auto;
     margin-right: 0;
   }
-  section.section.section--align-m-left > :is(.section-container, .container-section__body),
-  section.section.section--align-m-left > :is(.section-container, .container-section__body) * {
+  :is(section, div).section.section--align-m-left > :is(.section-container, .container-section__body),
+  :is(section, div).section.section--align-m-left > :is(.section-container, .container-section__body) * {
     text-align: left;
   }
-  section.section.section--align-m-left > :is(.section-container, .container-section__body) .section-col:is(.items-start, .items-center, .items-end) {
+  :is(section, div).section.section--align-m-left > :is(.section-container, .container-section__body) .section-col:is(.items-start, .items-center, .items-end) {
     align-items: flex-start;
   }
-  section.section.section--align-m-center > :is(.section-container, .container-section__body),
-  section.section.section--align-m-center > :is(.section-container, .container-section__body) * {
+  :is(section, div).section.section--align-m-center > :is(.section-container, .container-section__body),
+  :is(section, div).section.section--align-m-center > :is(.section-container, .container-section__body) * {
     text-align: center;
   }
-  section.section.section--align-m-center > :is(.section-container, .container-section__body) .section-col:is(.items-start, .items-center, .items-end) {
+  :is(section, div).section.section--align-m-center > :is(.section-container, .container-section__body) .section-col:is(.items-start, .items-center, .items-end) {
     align-items: center;
   }
-  section.section.section--align-m-right > :is(.section-container, .container-section__body),
-  section.section.section--align-m-right > :is(.section-container, .container-section__body) * {
+  :is(section, div).section.section--align-m-right > :is(.section-container, .container-section__body),
+  :is(section, div).section.section--align-m-right > :is(.section-container, .container-section__body) * {
     text-align: right;
   }
-  section.section.section--align-m-right > :is(.section-container, .container-section__body) .section-col:is(.items-start, .items-center, .items-end) {
+  :is(section, div).section.section--align-m-right > :is(.section-container, .container-section__body) .section-col:is(.items-start, .items-center, .items-end) {
     align-items: flex-end;
   }
-  section.section.section--align-m-justify > :is(.section-container, .container-section__body),
-  section.section.section--align-m-justify > :is(.section-container, .container-section__body) * {
+  :is(section, div).section.section--align-m-justify > :is(.section-container, .container-section__body),
+  :is(section, div).section.section--align-m-justify > :is(.section-container, .container-section__body) * {
     text-align: justify;
   }
 }
 
 /* Tablet */
 @media (min-width: 640px) and (max-width: 1199px) {
-  section.section.section--maxw-t-400 > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--maxw-t-400 > :is(.section-container, .container-section__body) {
     box-sizing: content-box;
     width: auto;
     max-width: 400px;
   }
-  section.section.section--maxw-t-480 > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--maxw-t-480 > :is(.section-container, .container-section__body) {
     box-sizing: content-box;
     width: auto;
     max-width: 480px;
   }
-  section.section.section--maxw-t-560 > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--maxw-t-560 > :is(.section-container, .container-section__body) {
     box-sizing: content-box;
     width: auto;
     max-width: 560px;
   }
-  section.section.section--maxw-t-640 > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--maxw-t-640 > :is(.section-container, .container-section__body) {
     box-sizing: content-box;
     width: auto;
     max-width: 640px;
   }
-  section.section.section--maxw-t-720 > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--maxw-t-720 > :is(.section-container, .container-section__body) {
     box-sizing: content-box;
     width: auto;
     max-width: 720px;
   }
-  section.section.section--maxw-t-800 > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--maxw-t-800 > :is(.section-container, .container-section__body) {
     box-sizing: content-box;
     width: auto;
     max-width: 800px;
   }
-  section.section.section--maxw-t-960 > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--maxw-t-960 > :is(.section-container, .container-section__body) {
     box-sizing: content-box;
     width: auto;
     max-width: 960px;
   }
-  section.section.section--maxw-t-1080 > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--maxw-t-1080 > :is(.section-container, .container-section__body) {
     box-sizing: content-box;
     width: auto;
     max-width: 1080px;
   }
-  section.section.section--pos-t-left > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--pos-t-left > :is(.section-container, .container-section__body) {
     margin-left: 0;
     margin-right: auto;
   }
-  section.section.section--pos-t-center > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--pos-t-center > :is(.section-container, .container-section__body) {
     margin-left: auto;
     margin-right: auto;
   }
-  section.section.section--pos-t-right > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--pos-t-right > :is(.section-container, .container-section__body) {
     margin-left: auto;
     margin-right: 0;
   }
-  section.section.section--align-t-left > :is(.section-container, .container-section__body),
-  section.section.section--align-t-left > :is(.section-container, .container-section__body) * {
+  :is(section, div).section.section--align-t-left > :is(.section-container, .container-section__body),
+  :is(section, div).section.section--align-t-left > :is(.section-container, .container-section__body) * {
     text-align: left;
   }
-  section.section.section--align-t-left > :is(.section-container, .container-section__body) .section-col:is(.items-start, .items-center, .items-end) {
+  :is(section, div).section.section--align-t-left > :is(.section-container, .container-section__body) .section-col:is(.items-start, .items-center, .items-end) {
     align-items: flex-start;
   }
-  section.section.section--align-t-center > :is(.section-container, .container-section__body),
-  section.section.section--align-t-center > :is(.section-container, .container-section__body) * {
+  :is(section, div).section.section--align-t-center > :is(.section-container, .container-section__body),
+  :is(section, div).section.section--align-t-center > :is(.section-container, .container-section__body) * {
     text-align: center;
   }
-  section.section.section--align-t-center > :is(.section-container, .container-section__body) .section-col:is(.items-start, .items-center, .items-end) {
+  :is(section, div).section.section--align-t-center > :is(.section-container, .container-section__body) .section-col:is(.items-start, .items-center, .items-end) {
     align-items: center;
   }
-  section.section.section--align-t-right > :is(.section-container, .container-section__body),
-  section.section.section--align-t-right > :is(.section-container, .container-section__body) * {
+  :is(section, div).section.section--align-t-right > :is(.section-container, .container-section__body),
+  :is(section, div).section.section--align-t-right > :is(.section-container, .container-section__body) * {
     text-align: right;
   }
-  section.section.section--align-t-right > :is(.section-container, .container-section__body) .section-col:is(.items-start, .items-center, .items-end) {
+  :is(section, div).section.section--align-t-right > :is(.section-container, .container-section__body) .section-col:is(.items-start, .items-center, .items-end) {
     align-items: flex-end;
   }
-  section.section.section--align-t-justify > :is(.section-container, .container-section__body),
-  section.section.section--align-t-justify > :is(.section-container, .container-section__body) * {
+  :is(section, div).section.section--align-t-justify > :is(.section-container, .container-section__body),
+  :is(section, div).section.section--align-t-justify > :is(.section-container, .container-section__body) * {
     text-align: justify;
   }
 }
 
 /* Desktop */
 @media (min-width: 1200px) {
-  section.section.section--maxw-d-400 > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--maxw-d-400 > :is(.section-container, .container-section__body) {
     box-sizing: content-box;
     width: auto;
     max-width: 400px;
   }
-  section.section.section--maxw-d-480 > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--maxw-d-480 > :is(.section-container, .container-section__body) {
     box-sizing: content-box;
     width: auto;
     max-width: 480px;
   }
-  section.section.section--maxw-d-560 > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--maxw-d-560 > :is(.section-container, .container-section__body) {
     box-sizing: content-box;
     width: auto;
     max-width: 560px;
   }
-  section.section.section--maxw-d-640 > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--maxw-d-640 > :is(.section-container, .container-section__body) {
     box-sizing: content-box;
     width: auto;
     max-width: 640px;
   }
-  section.section.section--maxw-d-720 > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--maxw-d-720 > :is(.section-container, .container-section__body) {
     box-sizing: content-box;
     width: auto;
     max-width: 720px;
   }
-  section.section.section--maxw-d-800 > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--maxw-d-800 > :is(.section-container, .container-section__body) {
     box-sizing: content-box;
     width: auto;
     max-width: 800px;
   }
-  section.section.section--maxw-d-960 > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--maxw-d-960 > :is(.section-container, .container-section__body) {
     box-sizing: content-box;
     width: auto;
     max-width: 960px;
   }
-  section.section.section--maxw-d-1080 > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--maxw-d-1080 > :is(.section-container, .container-section__body) {
     box-sizing: content-box;
     width: auto;
     max-width: 1080px;
   }
-  section.section.section--pos-d-left > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--pos-d-left > :is(.section-container, .container-section__body) {
     margin-left: 0;
     margin-right: auto;
   }
-  section.section.section--pos-d-center > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--pos-d-center > :is(.section-container, .container-section__body) {
     margin-left: auto;
     margin-right: auto;
   }
-  section.section.section--pos-d-right > :is(.section-container, .container-section__body) {
+  :is(section, div).section.section--pos-d-right > :is(.section-container, .container-section__body) {
     margin-left: auto;
     margin-right: 0;
   }
-  section.section.section--align-d-left > :is(.section-container, .container-section__body),
-  section.section.section--align-d-left > :is(.section-container, .container-section__body) * {
+  :is(section, div).section.section--align-d-left > :is(.section-container, .container-section__body),
+  :is(section, div).section.section--align-d-left > :is(.section-container, .container-section__body) * {
     text-align: left;
   }
-  section.section.section--align-d-left > :is(.section-container, .container-section__body) .section-col:is(.items-start, .items-center, .items-end) {
+  :is(section, div).section.section--align-d-left > :is(.section-container, .container-section__body) .section-col:is(.items-start, .items-center, .items-end) {
     align-items: flex-start;
   }
-  section.section.section--align-d-center > :is(.section-container, .container-section__body),
-  section.section.section--align-d-center > :is(.section-container, .container-section__body) * {
+  :is(section, div).section.section--align-d-center > :is(.section-container, .container-section__body),
+  :is(section, div).section.section--align-d-center > :is(.section-container, .container-section__body) * {
     text-align: center;
   }
-  section.section.section--align-d-center > :is(.section-container, .container-section__body) .section-col:is(.items-start, .items-center, .items-end) {
+  :is(section, div).section.section--align-d-center > :is(.section-container, .container-section__body) .section-col:is(.items-start, .items-center, .items-end) {
     align-items: center;
   }
-  section.section.section--align-d-right > :is(.section-container, .container-section__body),
-  section.section.section--align-d-right > :is(.section-container, .container-section__body) * {
+  :is(section, div).section.section--align-d-right > :is(.section-container, .container-section__body),
+  :is(section, div).section.section--align-d-right > :is(.section-container, .container-section__body) * {
     text-align: right;
   }
-  section.section.section--align-d-right > :is(.section-container, .container-section__body) .section-col:is(.items-start, .items-center, .items-end) {
+  :is(section, div).section.section--align-d-right > :is(.section-container, .container-section__body) .section-col:is(.items-start, .items-center, .items-end) {
     align-items: flex-end;
   }
-  section.section.section--align-d-justify > :is(.section-container, .container-section__body),
-  section.section.section--align-d-justify > :is(.section-container, .container-section__body) * {
+  :is(section, div).section.section--align-d-justify > :is(.section-container, .container-section__body),
+  :is(section, div).section.section--align-d-justify > :is(.section-container, .container-section__body) * {
     text-align: justify;
   }
 }

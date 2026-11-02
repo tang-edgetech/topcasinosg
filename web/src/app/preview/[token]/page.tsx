@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getPagePreview } from "@/lib/pages";
+import { getPagePreview, splitIntro } from "@/lib/pages";
 import SectionRenderer from "@/components/sections/SectionRenderer";
 import IntroductionSectionBlock from "@/components/sections/IntroductionSectionBlock";
 import PageGrid from "@/components/PageGrid";
@@ -33,8 +33,8 @@ export default async function PreviewPage({ params }: { params: Promise<{ token:
   }
 
   const ordered = result.sections.slice().sort((a, b) => a.sortOrder - b.sortOrder);
-  const [first, ...rest] = ordered;
-  const hasIntro = first?.blockType === "introduction_section";
+  const { intro: first, rest } = splitIntro(ordered);
+  const hasIntro = first !== null;
   const isHome = result.page.slug === "home";
 
   return (

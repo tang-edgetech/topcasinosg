@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { cmsPageMetadata } from "@/lib/seo";
 import { getActiveRegionByCode } from "../_lib/api";
 import { buildPageMenu, regionMenuLabel } from "../_lib/pageMenu";
-import { getPage } from "@/lib/pages";
+import { getPage, splitIntro } from "@/lib/pages";
 import IntroductionSection from "@/components/IntroductionSection";
 import IntroductionSectionBlock from "@/components/sections/IntroductionSectionBlock";
 import SectionRenderer from "@/components/sections/SectionRenderer";
@@ -47,8 +47,7 @@ export default async function RegionPaymentMethodsPage({
 
   const pageMenu = buildPageMenu(region, regionMenuLabel(regionName), "payment-methods");
   const sections = (result?.sections ?? []).slice().sort((a, b) => a.sortOrder - b.sortOrder);
-  const introSection = sections[0]?.blockType === "introduction_section" ? sections[0] : null;
-  const bodySections = introSection ? sections.slice(1) : sections;
+  const { intro: introSection, rest: bodySections } = splitIntro(sections);
 
   const intro = introSection ? (
     <IntroductionSectionBlock section={introSection} fallbackPageMenu={pageMenu} />

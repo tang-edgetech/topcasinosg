@@ -22,6 +22,8 @@ const ICON_BOX_CLASS = "flex w-full items-center justify-center rounded-md bg-su
 // closes the popup and hands the choice back.
 export default function ComponentPicker({
   open,
+  title = "Add Component",
+  hint,
   groups,
   templates = [],
   clipboardLabel,
@@ -32,6 +34,9 @@ export default function ComponentPicker({
   onClose,
 }: {
   open: boolean;
+  title?: string;
+  // One line under the search box, e.g. which page level this adds to.
+  hint?: string;
   groups: ComponentGroup[];
   templates?: SectionTemplateDTO[];
   clipboardLabel?: string;
@@ -63,7 +68,7 @@ export default function ComponentPicker({
       onCancel={close}
       footer={null}
       width={920}
-      title="Add Component"
+      title={title}
       destroyOnHidden
       styles={{ body: { maxHeight: "70vh", overflowY: "auto" } }}
     >
@@ -76,6 +81,7 @@ export default function ComponentPicker({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
+        {hint && <p className="-mt-2 text-xs text-text-muted dark:text-text-muted-dark">{hint}</p>}
         {visibleGroups.length === 0 && visibleTemplates.length === 0 && !showPaste && (
           <p className="text-sm text-text-muted dark:text-text-muted-dark">No components match “{query}”.</p>
         )}

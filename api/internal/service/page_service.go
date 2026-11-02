@@ -308,6 +308,12 @@ func (s *PageService) ReplaceSections(ctx context.Context, pageID int64, section
 	if page.Kind == domain.PageKindGlobal && hasGlobalSectionBlock(sections) {
 		return ErrNestedGlobal
 	}
+	// Templates may hold a single component: it is inserted into a Container.
+	if page.Kind != domain.PageKindTemplate {
+		if err := validateHierarchy(sections); err != nil {
+			return err
+		}
+	}
 	return s.pages.ReplaceSections(ctx, pageID, sections)
 }
 
@@ -335,7 +341,10 @@ func (s *PageService) CreateGlobal(ctx context.Context, name string, sections []
 	if hasGlobalSectionBlock(sections) {
 		return nil, ErrNestedGlobal
 	}
-	if err := validateContainers(sections); err != nil {
+	if err := validateSections(sections); err != nil {
+		return nil, err
+	}
+	if err := validateHierarchy(sections); err != nil {
 		return nil, err
 	}
 	id, err := s.pages.Create(ctx, &domain.Page{
@@ -398,6 +407,22 @@ func validateContainers(sections []domain.PageSection) error {
 			return ErrInvalidContainer
 		}
 		open = isContainer || section.InContainer
+	}
+	return nil
+}
+
+// validateHierarchy enforces the page levels: level 0 (directly on the
+// page) is only Containers, which render as <section>, and Global Sections,
+// which bring their own Containers; every other component sits at level 1,
+// inside a Container, and renders as <div>. See domain.PageSection.
+func validateHierarchy(sections []domain.PageSection) error {
+	for _, section := range sections {
+		if section.InContainer {
+			continue
+		}
+		if section.BlockType != domain.BlockTypeContainer && section.BlockType != domain.BlockTypeGlobalSection {
+			return fmt.Errorf("%w (found %q)", ErrComponentOutsideContainer, section.BlockType)
+		}
 	}
 	return nil
 }

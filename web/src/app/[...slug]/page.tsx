@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { cmsPageMetadata } from "@/lib/seo";
-import { getPage } from "@/lib/pages";
+import { getPage, splitIntro } from "@/lib/pages";
 import SectionRenderer from "@/components/sections/SectionRenderer";
 import IntroductionSectionBlock from "@/components/sections/IntroductionSectionBlock";
 import PageGrid from "@/components/PageGrid";
@@ -53,8 +53,8 @@ export default async function HierarchicalPage({ params }: { params: Promise<Slu
   }
 
   const ordered = result.sections.slice().sort((a, b) => a.sortOrder - b.sortOrder);
-  const [first, ...rest] = ordered;
-  const hasIntro = first?.blockType === "introduction_section";
+  const { intro: first, rest } = splitIntro(ordered);
+  const hasIntro = first !== null;
 
   return (
     <div id="hierarchical-page" className="hierarchical-page flex flex-1 flex-col">

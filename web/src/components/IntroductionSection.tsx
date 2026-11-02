@@ -15,6 +15,8 @@ export interface IntroductionSectionProps {
   bgFrom?: string;
   bgTo?: string;
   pageMenu?: IntroductionPageMenuItem[];
+  // Drawn inside a Container in the section flow: render as <div> only.
+  nested?: boolean;
 }
 
 // Figma "Introduction Section" — the first section on every non-Home page.
@@ -39,6 +41,12 @@ export interface IntroductionSectionProps {
 // space next to the page-menu's fixed 280px column. `relative z-10` keeps
 // this content painting above the section's own `::before` background
 // (z-index: 0).
+//
+// Page hierarchy: only a Container renders as <section> at the top level and
+// a component inside one is a <div>. Inside a Container (nested) this is that
+// <div>; in the page's intro slot it brings its own Container wrapper, with
+// the same classes as ContainerSection's "each component keeps its own
+// spacing" stack, so it looks the same either way.
 export default function IntroductionSection({
   heading,
   highlightText,
@@ -47,6 +55,7 @@ export default function IntroductionSection({
   bgFrom,
   bgTo,
   pageMenu = [],
+  nested = false,
 }: IntroductionSectionProps) {
   const headingParts = highlightText && heading.includes(highlightText) ? heading.split(highlightText) : null;
 
@@ -55,8 +64,8 @@ export default function IntroductionSection({
     ...(bgTo ? { "--section-bg-to": bgTo } : {}),
   } as CSSProperties;
 
-  return (
-    <section id="introduction-section" className="section section--bg" style={bgStyle}>
+  const intro = (
+    <div id="introduction-section" className="section section--bg" style={bgStyle}>
       <div className="body-container relative z-10 py-14">
         <div className="intro-row">
           <div className="intro-col flex flex-col items-start justify-start gap-2">
@@ -102,6 +111,15 @@ export default function IntroductionSection({
             </nav>
           )}
         </div>
+      </div>
+    </div>
+  );
+
+  if (nested) return intro;
+  return (
+    <section className="section section--container section--container-stack section--container-own">
+      <div className="container-section__body container-section__body--stack relative z-10 flex flex-col" style={{ gap: 0 }}>
+        {intro}
       </div>
     </section>
   );

@@ -38,6 +38,7 @@ export default function IntroductionSectionBlock({
       bgFrom={bgFrom}
       bgTo={bgTo}
       pageMenu={authoredMenu.length > 0 ? authoredMenu : fallbackPageMenu}
+      nested={section.nested}
     />
   );
 }
