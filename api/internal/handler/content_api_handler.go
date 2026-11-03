@@ -192,15 +192,20 @@ func (h *ContentAPIHandler) Me(w http.ResponseWriter, r *http.Request) {
 }
 
 type schemaFieldDTO struct {
-	Key        string `json:"key"`
-	Type       string `json:"type"`
-	Repeatable bool   `json:"repeatable"`
-	UsedIn     int    `json:"usedInSections"`
-	Example    string `json:"example,omitempty"`
+	Key        string   `json:"key"`
+	Type       string   `json:"type"`
+	PerItem    bool     `json:"perItem,omitempty"`
+	Allowed    []string `json:"allowed,omitempty"`
+	About      string   `json:"about,omitempty"`
+	Repeatable bool     `json:"repeatable"`
+	UsedIn     int      `json:"usedInSections"`
+	Example    string   `json:"example,omitempty"`
 }
 
 type schemaBlockDTO struct {
 	Type   string           `json:"type"`
+	Kind   string           `json:"kind"`
+	About  string           `json:"about,omitempty"`
 	Fields []schemaFieldDTO `json:"fields"`
 }
 
@@ -212,19 +217,34 @@ func (h *ContentAPIHandler) Schema(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusInternalServerError, "could not load the schema")
 		return
 	}
-	fields := map[string][]schemaFieldDTO{}
+	// Documented fields first (exact values), then any other field the site
+	// uses for that block type, with how often and an example.
+	used := map[string][]schemaFieldDTO{}
 	for _, u := range catalog {
-		fields[u.BlockType] = append(fields[u.BlockType], schemaFieldDTO{
+		used[u.BlockType] = append(used[u.BlockType], schemaFieldDTO{
 			Key: u.FieldKey, Type: u.FieldType, Repeatable: u.Repeatable, UsedIn: u.Sections, Example: u.Example,
 		})
 	}
 	blocks := make([]schemaBlockDTO, 0, len(domain.KnownBlockTypes))
 	for _, t := range domain.KnownBlockTypes {
-		f := fields[t]
-		if f == nil {
-			f = []schemaFieldDTO{}
+		doc, ok := blockDocs[t]
+		if !ok {
+			doc = blockDoc{Kind: "other"}
 		}
-		blocks = append(blocks, schemaBlockDTO{Type: t, Fields: f})
+		f := []schemaFieldDTO{}
+		documented := map[string]int{}
+		for _, d := range doc.Fields {
+			documented[d.Key] = len(f)
+			f = append(f, schemaFieldDTO{Key: d.Key, Type: d.Type, PerItem: d.PerItem, Allowed: d.Allowed, About: d.About, Repeatable: d.PerItem})
+		}
+		for _, u := range used[t] {
+			if i, ok := documented[u.Key]; ok {
+				f[i].UsedIn, f[i].Example = u.UsedIn, u.Example
+				continue
+			}
+			f = append(f, u)
+		}
+		blocks = append(blocks, schemaBlockDTO{Type: t, Kind: doc.Kind, About: doc.About, Fields: f})
 	}
 	response.JSON(w, http.StatusOK, map[string]any{
 		"rules": []string{
@@ -235,6 +255,10 @@ func (h *ContentAPIHandler) Schema(w http.ResponseWriter, r *http.Request) {
 			"Each section has fields. A field's itemIndex groups repeated items (0 for the section's own fields; 0, 1, 2... for each item of a list such as FAQ questions).",
 			"Easiest way to edit a page: GET /api/v1/pages/{id}, change the text in the fields you need, and send the whole sections list back to POST /api/v1/pages/{id}/changes.",
 			"Images use mediaId (an id from GET /api/v1/media, or one you upload with POST /api/v1/media).",
+			"Build new content from containers holding widgets (blockTypes with kind \"widget\"); kind \"data\" blocks list the site's own casinos, bonuses and articles; kind \"classic\" blocks are older fixed layouts, kept so existing pages still work.",
+			"A field marked perItem repeats once per item (itemIndex 1, 2, 3...); other fields go on itemIndex 0. When a field lists allowed values, use one of them or leave it empty for the default.",
+			"Inside a tabs or accordion container, give each child a \"panelTitle\" text field: it becomes the tab or panel title.",
+			"Look and spacing come from styleClasses in a section's customClass, not from fields.",
 			approvalRule(middleware.APIKeyFromContext(r.Context())),
 		},
 		"endpoints": keyEndpoints(middleware.APIKeyFromContext(r.Context())),
@@ -244,7 +268,8 @@ func (h *ContentAPIHandler) Schema(w http.ResponseWriter, r *http.Request) {
 			"image":    "An image: mediaId from the Media Library.",
 			"button":   "A link: the label in textValue and the URL in urlValue.",
 		},
-		"blockTypes": blocks,
+		"blockTypes":   blocks,
+		"styleClasses": styleClasses,
 	})
 }
 
@@ -452,8 +477,12 @@ func (h *ContentAPIHandler) respondProposal(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	if dryRun {
+		message := "This change is valid. Send it again without dryRun to submit it for approval."
+		if middleware.APIKeyFromContext(r.Context()).IsDirect() {
+			message = "This change is valid. Send it again without dryRun to apply it (a Direct key: it goes live at once)."
+		}
 		response.JSON(w, http.StatusOK, map[string]any{
-			"valid": true, "message": "This change is valid. Send it again without dryRun to submit it for approval.",
+			"valid": true, "message": message,
 			"warnings": warningsOf(change),
 		})
 		return

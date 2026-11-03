@@ -1,0 +1,9 @@
+{
+  "name": "topcasinosg-mcp",
+  "version": "1.0.0",
+  "description": "Connector (MCP server) that lets AI apps such as Claude Desktop edit TopCasinoSG content through the Content API.",
+  "type": "module",
+  "bin": { "topcasinosg-mcp": "server.mjs" },
+  "engines": { "node": ">=18" },
+  "private": true
+}
