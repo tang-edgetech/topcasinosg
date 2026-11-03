@@ -139,6 +139,7 @@ func main() {
 			apiKeyService, contentChangeService, pageService, newsArticleService, mediaService, siteSettingsService, auditService,
 		),
 		AuthenticateAPIKey: apiKeyService.Authenticate,
+		RecycleBin:         repository.NewRecycleBinRepo(conn),
 		Audit:              auditService,
 	}
 	router := server.NewRouter(deps)

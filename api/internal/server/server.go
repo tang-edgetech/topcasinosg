@@ -47,6 +47,7 @@ type Deps struct {
 	SystemHandler         *handler.SystemHandler
 	ContentAPIHandler     *handler.ContentAPIHandler
 	AuthenticateAPIKey    middleware.APIKeyAuthenticator
+	RecycleBin            *repository.RecycleBinRepo
 	Audit                 *service.AuditService
 }
 
@@ -314,10 +315,18 @@ func NewRouter(deps Deps) http.Handler {
 	mux.Handle("POST /api/admin/content-changes/{id}/preview", authenticateUser(contentStaff(http.HandlerFunc(deps.ContentAPIHandler.PreviewChange))))
 	mux.Handle("GET /api/admin/pages/{id}/revisions", authenticate(contentStaff(http.HandlerFunc(deps.ContentAPIHandler.PageRevisions))))
 
+	// Recycle Bin: what Direct API keys deleted (server/direct_api.go).
+	bin := &recycleBin{mux: mux, repo: deps.RecycleBin, users: deps.Users, audit: deps.Audit}
+	mux.Handle("GET /api/admin/recycle-bin", authenticate(contentStaff(http.HandlerFunc(bin.list))))
+	mux.Handle("POST /api/admin/recycle-bin/{id}/restore", authenticate(contentStaff(http.HandlerFunc(bin.restore))))
+	mux.Handle("POST /api/admin/recycle-bin/{id}/delete", authenticate(contentStaff(http.HandlerFunc(bin.deleteNow))))
+
 	// Content API - outside tools (e.g. an AI assistant) with an API key
-	// instead of a sign-in. Reads are direct; pages and news can only be
-	// proposed (see service.ContentChangeService), media uploads go
-	// straight into the Media Library. Each key is limited to its scopes.
+	// instead of a sign-in. Each key is limited to its scopes. A "Needs
+	// approval" key reads, proposes page and news changes (see
+	// service.ContentChangeService) and uploads media. A Direct key's
+	// proposals are applied at once, and every other /api/v1 path runs the
+	// matching admin endpoint (directAPI), with deletes going to the bin.
 	withKey := middleware.AuthenticateAPIKey(deps.AuthenticateAPIKey)
 	scoped := func(scope string, h http.HandlerFunc) http.Handler {
 		return withKey(middleware.RequireScope(scope)(h))
@@ -339,6 +348,13 @@ func NewRouter(deps Deps) http.Handler {
 	mux.Handle("POST /api/v1/news/{id}/changes", scoped(domain.APIScopeNews, api.ProposeNews))
 	mux.Handle("GET /api/v1/media", scoped(domain.APIScopeMedia, api.ListMedia))
 	mux.Handle("POST /api/v1/media", scoped(domain.APIScopeMedia, api.UploadMedia))
+	mux.Handle("GET /api/v1/recycle-bin", withKey(directKeysOnly(bin.list)))
+	mux.Handle("POST /api/v1/recycle-bin/{id}/restore", withKey(directKeysOnly(bin.restore)))
+	mux.Handle("/api/v1/", withKey(directAPI(mux, bin)))
+
+	// Empty the Recycle Bin of anything older than domain.RecycleBinDays,
+	// now and daily; it runs through the routes above.
+	go bin.purgeExpired()
 
 	return middleware.CORS(deps.Config.CORSAllowedOrigins)(mux)
 }

@@ -40,6 +40,7 @@ import {
   IconTransfer,
   IconCopy,
   IconLayoutBottom,
+  IconTrash,
 } from "@/components/Icons";
 
 // One color scheme for every clickable sidebar item, main nav or footer:
@@ -84,6 +85,7 @@ const NAV_SECTIONS: NavSection[] = [
       { href: "/dashboard/news", label: "News", roles: ALL_ROLES, icon: IconNewspaper },
       { href: "/dashboard/media", label: "Media Library", roles: ALL_ROLES, icon: IconPhoto },
       { href: "/dashboard/ai-changes", label: "AI Changes", roles: ALL_ROLES, icon: IconEdit, badge: "aiChanges" },
+      { href: "/dashboard/recycle-bin", label: "Recycle Bin", roles: ALL_ROLES, icon: IconTrash },
     ],
   },
   {

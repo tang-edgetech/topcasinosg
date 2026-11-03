@@ -17,12 +17,12 @@ func NewAPIKeyRepo(db *sql.DB) *APIKeyRepo {
 	return &APIKeyRepo{db: db}
 }
 
-const apiKeyColumns = `k.id, k.name, k.key_prefix, k.scopes, k.created_by, COALESCE(u.full_name, ''), k.created_at, k.last_used_at, k.revoked_at`
+const apiKeyColumns = `k.id, k.name, k.key_prefix, k.mode, k.scopes, k.created_by, COALESCE(u.full_name, ''), k.created_at, k.last_used_at, k.revoked_at`
 
 func scanAPIKey(row interface{ Scan(...any) error }) (*domain.APIKey, error) {
 	var k domain.APIKey
 	var scopes string
-	if err := row.Scan(&k.ID, &k.Name, &k.Prefix, &scopes, &k.CreatedByID, &k.CreatedByName, &k.CreatedAt, &k.LastUsedAt, &k.RevokedAt); err != nil {
+	if err := row.Scan(&k.ID, &k.Name, &k.Prefix, &k.Mode, &scopes, &k.CreatedByID, &k.CreatedByName, &k.CreatedAt, &k.LastUsedAt, &k.RevokedAt); err != nil {
 		return nil, err
 	}
 	k.Scopes = domain.ParseAPIScopes(scopes)
@@ -31,8 +31,8 @@ func scanAPIKey(row interface{ Scan(...any) error }) (*domain.APIKey, error) {
 
 func (r *APIKeyRepo) Create(ctx context.Context, k *domain.APIKey, keyHash string) (int64, error) {
 	res, err := r.db.ExecContext(ctx,
-		`INSERT INTO api_keys (name, key_prefix, key_hash, scopes, created_by) VALUES (?, ?, ?, ?, ?)`,
-		k.Name, k.Prefix, keyHash, strings.Join(k.Scopes, ","), k.CreatedByID,
+		`INSERT INTO api_keys (name, key_prefix, key_hash, mode, scopes, created_by) VALUES (?, ?, ?, ?, ?, ?)`,
+		k.Name, k.Prefix, keyHash, k.Mode, strings.Join(k.Scopes, ","), k.CreatedByID,
 	)
 	if err != nil {
 		return 0, err

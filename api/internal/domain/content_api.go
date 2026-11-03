@@ -5,16 +5,42 @@ import (
 	"time"
 )
 
-// API key scopes: what a key may read and propose changes to through the
-// Content API (/api/v1). Media is uploaded straight into the Media Library;
-// pages and news only ever become proposals (ContentChange).
+// API key scopes: the parts of the site a key may use through the Content
+// API (/api/v1). A "Needs approval" key only has pages, news and media:
+// media is uploaded straight into the Media Library, pages and news become
+// proposals (ContentChange). A "Direct" key may have any scope and uses the
+// admin endpoints of each one (see server/direct_api.go).
 const (
-	APIScopePages = "pages"
-	APIScopeNews  = "news"
-	APIScopeMedia = "media"
+	APIScopePages          = "pages"
+	APIScopeNews           = "news"
+	APIScopeMedia          = "media"
+	APIScopeCasinos        = "casinos"
+	APIScopeBonuses        = "bonuses"
+	APIScopePaymentMethods = "payment_methods"
+	APIScopeRTP            = "rtp"
+	APIScopeGuides         = "guides"
+	APIScopeBlacklist      = "blacklist"
+	APIScopeRegions        = "regions"
+	APIScopeNavigation     = "navigation"
+	APIScopeSnippets       = "snippets"
+	APIScopeSettings       = "settings"
 )
 
-var KnownAPIScopes = []string{APIScopePages, APIScopeNews, APIScopeMedia}
+var KnownAPIScopes = []string{
+	APIScopePages, APIScopeNews, APIScopeMedia, APIScopeCasinos, APIScopeBonuses, APIScopePaymentMethods, APIScopeRTP,
+	APIScopeGuides, APIScopeBlacklist, APIScopeRegions, APIScopeNavigation, APIScopeSnippets, APIScopeSettings,
+}
+
+// ReviewAPIScopes are the scopes a "Needs approval" key may have.
+var ReviewAPIScopes = []string{APIScopePages, APIScopeNews, APIScopeMedia}
+
+// API key modes: a "review" key's page and news changes wait in AI Changes
+// for an admin; a "direct" key's changes go live at once, and what it
+// deletes goes to the Recycle Bin.
+const (
+	APIKeyModeReview = "review"
+	APIKeyModeDirect = "direct"
+)
 
 // APIKeyPrefix starts every key, so a leaked one is easy to recognise.
 const APIKeyPrefix = "tcs_"
@@ -27,6 +53,7 @@ type APIKey struct {
 	ID            int64
 	Name          string
 	Prefix        string
+	Mode          string
 	Scopes        []string
 	CreatedByID   *int64
 	CreatedByName string
@@ -34,6 +61,8 @@ type APIKey struct {
 	LastUsedAt    *time.Time
 	RevokedAt     *time.Time
 }
+
+func (k *APIKey) IsDirect() bool { return k.Mode == APIKeyModeDirect }
 
 func (k *APIKey) HasScope(scope string) bool {
 	for _, s := range k.Scopes {
@@ -117,4 +146,27 @@ type PageRevision struct {
 	SavedByName string
 	Source      string
 	CreatedAt   time.Time
+}
+
+// RecycleBinDays is how long a deleted item waits in the Recycle Bin before
+// it is deleted for good.
+const RecycleBinDays = 30
+
+// RecycleBinItem is something a Direct API key deleted. The item itself is
+// kept, switched off the site (status draft, or a snippet made inactive),
+// until it is restored or RecycleBinDays have passed. ItemType is its admin
+// route ("pages", "casinos", ...); PreviousStatus and PreviousPublishAt are
+// what restoring puts back ("active"/"inactive" for a snippet).
+type RecycleBinItem struct {
+	ID                int64
+	ItemType          string
+	ItemID            int64
+	Label             string
+	PreviousStatus    string
+	PreviousPublishAt *time.Time
+	DeletedByID       *int64
+	DeletedByName     string
+	APIKeyID          *int64
+	APIKeyName        string
+	DeletedAt         time.Time
 }

@@ -44,6 +44,7 @@ type APIKeyDTO struct {
 	ID            int64      `json:"id"`
 	Name          string     `json:"name"`
 	Prefix        string     `json:"prefix"`
+	Mode          string     `json:"mode"`
 	Scopes        []string   `json:"scopes"`
 	CreatedByName string     `json:"createdByName"`
 	CreatedAt     time.Time  `json:"createdAt"`
@@ -57,7 +58,7 @@ func toAPIKeyDTO(k *domain.APIKey) APIKeyDTO {
 		scopes = []string{}
 	}
 	return APIKeyDTO{
-		ID: k.ID, Name: k.Name, Prefix: k.Prefix, Scopes: scopes, CreatedByName: k.CreatedByName,
+		ID: k.ID, Name: k.Name, Prefix: k.Prefix, Mode: k.Mode, Scopes: scopes, CreatedByName: k.CreatedByName,
 		CreatedAt: k.CreatedAt, LastUsedAt: k.LastUsedAt, RevokedAt: k.RevokedAt,
 	}
 }
@@ -134,7 +135,7 @@ func contentChangeErrorStatus(err error) int {
 	switch {
 	case errors.Is(err, repository.ErrNotFound):
 		return http.StatusNotFound
-	case errors.Is(err, service.ErrInvalidChange), errors.Is(err, service.ErrAPIKeyNameRequired), errors.Is(err, service.ErrInvalidAPIScopes):
+	case errors.Is(err, service.ErrInvalidChange), errors.Is(err, service.ErrAPIKeyNameRequired), errors.Is(err, service.ErrInvalidAPIScopes), errors.Is(err, service.ErrInvalidAPIKeyMode):
 		return http.StatusBadRequest
 	case errors.Is(err, service.ErrChangeNotPending), errors.Is(err, service.ErrChangeOutdated), errors.Is(err, service.ErrAlreadyExists):
 		return http.StatusConflict
@@ -185,8 +186,8 @@ func (h *ContentAPIHandler) Me(w http.ResponseWriter, r *http.Request) {
 	key := middleware.APIKeyFromContext(r.Context())
 	owner := middleware.UserFromContext(r.Context())
 	response.JSON(w, http.StatusOK, map[string]any{
-		"name": key.Name, "scopes": key.Scopes, "actingFor": owner.FullName,
-		"requestsPerMinute": middleware.APIKeyRequestsPerMinute,
+		"name": key.Name, "mode": key.Mode, "scopes": key.Scopes, "actingFor": owner.FullName,
+		"requestsPerMinute": middleware.APIKeyRequestsPerMinute, "whatThisKeyCanDo": keyAbilities(key),
 	})
 }
 
@@ -234,8 +235,9 @@ func (h *ContentAPIHandler) Schema(w http.ResponseWriter, r *http.Request) {
 			"Each section has fields. A field's itemIndex groups repeated items (0 for the section's own fields; 0, 1, 2... for each item of a list such as FAQ questions).",
 			"Easiest way to edit a page: GET /api/v1/pages/{id}, change the text in the fields you need, and send the whole sections list back to POST /api/v1/pages/{id}/changes.",
 			"Images use mediaId (an id from GET /api/v1/media, or one you upload with POST /api/v1/media).",
-			"Nothing you send goes live by itself: every change waits for an admin to approve it.",
+			approvalRule(middleware.APIKeyFromContext(r.Context())),
 		},
+		"endpoints": keyEndpoints(middleware.APIKeyFromContext(r.Context())),
 		"fieldTypes": map[string]string{
 			"text":     "Plain text in textValue.",
 			"richtext": "HTML in textValue (paragraphs, headings, lists, links, bold/italic). Scripts and styles are removed.",
@@ -457,6 +459,23 @@ func (h *ContentAPIHandler) respondProposal(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	h.recordKeyAction(r, domain.AuditActionCreate, "content-changes", &change.ID, change.Label, http.StatusCreated)
+	if key := middleware.APIKeyFromContext(r.Context()); key.IsDirect() {
+		// A Direct key's change is applied at once, recorded in AI Changes
+		// as approved by the key's admin.
+		applied, err := h.changes.Approve(r.Context(), change.ID, middleware.UserFromContext(r.Context()), "Applied at once (Direct API key: "+key.Name+")", true)
+		if err != nil {
+			contentChangeError(w, err, notFound)
+			return
+		}
+		message := "Done. The change is live."
+		if applied.Action == domain.ContentChangeCreate {
+			message = fmt.Sprintf("Done. It was created as a draft (id %d); to put it on the site, PUT /api/v1/%s/%d/status with {\"status\": \"published\"}.", derefID(applied.ResultID), pluralType(applied.ContentType), derefID(applied.ResultID))
+		}
+		response.JSON(w, http.StatusCreated, map[string]any{
+			"change": toContentChangeDTO(applied), "message": message, "warnings": warningsOf(change),
+		})
+		return
+	}
 	token, _ := h.changes.PreviewToken(r.Context(), change)
 	response.JSON(w, http.StatusCreated, map[string]any{
 		"change":     toContentChangeDTO(change),
@@ -464,6 +483,101 @@ func (h *ContentAPIHandler) respondProposal(w http.ResponseWriter, r *http.Reque
 		"message":    "Submitted. It goes live only after an admin approves it in the dashboard (AI Changes).",
 		"warnings":   warningsOf(change),
 	})
+}
+
+func derefID(id *int64) int64 {
+	if id == nil {
+		return 0
+	}
+	return *id
+}
+
+// pluralType: the /api/v1 area of a change's content type.
+func pluralType(contentType string) string {
+	if contentType == domain.ContentChangePage {
+		return "pages"
+	}
+	return contentType
+}
+
+func approvalRule(key *domain.APIKey) string {
+	if key.IsDirect() {
+		return "This is a Direct key: page and news changes sent to POST /api/v1/pages/{id}/changes or /api/v1/news/{id}/changes go live at once (new ones are created as drafts)."
+	}
+	return "Nothing you send goes live by itself: every change waits for an admin to approve it."
+}
+
+// keyEndpoints lists the endpoints a key can use. A Direct key uses the
+// admin endpoints of each area it has (see server/direct_api.go).
+func keyEndpoints(key *domain.APIKey) []string {
+	list := []string{
+		"GET /api/v1/me - this key, its mode and areas",
+		"GET /api/v1/changes - changes this key has sent (and whether they were approved)",
+	}
+	if key.HasScope(domain.APIScopePages) {
+		list = append(list,
+			"GET /api/v1/pages - every page with its id, path and status",
+			"GET /api/v1/pages/{id} - one page with all its sections",
+			"POST /api/v1/pages - a new page {title, slug, parentId, metaTitle, metaDescription, sections}",
+			"POST /api/v1/pages/{id}/changes - change a page: send the whole sections list back, edited",
+			"GET /api/v1/global-sections - reusable sections a page can include")
+	}
+	if key.HasScope(domain.APIScopeNews) {
+		list = append(list,
+			"GET /api/v1/news, GET /api/v1/news/{id} - news articles",
+			"POST /api/v1/news - a new article {title, slug, excerpt, content, coverMediaId}",
+			"POST /api/v1/news/{id}/changes - change an article")
+	}
+	if key.HasScope(domain.APIScopeMedia) {
+		list = append(list, "GET /api/v1/media - the Media Library", "POST /api/v1/media - upload an image (multipart form, field \"file\")")
+	}
+	if !key.IsDirect() {
+		return list
+	}
+	areas := map[string]string{
+		domain.APIScopePages:          "pages (also PUT /api/v1/pages/{id} for title/slug/parent, PUT /api/v1/pages/{id}/seo), global-sections, section-templates",
+		domain.APIScopeNews:           "news (also PUT /api/v1/news/{id})",
+		domain.APIScopeMedia:          "media (PUT /api/v1/media/{id} for alt text and title)",
+		domain.APIScopeCasinos:        "casinos, game-providers, licenses",
+		domain.APIScopeBonuses:        "bonuses",
+		domain.APIScopePaymentMethods: "payment-methods",
+		domain.APIScopeRTP:            "rtp",
+		domain.APIScopeGuides:         "guides",
+		domain.APIScopeBlacklist:      "blacklist",
+		domain.APIScopeRegions:        "regions (PUT /api/v1/regions/{id}/active {active} instead of delete)",
+		domain.APIScopeNavigation:     "menu-items (header and footer menus), sidebar (GET, then PUT the whole sidebar back)",
+		domain.APIScopeSnippets:       "snippets (PUT /api/v1/snippets/{id}/active {active}), pages/{id}/snippets",
+		domain.APIScopeSettings:       "settings/site and settings/footer (GET, then PUT them back changed)",
+	}
+	list = append(list,
+		"Direct key - for each area below: GET /api/v1/{area} lists, GET /api/v1/{area}/{id} reads one, POST /api/v1/{area} creates, PUT /api/v1/{area}/{id} updates (send the same fields GET returns), PUT /api/v1/{area}/{id}/status {\"status\": \"draft\" | \"published\" | \"scheduled\", \"publishAt\"} publishes or unpublishes, DELETE /api/v1/{area}/{id} moves it to the Recycle Bin",
+		"SEO: GET/PUT /api/v1/seo/{page|news|casino|bonus|guide}/{id}",
+		"GET /api/v1/recycle-bin - what was deleted; POST /api/v1/recycle-bin/{id}/restore - undo a delete",
+		"Only pages, news, casinos, bonuses, payment-methods, rtp, guides, blacklist and snippets can be deleted by a key; ask an admin for anything else",
+	)
+	for _, scope := range key.Scopes {
+		if a, ok := areas[scope]; ok {
+			list = append(list, "Area: "+a)
+		}
+	}
+	return list
+}
+
+// keyAbilities says in plain words what a key can do, for GET /api/v1/me.
+func keyAbilities(key *domain.APIKey) []string {
+	if !key.IsDirect() {
+		return []string{
+			"This is a \"Needs approval\" key. Page and news changes you send wait for an admin to approve them in the dashboard (AI Changes).",
+			"You can upload images to the Media Library straight away.",
+			"You can't publish, unpublish or delete anything.",
+		}
+	}
+	return []string{
+		"This is a Direct key. Changes go live straight away, with no approval step.",
+		"You can use these areas: " + strings.Join(key.Scopes, ", ") + ".",
+		"Deleting moves things to the Recycle Bin for 30 days; restore with POST /api/v1/recycle-bin/{id}/restore.",
+		"GET /api/v1/schema explains every endpoint and how page content is built.",
+	}
 }
 
 func warningsOf(c *domain.ContentChange) []string {
@@ -552,6 +666,7 @@ func (h *ContentAPIHandler) ListKeys(w http.ResponseWriter, r *http.Request) {
 
 type createAPIKeyRequest struct {
 	Name   string   `json:"name"`
+	Mode   string   `json:"mode"`
 	Scopes []string `json:"scopes"`
 }
 
@@ -563,14 +678,14 @@ func (h *ContentAPIHandler) CreateKey(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	key, secret, err := h.keys.Create(r.Context(), requireActor(r), req.Name, req.Scopes)
+	key, secret, err := h.keys.Create(r.Context(), requireActor(r), req.Name, req.Mode, req.Scopes)
 	if err != nil {
 		contentChangeError(w, err, "not found")
 		return
 	}
 	dto := toAPIKeyDTO(key)
 	response.JSON(w, http.StatusCreated, map[string]any{
-		"id": dto.ID, "name": dto.Name, "prefix": dto.Prefix, "scopes": dto.Scopes, "secretKey": secret,
+		"id": dto.ID, "name": dto.Name, "prefix": dto.Prefix, "mode": dto.Mode, "scopes": dto.Scopes, "secretKey": secret,
 	})
 }
 

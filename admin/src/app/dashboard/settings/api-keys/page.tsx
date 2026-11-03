@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { Checkbox, Input, Modal, App as AntApp } from "antd";
+import { Checkbox, Input, Modal, Radio, App as AntApp } from "antd";
 import { api, ApiError } from "@/lib/api";
 import { useConfirm } from "@/components/ConfirmDialog";
-import type { APIKeyDTO, APIScope } from "@/lib/types";
+import type { APIKeyDTO, APIKeyMode, APIScope } from "@/lib/types";
 
 dayjs.extend(relativeTime);
 
@@ -16,15 +16,40 @@ const PRIMARY_BUTTON_CLASS =
 const SECONDARY_BUTTON_CLASS =
   "btn cursor-pointer rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-text dark:border-border-dark dark:text-text-dark disabled:cursor-not-allowed disabled:opacity-60";
 
-const SCOPES: { value: APIScope; label: string; help: string }[] = [
-  { value: "pages", label: "Pages", help: "Read pages and propose changes or new pages." },
-  { value: "news", label: "News", help: "Read articles and propose changes or new articles." },
-  { value: "media", label: "Media", help: "Read the Media Library and upload images to it." },
+// directOnly: only a Direct key can have it (see domain.ReviewAPIScopes).
+const SCOPES: { value: APIScope; label: string; help: string; directOnly?: boolean }[] = [
+  { value: "pages", label: "Pages", help: "Pages, their sections, SEO and global sections." },
+  { value: "news", label: "News", help: "News articles." },
+  { value: "media", label: "Media", help: "The Media Library: read and upload images." },
+  { value: "casinos", label: "Casinos", help: "Casinos, game providers and licenses.", directOnly: true },
+  { value: "bonuses", label: "Bonuses", help: "Casino bonuses.", directOnly: true },
+  { value: "payment_methods", label: "Payment Methods", help: "Payment methods per country.", directOnly: true },
+  { value: "rtp", label: "RTP Entries", help: "Game RTP entries.", directOnly: true },
+  { value: "guides", label: "Guides", help: "Guides.", directOnly: true },
+  { value: "blacklist", label: "Blacklist", help: "Blacklisted casinos.", directOnly: true },
+  { value: "regions", label: "Regions", help: "Countries: edit and switch on or off.", directOnly: true },
+  { value: "navigation", label: "Navigation", help: "Header and footer menus, and the sidebar.", directOnly: true },
+  { value: "snippets", label: "Snippets", help: "Code added to the site's head, body or footer.", directOnly: true },
+  { value: "settings", label: "Site Settings", help: "Site title, logo, footer text and contact details.", directOnly: true },
+];
+
+const MODES: { value: APIKeyMode; label: string; help: string }[] = [
+  {
+    value: "review",
+    label: "Needs approval",
+    help: "Page and news changes wait in AI Changes until someone approves them. Can't publish, unpublish or delete.",
+  },
+  {
+    value: "direct",
+    label: "Direct",
+    help: "Changes go live straight away, including publishing, unpublishing and deleting. Deleted items go to the Recycle Bin for 30 days.",
+  },
 ];
 
 // Settings > API Keys: keys that let an outside tool (e.g. an AI assistant)
-// use the Content API (/api/v1). Pages and news it sends wait in AI Changes
-// for approval. Data: /api/admin/api-keys.
+// use the Content API (/api/v1). A "Needs approval" key's page and news
+// changes wait in AI Changes; a Direct key's go live at once. Data:
+// /api/admin/api-keys.
 export default function APIKeysSettingsPage() {
   const { message } = AntApp.useApp();
   const confirm = useConfirm();
@@ -32,7 +57,9 @@ export default function APIKeysSettingsPage() {
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
+  const [mode, setMode] = useState<APIKeyMode>("review");
   const [scopes, setScopes] = useState<APIScope[]>(["pages", "news", "media"]);
+  const availableScopes = SCOPES.filter((scope) => mode === "direct" || !scope.directOnly);
   const [saving, setSaving] = useState(false);
   const [newKey, setNewKey] = useState<{ name: string; secretKey: string } | null>(null);
 
@@ -50,7 +77,11 @@ export default function APIKeysSettingsPage() {
   async function handleCreate() {
     setSaving(true);
     try {
-      const created = await api.post<{ name: string; secretKey: string }>("/api/admin/api-keys", { name, scopes });
+      const created = await api.post<{ name: string; secretKey: string }>("/api/admin/api-keys", {
+        name,
+        mode,
+        scopes: scopes.filter((s) => availableScopes.some((a) => a.value === s)),
+      });
       setCreating(false);
       setName("");
       setNewKey(created);
@@ -95,9 +126,10 @@ export default function APIKeysSettingsPage() {
         <div className="flex max-w-2xl flex-col gap-1">
           <h2 className="text-lg font-bold text-text dark:text-text-dark">API Keys</h2>
           <p className={MUTED_CLASS}>
-            A key lets a tool such as an AI assistant read the site&apos;s content and propose changes through the Content API. Nothing it
-            sends goes live by itself: every page or article change waits in <strong>AI Changes</strong> until someone approves it. A key
-            stops working if it is revoked, or if the admin who created it is disabled.
+            A key lets a tool such as an AI assistant manage the site&apos;s content through the Content API. A{" "}
+            <strong>Needs approval</strong> key&apos;s page and article changes wait in <strong>AI Changes</strong> until someone approves
+            them. A <strong>Direct</strong> key&apos;s changes go live straight away, and what it deletes goes to the{" "}
+            <strong>Recycle Bin</strong>. A key stops working if it is revoked, or if the admin who created it is disabled.
           </p>
         </div>
         <button type="button" id="api-keys-create" onClick={() => setCreating(true)} className={PRIMARY_BUTTON_CLASS}>
@@ -118,6 +150,7 @@ export default function APIKeysSettingsPage() {
               <tr>
                 <th className="px-4 py-2.5 font-semibold">Name</th>
                 <th className="px-4 py-2.5 font-semibold">Key</th>
+                <th className="px-4 py-2.5 font-semibold">Mode</th>
                 <th className="px-4 py-2.5 font-semibold">Can use</th>
                 <th className="px-4 py-2.5 font-semibold">Created</th>
                 <th className="px-4 py-2.5 font-semibold">Last used</th>
@@ -129,6 +162,13 @@ export default function APIKeysSettingsPage() {
                 <tr key={key.id} id={`api-key-${key.id}`} className={key.revokedAt ? "opacity-60" : ""}>
                   <td className="px-4 py-3 font-medium text-text dark:text-text-dark">{key.name}</td>
                   <td className="px-4 py-3 font-mono text-xs text-text-muted dark:text-text-muted-dark">{key.prefix}…</td>
+                  <td className="px-4 py-3">
+                    {key.mode === "direct" ? (
+                      <span className="rounded-full bg-danger/10 px-2 py-0.5 text-xs font-semibold text-danger">Direct</span>
+                    ) : (
+                      <span className="text-xs font-semibold text-text-muted dark:text-text-muted-dark">Needs approval</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-text dark:text-text-dark">
                     {key.scopes.map((s) => SCOPES.find((x) => x.value === s)?.label ?? s).join(", ")}
                   </td>
@@ -163,7 +203,10 @@ export default function APIKeysSettingsPage() {
         onCancel={() => setCreating(false)}
         onOk={handleCreate}
         okText="Create Key"
-        okButtonProps={{ disabled: !name.trim() || scopes.length === 0, loading: saving }}
+        okButtonProps={{
+          disabled: !name.trim() || !scopes.some((s) => availableScopes.some((a) => a.value === s)),
+          loading: saving,
+        }}
         destroyOnHidden
       >
         <div className="flex flex-col gap-4 py-2">
@@ -179,8 +222,25 @@ export default function APIKeysSettingsPage() {
             <span className={`${MUTED_CLASS} font-normal`}>Shown in AI Changes and the Activity Log next to everything this key does.</span>
           </label>
           <div className="flex flex-col gap-2">
+            <span className="text-sm font-medium text-text dark:text-text-dark">Mode</span>
+            <Radio.Group id="api-key-mode" value={mode} onChange={(e) => setMode(e.target.value)} className="flex flex-col gap-2">
+              {MODES.map((m) => (
+                <Radio key={m.value} value={m.value} className="items-start! rounded-md border border-border p-3 dark:border-border-dark">
+                  <span className="block font-medium">{m.label}</span>
+                  <span className={`block ${MUTED_CLASS}`}>{m.help}</span>
+                </Radio>
+              ))}
+            </Radio.Group>
+            {mode === "direct" && (
+              <p className="rounded-md bg-danger/10 px-3 py-2 text-xs text-text dark:text-text-dark">
+                Whoever holds this key can change and unpublish content on the live site. Users, API keys, security settings and
+                deployments stay off limits.
+              </p>
+            )}
+          </div>
+          <div className="flex flex-col gap-2">
             <span className="text-sm font-medium text-text dark:text-text-dark">What it can use</span>
-            {SCOPES.map((scope) => (
+            {availableScopes.map((scope) => (
               <Checkbox
                 key={scope.value}
                 checked={scopes.includes(scope.value)}

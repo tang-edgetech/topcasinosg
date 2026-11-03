@@ -24,7 +24,8 @@ type APIKeyAuthenticator func(ctx context.Context, raw string) (*domain.APIKey, 
 
 // AuthenticateAPIKey guards the Content API (/api/v1): the key comes in
 // "Authorization: Bearer <key>" (or "X-API-Key"). The key and its admin are
-// put in the request context; nothing here sets a cookie or a session.
+// put in the request context (WithActingUser, so a Direct key can reach the
+// admin routes it's allowed); nothing here sets a cookie or a session.
 func AuthenticateAPIKey(authenticate APIKeyAuthenticator) func(http.Handler) http.Handler {
 	limiter := &apiKeyLimiter{windows: map[int64]*apiKeyWindow{}}
 	return func(next http.Handler) http.Handler {
@@ -48,7 +49,7 @@ func AuthenticateAPIKey(authenticate APIKeyAuthenticator) func(http.Handler) htt
 				return
 			}
 			ctx := context.WithValue(r.Context(), apiKeyContextKey, key)
-			ctx = context.WithValue(ctx, userContextKey, owner)
+			ctx = WithActingUser(ctx, owner)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

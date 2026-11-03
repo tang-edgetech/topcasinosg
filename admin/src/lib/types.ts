@@ -694,17 +694,50 @@ export interface SessionDTO {
 }
 
 // Content API keys — APIKeyDTO in api/internal/handler/content_api_handler.go.
-export type APIScope = "pages" | "news" | "media";
+export type APIScope =
+  | "pages"
+  | "news"
+  | "media"
+  | "casinos"
+  | "bonuses"
+  | "payment_methods"
+  | "rtp"
+  | "guides"
+  | "blacklist"
+  | "regions"
+  | "navigation"
+  | "snippets"
+  | "settings";
+
+// "review": page/news changes wait in AI Changes; "direct": changes go live
+// at once and deletes go to the Recycle Bin.
+export type APIKeyMode = "review" | "direct";
 
 export interface APIKeyDTO {
   id: number;
   name: string;
   prefix: string;
+  mode: APIKeyMode;
   scopes: APIScope[];
   createdByName: string;
   createdAt: string;
   lastUsedAt: string | null;
   revokedAt: string | null;
+}
+
+// Something a Direct API key deleted — recycleBinItemDTO in
+// api/internal/server/direct_api.go. itemType is its admin area ("pages",
+// "casinos", ...); deleteAfter is when it is deleted for good.
+export interface RecycleBinItemDTO {
+  id: number;
+  itemType: string;
+  itemId: number;
+  label: string;
+  previousStatus: string;
+  deletedByName: string;
+  apiKeyName: string;
+  deletedAt: string;
+  deleteAfter: string;
 }
 
 // A change proposed through the Content API (AI Changes) — ContentChangeDTO

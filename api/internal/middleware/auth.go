@@ -15,7 +15,17 @@ type contextKey int
 const (
 	userContextKey contextKey = iota
 	sessionContextKey
+	actingUserContextKey
 )
+
+// WithActingUser marks a request as already authenticated as user, so
+// Authenticate lets it through without a session cookie. Only server code
+// sets it: a Direct API key (AuthenticateAPIKey, server/direct_api.go) and
+// the Recycle Bin's own clean-up. Nothing a client sends can set it.
+func WithActingUser(ctx context.Context, user *domain.AdminUser) context.Context {
+	ctx = context.WithValue(ctx, userContextKey, user)
+	return context.WithValue(ctx, actingUserContextKey, true)
+}
 
 // Authenticate reads the access-token cookie (named accessCookie), verifies it, and re-fetches the
 // user from the DB (not just trusting the JWT claims) so a role change or an
@@ -29,6 +39,10 @@ const (
 func Authenticate(jwtIssuer *security.JWTIssuer, users *repository.UserRepo, twoFactorRequired func(context.Context) (bool, error), sessionActive func(ctx context.Context, userID int64, sessionID string) (bool, error), accessCookie string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if acting, _ := r.Context().Value(actingUserContextKey).(bool); acting && UserFromContext(r.Context()) != nil {
+				next.ServeHTTP(w, r)
+				return
+			}
 			cookie, err := r.Cookie(accessCookie)
 			if err != nil {
 				response.Err(w, http.StatusUnauthorized, "not authenticated")

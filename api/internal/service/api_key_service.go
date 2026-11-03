@@ -26,14 +26,26 @@ func (s *APIKeyService) List(ctx context.Context) ([]domain.APIKey, error) {
 }
 
 // Create returns the new key's record and the key itself, which is never
-// stored or shown again.
-func (s *APIKeyService) Create(ctx context.Context, actor *domain.AdminUser, name string, scopes []string) (*domain.APIKey, string, error) {
+// stored or shown again. mode is domain.APIKeyModeReview (the default) or
+// domain.APIKeyModeDirect; a review key may only have domain.ReviewAPIScopes.
+func (s *APIKeyService) Create(ctx context.Context, actor *domain.AdminUser, name, mode string, scopes []string) (*domain.APIKey, string, error) {
 	name = strings.TrimSpace(name)
 	if name == "" || len(name) > 100 {
 		return nil, "", ErrAPIKeyNameRequired
 	}
+	if mode == "" {
+		mode = domain.APIKeyModeReview
+	}
+	allowed := domain.ReviewAPIScopes
+	switch mode {
+	case domain.APIKeyModeReview:
+	case domain.APIKeyModeDirect:
+		allowed = domain.KnownAPIScopes
+	default:
+		return nil, "", ErrInvalidAPIKeyMode
+	}
 	var clean []string
-	for _, known := range domain.KnownAPIScopes {
+	for _, known := range allowed {
 		for _, s := range scopes {
 			if s == known {
 				clean = append(clean, known)
@@ -51,7 +63,7 @@ func (s *APIKeyService) Create(ctx context.Context, actor *domain.AdminUser, nam
 	key := domain.APIKeyPrefix + token
 	actorID := actor.ID
 	id, err := s.keys.Create(ctx, &domain.APIKey{
-		Name: name, Prefix: key[:len(domain.APIKeyPrefix)+6], Scopes: clean, CreatedByID: &actorID,
+		Name: name, Prefix: key[:len(domain.APIKeyPrefix)+6], Mode: mode, Scopes: clean, CreatedByID: &actorID,
 	}, security.HashToken(key))
 	if err != nil {
 		return nil, "", err

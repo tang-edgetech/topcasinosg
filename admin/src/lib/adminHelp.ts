@@ -43,6 +43,29 @@ export const ADMIN_HELP = {
           "\"Edited since\" means someone changed that page or article after the tool read it. Check the comparison: approving replaces those edits where they overlap.",
           "The number next to AI Changes in the menu is how many are waiting.",
           "Keys are created and revoked under Settings › API Keys.",
+          "A Direct key's changes skip this queue: they show here as already approved, so you can still see what it did.",
+        ],
+      },
+    ],
+  },
+  recycleBin: {
+    summary:
+      "What a Direct API key (usually an AI assistant) has deleted. Each item is taken off the website straight away, but kept here for 30 days so it can be put back.",
+    sections: [
+      {
+        heading: "What you can do",
+        points: [
+          "Restore puts the item back exactly as it was, with the status it had (published, scheduled or draft).",
+          "Delete Now removes it for good, straight away. This can't be undone.",
+          "After 30 days, items are deleted for good automatically.",
+        ],
+      },
+      {
+        heading: "Good to know",
+        points: [
+          "While it's in the bin, the item is still listed in its own section (Pages, News, Casinos…) as a draft. If someone publishes it from there, it simply leaves the bin.",
+          "Its address (slug) stays taken until it's deleted for good, so a new item can't reuse it until then.",
+          "Things deleted by people in the dashboard don't come here; only deletes made with an API key do.",
         ],
       },
     ],

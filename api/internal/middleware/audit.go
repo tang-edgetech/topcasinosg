@@ -81,9 +81,13 @@ func Audit(audit *service.AuditService, snapshot Snapshotter) func(http.Handler)
 			}
 
 			ip, port := ClientAddress(r)
+			actorName := actor.FullName
+			if key := APIKeyFromContext(r.Context()); key != nil {
+				actorName = fmt.Sprintf("%s (API key: %s)", actor.FullName, key.Name)
+			}
 			entry := &domain.AuditLog{
 				ActorID:       &actor.ID,
-				ActorName:     actor.FullName,
+				ActorName:     actorName,
 				ActorRole:     string(actor.Role),
 				Action:        route.action,
 				EntityType:    route.entityType,
