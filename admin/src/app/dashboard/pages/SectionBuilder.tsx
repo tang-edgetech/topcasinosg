@@ -29,6 +29,7 @@ import type { SaveAction } from "./SaveActionBar";
 import ComponentPicker, { type ComponentGroup } from "./ComponentPicker";
 import LivePreview from "./LivePreview";
 import { copySectionsToClipboard, useSectionClipboard, type CopiedSection } from "@/lib/sectionClipboard";
+import { CLASSIC_BLOCK_TYPES, READY_TEMPLATES, type ReadyTemplate } from "@/lib/readyTemplates";
 import type { GlobalSectionDTO, PageBlockType, PageSectionDTO, SectionTemplateDTO } from "@/lib/types";
 
 // depth: 0 directly on the page, N inside the nearest Container before it
@@ -1103,6 +1104,10 @@ export default function SectionBuilder({
     }
   }
 
+  function insertReadyTemplate(template: ReadyTemplate) {
+    if (insertCopies(template.sections, "ready-made section")) message.success(`Inserted “${template.name}”. Replace the sample text, then Save Page Content.`);
+  }
+
   async function deleteTemplate(template: SectionTemplateDTO) {
     const ok = await confirm({
       title: "Delete Template",
@@ -1639,6 +1644,8 @@ export default function SectionBuilder({
         open={pickerOpen}
         groups={pickerGroups}
         templates={pickerTemplates}
+        readyTemplates={READY_TEMPLATES.filter((t) => Math.max(insertDepth, 1) + Math.max(...t.sections.map((s) => s.depth ?? 0)) <= MAX_DEPTH)}
+        classicTypes={CLASSIC_BLOCK_TYPES}
         clipboardLabel={clipboard?.label}
         title={insertDepth > 0 ? "Add Component" : "Add Container"}
         hint={
@@ -1650,6 +1657,7 @@ export default function SectionBuilder({
         }
         onPick={addSection}
         onPickTemplate={insertTemplate}
+        onPickReady={insertReadyTemplate}
         onDeleteTemplate={deleteTemplate}
         onPaste={pasteClipboard}
         onClose={() => setPickerOpen(false)}
