@@ -415,31 +415,52 @@ func (s *PageService) GlobalSections(ctx context.Context, id int64) ([]domain.Pa
 	return s.pages.GetSectionsWithFields(ctx, id)
 }
 
-// validateContainers checks, in display order, that every in-container
-// section follows a container (or another section inside one) and that no
-// container is itself inside a container.
+// sectionDepth is a section's level; one stored before levels existed
+// only says InContainer (level 1).
+func sectionDepth(section domain.PageSection) int {
+	if section.Depth <= 0 && section.InContainer {
+		return 1
+	}
+	return section.Depth
+}
+
+// validateContainers checks, in display order, that every section above
+// level 0 belongs to a Container exactly one level up (the nearest one
+// before it), that no section is deeper than domain.MaxSectionDepth, and
+// that a Container leaves room for components inside it.
 func validateContainers(sections []domain.PageSection) error {
 	ordered := make([]domain.PageSection, len(sections))
 	copy(ordered, sections)
 	sort.SliceStable(ordered, func(i, j int) bool { return ordered[i].SortOrder < ordered[j].SortOrder })
-	open := false
+	var open []int // levels of the Containers the current section can be inside
 	for _, section := range ordered {
-		isContainer := section.BlockType == domain.BlockTypeContainer
-		if section.InContainer && (isContainer || !open) {
+		depth := sectionDepth(section)
+		if depth < 0 || depth > domain.MaxSectionDepth {
 			return ErrInvalidContainer
 		}
-		open = isContainer || section.InContainer
+		for len(open) > 0 && open[len(open)-1] >= depth {
+			open = open[:len(open)-1]
+		}
+		if depth > 0 && (len(open) == 0 || open[len(open)-1] != depth-1) {
+			return ErrInvalidContainer
+		}
+		if section.BlockType == domain.BlockTypeContainer {
+			if depth >= domain.MaxSectionDepth {
+				return ErrInvalidContainer
+			}
+			open = append(open, depth)
+		}
 	}
 	return nil
 }
 
-// validateHierarchy enforces the page levels: level 0 (directly on the
-// page) is only Containers, which render as <section>, and Global Sections,
-// which bring their own Containers; every other component sits at level 1,
-// inside a Container, and renders as <div>. See domain.PageSection.
+// validateHierarchy enforces level 0 (directly on the page): only
+// Containers, which render as <section>, and Global Sections, which bring
+// their own Containers. Every other component is inside a Container, at
+// level 1 or deeper, and renders as <div>. See domain.PageSection.
 func validateHierarchy(sections []domain.PageSection) error {
 	for _, section := range sections {
-		if section.InContainer {
+		if sectionDepth(section) > 0 {
 			continue
 		}
 		if section.BlockType != domain.BlockTypeContainer && section.BlockType != domain.BlockTypeGlobalSection {

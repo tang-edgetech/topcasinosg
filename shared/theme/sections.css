@@ -147,6 +147,93 @@
 }
 
 /*
+ * Row layout (Container "Row"): components side by side. Each takes an equal
+ * share of the row, or its own "Width in container" (section--w-*, the gap
+ * taken into account); "Fit content" (section--w-auto) is as wide as its
+ * content. The row stacks into one column on mobile, on mobile and tablet,
+ * or never (container-section__body--stack-*).
+ */
+.container-section__body--row > .section {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.container-section__body--row > .section.section--w-full { flex: 0 0 100%; }
+.container-section__body--row > .section.section--w-3-4 { flex: 0 0 calc(75% - var(--container-gap, 30px) * 0.25); }
+.container-section__body--row > .section.section--w-2-3 { flex: 0 0 calc(66.6667% - var(--container-gap, 30px) * 0.3333); }
+.container-section__body--row > .section.section--w-1-2 { flex: 0 0 calc(50% - var(--container-gap, 30px) * 0.5); }
+.container-section__body--row > .section.section--w-1-3 { flex: 0 0 calc(33.3333% - var(--container-gap, 30px) * 0.6667); }
+.container-section__body--row > .section.section--w-1-4 { flex: 0 0 calc(25% - var(--container-gap, 30px) * 0.75); }
+.container-section__body--row > .section.section--w-auto { flex: 0 0 auto; }
+
+.container-section__body--row > .section > .section-container {
+  max-width: none;
+  padding-block: 0;
+  padding-inline: 0;
+}
+
+.container-section__body--row > .section--bg::before,
+.main > .primary .container-section__body--row > .section--bg::before {
+  left: 0;
+  width: 100%;
+  transform: none;
+}
+
+@media (max-width: 639.98px) {
+  .container-section__body--stack-mobile,
+  .container-section__body--stack-tablet {
+    flex-direction: column;
+  }
+  .container-section__body--stack-mobile > .section,
+  .container-section__body--stack-tablet > .section {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023.98px) {
+  .container-section__body--stack-tablet {
+    flex-direction: column;
+  }
+  .container-section__body--stack-tablet > .section {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+}
+
+/*
+ * A Container inside another Container (depth 1+, .section--container-nested)
+ * is a box in its parent's layout: it fills its slot, has no gutter of its
+ * own, and its background stays inside the box instead of bleeding to the
+ * edges of the page. Its own space (top, bottom, sides) comes from its
+ * settings, applied inline by ContainerSection.
+ */
+.section--container-nested {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.section--container-nested > .container-section__body--boxed {
+  padding-inline: 0;
+}
+
+.section--container-nested > .container-section__body > .section > .section-container {
+  padding-inline: 0;
+}
+
+.section--container-nested.section--bg::before,
+.main > .primary .section--container-nested.section--bg::before {
+  left: 0;
+  width: 100%;
+  transform: none;
+}
+
+.section--container-min-height > .container-section__body {
+  min-height: var(--container-min-height);
+}
+
+/*
  * Tabs / accordion / carousel layouts: each component is a panel
  * (.container-panel) under a tab, inside an expandable item or on a slide.
  * Colours follow the container's text tone (tone-* variables above).
@@ -1202,12 +1289,120 @@
 }
 
 /* Style tab "Vertical position" for a component inside a grid Container. */
-.container-section__body--grid > .section.section--valign-top {
+.container-section__body--grid > .section.section--valign-top,
+.container-section__body--row > .section.section--valign-top {
   align-self: start;
 }
-.container-section__body--grid > .section.section--valign-center {
+.container-section__body--grid > .section.section--valign-center,
+.container-section__body--row > .section.section--valign-center {
   align-self: center;
 }
-.container-section__body--grid > .section.section--valign-bottom {
+.container-section__body--grid > .section.section--valign-bottom,
+.container-section__body--row > .section.section--valign-bottom {
   align-self: end;
+}
+
+/*
+ * Style tab "Box" and "Text colour", and Advanced tab "Entrance animation":
+ * presets every component (and Container) can use, stored as classes in its
+ * custom_class like the other presets (section--{group}-{value}). Colours
+ * come from the brand tokens only. They style the component's own root
+ * element, so they add to the component's look rather than replace it.
+ */
+.section[class*="section--box-"],
+.section[class*="section--border-"],
+.section[class*="section--radius-"],
+.section[class*="section--shadow-"],
+.section[class*="section--pad-"] {
+  position: relative;
+}
+
+.section--box-white { background: #ffffff; }
+.section--box-light { background: var(--color-primary-50); }
+.section--box-cream { background: var(--color-secondary-50); }
+.section--box-mint { background: var(--color-success-subtle); }
+.section--box-navy { background: var(--color-primary-900); }
+.section--box-blue { background: var(--color-primary-glow); }
+.section--box-gold { background: var(--color-secondary-600); }
+.section--box-gradient { background: linear-gradient(90deg, var(--color-primary-900), var(--color-primary-glow)); }
+
+.section--border-light { border: 1px solid var(--color-border); }
+.section--border-navy { border: 2px solid var(--color-primary-900); }
+.section--border-gold { border: 2px solid var(--color-secondary-600); }
+
+.section--radius-s { border-radius: 6px; overflow: clip; }
+.section--radius-m { border-radius: 12px; overflow: clip; }
+.section--radius-l { border-radius: 20px; overflow: clip; }
+.section--radius-pill { border-radius: 999px; overflow: clip; }
+
+.section--shadow-s { box-shadow: 0 1px 3px rgb(26 30 113 / 0.12); }
+.section--shadow-m { box-shadow: 0 6px 18px rgb(26 30 113 / 0.14); }
+.section--shadow-l { box-shadow: 0 16px 40px rgb(26 30 113 / 0.18); }
+
+.section.section--pad-s { padding: 16px; }
+.section.section--pad-m { padding: 30px; }
+.section.section--pad-l { padding: 50px; }
+
+/* Inside a padded box, the component's own content container needs no
+   gutter or bleed background of its own. */
+.section[class*="section--pad-"] > .section-container {
+  padding-inline: 0;
+}
+.section[class*="section--box-"].section--bg::before,
+.section[class*="section--radius-"].section--bg::before {
+  left: 0;
+  width: 100%;
+  transform: none;
+}
+
+.section.section--mt-s { margin-top: 16px; }
+.section.section--mt-m { margin-top: 30px; }
+.section.section--mt-l { margin-top: 50px; }
+.section.section--mb-s { margin-bottom: 16px; }
+.section.section--mb-m { margin-bottom: 30px; }
+.section.section--mb-l { margin-bottom: 50px; }
+
+/*
+ * Text colour: headings, text, lists and table cells inside the component
+ * take the colour; buttons and links styled as buttons keep theirs. Title &
+ * Text, Rich Text and captions follow it through the tone variables.
+ */
+.section--text-navy { --text-preset: var(--color-primary-900); }
+.section--text-muted { --text-preset: var(--color-primary-500); }
+.section--text-white { --text-preset: #ffffff; }
+.section--text-gold { --text-preset: var(--color-secondary-600); }
+.section--text-blue { --text-preset: var(--color-primary-glow); }
+
+.section[class*="section--text-"] {
+  --tone-heading: var(--text-preset);
+  --tone-text: var(--text-preset);
+  color: var(--text-preset);
+}
+
+.section[class*="section--text-"] :is(h1, h2, h3, h4, h5, h6, p, li, dt, dd, td, th, figcaption, blockquote, label, strong, em, small, span):not(a, button, a *, button *) {
+  color: var(--text-preset);
+}
+
+/*
+ * Entrance animation: hidden only once RevealOnScroll (web) has marked the
+ * page ready, so without JavaScript everything simply shows; revealed when
+ * it scrolls into view. Nothing moves for visitors who prefer reduced motion.
+ */
+.reveal-ready .section[class*="section--anim-"] {
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.reveal-ready .section[class*="section--anim-"]:not(.is-revealed) { opacity: 0; }
+.reveal-ready .section--anim-fade-up:not(.is-revealed) { transform: translateY(32px); }
+.reveal-ready .section--anim-fade-left:not(.is-revealed) { transform: translateX(-32px); }
+.reveal-ready .section--anim-fade-right:not(.is-revealed) { transform: translateX(32px); }
+.reveal-ready .section--anim-zoom:not(.is-revealed) { transform: scale(0.92); }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-ready .section[class*="section--anim-"] {
+    transition: none;
+  }
+  .reveal-ready .section[class*="section--anim-"]:not(.is-revealed) {
+    opacity: 1;
+    transform: none;
+  }
 }

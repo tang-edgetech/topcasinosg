@@ -1,4 +1,5 @@
-import { field, panelTitle, visibilityClasses, type PageSection } from "@/lib/pages";
+import type { ReactNode } from "react";
+import { field, panelTitle, sectionTree, visibilityClasses, type PageSection, type SectionNode } from "@/lib/pages";
 import { sanitizeRichText } from "@/lib/sanitize-html";
 import HeroSection from "./HeroSection";
 import RichTextSection from "./RichTextSection";
@@ -35,6 +36,19 @@ import ImageSection from "./ImageSection";
 import ButtonGroupSection from "./ButtonGroupSection";
 import SpacerSection from "./SpacerSection";
 import VideoSection from "./VideoSection";
+import HeadingWidget from "./HeadingWidget";
+import TextWidget from "./TextWidget";
+import IconWidget from "./IconWidget";
+import IconBoxWidget from "./IconBoxWidget";
+import IconListWidget from "./IconListWidget";
+import DividerWidget from "./DividerWidget";
+import CardWidget from "./CardWidget";
+import CounterWidget from "./CounterWidget";
+import ProgressBarsWidget from "./ProgressBarsWidget";
+import AlertWidget from "./AlertWidget";
+import TableWidget from "./TableWidget";
+import StarRatingWidget from "./StarRatingWidget";
+import TestimonialWidget from "./TestimonialWidget";
 
 // Dispatches each section to its block-type component. Every instance of a
 // given blockType gets the same canonical CSS class (see sectionClassName /
@@ -43,7 +57,8 @@ import VideoSection from "./VideoSection";
 // the canonical look. regionCode is the page's own region (region routes
 // pass it) — live-data sections fall back to it when their own Region
 // field is left blank, so editors don't have to repeat it per section.
-// Sections marked inContainer render inside the Container before them; a
+// Each section renders inside the nearest Container before it one level up
+// (sectionTree), so Containers nest: rows, columns and boxes; a
 // global_section block renders that global section's own sections in place
 // (insideGlobal stops a global section from placing another one).
 export default function SectionRenderer({
@@ -61,34 +76,23 @@ export default function SectionRenderer({
     ) : (
       renderSection(section, regionCode)
     );
-  const ordered = sections.slice().sort((a, b) => a.sortOrder - b.sortOrder);
-  const groups: { section: PageSection; children: PageSection[] }[] = [];
-  for (const section of ordered) {
-    const last = groups[groups.length - 1];
-    if (section.inContainer && last?.section.blockType === "container") last.children.push(section);
-    else groups.push({ section, children: [] });
-  }
+  const renderNode = ({ section, children }: SectionNode): ReactNode =>
+    section.blockType === "container" ? (
+      <ContainerSection
+        key={section.id}
+        section={section}
+        panels={children.map((child, index) => ({
+          id: child.section.id,
+          title: panelTitle(child.section, index),
+          visibility: visibilityClasses(child.section),
+          content: renderNode({ ...child, section: { ...child.section, nested: true } }),
+        }))}
+      />
+    ) : (
+      render(section)
+    );
 
-  return (
-    <>
-      {groups.map(({ section, children }) =>
-        section.blockType === "container" ? (
-          <ContainerSection
-            key={section.id}
-            section={section}
-            panels={children.map((child, index) => ({
-              id: child.id,
-              title: panelTitle(child, index),
-              visibility: visibilityClasses(child),
-              content: render({ ...child, nested: true }),
-            }))}
-          />
-        ) : (
-          render(section)
-        )
-      )}
-    </>
-  );
+  return <>{sectionTree(sections.slice().sort((a, b) => a.sortOrder - b.sortOrder)).map(renderNode)}</>;
 }
 
 function renderSection(section: PageSection, regionCode?: string) {
@@ -165,6 +169,32 @@ function renderSection(section: PageSection, regionCode?: string) {
       return <TwoColumnTableSection key={section.id} section={section} />;
     case "info_card_columns":
       return <InfoCardColumnsSection key={section.id} section={section} />;
+    case "heading":
+      return <HeadingWidget key={section.id} section={section} />;
+    case "text":
+      return <TextWidget key={section.id} section={section} />;
+    case "icon":
+      return <IconWidget key={section.id} section={section} />;
+    case "icon_box":
+      return <IconBoxWidget key={section.id} section={section} />;
+    case "icon_list":
+      return <IconListWidget key={section.id} section={section} />;
+    case "divider":
+      return <DividerWidget key={section.id} section={section} />;
+    case "card":
+      return <CardWidget key={section.id} section={section} />;
+    case "counter":
+      return <CounterWidget key={section.id} section={section} />;
+    case "progress_bars":
+      return <ProgressBarsWidget key={section.id} section={section} />;
+    case "alert":
+      return <AlertWidget key={section.id} section={section} />;
+    case "table":
+      return <TableWidget key={section.id} section={section} />;
+    case "star_rating":
+      return <StarRatingWidget key={section.id} section={section} />;
+    case "testimonial":
+      return <TestimonialWidget key={section.id} section={section} />;
     default:
       return null;
   }

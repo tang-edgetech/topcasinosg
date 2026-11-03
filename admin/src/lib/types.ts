@@ -539,7 +539,20 @@ export type PageBlockType =
   | "info_card_columns"
   | "game_casino_finder"
   | "two_column_table"
-  | "data_table";
+  | "data_table"
+  | "heading"
+  | "text"
+  | "icon"
+  | "icon_box"
+  | "icon_list"
+  | "divider"
+  | "card"
+  | "counter"
+  | "progress_bars"
+  | "alert"
+  | "table"
+  | "star_rating"
+  | "testimonial";
 
 export interface PageSectionDTO {
   id: number;
@@ -548,6 +561,10 @@ export interface PageSectionDTO {
   customId: string;
   // Inside the nearest Container before it (api/internal/domain/page.go).
   inContainer: boolean;
+  // Level: 0 directly on the page, N inside the nearest Container before it
+  // at level N-1 (Containers nest up to MAX_SECTION_DEPTH). Older data has
+  // only inContainer, which means level 1 (see sectionDepth).
+  depth?: number;
   sortOrder: number;
   fields: PageSectionFieldDTO[];
 }
@@ -759,6 +776,7 @@ export interface ContentSectionInput {
   customClass: string;
   customId: string;
   inContainer: boolean;
+  depth?: number;
   fields: ContentFieldInput[];
 }
 

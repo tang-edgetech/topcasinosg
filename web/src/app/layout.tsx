@@ -5,6 +5,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import RawHtmlBlock from "@/components/RawHtmlBlock";
 import ScrollToTop from "@/components/ScrollToTop";
+import RevealOnScroll from "@/components/RevealOnScroll";
 import { getActiveSnippets } from "@/lib/snippets";
 import { getSiteSettings } from "@/lib/site-settings";
 import { assetUrl, buildMetadata, siteBaseUrl } from "@/lib/seo";
@@ -97,6 +98,7 @@ export default async function RootLayout({
         </main>
         <Footer />
         <ScrollToTop />
+        <RevealOnScroll />
         <RawHtmlBlock html={bottomOfBody} />
       </body>
     </html>

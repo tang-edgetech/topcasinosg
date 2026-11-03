@@ -229,9 +229,9 @@ func (h *ContentAPIHandler) Schema(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, map[string]any{
 		"rules": []string{
 			"A page is an ordered list of sections. The order of the list is the order on the page.",
-			"Level 0 (inContainer: false) may only hold a \"container\" or a \"global_section\".",
-			"Every other block type is a component: it must come after a container and have inContainer: true. It belongs to the nearest container before it.",
-			"A container can't be inside another container.",
+			"Each section has a depth (its level). Depth 0 is directly on the page and may only hold a \"container\" or a \"global_section\".",
+			"A section at depth N belongs to the nearest container before it at depth N-1, so containers can hold other containers (rows, columns) as well as components. Depth goes up to 4; a container can be at most at depth 3.",
+			"Every other block type is a component: it goes inside a container (depth 1 or more). A container's \"layout\" field arranges what is inside it: stack, row (side by side), grid, tabs, accordion or carousel.",
 			"Each section has fields. A field's itemIndex groups repeated items (0 for the section's own fields; 0, 1, 2... for each item of a list such as FAQ questions).",
 			"Easiest way to edit a page: GET /api/v1/pages/{id}, change the text in the fields you need, and send the whole sections list back to POST /api/v1/pages/{id}/changes.",
 			"Images use mediaId (an id from GET /api/v1/media, or one you upload with POST /api/v1/media).",

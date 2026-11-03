@@ -483,8 +483,8 @@ licences or other facts; no scripts or styles in HTML.</pre>
 
   <h3>Page rules in short</h3>
   <ul>
-    <li>A page is an ordered list of sections. Top level (<code>inContainer: false</code>) may only be <code>container</code> or <code>global_section</code>.</li>
-    <li>Every other block is a component with <code>inContainer: true</code>, placed after the container it belongs to. No container inside a container.</li>
+    <li>A page is an ordered list of sections, each with a <code>depth</code>. Depth 0 (directly on the page) may only be <code>container</code> or <code>global_section</code>.</li>
+    <li>A section at depth N belongs to the nearest container before it at depth N-1, so containers nest (rows, columns, boxes) up to depth 4; a container is at most depth 3. A container&#39;s <code>layout</code>: stack, row, grid, tabs, accordion or carousel.</li>
     <li>Fields: <code>{itemIndex, fieldKey, fieldType, textValue, urlValue, mediaId}</code>; <code>itemIndex</code> 0 = the section's own fields, 1+ = repeated items (FAQ questions…).</li>
     <li>To edit: GET the page, change the text you need, send the whole <code>sections</code> list back. Use <code>"dryRun": true</code> first.</li>
   </ul>

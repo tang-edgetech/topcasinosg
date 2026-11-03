@@ -9,6 +9,7 @@ import IconButton from "@/components/IconButton";
 import { IconPhoto, IconPlus, IconTrash } from "@/components/Icons";
 import { api } from "@/lib/api";
 import type { CasinoDTO, GlobalSectionDTO, MediaDTO, PageBlockType, PageFieldType, RegionDTO } from "@/lib/types";
+import { WIDGET_ICONS } from "@/lib/widgetIcons";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
 
@@ -46,6 +47,19 @@ function blankField(itemIndex: number, fieldKey: string, fieldType: PageFieldTyp
 
 export const BLOCK_TYPE_LABELS: Record<PageBlockType, string> = {
   container: "Container",
+  heading: "Heading",
+  text: "Text",
+  icon: "Icon",
+  icon_box: "Icon Box",
+  icon_list: "Icon List",
+  divider: "Divider",
+  card: "Card",
+  counter: "Counter",
+  progress_bars: "Progress Bars",
+  alert: "Alert",
+  table: "Table",
+  star_rating: "Star Rating",
+  testimonial: "Testimonial",
   global_section: "Global Section",
   title_set: "Title & Text",
   image: "Image",
@@ -166,6 +180,55 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
       ];
     case "global_section":
       return [blankField(0, "globalId", "text", 1)];
+    case "heading":
+      return [blankField(0, "heading", "text", 1), blankField(0, "url", "text", 2), textField(0, "tag", "h2", 3), textField(0, "size", "l", 4), textField(0, "align", "left", 5)];
+    case "text":
+      return [blankField(0, "body", "richtext", 1), textField(0, "size", "m", 2), textField(0, "align", "left", 3)];
+    case "icon":
+      return [textField(0, "icon", "star", 1), textField(0, "size", "m", 2), blankField(0, "color", "text", 3), textField(0, "align", "center", 4)];
+    case "icon_box":
+      return [
+        textField(0, "icon", "shield-check", 1),
+        blankField(0, "title", "text", 2),
+        blankField(0, "body", "richtext", 3),
+        blankField(0, "url", "text", 4),
+        textField(0, "position", "top", 5),
+        textField(0, "align", "left", 6),
+      ];
+    case "icon_list":
+      return [
+        textField(0, "layout", "list", 1),
+        ...[1, 2, 3].flatMap((i) => [textField(i, "icon", "check", 1), blankField(i, "text", "text", 2), blankField(i, "url", "text", 3)]),
+      ];
+    case "divider":
+      return [textField(0, "style", "solid", 1), textField(0, "width", "full", 2), textField(0, "weight", "thin", 3), textField(0, "space", "m", 6)];
+    case "card":
+      return [
+        blankField(0, "image", "image", 1),
+        blankField(0, "alt", "text", 2),
+        blankField(0, "title", "text", 3),
+        blankField(0, "body", "richtext", 4),
+        blankField(0, "button", "button", 5),
+        textField(0, "buttonStyle", "primary", 6),
+        textField(0, "imagePosition", "top", 7),
+      ];
+    case "counter":
+      return [blankField(0, "number", "text", 1), blankField(0, "prefix", "text", 2), blankField(0, "suffix", "text", 3), blankField(0, "label", "text", 4)];
+    case "progress_bars":
+      return [textField(0, "color", "primary", 1), ...[1, 2, 3].flatMap((i) => [blankField(i, "label", "text", 1), textField(i, "percent", "80", 2)])];
+    case "alert":
+      return [textField(0, "type", "info", 1), blankField(0, "title", "text", 2), blankField(0, "body", "richtext", 3)];
+    case "table":
+      return [
+        textField(0, "columns", "3", 1),
+        textField(0, "striped", "yes", 2),
+        ...[1, 2, 3].map((c) => blankField(0, `h${c}`, "text", 2 + c)),
+        ...[1, 2].flatMap((i) => [1, 2, 3].map((c) => blankField(i, `c${c}`, "text", c))),
+      ];
+    case "star_rating":
+      return [textField(0, "rating", "4.5", 1), blankField(0, "label", "text", 2)];
+    case "testimonial":
+      return [blankField(0, "quote", "text", 1), blankField(0, "name", "text", 2), blankField(0, "role", "text", 3), blankField(0, "photo", "image", 4)];
     case "image":
       return [
         blankField(0, "image", "image", 1),
@@ -735,15 +798,44 @@ function ButtonField({
 interface BlockFieldsProps {
   blockType: PageBlockType;
   fields: EditableField[];
+  // Inside another Container (level 1+): a Container then has no space of
+  // its own by default, and can have space on its sides.
+  nested?: boolean;
   onChange: (fields: EditableField[]) => void;
 }
 
-export default function BlockFieldEditor({ blockType, fields, onChange }: BlockFieldsProps) {
+export default function BlockFieldEditor({ blockType, fields, nested = false, onChange }: BlockFieldsProps) {
   switch (blockType) {
     case "container":
-      return <ContainerFields fields={fields} onChange={onChange} />;
+      return <ContainerFields fields={fields} nested={nested} onChange={onChange} />;
     case "global_section":
       return <GlobalSectionFields fields={fields} onChange={onChange} />;
+    case "heading":
+      return <HeadingWidgetFields fields={fields} onChange={onChange} />;
+    case "text":
+      return <TextWidgetFields fields={fields} onChange={onChange} />;
+    case "icon":
+      return <IconWidgetFields fields={fields} onChange={onChange} />;
+    case "icon_box":
+      return <IconBoxWidgetFields fields={fields} onChange={onChange} />;
+    case "icon_list":
+      return <IconListWidgetFields fields={fields} onChange={onChange} />;
+    case "divider":
+      return <DividerWidgetFields fields={fields} onChange={onChange} />;
+    case "card":
+      return <CardWidgetFields fields={fields} onChange={onChange} />;
+    case "counter":
+      return <CounterWidgetFields fields={fields} onChange={onChange} />;
+    case "progress_bars":
+      return <ProgressBarsWidgetFields fields={fields} onChange={onChange} />;
+    case "alert":
+      return <AlertWidgetFields fields={fields} onChange={onChange} />;
+    case "table":
+      return <TableWidgetFields fields={fields} onChange={onChange} />;
+    case "star_rating":
+      return <StarRatingWidgetFields fields={fields} onChange={onChange} />;
+    case "testimonial":
+      return <TestimonialWidgetFields fields={fields} onChange={onChange} />;
     case "title_set":
       return <TitleSetFields fields={fields} onChange={onChange} />;
     case "image":
@@ -1673,21 +1765,26 @@ function textSetter(fields: EditableField[], onChange: (f: EditableField[]) => v
 
 export const CONTAINER_LAYOUTS = [
   { value: "stack", label: "Stack (one under another)" },
+  { value: "row", label: "Row (side by side)" },
   { value: "grid", label: "Grid (columns)" },
   { value: "tabs", label: "Tabs (one at a time)" },
   { value: "accordion", label: "Accordion (expandable items)" },
   { value: "carousel", label: "Carousel (slider)" },
 ];
 
-// Container — one shared background for the components placed inside it
-// (web ContainerSection), laid out as a stack or a 2/3/4-column grid; each
-// component's own "Width in container" (in its Layout row) overrides the
-// column width. The components bring their own titles and text.
-function ContainerFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+// Container — one shared background for what is placed inside it (web
+// ContainerSection): components, and other Containers for rows, columns
+// and boxes. Laid out as a stack, a row (side by side), a 2/3/4-column grid,
+// tabs, an accordion or a carousel; in a row or grid, each component's own
+// "Width in container" (in its Style tab) sets its width. Inside another
+// Container (nested) it adds no space of its own unless set.
+function ContainerFields({ fields, nested, onChange }: { fields: EditableField[]; nested: boolean; onChange: (f: EditableField[]) => void }) {
   const text = (key: string) => textOf(fields, key);
   const set = textSetter(fields, onChange);
   const layout = CONTAINER_LAYOUTS.some((o) => o.value === text("layout")) ? text("layout") : "stack";
   const grid = layout === "grid";
+  const row = layout === "row";
+  const defaultSpace = nested ? "none" : "m";
   // "own": each component keeps its own padding and width (stack only).
   const ownSpacing = layout === "stack" && text("componentSpacing") === "own";
 
@@ -1695,9 +1792,10 @@ function ContainerFields({ fields, onChange }: { fields: EditableField[]; onChan
     <div className="flex flex-col gap-4">
       <p className="text-xs text-text-muted dark:text-text-muted-dark">
         A Container is the only thing placed directly on a page (level 0, rendered as &lt;section&gt;); every component sits inside one
-        (level 1, rendered as &lt;div&gt;) and shares its background and layout. Add components with “+ Add Component Inside”, or drag them
-        in. Layout, spacing, colours and background are in the Style tab; in a grid, set each component&apos;s width in its own Style tab.
-        With Tabs or Accordion, each component&apos;s title is set at the top of its own Content tab.
+        and shares its background and layout. A Container can also go inside another one: use a Row with two Containers in it for two
+        columns, or a Container with a background as a box. Add with “+ Add Component Inside”, or drag in. Layout, spacing, colours and
+        background are in the Style tab; in a row or grid, set each item&apos;s width in its own Style tab. With Tabs or Accordion, each
+        component&apos;s title is set at the top of its own Content tab.
       </p>
       <StyleFields>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -1737,6 +1835,44 @@ function ContainerFields({ fields, onChange }: { fields: EditableField[]; onChan
             />
           </LabeledField>
         )}
+        {row && (
+          <>
+            <LabeledField label="Horizontal position">
+              <Select
+                value={text("justify") || "start"}
+                onChange={set("justify", 17)}
+                options={[
+                  { value: "start", label: "Left" },
+                  { value: "center", label: "Centre" },
+                  { value: "end", label: "Right" },
+                  { value: "between", label: "Space between" },
+                  { value: "around", label: "Space around" },
+                ]}
+              />
+            </LabeledField>
+            <LabeledField label="Wrap to next line">
+              <Select
+                value={text("wrap") === "no" ? "no" : "yes"}
+                onChange={set("wrap", 18)}
+                options={[
+                  { value: "yes", label: "Yes, when there's no room" },
+                  { value: "no", label: "No, keep on one line" },
+                ]}
+              />
+            </LabeledField>
+            <LabeledField label="Stack into one column on">
+              <Select
+                value={["mobile", "tablet", "never"].includes(text("stackOn")) ? text("stackOn") : "mobile"}
+                onChange={set("stackOn", 19)}
+                options={[
+                  { value: "mobile", label: "Mobile (below 640px)" },
+                  { value: "tablet", label: "Mobile and tablet (below 1024px)" },
+                  { value: "never", label: "Never" },
+                ]}
+              />
+            </LabeledField>
+          </>
+        )}
         {grid && (
           <LabeledField label="Columns (desktop)">
             <Select
@@ -1771,7 +1907,7 @@ function ContainerFields({ fields, onChange }: { fields: EditableField[]; onChan
             />
           </LabeledField>
         )}
-        {grid && (
+        {(grid || row) && (
           <LabeledField label="Vertical alignment">
             <Select
               value={text("align") || "stretch"}
@@ -1785,11 +1921,40 @@ function ContainerFields({ fields, onChange }: { fields: EditableField[]; onChan
             />
           </LabeledField>
         )}
+        {layout === "stack" && (
+          <LabeledField label="Horizontal alignment">
+            <Select
+              value={text("align") || "stretch"}
+              onChange={set("align", 8)}
+              options={[
+                { value: "stretch", label: "Full width" },
+                { value: "start", label: "Left" },
+                { value: "center", label: "Centre" },
+                { value: "end", label: "Right" },
+              ]}
+            />
+          </LabeledField>
+        )}
+        {(layout === "stack" || row) && (
+          <LabeledField label="Minimum height">
+            <Select
+              value={text("minHeight") || "none"}
+              onChange={set("minHeight", 20)}
+              options={[
+                { value: "none", label: "None (fit content)" },
+                { value: "s", label: "Small (200px)" },
+                { value: "m", label: "Medium (400px)" },
+                { value: "l", label: "Large (600px)" },
+                { value: "screen", label: "Full screen height" },
+              ]}
+            />
+          </LabeledField>
+        )}
         {!ownSpacing && (
           <>
             <LabeledField label="Content width">
               <Select
-                value={text("contentWidth") || "1270"}
+                value={text("contentWidth") || (nested ? "full" : "1270")}
                 onChange={set("contentWidth", 9)}
                 options={[
                   { value: "1270", label: "Boxed (1270px)" },
@@ -1800,11 +1965,16 @@ function ContainerFields({ fields, onChange }: { fields: EditableField[]; onChan
               />
             </LabeledField>
             <LabeledField label="Space above">
-              <Select value={text("spaceTop") || "m"} onChange={set("spaceTop", 10)} options={SPACE_OPTIONS} />
+              <Select value={text("spaceTop") || defaultSpace} onChange={set("spaceTop", 10)} options={SPACE_OPTIONS} />
             </LabeledField>
             <LabeledField label="Space below">
-              <Select value={text("spaceBottom") || "m"} onChange={set("spaceBottom", 11)} options={SPACE_OPTIONS} />
+              <Select value={text("spaceBottom") || defaultSpace} onChange={set("spaceBottom", 11)} options={SPACE_OPTIONS} />
             </LabeledField>
+            {nested && (
+              <LabeledField label="Space on the sides">
+                <Select value={text("spaceSides") || "none"} onChange={set("spaceSides", 21)} options={SPACE_OPTIONS} />
+              </LabeledField>
+            )}
           </>
         )}
         <LabeledField label="Text colour inside">
@@ -3970,6 +4140,615 @@ function DataTableFields({ fields, onChange }: { fields: EditableField[]; onChan
         </div>
       </details>
       <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 18, bgFrom: 19, bgTo: 20, bgImage: 21 }} />
+    </div>
+  );
+}
+
+// ---- Basic widgets ---------------------------------------------------------
+// Heading, Text, Icon, Icon Box, Icon List, Divider, Card, Counter, Progress
+// Bars, Alert, Table, Star Rating and Testimonial (web *Widget.tsx and
+// web/src/lib/widgets.ts). Each has its content here and its look under
+// Style; the Style tab's Box & text options apply to all of them too.
+
+const WIDGET_ALIGN_OPTIONS = [
+  { value: "left", label: "Left" },
+  { value: "center", label: "Centre" },
+  { value: "right", label: "Right" },
+];
+
+// "" follows the text colour around the widget (a Container's white text,
+// or the Style tab's text colour).
+const WIDGET_COLOR_OPTIONS = [
+  { value: "", label: "Follow text colour" },
+  { value: "primary", label: "Navy" },
+  { value: "secondary", label: "Gold" },
+  { value: "blue", label: "Blue" },
+  { value: "muted", label: "Muted blue" },
+  { value: "white", label: "White" },
+  { value: "success", label: "Green" },
+  { value: "danger", label: "Red" },
+];
+
+const ICON_SIZE_OPTIONS = [
+  { value: "s", label: "Small (24px)" },
+  { value: "m", label: "Medium (40px)" },
+  { value: "l", label: "Large (56px)" },
+  { value: "xl", label: "Extra large (80px)" },
+];
+
+function WidgetIconPreview({ name, size = 18 }: { name: string; size?: number }) {
+  const icon = WIDGET_ICONS[name];
+  if (!icon) return null;
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {icon.paths.map((d) => (
+        <path key={d} d={d} />
+      ))}
+    </svg>
+  );
+}
+
+const ICON_PICKER_OPTIONS = Object.entries(WIDGET_ICONS).map(([value, icon]) => ({
+  value,
+  title: icon.label,
+  label: (
+    <span className="flex items-center gap-2">
+      <WidgetIconPreview name={value} />
+      {icon.label}
+    </span>
+  ),
+}));
+
+function IconPickerField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <LabeledField label={label}>
+      <Select
+        showSearch={{ filterOption: (input, option) => String(option?.title ?? "").toLowerCase().includes(input.toLowerCase()) }}
+        value={value}
+        onChange={onChange}
+        options={ICON_PICKER_OPTIONS}
+      />
+    </LabeledField>
+  );
+}
+
+type WidgetFieldsProps = { fields: EditableField[]; onChange: (f: EditableField[]) => void };
+
+function HeadingWidgetFields({ fields, onChange }: WidgetFieldsProps) {
+  const text = (key: string) => textOf(fields, key);
+  const set = textSetter(fields, onChange);
+  return (
+    <div className="flex flex-col gap-4">
+      <TextInputField label="Heading" value={text("heading")} placeholder="Why Players Trust Us" onChange={set("heading", 1)} />
+      <TextInputField label="Link (optional)" value={text("url")} placeholder="/guides" onChange={set("url", 2)} />
+      <StyleFields>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <LabeledField label="Heading level (for SEO)">
+            <Select
+              value={text("tag") || "h2"}
+              onChange={set("tag", 3)}
+              options={["h1", "h2", "h3", "h4", "h5", "h6"].map((t) => ({ value: t, label: t.toUpperCase() + (t === "h1" ? " (once per page)" : "") }))}
+            />
+          </LabeledField>
+          <LabeledField label="Size">
+            <Select
+              value={text("size") || "l"}
+              onChange={set("size", 4)}
+              options={[
+                { value: "s", label: "Small (20px)" },
+                { value: "m", label: "Medium (26px)" },
+                { value: "l", label: "Large (36px)" },
+                { value: "xl", label: "Extra large (48px)" },
+              ]}
+            />
+          </LabeledField>
+          <LabeledField label="Alignment">
+            <Select value={text("align") || "left"} onChange={set("align", 5)} options={WIDGET_ALIGN_OPTIONS} />
+          </LabeledField>
+        </div>
+      </StyleFields>
+    </div>
+  );
+}
+
+function TextWidgetFields({ fields, onChange }: WidgetFieldsProps) {
+  const text = (key: string) => textOf(fields, key);
+  const set = textSetter(fields, onChange);
+  return (
+    <div className="flex flex-col gap-4">
+      <RichTextField label="Text" value={text("body")} onChange={(v) => onChange(upsertField(fields, 0, "body", "richtext", 1, { textValue: v }))} />
+      <StyleFields>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <LabeledField label="Text size">
+            <Select
+              value={text("size") || "m"}
+              onChange={set("size", 2)}
+              options={[
+                { value: "s", label: "Small (14px)" },
+                { value: "m", label: "Normal (16px)" },
+                { value: "l", label: "Large (18px)" },
+              ]}
+            />
+          </LabeledField>
+          <LabeledField label="Alignment">
+            <Select value={text("align") || "left"} onChange={set("align", 3)} options={WIDGET_ALIGN_OPTIONS} />
+          </LabeledField>
+        </div>
+      </StyleFields>
+    </div>
+  );
+}
+
+function IconWidgetFields({ fields, onChange }: WidgetFieldsProps) {
+  const text = (key: string) => textOf(fields, key);
+  const set = textSetter(fields, onChange);
+  return (
+    <div className="flex flex-col gap-4">
+      <IconPickerField label="Icon" value={text("icon") || "star"} onChange={set("icon", 1)} />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <TextInputField label="Link (optional)" value={text("url")} placeholder="/casinos" onChange={set("url", 5)} />
+        <TextInputField label="Link description (for screen readers)" value={text("label")} onChange={set("label", 6)} />
+      </div>
+      <StyleFields>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <LabeledField label="Size">
+            <Select value={text("size") || "m"} onChange={set("size", 2)} options={ICON_SIZE_OPTIONS} />
+          </LabeledField>
+          <LabeledField label="Colour">
+            <Select value={text("color")} onChange={set("color", 3)} options={WIDGET_COLOR_OPTIONS} />
+          </LabeledField>
+          <LabeledField label="Alignment">
+            <Select value={text("align") || "center"} onChange={set("align", 4)} options={WIDGET_ALIGN_OPTIONS} />
+          </LabeledField>
+        </div>
+      </StyleFields>
+    </div>
+  );
+}
+
+function IconBoxWidgetFields({ fields, onChange }: WidgetFieldsProps) {
+  const text = (key: string) => textOf(fields, key);
+  const set = textSetter(fields, onChange);
+  return (
+    <div className="flex flex-col gap-4">
+      <IconPickerField label="Icon" value={text("icon") || "star"} onChange={set("icon", 1)} />
+      <TextInputField label="Title" value={text("title")} placeholder="Fast Payouts" onChange={set("title", 2)} />
+      <RichTextField label="Text" value={text("body")} onChange={(v) => onChange(upsertField(fields, 0, "body", "richtext", 3, { textValue: v }))} />
+      <TextInputField label="Title link (optional)" value={text("url")} placeholder="/guides/payouts" onChange={set("url", 4)} />
+      <StyleFields>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+          <LabeledField label="Icon position">
+            <Select
+              value={text("position") || "top"}
+              onChange={set("position", 5)}
+              options={[
+                { value: "top", label: "Above the text" },
+                { value: "left", label: "Left of the text" },
+              ]}
+            />
+          </LabeledField>
+          <LabeledField label="Alignment">
+            <Select
+              value={text("align") === "center" ? "center" : "left"}
+              onChange={set("align", 6)}
+              options={WIDGET_ALIGN_OPTIONS.slice(0, 2)}
+            />
+          </LabeledField>
+          <LabeledField label="Icon size">
+            <Select value={text("size") || "m"} onChange={set("size", 7)} options={ICON_SIZE_OPTIONS} />
+          </LabeledField>
+          <LabeledField label="Icon colour">
+            <Select value={text("color") || "secondary"} onChange={set("color", 8)} options={WIDGET_COLOR_OPTIONS.slice(1)} />
+          </LabeledField>
+        </div>
+      </StyleFields>
+    </div>
+  );
+}
+
+function IconListWidgetFields({ fields, onChange }: WidgetFieldsProps) {
+  const text = (itemIndex: number, key: string) => getField(fields, itemIndex, key)?.textValue ?? "";
+  const set = (itemIndex: number, key: string, order: number) => (v: string) =>
+    onChange(upsertField(fields, itemIndex, key, "text", order, { textValue: v }));
+  return (
+    <div className="flex flex-col gap-4">
+      <RepeaterShell
+        label="Line"
+        idPrefix="icon-list-item"
+        itemIndexes={itemIndexes(fields)}
+        onRemove={(i) => onChange(fields.filter((f) => f.itemIndex !== i))}
+        onAdd={() => {
+          const idx = nextItemIndex(fields);
+          onChange([...fields, textField(idx, "icon", "check", 1), blankField(idx, "text", "text", 2), blankField(idx, "url", "text", 3)]);
+        }}
+        addLabel="Add Line"
+        renderItem={(i) => (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <IconPickerField label="Icon" value={text(i, "icon") || "check"} onChange={set(i, "icon", 1)} />
+            <TextInputField label="Text" value={text(i, "text")} onChange={set(i, "text", 2)} />
+            <TextInputField label="Link (optional)" value={text(i, "url")} onChange={set(i, "url", 3)} />
+          </div>
+        )}
+      />
+      <StyleFields>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <LabeledField label="Layout">
+            <Select
+              value={text(0, "layout") || "list"}
+              onChange={set(0, "layout", 1)}
+              options={[
+                { value: "list", label: "One under another" },
+                { value: "inline", label: "Side by side" },
+              ]}
+            />
+          </LabeledField>
+          <LabeledField label="Text size">
+            <Select
+              value={text(0, "size") || "m"}
+              onChange={set(0, "size", 2)}
+              options={[
+                { value: "s", label: "Small" },
+                { value: "m", label: "Normal" },
+                { value: "l", label: "Large" },
+              ]}
+            />
+          </LabeledField>
+          <LabeledField label="Icon colour">
+            <Select value={text(0, "color") || "success"} onChange={set(0, "color", 3)} options={WIDGET_COLOR_OPTIONS.slice(1)} />
+          </LabeledField>
+        </div>
+      </StyleFields>
+    </div>
+  );
+}
+
+function DividerWidgetFields({ fields, onChange }: WidgetFieldsProps) {
+  const text = (key: string) => textOf(fields, key);
+  const set = textSetter(fields, onChange);
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <LabeledField label="Line style">
+        <Select
+          value={text("style") || "solid"}
+          onChange={set("style", 1)}
+          options={[
+            { value: "solid", label: "Solid" },
+            { value: "dashed", label: "Dashed" },
+            { value: "dotted", label: "Dotted" },
+          ]}
+        />
+      </LabeledField>
+      <LabeledField label="Length">
+        <Select
+          value={text("width") || "full"}
+          onChange={set("width", 2)}
+          options={[
+            { value: "full", label: "Full width" },
+            { value: "half", label: "Half" },
+            { value: "short", label: "Short (96px)" },
+          ]}
+        />
+      </LabeledField>
+      <LabeledField label="Thickness">
+        <Select
+          value={text("weight") || "thin"}
+          onChange={set("weight", 3)}
+          options={[
+            { value: "thin", label: "Thin (1px)" },
+            { value: "thick", label: "Thick (3px)" },
+          ]}
+        />
+      </LabeledField>
+      <LabeledField label="Colour">
+        <Select
+          value={text("color")}
+          onChange={set("color", 4)}
+          options={[
+            { value: "", label: "Follow text colour" },
+            { value: "light", label: "Light" },
+            { value: "navy", label: "Navy" },
+            { value: "gold", label: "Gold" },
+          ]}
+        />
+      </LabeledField>
+      <LabeledField label="Alignment">
+        <Select value={text("align") || "center"} onChange={set("align", 5)} options={WIDGET_ALIGN_OPTIONS} />
+      </LabeledField>
+      <LabeledField label="Space above and below">
+        <Select value={text("space") || "m"} onChange={set("space", 6)} options={SPACE_OPTIONS} />
+      </LabeledField>
+    </div>
+  );
+}
+
+function CardWidgetFields({ fields, onChange }: WidgetFieldsProps) {
+  const text = (key: string) => textOf(fields, key);
+  const set = textSetter(fields, onChange);
+  const image = getField(fields, 0, "image");
+  const button = getField(fields, 0, "button");
+  const style = text("buttonStyle") || "primary";
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <ImagePickerField
+          label="Image"
+          mediaId={image?.mediaId ?? null}
+          mediaUrl={image?.mediaUrl ?? null}
+          onChange={(mediaId, mediaUrl) => onChange(upsertField(fields, 0, "image", "image", 1, { mediaId, mediaUrl }))}
+        />
+        <TextInputField label="Image description (alt text)" value={text("alt")} onChange={set("alt", 2)} />
+      </div>
+      <TextInputField label="Title" value={text("title")} onChange={set("title", 3)} />
+      <RichTextField label="Text" value={text("body")} onChange={(v) => onChange(upsertField(fields, 0, "body", "richtext", 4, { textValue: v }))} />
+      <ButtonField
+        label="Button (optional)"
+        textValue={button?.textValue ?? ""}
+        urlValue={button?.urlValue ?? ""}
+        styleValue={style}
+        onChange={(patch) =>
+          onChange(
+            applyButtonFieldPatch(fields, 0, "button", "buttonStyle", 5, { textValue: button?.textValue ?? "", urlValue: button?.urlValue ?? "", styleValue: style }, patch)
+          )
+        }
+      />
+      <StyleFields>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <LabeledField label="Image position">
+            <Select
+              value={text("imagePosition") || "top"}
+              onChange={set("imagePosition", 7)}
+              options={[
+                { value: "top", label: "Top" },
+                { value: "left", label: "Left (from tablet up)" },
+              ]}
+            />
+          </LabeledField>
+          <LabeledField label="Text alignment">
+            <Select value={text("align") === "center" ? "center" : "left"} onChange={set("align", 8)} options={WIDGET_ALIGN_OPTIONS.slice(0, 2)} />
+          </LabeledField>
+        </div>
+      </StyleFields>
+    </div>
+  );
+}
+
+function CounterWidgetFields({ fields, onChange }: WidgetFieldsProps) {
+  const text = (key: string) => textOf(fields, key);
+  const set = textSetter(fields, onChange);
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <TextInputField label="Before the number (optional)" value={text("prefix")} placeholder="S$" onChange={set("prefix", 2)} />
+        <TextInputField label="Number" value={text("number")} placeholder="1500" onChange={set("number", 1)} />
+        <TextInputField label="After the number (optional)" value={text("suffix")} placeholder="+" onChange={set("suffix", 3)} />
+      </div>
+      <TextInputField label="Label" value={text("label")} placeholder="Casinos reviewed" onChange={set("label", 4)} />
+      <StyleFields>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <LabeledField label="Number size">
+            <Select
+              value={text("size") || "l"}
+              onChange={set("size", 5)}
+              options={[
+                { value: "m", label: "Medium" },
+                { value: "l", label: "Large" },
+                { value: "xl", label: "Extra large" },
+              ]}
+            />
+          </LabeledField>
+          <LabeledField label="Number colour">
+            <Select value={text("color")} onChange={set("color", 6)} options={WIDGET_COLOR_OPTIONS} />
+          </LabeledField>
+          <LabeledField label="Alignment">
+            <Select value={text("align") || "center"} onChange={set("align", 7)} options={WIDGET_ALIGN_OPTIONS} />
+          </LabeledField>
+        </div>
+      </StyleFields>
+    </div>
+  );
+}
+
+function ProgressBarsWidgetFields({ fields, onChange }: WidgetFieldsProps) {
+  const text = (itemIndex: number, key: string) => getField(fields, itemIndex, key)?.textValue ?? "";
+  const set = (itemIndex: number, key: string, order: number) => (v: string) =>
+    onChange(upsertField(fields, itemIndex, key, "text", order, { textValue: v }));
+  return (
+    <div className="flex flex-col gap-4">
+      <RepeaterShell
+        label="Bar"
+        idPrefix="progress-bar"
+        itemIndexes={itemIndexes(fields)}
+        onRemove={(i) => onChange(fields.filter((f) => f.itemIndex !== i))}
+        onAdd={() => {
+          const idx = nextItemIndex(fields);
+          onChange([...fields, blankField(idx, "label", "text", 1), textField(idx, "percent", "80", 2)]);
+        }}
+        addLabel="Add Bar"
+        renderItem={(i) => (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <TextInputField label="Label" value={text(i, "label")} placeholder="Bonuses" onChange={set(i, "label", 1)} />
+            <TextInputField label="Percent (0-100)" value={text(i, "percent")} placeholder="85" onChange={set(i, "percent", 2)} />
+          </div>
+        )}
+      />
+      <StyleFields>
+        <LabeledField label="Bar colour">
+          <Select
+            value={text(0, "color") || "primary"}
+            onChange={set(0, "color", 1)}
+            options={[
+              { value: "primary", label: "Navy" },
+              { value: "secondary", label: "Gold" },
+              { value: "blue", label: "Blue" },
+              { value: "success", label: "Green" },
+              { value: "danger", label: "Red" },
+            ]}
+          />
+        </LabeledField>
+      </StyleFields>
+    </div>
+  );
+}
+
+function AlertWidgetFields({ fields, onChange }: WidgetFieldsProps) {
+  const text = (key: string) => textOf(fields, key);
+  const set = textSetter(fields, onChange);
+  return (
+    <div className="flex flex-col gap-4">
+      <LabeledField label="Type">
+        <Select
+          value={text("type") || "info"}
+          onChange={set("type", 1)}
+          options={[
+            { value: "info", label: "Information (blue)" },
+            { value: "success", label: "Success (green)" },
+            { value: "warning", label: "Warning (gold)" },
+            { value: "danger", label: "Danger (red)" },
+          ]}
+        />
+      </LabeledField>
+      <TextInputField label="Title" value={text("title")} placeholder="Check the bonus terms first" onChange={set("title", 2)} />
+      <RichTextField label="Text" value={text("body")} onChange={(v) => onChange(upsertField(fields, 0, "body", "richtext", 3, { textValue: v }))} />
+    </div>
+  );
+}
+
+function TableWidgetFields({ fields, onChange }: WidgetFieldsProps) {
+  const text = (itemIndex: number, key: string) => getField(fields, itemIndex, key)?.textValue ?? "";
+  const set = (itemIndex: number, key: string, order: number) => (v: string) =>
+    onChange(upsertField(fields, itemIndex, key, "text", order, { textValue: v }));
+  const columns = Math.min(6, Math.max(2, parseInt(text(0, "columns"), 10) || 3));
+  const cols = Array.from({ length: columns }, (_, c) => c + 1);
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <LabeledField label="Columns">
+          <Select value={String(columns)} onChange={set(0, "columns", 1)} options={["2", "3", "4", "5", "6"].map((n) => ({ value: n, label: `${n} columns` }))} />
+        </LabeledField>
+        <LabeledField label="Rows">
+          <Select
+            value={text(0, "striped") === "no" ? "no" : "yes"}
+            onChange={set(0, "striped", 2)}
+            options={[
+              { value: "yes", label: "Striped" },
+              { value: "no", label: "Plain" },
+            ]}
+          />
+        </LabeledField>
+      </div>
+      <LabeledField label="Column headings (optional)">
+        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+          {cols.map((c) => (
+            <Input key={c} placeholder={`Heading ${c}`} value={text(0, `h${c}`)} onChange={(e) => set(0, `h${c}`, 2 + c)(e.target.value)} />
+          ))}
+        </div>
+      </LabeledField>
+      <RepeaterShell
+        label="Row"
+        idPrefix="table-row"
+        itemIndexes={itemIndexes(fields)}
+        onRemove={(i) => onChange(fields.filter((f) => f.itemIndex !== i))}
+        onAdd={() => {
+          const idx = nextItemIndex(fields);
+          onChange([...fields, ...cols.map((c) => blankField(idx, `c${c}`, "text", c))]);
+        }}
+        addLabel="Add Row"
+        renderItem={(i) => (
+          <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+            {cols.map((c) => (
+              <Input.TextArea
+                key={c}
+                autoSize={{ minRows: 1 }}
+                placeholder={text(0, `h${c}`) || `Column ${c}`}
+                value={text(i, `c${c}`)}
+                onChange={(e) => set(i, `c${c}`, c)(e.target.value)}
+              />
+            ))}
+          </div>
+        )}
+      />
+    </div>
+  );
+}
+
+function StarRatingWidgetFields({ fields, onChange }: WidgetFieldsProps) {
+  const text = (key: string) => textOf(fields, key);
+  const set = textSetter(fields, onChange);
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <LabeledField label="Rating (out of 5)">
+          <Select
+            value={text("rating") || "4.5"}
+            onChange={set("rating", 1)}
+            options={Array.from({ length: 11 }, (_, i) => String(i / 2)).map((v) => ({ value: v, label: `${v} stars` }))}
+          />
+        </LabeledField>
+        <TextInputField label="Label (optional)" value={text("label")} placeholder="Overall rating" onChange={set("label", 2)} />
+      </div>
+      <StyleFields>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <LabeledField label="Show the score (4.5 / 5)">
+            <Select
+              value={text("showScore") === "no" ? "no" : "yes"}
+              onChange={set("showScore", 3)}
+              options={[
+                { value: "yes", label: "Yes" },
+                { value: "no", label: "No, stars only" },
+              ]}
+            />
+          </LabeledField>
+          <LabeledField label="Star size">
+            <Select
+              value={text("size") || "m"}
+              onChange={set("size", 4)}
+              options={[
+                { value: "s", label: "Small" },
+                { value: "m", label: "Medium" },
+                { value: "l", label: "Large" },
+              ]}
+            />
+          </LabeledField>
+          <LabeledField label="Alignment">
+            <Select value={text("align") || "left"} onChange={set("align", 5)} options={WIDGET_ALIGN_OPTIONS} />
+          </LabeledField>
+        </div>
+      </StyleFields>
+    </div>
+  );
+}
+
+function TestimonialWidgetFields({ fields, onChange }: WidgetFieldsProps) {
+  const text = (key: string) => textOf(fields, key);
+  const set = textSetter(fields, onChange);
+  const photo = getField(fields, 0, "photo");
+  return (
+    <div className="flex flex-col gap-4">
+      <LabeledField label="Quote">
+        <Input.TextArea autoSize={{ minRows: 3 }} value={text("quote")} onChange={(e) => set("quote", 1)(e.target.value)} />
+      </LabeledField>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <TextInputField label="Name" value={text("name")} onChange={set("name", 2)} />
+        <TextInputField label="Role or location (optional)" value={text("role")} placeholder="Player from Singapore" onChange={set("role", 3)} />
+        <ImagePickerField
+          label="Photo (optional)"
+          mediaId={photo?.mediaId ?? null}
+          mediaUrl={photo?.mediaUrl ?? null}
+          onChange={(mediaId, mediaUrl) => onChange(upsertField(fields, 0, "photo", "image", 4, { mediaId, mediaUrl }))}
+        />
+        <LabeledField label="Star rating (optional)">
+          <Select
+            value={text("rating")}
+            onChange={set("rating", 5)}
+            options={[{ value: "", label: "No rating" }, ...Array.from({ length: 10 }, (_, i) => String((i + 1) / 2)).map((v) => ({ value: v, label: `${v} stars` }))]}
+          />
+        </LabeledField>
+      </div>
+      <StyleFields>
+        <LabeledField label="Alignment">
+          <Select value={text("align") === "center" ? "center" : "left"} onChange={set("align", 6)} options={WIDGET_ALIGN_OPTIONS.slice(0, 2)} />
+        </LabeledField>
+      </StyleFields>
     </div>
   );
 }

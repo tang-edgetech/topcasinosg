@@ -79,6 +79,20 @@ var KnownBlockTypes = []string{
 	"game_casino_finder",
 	"two_column_table",
 	"data_table",
+	// Basic widgets (web/src/components/sections/*Widget.tsx).
+	"heading",
+	"text",
+	"icon",
+	"icon_box",
+	"icon_list",
+	"divider",
+	"card",
+	"counter",
+	"progress_bars",
+	"alert",
+	"table",
+	"star_rating",
+	"testimonial",
 }
 
 // PageSection is one visual block on a page. CustomClass/CustomID are the
@@ -98,12 +112,36 @@ type PageSection struct {
 	// (rendered as <section>) and Global Sections; every other component is
 	// at level 1, inside a Container, rendered as <div>.
 	InContainer bool
-	SortOrder   int
-	Fields      []PageSectionField
+	// Depth is the section's level: 0 directly on the page, N inside the
+	// nearest Container before it at level N-1, so Containers nest (rows,
+	// columns) up to MaxSectionDepth. InContainer is kept equal to Depth > 0;
+	// sections stored before Depth existed only have InContainer, which
+	// NormalizeSectionDepths turns into level 1.
+	Depth     int
+	SortOrder int
+	Fields    []PageSectionField
 }
 
-// BlockTypeContainer wraps the sections after it that have InContainer set,
-// giving them a shared background and title.
+// MaxSectionDepth is the deepest level a section can be at; a Container
+// can't be at this level, since it would have no room for components.
+const MaxSectionDepth = 4
+
+// NormalizeSectionDepths fills in Depth for sections that only say
+// InContainer (level 1), and sets InContainer from Depth.
+func NormalizeSectionDepths(sections []PageSection) {
+	for i := range sections {
+		if sections[i].Depth <= 0 && sections[i].InContainer {
+			sections[i].Depth = 1
+		}
+		if sections[i].Depth < 0 {
+			sections[i].Depth = 0
+		}
+		sections[i].InContainer = sections[i].Depth > 0
+	}
+}
+
+// BlockTypeContainer wraps the sections after it that are one level deeper,
+// giving them a shared background and layout.
 const BlockTypeContainer = "container"
 
 // BlockTypeGlobalSection places a GlobalSection on a page; its "globalId"

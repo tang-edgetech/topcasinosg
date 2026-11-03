@@ -69,6 +69,7 @@ type PageSectionDTO struct {
 	CustomClass string                `json:"customClass"`
 	CustomID    string                `json:"customId"`
 	InContainer bool                  `json:"inContainer"`
+	Depth       int                   `json:"depth"`
 	SortOrder   int                   `json:"sortOrder"`
 	Fields      []PageSectionFieldDTO `json:"fields"`
 }
@@ -85,7 +86,7 @@ func toSectionDTOs(sections []domain.PageSection) []PageSectionDTO {
 		}
 		dtos[i] = PageSectionDTO{
 			ID: s.ID, BlockType: s.BlockType, CustomClass: s.CustomClass, CustomID: s.CustomID,
-			InContainer: s.InContainer, SortOrder: s.SortOrder, Fields: fields,
+			InContainer: s.InContainer, Depth: s.Depth, SortOrder: s.SortOrder, Fields: fields,
 		}
 	}
 	return dtos
@@ -338,9 +339,10 @@ func toDomainSections(dtos []PageSectionDTO, pageID int64) []domain.PageSection 
 		}
 		sections[i] = domain.PageSection{
 			PageID: pageID, BlockType: s.BlockType, CustomClass: s.CustomClass, CustomID: s.CustomID,
-			InContainer: s.InContainer, SortOrder: s.SortOrder, Fields: fields,
+			InContainer: s.InContainer, Depth: s.Depth, SortOrder: s.SortOrder, Fields: fields,
 		}
 	}
+	domain.NormalizeSectionDepths(sections)
 	return sections
 }
 

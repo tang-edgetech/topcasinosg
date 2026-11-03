@@ -6,12 +6,15 @@ import type { PageBlockType, PageSectionFieldDTO } from "./types";
 // Copy/paste of page components between pages (and global sections): the
 // copied section - a container brings its components - is kept in this
 // browser's localStorage, so it can be pasted on any page, in any tab, until
-// something else is copied. Images keep their media library ids.
+// something else is copied. Images keep their media library ids. depth is
+// relative to the first copied section (0); copies made before levels
+// existed only have inContainer (level 1).
 export interface CopiedSection {
   blockType: PageBlockType;
   customClass: string;
   customId: string;
   inContainer: boolean;
+  depth?: number;
   fields: PageSectionFieldDTO[];
 }
 

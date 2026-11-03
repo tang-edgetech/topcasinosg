@@ -61,7 +61,20 @@ export type PageBlockType =
   | "info_card_columns"
   | "game_casino_finder"
   | "two_column_table"
-  | "data_table";
+  | "data_table"
+  | "heading"
+  | "text"
+  | "icon"
+  | "icon_box"
+  | "icon_list"
+  | "divider"
+  | "card"
+  | "counter"
+  | "progress_bars"
+  | "alert"
+  | "table"
+  | "star_rating"
+  | "testimonial";
 
 export interface PageSection {
   id: number;
@@ -69,6 +82,9 @@ export interface PageSection {
   customClass: string;
   customId: string;
   inContainer?: boolean;
+  // Level: 0 directly on the page, N inside the nearest Container before it
+  // at level N-1 (Containers nest). Older data only has inContainer (level 1).
+  depth?: number;
   // Render-only: set for sections drawn inside a Container, which render as
   // <div> instead of <section> (see SectionTag).
   nested?: boolean;
@@ -163,6 +179,33 @@ export function splitIntro(sections: PageSection[]): { intro: PageSection | null
     return { intro: second, rest: ordered.slice(2) };
   }
   return { intro: null, rest: ordered };
+}
+
+export function sectionDepth(section: Pick<PageSection, "depth" | "inContainer">): number {
+  return section.depth && section.depth > 0 ? section.depth : section.inContainer ? 1 : 0;
+}
+
+export interface SectionNode {
+  section: PageSection;
+  children: SectionNode[];
+}
+
+// Turns the page's flat, ordered section list into a tree: each section
+// belongs to the nearest Container before it that is one level up (the
+// API's validateContainers enforces the same).
+export function sectionTree(ordered: PageSection[]): SectionNode[] {
+  const roots: SectionNode[] = [];
+  const open: { depth: number; node: SectionNode }[] = [];
+  for (const section of ordered) {
+    const depth = sectionDepth(section);
+    const node: SectionNode = { section, children: [] };
+    while (open.length > 0 && open[open.length - 1].depth >= depth) open.pop();
+    const parent = open[open.length - 1];
+    if (depth > 0 && parent) parent.node.children.push(node);
+    else roots.push(node);
+    if (section.blockType === "container") open.push({ depth, node });
+  }
+  return roots;
 }
 
 export function field(fields: PageSectionField[], itemIndex: number, key: string): PageSectionField | undefined {

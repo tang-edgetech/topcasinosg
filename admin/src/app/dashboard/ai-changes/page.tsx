@@ -94,7 +94,7 @@ function diffSections(before: ContentSectionInput[], after: ContentSectionInput[
       rows.push({ where, before: `${sectionLabel(b)} (removed)`, after: "" });
       continue;
     }
-    if (!b || b.blockType !== a.blockType || b.inContainer !== a.inContainer) {
+    if (!b || b.blockType !== a.blockType || (b.depth ?? (b.inContainer ? 1 : 0)) !== (a.depth ?? (a.inContainer ? 1 : 0))) {
       const text = [...sectionFields(a).values()].filter(Boolean).join(" · ");
       rows.push({ where, before: b ? sectionLabel(b) : "", after: `${sectionLabel(a)}${text ? `: ${text}` : ""}` });
       continue;

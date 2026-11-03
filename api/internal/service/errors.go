@@ -22,7 +22,7 @@ var (
 // PageService validation.
 var (
 	ErrInvalidBlockType     = errors.New("unknown block type")
-	ErrInvalidContainer     = errors.New("a component can only be inside a container placed before it, and containers cannot be nested")
+	ErrInvalidContainer     = errors.New("each section must be inside the container before it, exactly one level deeper, and at most 4 levels deep (a container at most 3)")
 	ErrInvalidFieldType     = errors.New("field type must be 'text', 'richtext', 'image', or 'button'")
 	ErrHomeSlugLocked       = errors.New("the homepage's slug must stay 'home' with no parent")
 	ErrGlobalNameRequired   = errors.New("a global section needs a name")

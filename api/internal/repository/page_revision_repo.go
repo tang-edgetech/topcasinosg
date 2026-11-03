@@ -98,6 +98,7 @@ func (r *PageRepo) ListRevisions(ctx context.Context, pageID int64) ([]domain.Pa
 		if err := json.Unmarshal(sections, &rv.Sections); err != nil {
 			return nil, err
 		}
+		domain.NormalizeSectionDepths(rv.Sections)
 		revisions = append(revisions, rv)
 	}
 	return revisions, rows.Err()

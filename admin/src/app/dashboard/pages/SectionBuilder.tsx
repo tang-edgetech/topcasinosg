@@ -20,8 +20,8 @@ import {
   IconGripVertical,
   IconIndent,
   IconInsertBelow,
-  
   IconLayersPlus,
+  IconOutdent,
   IconTrash,
 } from "@/components/Icons";
 import BlockFieldEditor, { BLOCK_TYPE_LABELS, StyleTabTarget, defaultFieldsForBlockType, mediaUrl, type EditableField } from "./BlockFields";
@@ -31,17 +31,28 @@ import LivePreview from "./LivePreview";
 import { copySectionsToClipboard, useSectionClipboard, type CopiedSection } from "@/lib/sectionClipboard";
 import type { GlobalSectionDTO, PageBlockType, PageSectionDTO, SectionTemplateDTO } from "@/lib/types";
 
+// depth: 0 directly on the page, N inside the nearest Container before it
+// at level N-1 (api/internal/domain/page.go).
 interface EditableSection {
   key: string;
   blockType: PageBlockType;
   customClass: string;
   customId: string;
-  inContainer: boolean;
+  depth: number;
   fields: EditableField[];
 }
 
 const CONTAINER: PageBlockType = "container";
 const GLOBAL_SECTION: PageBlockType = "global_section";
+// Deepest level a section can be at; a Container at most one less, so it has
+// room for components (domain.MaxSectionDepth in the API).
+const MAX_DEPTH = 4;
+
+// A section's level from the API, which only sent inContainer before levels
+// existed (level 1).
+function sectionDepth(section: { depth?: number; inContainer?: boolean }): number {
+  return section.depth && section.depth > 0 ? section.depth : section.inContainer ? 1 : 0;
+}
 
 // Spacing/divider presets editors toggle with plain checkboxes - they're
 // stored as classes in custom_class (see shared/theme/sections.css), so the
@@ -49,8 +60,10 @@ const GLOBAL_SECTION: PageBlockType = "global_section";
 const TIGHT_TOP_CLASS = "section--tight-top";
 const DIVIDER_TOP_CLASS = "section--divider-top";
 const WIDE_CONTENT_CLASS = "section--content-960";
-// Width of a component inside a grid Container (shared/theme/sections.css
-// .container-section__body--grid); empty = the container's column width.
+// Width of a component inside a grid or row Container (shared/theme/
+// sections.css .container-section__body--grid / --row); empty = the
+// container's column width (grid) or an equal share (row). "Fit content"
+// is for rows only.
 const WIDTH_OPTIONS = [
   { value: "", label: "Auto (column width)" },
   { value: "section--w-full", label: "Full width" },
@@ -60,7 +73,14 @@ const WIDTH_OPTIONS = [
   { value: "section--w-1-3", label: "1/3" },
   { value: "section--w-1-4", label: "1/4" },
 ];
-const WIDTH_CLASSES = WIDTH_OPTIONS.map((o) => o.value).filter(Boolean);
+const ROW_WIDTH_OPTIONS = [
+  { value: "", label: "Equal share" },
+  ...WIDTH_OPTIONS.slice(1),
+  { value: "section--w-auto", label: "Fit content" },
+];
+const WIDTH_CLASSES = ROW_WIDTH_OPTIONS.map((o) => o.value).filter(Boolean);
+// Container layouts whose components each get a "Width in container".
+const SIZED_LAYOUTS = ["grid", "row"];
 // Hide a component on some devices (shared/theme/sections.css): mobile
 // below 640px, tablet 640-1199px, desktop 1200px and up.
 const VISIBILITY_OPTIONS = [
@@ -124,7 +144,120 @@ const VALIGN_OPTIONS = [
   { value: "section--valign-bottom", label: "Bottom" },
 ];
 const VALIGN_CLASSES = VALIGN_OPTIONS.map((o) => o.value).filter(Boolean);
-const PRESET_CLASSES = [TIGHT_TOP_CLASS, DIVIDER_TOP_CLASS, WIDE_CONTENT_CLASS, ...WIDTH_CLASSES, ...HIDE_CLASSES, ...LAYOUT_CLASSES, ...VALIGN_CLASSES];
+// Style tab "Box & text" and Advanced tab "Entrance animation": presets any
+// component or Container can use, one class per group (section--{group}-
+// {value}, shared/theme/sections.css). Colours are brand tokens only.
+const STYLE_GROUPS: { id: string; label: string; options: { value: string; label: string }[] }[] = [
+  {
+    id: "box",
+    label: "Background",
+    options: [
+      { value: "", label: "None" },
+      { value: "section--box-white", label: "White" },
+      { value: "section--box-light", label: "Light blue-grey" },
+      { value: "section--box-cream", label: "Cream" },
+      { value: "section--box-mint", label: "Mint" },
+      { value: "section--box-navy", label: "Navy" },
+      { value: "section--box-blue", label: "Blue" },
+      { value: "section--box-gold", label: "Gold" },
+      { value: "section--box-gradient", label: "Navy to blue gradient" },
+    ],
+  },
+  {
+    id: "text",
+    label: "Text colour",
+    options: [
+      { value: "", label: "Default" },
+      { value: "section--text-navy", label: "Navy" },
+      { value: "section--text-muted", label: "Muted blue" },
+      { value: "section--text-white", label: "White" },
+      { value: "section--text-gold", label: "Gold" },
+      { value: "section--text-blue", label: "Blue" },
+    ],
+  },
+  {
+    id: "border",
+    label: "Border",
+    options: [
+      { value: "", label: "None" },
+      { value: "section--border-light", label: "Thin, light" },
+      { value: "section--border-navy", label: "Navy" },
+      { value: "section--border-gold", label: "Gold" },
+    ],
+  },
+  {
+    id: "radius",
+    label: "Corners",
+    options: [
+      { value: "", label: "Square" },
+      { value: "section--radius-s", label: "Slightly rounded" },
+      { value: "section--radius-m", label: "Rounded" },
+      { value: "section--radius-l", label: "Very rounded" },
+      { value: "section--radius-pill", label: "Pill" },
+    ],
+  },
+  {
+    id: "shadow",
+    label: "Shadow",
+    options: [
+      { value: "", label: "None" },
+      { value: "section--shadow-s", label: "Small" },
+      { value: "section--shadow-m", label: "Medium" },
+      { value: "section--shadow-l", label: "Large" },
+    ],
+  },
+  {
+    id: "pad",
+    label: "Space inside",
+    options: [
+      { value: "", label: "Default" },
+      { value: "section--pad-s", label: "Small (16px)" },
+      { value: "section--pad-m", label: "Medium (30px)" },
+      { value: "section--pad-l", label: "Large (50px)" },
+    ],
+  },
+  {
+    id: "mt",
+    label: "Extra space above",
+    options: [
+      { value: "", label: "None" },
+      { value: "section--mt-s", label: "Small (16px)" },
+      { value: "section--mt-m", label: "Medium (30px)" },
+      { value: "section--mt-l", label: "Large (50px)" },
+    ],
+  },
+  {
+    id: "mb",
+    label: "Extra space below",
+    options: [
+      { value: "", label: "None" },
+      { value: "section--mb-s", label: "Small (16px)" },
+      { value: "section--mb-m", label: "Medium (30px)" },
+      { value: "section--mb-l", label: "Large (50px)" },
+    ],
+  },
+];
+const ANIMATION_OPTIONS = [
+  { value: "", label: "None" },
+  { value: "section--anim-fade", label: "Fade in" },
+  { value: "section--anim-fade-up", label: "Fade in, moving up" },
+  { value: "section--anim-fade-left", label: "Fade in from the left" },
+  { value: "section--anim-fade-right", label: "Fade in from the right" },
+  { value: "section--anim-zoom", label: "Zoom in" },
+];
+const STYLE_CLASSES = STYLE_GROUPS.flatMap((g) => g.options.map((o) => o.value).filter(Boolean));
+const ANIMATION_CLASSES = ANIMATION_OPTIONS.map((o) => o.value).filter(Boolean);
+const PRESET_CLASSES = [
+  TIGHT_TOP_CLASS,
+  DIVIDER_TOP_CLASS,
+  WIDE_CONTENT_CLASS,
+  ...WIDTH_CLASSES,
+  ...HIDE_CLASSES,
+  ...LAYOUT_CLASSES,
+  ...VALIGN_CLASSES,
+  ...STYLE_CLASSES,
+  ...ANIMATION_CLASSES,
+];
 // Containers whose components each get a title (tab or accordion item).
 const PANEL_TITLE_LABELS: Record<string, string> = { tabs: "Tab title", accordion: "Accordion item title" };
 const PANEL_TITLE_KEY = "panelTitle";
@@ -146,12 +279,30 @@ const BLOCK_GROUPS: { label: string; blocks: [PageBlockType, string][] }[] = [
   {
     label: "Basic",
     blocks: [
-      ["title_set", "Section title (one word can be red) with a line of text"],
-      ["rich_text", "Heading with formatted text"],
+      ["heading", "A heading: H1-H6 for SEO, any size, optional link"],
+      ["text", "Formatted text, no heading"],
       ["image", "Image with optional link and caption"],
       ["button_group", "One or more buttons in a row"],
+      ["icon", "One icon from the built-in set"],
+      ["divider", "A line: solid, dashed or dotted"],
       ["spacer", "Empty space, optionally with a divider line"],
       ["video", "YouTube or Vimeo video, loads on click"],
+      ["title_set", "Section title (one word can be red) with a line of text"],
+      ["rich_text", "Heading with formatted text"],
+    ],
+  },
+  {
+    label: "Elements",
+    blocks: [
+      ["icon_box", "Icon with a title and text"],
+      ["icon_list", "Lines with a check or other icon"],
+      ["card", "Image, title, text and a button"],
+      ["counter", "A big number that counts up"],
+      ["progress_bars", "Bars filled to a percentage"],
+      ["alert", "Info, success, warning or danger notice"],
+      ["table", "A simple table of 2-6 columns"],
+      ["star_rating", "0-5 stars with the score"],
+      ["testimonial", "A quote with name, photo and rating"],
     ],
   },
   {
@@ -204,12 +355,15 @@ const BLOCK_GROUPS: { label: string; blocks: [PageBlockType, string][] }[] = [
 ];
 
 // Page levels: level 0 (directly on the page) takes only a Container or a
-// Global Section; everything else is added inside a Container (level 1),
-// where a Container itself can't go. The API enforces the same
-// (validateHierarchy in api/internal/service/page_service.go).
-function buildPickerGroups(insideContainer: boolean, isGlobal: boolean): ComponentGroup[] {
-  const allowed = (type: PageBlockType) =>
-    insideContainer ? type !== CONTAINER && (!isGlobal || type !== GLOBAL_SECTION) : type === CONTAINER || (!isGlobal && type === GLOBAL_SECTION);
+// Global Section; inside a Container (level 1 and deeper) go components and
+// other Containers, down to MAX_DEPTH. The API enforces the same
+// (validateHierarchy and validateContainers in api/internal/service).
+function buildPickerGroups(depth: number, isGlobal: boolean): ComponentGroup[] {
+  const allowed = (type: PageBlockType) => {
+    if (depth === 0) return type === CONTAINER || (!isGlobal && type === GLOBAL_SECTION);
+    if (type === CONTAINER) return depth < MAX_DEPTH;
+    return !isGlobal || type !== GLOBAL_SECTION;
+  };
   const grouped = new Set(BLOCK_GROUPS.flatMap((g) => g.blocks.map(([type]) => type)));
   const other = (Object.keys(BLOCK_TYPE_LABELS) as PageBlockType[]).filter((t) => !grouped.has(t));
   const groups = other.length > 0 ? [...BLOCK_GROUPS, { label: "Other", blocks: other.map((t) => [t, ""] as [PageBlockType, string]) }] : BLOCK_GROUPS;
@@ -261,7 +415,7 @@ function toggleClass(customClass: string, cls: string, on: boolean): string {
 // Short human summary of a section for its collapsed header: the first
 // heading-like field, stripped of any HTML.
 function sectionSummary(fields: EditableField[]): string {
-  for (const key of ["heading", "headingLine1", "title", "tagline", "caption", "alt", "url"]) {
+  for (const key of ["heading", "headingLine1", "title", "tagline", "caption", "alt", "url", "quote", "label", "number", "body"]) {
     const value = fields.find((f) => f.itemIndex === 0 && f.fieldKey === key)?.textValue;
     if (value) return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   }
@@ -275,28 +429,31 @@ function itemCount(fields: EditableField[]): number {
   return new Set(fields.filter((f) => f.itemIndex > 0).map((f) => f.itemIndex)).size;
 }
 
-// A container's components are the in-container sections right after it,
-// mirroring the API (PageSection.InContainer) and the public renderer.
-// Level 0 holds only Containers and Global Sections, so a component that
-// would end up there (dropped between containers, a lone component from a
-// template or paste) gets a Container of its own - one that keeps the
-// component's own spacing, so it looks the same as it would on its own.
+// Puts every section at a level the page can hold, mirroring the API
+// (validateContainers) and the public renderer (sectionTree): a section
+// belongs to the nearest Container before it one level up, so no section
+// can be deeper than one past the Containers open above it, and a Container
+// is at most MAX_DEPTH - 1. Level 0 holds only Containers and Global
+// Sections, so a component that would end up there (dropped between
+// containers, a lone component from a template or paste) gets a Container
+// of its own - one that keeps the component's own spacing, so it looks the
+// same as it would on its own.
 function normalizeContainers(sections: EditableSection[]): EditableSection[] {
   const out: EditableSection[] = [];
-  let open = false;
+  const open: number[] = [];
   for (const s of sections) {
-    if (s.blockType === CONTAINER) {
-      out.push(s.inContainer ? { ...s, inContainer: false } : s);
-      open = true;
-    } else if (s.inContainer && open) {
-      out.push(s);
-    } else if (s.blockType === GLOBAL_SECTION) {
-      out.push(s.inContainer ? { ...s, inContainer: false } : s);
-      open = false;
-    } else {
-      out.push(wrapperContainer(), s.inContainer ? s : { ...s, inContainer: true });
-      open = true;
+    const isContainer = s.blockType === CONTAINER;
+    let depth = Math.min(Math.max(0, s.depth), isContainer ? MAX_DEPTH - 1 : MAX_DEPTH);
+    while (open.length > 0 && open[open.length - 1] >= depth) open.pop();
+    const top = open.length > 0 ? open[open.length - 1] : -1;
+    if (depth > top + 1) depth = top + 1;
+    if (depth === 0 && !isContainer && s.blockType !== GLOBAL_SECTION) {
+      out.push(wrapperContainer());
+      open.push(0);
+      depth = 1;
     }
+    out.push(s.depth === depth ? s : { ...s, depth });
+    if (isContainer) open.push(depth);
   }
   return out;
 }
@@ -315,7 +472,7 @@ function wrapperContainer(): EditableSection {
     blockType: CONTAINER,
     customClass: "",
     customId: "",
-    inContainer: false,
+    depth: 0,
     fields: [
       ...defaultFieldsForBlockType(CONTAINER),
       ...extra.map(([fieldKey, textValue, sortOrder]) => ({
@@ -332,19 +489,43 @@ function wrapperContainer(): EditableSection {
   };
 }
 
-// End (exclusive) of the top-level unit starting at index: a container plus
-// its components, or a single section.
+// End (exclusive) of the unit starting at index: the section plus
+// everything nested in it (a Container's components and inner Containers).
 function unitEnd(sections: EditableSection[], index: number): number {
-  if (sections[index]?.blockType !== CONTAINER) return index + 1;
+  const depth = sections[index]?.depth ?? 0;
   let end = index + 1;
-  while (end < sections.length && sections[end].inContainer) end += 1;
+  while (end < sections.length && sections[end].depth > depth) end += 1;
   return end;
 }
 
-function previousUnitStart(sections: EditableSection[], index: number): number {
+// Start of the unit just before index at the same level, inside the same
+// Container, or -1.
+function previousSiblingStart(sections: EditableSection[], index: number): number {
+  const depth = sections[index].depth;
   let start = index - 1;
-  while (start >= 0 && sections[start].inContainer) start -= 1;
-  return start;
+  while (start >= 0 && sections[start].depth > depth) start -= 1;
+  return start >= 0 && sections[start].depth === depth ? start : -1;
+}
+
+// The Container a section is inside (the nearest one before it one level
+// up), or -1 at level 0.
+function parentIndex(sections: EditableSection[], index: number): number {
+  const depth = sections[index].depth;
+  for (let i = index - 1; i >= 0; i -= 1) {
+    if (sections[i].depth < depth) return sections[i].depth === depth - 1 ? i : -1;
+  }
+  return -1;
+}
+
+// Deepest level in a unit, relative to its first section, with one extra
+// for a Container (it must have room for components).
+function unitDepthSpan(unit: EditableSection[]): number {
+  const base = unit[0]?.depth ?? 0;
+  return Math.max(0, ...unit.map((s) => s.depth - base + (s.blockType === CONTAINER ? 1 : 0)));
+}
+
+function shiftDepth(unit: EditableSection[], by: number): EditableSection[] {
+  return by === 0 ? unit : unit.map((s) => ({ ...s, depth: s.depth + by }));
 }
 
 type DropPosition = "before" | "after" | "inside";
@@ -354,10 +535,11 @@ interface DropTarget {
 }
 const END_DROP_KEY = "__end";
 
-// Where a dragged section (a container brings its components along) lands.
-// Dropping on a component inside a container keeps it inside; just below a
-// container's header puts it first inside; "inside" appends to a container.
-// A container is never dropped into another one - it lands next to it.
+// Where a dragged section (a Container brings everything inside it) lands.
+// "before"/"after" a section puts it next to that section, at its level -
+// except just below a Container's header, which puts it first inside that
+// Container; "inside" appends it to a Container. A drop that would nest it
+// too deep, or into itself, does nothing.
 function applyDrop(list: EditableSection[], dragKey: string, target: DropTarget): EditableSection[] | null {
   const from = list.findIndex((s) => s.key === dragKey);
   if (from < 0) return null;
@@ -365,38 +547,27 @@ function applyDrop(list: EditableSection[], dragKey: string, target: DropTarget)
   const unit = list.slice(from, end);
   if (unit.some((s) => s.key === target.key)) return null;
   const rest = [...list.slice(0, from), ...list.slice(end)];
-  const draggingContainer = unit[0].blockType === CONTAINER;
   let at: number;
-  let inContainer = false;
+  let depth: number;
 
   if (target.key === END_DROP_KEY) {
     at = rest.length;
+    depth = 0;
   } else {
     const t = rest.findIndex((s) => s.key === target.key);
     if (t < 0) return null;
     const targetSection = rest[t];
-    if (target.position === "inside") {
-      at = unitEnd(rest, t);
-      inContainer = !draggingContainer;
-    } else if (targetSection.inContainer) {
-      if (draggingContainer) {
-        let head = t;
-        while (head > 0 && rest[head].inContainer) head -= 1;
-        at = target.position === "before" ? head : unitEnd(rest, head);
-      } else {
-        at = target.position === "before" ? t : t + 1;
-        inContainer = true;
-      }
-    } else if (targetSection.blockType === CONTAINER && target.position === "after") {
-      at = draggingContainer ? unitEnd(rest, t) : t + 1;
-      inContainer = !draggingContainer;
+    if (target.position === "inside" || (targetSection.blockType === CONTAINER && target.position === "after")) {
+      at = target.position === "inside" ? unitEnd(rest, t) : t + 1;
+      depth = targetSection.depth + 1;
     } else {
-      at = target.position === "before" ? t : t + 1;
+      at = target.position === "before" ? t : unitEnd(rest, t);
+      depth = targetSection.depth;
     }
   }
 
-  const moved = draggingContainer ? unit : [{ ...unit[0], inContainer }];
-  return normalizeContainers([...rest.slice(0, at), ...moved, ...rest.slice(at)]);
+  if (depth + unitDepthSpan(unit) > MAX_DEPTH) return null;
+  return normalizeContainers([...rest.slice(0, at), ...shiftDepth(unit, depth - unit[0].depth), ...rest.slice(at)]);
 }
 
 // One expanded component: Content (its own fields), Style (background, size,
@@ -404,15 +575,16 @@ function applyDrop(list: EditableSection[], dragKey: string, target: DropTarget)
 // plus spacing and grid width) and Advanced (CSS class, HTML id).
 function SectionEditor({
   section,
-  inGrid,
+  parentLayout,
   panelLabel,
   onUpdate,
 }: {
   section: EditableSection;
-  inGrid: boolean;
+  parentLayout: string | null;
   panelLabel: string | null;
   onUpdate: (patch: Partial<EditableSection>) => void;
 }) {
+  const inGrid = SIZED_LAYOUTS.includes(parentLayout ?? "");
   const [styleTarget, setStyleTarget] = useState<HTMLDivElement | null>(null);
   const [tab, setTab] = useState("content");
   const panelTitle = section.fields.find((f) => f.itemIndex === 0 && f.fieldKey === PANEL_TITLE_KEY)?.textValue ?? "";
@@ -452,7 +624,12 @@ function SectionEditor({
                     />
                   </Space.Compact>
                 )}
-                <BlockFieldEditor blockType={section.blockType} fields={section.fields} onChange={(fields) => onUpdate({ fields })} />
+                <BlockFieldEditor
+                  blockType={section.blockType}
+                  fields={section.fields}
+                  nested={section.depth > 0}
+                  onChange={(fields) => onUpdate({ fields })}
+                />
               </div>
             ),
           },
@@ -493,11 +670,12 @@ function SectionEditor({
                         className="min-w-36"
                         value={groupClass(section.customClass, WIDTH_CLASSES)}
                         onChange={(cls: string) => onUpdate({ customClass: setExclusiveClass(section.customClass, WIDTH_CLASSES, cls) })}
-                        options={WIDTH_OPTIONS}
+                        options={parentLayout === "row" ? ROW_WIDTH_OPTIONS : WIDTH_OPTIONS}
                       />
                     </label>
                   )}
                 </div>
+                <BoxSettings section={section} onUpdate={onUpdate} />
                 <LayoutSettings section={section} inGrid={inGrid} onUpdate={onUpdate} />
               </div>
             ),
@@ -521,6 +699,18 @@ function SectionEditor({
                 ))}
                 <span className="text-xs text-text-muted dark:text-text-muted-dark">Mobile is below 640px, tablet 640–1199px, desktop 1200px and up.</span>
               </div>
+              <label className="flex flex-wrap items-center gap-3 rounded-md bg-surface px-4 py-3 text-sm dark:bg-surface-muted-dark">
+                <span className="text-xs font-semibold tracking-wide text-text-muted uppercase dark:text-text-muted-dark">Entrance animation</span>
+                <Select
+                  id={`section-${section.key}-animation`}
+                  size="small"
+                  className="min-w-56"
+                  value={groupClass(section.customClass, ANIMATION_CLASSES)}
+                  onChange={(cls: string) => onUpdate({ customClass: setExclusiveClass(section.customClass, ANIMATION_CLASSES, cls) })}
+                  options={ANIMATION_OPTIONS}
+                />
+                <span className="text-xs text-text-muted dark:text-text-muted-dark">Plays once, when it scrolls into view.</span>
+              </label>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Space.Compact block>
                   <Space.Addon>CSS class</Space.Addon>
@@ -548,6 +738,38 @@ function SectionEditor({
         ]}
       />
     </StyleTabTarget.Provider>
+  );
+}
+
+// Style tab "Box & text": background, text colour, border, corners, shadow
+// and spacing presets for any component or Container. They style the
+// component's own box, on top of its own look.
+function BoxSettings({ section, onUpdate }: { section: EditableSection; onUpdate: (patch: Partial<EditableSection>) => void }) {
+  return (
+    <div className="section-box-settings flex flex-col gap-3 rounded-md bg-surface px-4 py-3 dark:bg-surface-muted-dark">
+      <span className="text-xs font-semibold tracking-wide text-text-muted uppercase dark:text-text-muted-dark">Box &amp; text</span>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {STYLE_GROUPS.map((group) => {
+          const classes = group.options.map((o) => o.value).filter(Boolean);
+          return (
+            <label key={group.id} className="flex flex-col gap-1 text-sm">
+              <span className="text-xs text-text-muted dark:text-text-muted-dark">{group.label}</span>
+              <Select
+                id={`section-${section.key}-style-${group.id}`}
+                size="small"
+                value={groupClass(section.customClass, classes)}
+                onChange={(cls: string) => onUpdate({ customClass: setExclusiveClass(section.customClass, classes, cls) })}
+                options={group.options}
+              />
+            </label>
+          );
+        })}
+      </div>
+      <span className="text-xs text-text-muted dark:text-text-muted-dark">
+        These style the component&apos;s own box, on top of its own look. With a dark background, pick a white text colour. Buttons keep
+        their own colours.
+      </span>
+    </div>
   );
 }
 
@@ -655,7 +877,7 @@ function fromDTO(sections: PageSectionDTO[]): EditableSection[] {
         blockType: s.blockType,
         customClass: s.customClass,
         customId: s.customId,
-        inContainer: Boolean(s.inContainer),
+        depth: sectionDepth(s),
         // Fields come back from the API with a relative mediaUrl (e.g.
         // "/uploads/x.webp") — the API's own convention, since it's the
         // consumer's job to resolve it against the right host. Left
@@ -668,13 +890,11 @@ function fromDTO(sections: PageSectionDTO[]): EditableSection[] {
 
 function initialEditable(sections: PageSectionDTO[]): EditableSection[] {
   if (sections.length > 0) return fromDTO(sections);
-  return [{ key: nextClientKey(), blockType: CONTAINER, customClass: "", customId: "", inContainer: false, fields: defaultFieldsForBlockType(CONTAINER) }];
+  return [{ key: nextClientKey(), blockType: CONTAINER, customClass: "", customId: "", depth: 0, fields: defaultFieldsForBlockType(CONTAINER) }];
 }
 
 function snapshot(sections: EditableSection[]): string {
-  return JSON.stringify(
-    sections.map(({ blockType, customClass, customId, inContainer, fields }) => ({ blockType, customClass, customId, inContainer, fields })),
-  );
+  return JSON.stringify(sections.map(({ blockType, customClass, customId, depth, fields }) => ({ blockType, customClass, customId, depth, fields })));
 }
 
 function cloneSection(source: EditableSection, patch: Partial<EditableSection> = {}): EditableSection {
@@ -714,8 +934,8 @@ export default function SectionBuilder({
   const scrollToKey = useRef<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [insertAt, setInsertAt] = useState<number | null>(null);
-  const [insertInContainer, setInsertInContainer] = useState(false);
-  const pickerGroups = useMemo(() => buildPickerGroups(insertInContainer, isGlobal), [insertInContainer, isGlobal]);
+  const [insertDepth, setInsertDepth] = useState(0);
+  const pickerGroups = useMemo(() => buildPickerGroups(insertDepth, isGlobal), [insertDepth, isGlobal]);
   const [globalNames, setGlobalNames] = useState<Map<string, string>>(() => new Map());
   const [libraryIndex, setLibraryIndex] = useState<number | null>(null);
   const [libraryName, setLibraryName] = useState("");
@@ -743,7 +963,7 @@ export default function SectionBuilder({
   useEffect(loadTemplates, []);
 
   const pickerTemplates = templates.filter(
-    (t) => !(insertInContainer && t.blockTypes.includes(CONTAINER)) && !(isGlobal && t.blockTypes.includes(GLOBAL_SECTION)),
+    (t) => !(insertDepth >= MAX_DEPTH && t.blockTypes.includes(CONTAINER)) && !(isGlobal && t.blockTypes.includes(GLOBAL_SECTION)),
   );
 
   const dirty = snapshot(sections) !== savedSnapshot;
@@ -790,7 +1010,7 @@ export default function SectionBuilder({
           blockType,
           customClass: "",
           customId: "",
-          inContainer: insertInContainer && blockType !== CONTAINER,
+          depth: insertDepth,
           fields: defaultFieldsForBlockType(blockType),
         },
       ],
@@ -798,52 +1018,51 @@ export default function SectionBuilder({
     );
   }
 
-  function openPicker(atIndex: number | null = null, inContainer = false) {
+  function openPicker(atIndex: number | null = null, depth = 0) {
     setInsertAt(atIndex);
-    setInsertInContainer(inContainer);
+    setInsertDepth(depth);
     setPickerOpen(true);
   }
 
   function insertBelow(index: number) {
-    const section = sections[index];
-    if (section.inContainer) openPicker(index + 1, true);
-    else openPicker(unitEnd(sections, index));
+    openPicker(unitEnd(sections, index), sections[index].depth);
   }
 
-  // Inserts copies (pasted, or from a template) where the picker was opened:
-  // a lone component goes inside the container there if any; a container
-  // brings its own components and can't go inside another container.
-  function insertCopies(copies: CopiedSection[], what: string, at: number | null = insertAt, inside = insertInContainer): boolean {
+  // Inserts copies (pasted, or from a template) where the picker was opened,
+  // at that level: their own levels are relative to the first copy (a
+  // Container brings what is inside it). A lone component at level 0 gets a
+  // Container of its own (normalizeContainers).
+  function insertCopies(copies: CopiedSection[], what: string, at: number | null = insertAt, depth = insertDepth): boolean {
     if (copies.length === 0) return false;
-    const bringsContainer = copies[0].blockType === CONTAINER;
-    if (inside && copies.some((c) => c.blockType === CONTAINER)) {
-      message.warning(`This ${what} has a container, which can't go inside another container. Add it outside the container instead.`);
-      return false;
-    }
     if (isGlobal && copies.some((c) => c.blockType === GLOBAL_SECTION)) {
       message.warning(`This ${what} places a global section, which can't go inside another global section.`);
       return false;
     }
-    insertSections(
-      copies.map((c, i) => ({
-        key: nextClientKey(),
-        blockType: c.blockType,
-        customClass: c.customClass,
-        customId: "",
-        inContainer: bringsContainer ? i > 0 && c.inContainer : inside,
-        fields: c.fields.map((f) => ({ ...f, mediaUrl: f.mediaUrl ? mediaUrl(f.mediaUrl) : f.mediaUrl })),
-      })),
-      at ?? undefined,
-    );
+    const added: EditableSection[] = copies.map((c, i) => ({
+      key: nextClientKey(),
+      blockType: c.blockType,
+      customClass: c.customClass,
+      customId: "",
+      depth: depth + (i === 0 ? 0 : sectionDepth(c)),
+      fields: c.fields.map((f) => ({ ...f, mediaUrl: f.mediaUrl ? mediaUrl(f.mediaUrl) : f.mediaUrl })),
+    }));
+    if (Math.max(depth, 1) + unitDepthSpan(shiftDepth(added, -depth)) > MAX_DEPTH) {
+      message.warning(`This ${what} has containers nested too deep to go here. Add it at a higher level instead.`);
+      return false;
+    }
+    insertSections(added, at ?? undefined);
     return true;
   }
 
+  // Copies keep their levels relative to the first one (level 0).
   function toCopies(unit: EditableSection[]): CopiedSection[] {
-    return unit.map((s, i) => ({
+    const base = unit[0]?.depth ?? 0;
+    return unit.map((s) => ({
       blockType: s.blockType,
       customClass: s.customClass,
       customId: s.customId,
-      inContainer: i > 0 && s.inContainer,
+      depth: s.depth - base,
+      inContainer: s.depth > base,
       fields: s.fields.map((f) => ({ ...f })),
     }));
   }
@@ -868,10 +1087,16 @@ export default function SectionBuilder({
   async function insertTemplate(template: SectionTemplateDTO) {
     try {
       const data = await api.get<{ sections: PageSectionDTO[] }>(`/api/admin/section-templates/${template.id}`);
-      const copies = (data.sections ?? [])
-        .slice()
-        .sort((a, b) => a.sortOrder - b.sortOrder)
-        .map((s) => ({ blockType: s.blockType, customClass: s.customClass, customId: s.customId, inContainer: Boolean(s.inContainer), fields: s.fields }));
+      const ordered = (data.sections ?? []).slice().sort((a, b) => a.sortOrder - b.sortOrder);
+      const base = ordered.length > 0 ? sectionDepth(ordered[0]) : 0;
+      const copies = ordered.map((s) => ({
+        blockType: s.blockType,
+        customClass: s.customClass,
+        customId: s.customId,
+        depth: sectionDepth(s) - base,
+        inContainer: sectionDepth(s) > base,
+        fields: s.fields,
+      }));
       if (insertCopies(copies, "template")) message.success(`Inserted “${template.name}”. Save Page Content to keep it.`);
     } catch (err) {
       message.error(err instanceof ApiError ? err.message : "Could not load the template.");
@@ -903,18 +1128,18 @@ export default function SectionBuilder({
     );
   }
 
-  // A Container goes with its components: they can't stay on the page
-  // outside a Container (level 0 takes only Containers).
+  // A Container goes with everything inside it: its components can't stay
+  // on the page outside a Container (level 0 takes only Containers).
   async function removeSection(index: number) {
     const section = sections[index];
     const isContainer = section.blockType === CONTAINER;
-    const unit = isContainer ? sections.slice(index, unitEnd(sections, index)) : [section];
+    const unit = sections.slice(index, unitEnd(sections, index));
     const inside = unit.length - 1;
     const ok = await confirm({
       title: isContainer ? "Remove Container" : "Remove Section",
       message: isContainer
         ? inside > 0
-          ? `Remove this container and the ${inside} component${inside === 1 ? "" : "s"} inside it? To keep a component, drag it into another container first. This only takes effect once you save.`
+          ? `Remove this container and the ${inside} section${inside === 1 ? "" : "s"} inside it? To keep one, drag it into another container first. This only takes effect once you save.`
           : "Remove this empty container? This only takes effect once you save."
         : "Remove this section from the page? This only takes effect once you save.",
       confirmLabel: "Remove",
@@ -925,24 +1150,20 @@ export default function SectionBuilder({
     update((prev) => prev.filter((s) => !keys.has(s.key)));
   }
 
+  // Up and down swap a section (with everything inside it) with the one
+  // next to it at the same level, inside the same Container.
   function canMove(index: number, direction: -1 | 1): boolean {
-    const section = sections[index];
-    if (section.inContainer) return Boolean(sections[index + direction]?.inContainer);
-    return direction === -1 ? previousUnitStart(sections, index) >= 0 : unitEnd(sections, index) < sections.length;
+    if (direction === -1) return previousSiblingStart(sections, index) >= 0;
+    return sections[unitEnd(sections, index)]?.depth === sections[index].depth;
   }
 
   function moveSection(index: number, direction: -1 | 1) {
     if (!canMove(index, direction)) return;
     update((prev) => {
-      if (prev[index].inContainer) {
-        const next = [...prev];
-        [next[index], next[index + direction]] = [next[index + direction], next[index]];
-        return next;
-      }
       const end = unitEnd(prev, index);
       const unit = prev.slice(index, end);
       if (direction === -1) {
-        const start = previousUnitStart(prev, index);
+        const start = previousSiblingStart(prev, index);
         return [...prev.slice(0, start), ...unit, ...prev.slice(start, index), ...prev.slice(end)];
       }
       const nextEnd = unitEnd(prev, end);
@@ -950,24 +1171,47 @@ export default function SectionBuilder({
     });
   }
 
-  function containerLayout(index: number): string {
-    for (let i = index - 1; i >= 0; i -= 1) {
-      if (sections[i].blockType === CONTAINER) {
-        return sections[i].fields.find((f) => f.itemIndex === 0 && f.fieldKey === "layout")?.textValue ?? "stack";
-      }
-    }
-    return "stack";
+  // The layout of the Container a section is inside ("stack" at level 0).
+  function parentLayout(index: number): string | null {
+    const parent = parentIndex(sections, index);
+    if (parent < 0) return null;
+    return sections[parent].fields.find((f) => f.itemIndex === 0 && f.fieldKey === "layout")?.textValue || "stack";
   }
 
-  function canMoveIntoContainer(index: number): boolean {
+  // Indent: into the Container just above, at the same level, as its last
+  // section. Outdent: out of its Container, placed right after it.
+  function canIndent(index: number): boolean {
+    const previous = previousSiblingStart(sections, index);
+    if (previous < 0 || sections[previous].blockType !== CONTAINER) return false;
+    const unit = sections.slice(index, unitEnd(sections, index));
+    return sections[index].depth + 1 + unitDepthSpan(unit) <= MAX_DEPTH;
+  }
+
+  function indent(index: number) {
+    if (!canIndent(index)) return;
+    update((prev) => {
+      const end = unitEnd(prev, index);
+      return [...prev.slice(0, index), ...shiftDepth(prev.slice(index, end), 1), ...prev.slice(end)];
+    });
+  }
+
+  function canOutdent(index: number): boolean {
     const section = sections[index];
-    const previous = sections[index - 1];
-    return section.blockType !== CONTAINER && !section.inContainer && Boolean(previous && (previous.blockType === CONTAINER || previous.inContainer));
+    if (section.depth === 0) return false;
+    return section.depth > 1 || section.blockType === CONTAINER || section.blockType === GLOBAL_SECTION;
   }
 
-  function moveIntoContainer(index: number) {
-    if (!canMoveIntoContainer(index)) return;
-    update((prev) => prev.map((s, i) => (i === index ? { ...s, inContainer: true } : s)));
+  function outdent(index: number) {
+    if (!canOutdent(index)) return;
+    update((prev) => {
+      const parent = parentIndex(prev, index);
+      if (parent < 0) return prev;
+      const end = unitEnd(prev, index);
+      const unit = shiftDepth(prev.slice(index, end), -1);
+      const rest = [...prev.slice(0, index), ...prev.slice(end)];
+      const at = unitEnd(rest, parent);
+      return [...rest.slice(0, at), ...unit, ...rest.slice(at)];
+    });
   }
 
   function dragOver(e: React.DragEvent<HTMLElement>, key: string, position?: DropPosition) {
@@ -1019,15 +1263,16 @@ export default function SectionBuilder({
   async function saveToLibrary() {
     if (libraryIndex === null) return;
     const picked = sections.slice(libraryIndex, unitEnd(sections, libraryIndex));
-    // A global section's own content follows the page levels too, so a lone
-    // component is saved inside a Container of its own.
-    const unit =
-      libraryKind === "global" && picked[0].blockType !== CONTAINER ? [wrapperContainer(), { ...picked[0], inContainer: true }] : picked;
+    // Saved at level 0. A global section's own content follows the page
+    // levels too, so a lone component is saved inside a Container of its own.
+    const relative = shiftDepth(picked, -picked[0].depth);
+    const unit = libraryKind === "global" && picked[0].blockType !== CONTAINER ? [wrapperContainer(), ...shiftDepth(relative, 1)] : relative;
     const unitPayload = unit.map((s, i) => ({
       blockType: s.blockType,
       customClass: s.customClass,
       customId: s.customId,
-      inContainer: i > 0 && s.inContainer,
+      depth: s.depth,
+      inContainer: s.depth > 0,
       sortOrder: i + 1,
       fields: s.fields.map((f, fi) => ({ ...f, sortOrder: fi + 1 })),
     }));
@@ -1048,7 +1293,7 @@ export default function SectionBuilder({
         blockType: GLOBAL_SECTION,
         customClass: "",
         customId: "",
-        inContainer: picked[0].inContainer,
+        depth: picked[0].depth,
         fields: [{ itemIndex: 0, fieldKey: "globalId", fieldType: "text", textValue: String(created.id), mediaId: null, mediaUrl: null, urlValue: "", sortOrder: 1 }],
       };
       update((prev) => {
@@ -1077,7 +1322,8 @@ export default function SectionBuilder({
         blockType: s.blockType,
         customClass: s.customClass,
         customId: s.customId,
-        inContainer: s.inContainer,
+        depth: s.depth,
+        inContainer: s.depth > 0,
         sortOrder: i + 1,
         fields: s.fields.map((f, fi) => ({ ...f, sortOrder: fi + 1 })),
       })),
@@ -1112,18 +1358,69 @@ export default function SectionBuilder({
 
   const allExpanded = sections.length > 0 && sections.every((s) => expanded.has(s.key));
 
-  const units: { start: number; end: number; number: number }[] = [];
-  for (let i = 0; i < sections.length; ) {
-    const end = unitEnd(sections, i);
-    units.push({ start: i, end, number: units.length + 1 });
-    i = end;
+  // Starts of the sections directly inside the Container at parent (-1 =
+  // the page itself).
+  function childStarts(parent: number): number[] {
+    const depth = parent < 0 ? 0 : sections[parent].depth + 1;
+    const end = parent < 0 ? sections.length : unitEnd(sections, parent);
+    const starts: number[] = [];
+    for (let i = parent + 1; i < end; ) {
+      if (sections[i].depth === depth) starts.push(i);
+      i = unitEnd(sections, i);
+    }
+    return starts;
+  }
+
+  // A section, or a Container framing everything inside it (numbered 1,
+  // 1.2, 1.2.1...), with "+ Add Component Inside" at the end of each.
+  function renderUnit(start: number, number: string): ReactNode {
+    const head = sections[start];
+    if (head.blockType !== CONTAINER) return renderSection(head, start, number);
+    const end = unitEnd(sections, start);
+    const children = childStarts(start);
+    return (
+      <div
+        key={`container-${head.key}`}
+        id={`container-${head.key}`}
+        className={`container-block flex flex-col gap-2 rounded-xl border-2 border-dashed p-2 dark:border-border-dark dark:bg-transparent ${
+          head.depth === 0 ? "border-primary-200 bg-primary-50/30" : "border-primary-300 bg-white/60"
+        }`}
+      >
+        {renderSection(head, start, number)}
+        <div className="ml-4 flex flex-col gap-2 border-l-2 border-primary-200 pl-3 sm:ml-6 dark:border-border-dark">
+          {children.map((child, i) => renderUnit(child, `${number}.${i + 1}`))}
+          {children.length === 0 && (
+            <p className="px-1 py-2 text-xs text-text-muted dark:text-text-muted-dark">
+              This container is empty — add a component inside it, or drag one in.
+            </p>
+          )}
+          <div
+            onDragOver={(e) => dragOver(e, head.key, "inside")}
+            onDrop={drop}
+            className={`flex items-center gap-3 rounded-md ${
+              dropTarget?.key === head.key && dropTarget.position === "inside" ? "bg-primary-100 outline-2 outline-primary-500 outline-dashed" : ""
+            }`}
+          >
+            <button
+              type="button"
+              id={`section-${head.key}-add-inside`}
+              onClick={() => openPicker(end, head.depth + 1)}
+              className="cursor-pointer rounded-md border border-dashed border-primary-300 px-3 py-1.5 text-sm text-primary-600 hover:bg-primary-50 dark:text-text-dark dark:hover:bg-surface-muted-dark"
+            >
+              + Add Component Inside
+            </button>
+            {dragKey && <span className="text-xs text-text-muted dark:text-text-muted-dark">or drop here to add it to this container</span>}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   function renderSection(section: EditableSection, index: number, label: string) {
     const isOpen = expanded.has(section.key);
     const isContainer = section.blockType === CONTAINER;
-    const inGrid = section.inContainer && containerLayout(index) === "grid";
-    const componentCount = isContainer ? unitEnd(sections, index) - index - 1 : 0;
+    const layoutAbove = parentLayout(index);
+    const componentCount = isContainer ? sections.slice(index + 1, unitEnd(sections, index)).filter((s) => s.depth === section.depth + 1).length : 0;
     const globalId = section.blockType === GLOBAL_SECTION ? (section.fields.find((f) => f.fieldKey === "globalId")?.textValue ?? "") : "";
     const summary = isContainer
       ? `${componentCount} component${componentCount === 1 ? "" : "s"} inside`
@@ -1132,8 +1429,9 @@ export default function SectionBuilder({
         : sectionSummary(section.fields);
     const items = itemCount(section.fields);
     const hiddenOn = VISIBILITY_OPTIONS.filter((o) => hasClass(section.customClass, o.cls)).map((o) => o.label.toLowerCase());
-    const customLayout = [...LAYOUT_CLASSES, ...VALIGN_CLASSES].some((cls) => hasClass(section.customClass, cls));
-    const panelLabel = section.inContainer ? (PANEL_TITLE_LABELS[containerLayout(index)] ?? null) : null;
+    const customLayout = [...LAYOUT_CLASSES, ...VALIGN_CLASSES, ...STYLE_CLASSES].some((cls) => hasClass(section.customClass, cls));
+    const animated = ANIMATION_CLASSES.some((cls) => hasClass(section.customClass, cls));
+    const panelLabel = layoutAbove ? (PANEL_TITLE_LABELS[layoutAbove] ?? null) : null;
 
     const dropHere = dropTarget?.key === section.key ? dropTarget.position : null;
 
@@ -1181,10 +1479,14 @@ export default function SectionBuilder({
               {BLOCK_TYPE_LABELS[section.blockType] ?? section.blockType}
             </span>
             <span
-              title={section.inContainer ? "Level 1: inside a Container, renders as <div>" : "Level 0: directly on the page, renders as <section>"}
+              title={
+                section.depth > 0
+                  ? `Level ${section.depth}: inside a Container, renders as <div>`
+                  : "Level 0: directly on the page, renders as <section>"
+              }
               className="shrink-0 rounded border border-border px-1.5 py-0.5 font-mono text-[11px] text-text-muted dark:border-border-dark dark:text-text-muted-dark"
             >
-              {section.inContainer ? "L1 · div" : isContainer ? "L0 · section" : "L0"}
+              {section.depth > 0 ? `L${section.depth} · div` : isContainer ? "L0 · section" : "L0"}
             </span>
             <span className="truncate text-sm text-text dark:text-text-dark">
               {summary || <span className="text-text-muted italic dark:text-text-muted-dark">No heading</span>}
@@ -1197,7 +1499,12 @@ export default function SectionBuilder({
             )}
             {customLayout && (
               <span className="shrink-0 rounded-full bg-surface-muted px-2 py-0.5 text-xs text-text-muted dark:bg-surface-muted-dark dark:text-text-muted-dark">
-                Custom layout
+                Custom style
+              </span>
+            )}
+            {animated && (
+              <span className="shrink-0 rounded-full bg-surface-muted px-2 py-0.5 text-xs text-text-muted dark:bg-surface-muted-dark dark:text-text-muted-dark">
+                Animated
               </span>
             )}
             <span aria-hidden="true" className="ml-auto shrink-0 text-xs text-text-muted dark:text-text-muted-dark">
@@ -1221,18 +1528,27 @@ export default function SectionBuilder({
               variant="muted"
               disabled={!canMove(index, 1)}
             />
-            {canMoveIntoContainer(index) && (
+            {canIndent(index) && (
               <IconButton
                 id={`section-${section.key}-indent`}
                 title="Move Into Container Above"
-                onClick={() => moveIntoContainer(index)}
+                onClick={() => indent(index)}
                 icon={<IconIndent />}
+                variant="muted"
+              />
+            )}
+            {canOutdent(index) && (
+              <IconButton
+                id={`section-${section.key}-outdent`}
+                title="Move Out of This Container"
+                onClick={() => outdent(index)}
+                icon={<IconOutdent />}
                 variant="muted"
               />
             )}
             <IconButton
               id={`section-${section.key}-insert`}
-              title={section.inContainer ? "Add Component Below" : "Add Container Below"}
+              title={section.depth > 0 ? "Add Below, in the Same Container" : "Add Container Below"}
               onClick={() => insertBelow(index)}
               icon={<IconInsertBelow />}
               variant="muted"
@@ -1270,7 +1586,12 @@ export default function SectionBuilder({
 
         {isOpen && (
           <div className="border-t border-primary-200 px-5 pt-2 pb-5 dark:border-border-dark">
-            <SectionEditor section={section} inGrid={inGrid} panelLabel={panelLabel} onUpdate={(patch) => updateSection(section.key, patch)} />
+            <SectionEditor
+              section={section}
+              parentLayout={layoutAbove}
+              panelLabel={panelLabel}
+              onUpdate={(patch) => updateSection(section.key, patch)}
+            />
           </div>
         )}
       </div>
@@ -1294,7 +1615,7 @@ export default function SectionBuilder({
               id="section-builder-paste"
               title={`Paste at the end: ${clipboard.label}`}
               onClick={() => {
-                if (insertCopies(clipboard.sections, "copied component", null, false)) message.success("Pasted at the end. Save Page Content to keep it.");
+                if (insertCopies(clipboard.sections, "copied component", null, 0)) message.success("Pasted at the end. Save Page Content to keep it.");
               }}
               className="flex max-w-72 cursor-pointer items-center gap-1.5 rounded-md border border-dashed border-primary-300 px-3 py-1.5 text-sm text-primary-600 hover:bg-primary-50 dark:text-text-dark dark:hover:bg-surface-muted-dark"
             >
@@ -1319,10 +1640,12 @@ export default function SectionBuilder({
         groups={pickerGroups}
         templates={pickerTemplates}
         clipboardLabel={clipboard?.label}
-        title={insertInContainer ? "Add Component" : "Add Container"}
+        title={insertDepth > 0 ? "Add Component" : "Add Container"}
         hint={
-          insertInContainer
-            ? "Inside a Container (level 1, rendered as <div>)."
+          insertDepth > 0
+            ? `Inside a Container (level ${insertDepth}, rendered as <div>).${
+                insertDepth < MAX_DEPTH ? " A Container here makes a row, a column or a box inside it." : ""
+              }`
             : `Directly on the page (level 0, rendered as <section>): a Container${isGlobal ? "" : " or a Global Section"}. Components go inside a Container.`
         }
         onPick={addSection}
@@ -1384,45 +1707,7 @@ export default function SectionBuilder({
       )}
 
       <div className="flex flex-col gap-3">
-        {units.map(({ start, end, number }) => {
-          const head = sections[start];
-          if (head.blockType !== CONTAINER) return renderSection(head, start, String(number));
-          const children = sections.slice(start + 1, end);
-          return (
-            <div
-              key={`container-${head.key}`}
-              id={`container-${head.key}`}
-              className="container-block flex flex-col gap-2 rounded-xl border-2 border-dashed border-primary-200 bg-primary-50/30 p-2 dark:border-border-dark dark:bg-transparent"
-            >
-              {renderSection(head, start, String(number))}
-              <div className="ml-4 flex flex-col gap-2 border-l-2 border-primary-200 pl-3 sm:ml-6 dark:border-border-dark">
-                {children.map((child, i) => renderSection(child, start + 1 + i, `${number}.${i + 1}`))}
-                {children.length === 0 && (
-                  <p className="px-1 py-2 text-xs text-text-muted dark:text-text-muted-dark">
-                    This container is empty — add a component inside it, or drag one in.
-                  </p>
-                )}
-                <div
-                  onDragOver={(e) => dragOver(e, head.key, "inside")}
-                  onDrop={drop}
-                  className={`flex items-center gap-3 rounded-md ${
-                    dropTarget?.key === head.key && dropTarget.position === "inside" ? "bg-primary-100 outline-2 outline-primary-500 outline-dashed" : ""
-                  }`}
-                >
-                  <button
-                    type="button"
-                    id={`section-${head.key}-add-inside`}
-                    onClick={() => openPicker(end, true)}
-                    className="cursor-pointer rounded-md border border-dashed border-primary-300 px-3 py-1.5 text-sm text-primary-600 hover:bg-primary-50 dark:text-text-dark dark:hover:bg-surface-muted-dark"
-                  >
-                    + Add Component Inside
-                  </button>
-                  {dragKey && <span className="text-xs text-text-muted dark:text-text-muted-dark">or drop here to add it to this container</span>}
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        {childStarts(-1).map((start, i) => renderUnit(start, String(i + 1)))}
         {dragKey && (
           <div
             onDragOver={(e) => dragOver(e, END_DROP_KEY, "after")}

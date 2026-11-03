@@ -296,7 +296,7 @@ const sectionFieldColumns = `psf.id, psf.section_id, psf.item_index, psf.field_k
 // current tree) and the public site (to render it).
 func (r *PageRepo) GetSectionsWithFields(ctx context.Context, pageID int64) ([]domain.PageSection, error) {
 	sectionRows, err := r.db.QueryContext(ctx,
-		`SELECT id, page_id, block_type, custom_class, custom_id, in_container, sort_order FROM page_sections WHERE page_id = ? ORDER BY sort_order, id`,
+		`SELECT id, page_id, block_type, custom_class, custom_id, in_container, depth, sort_order FROM page_sections WHERE page_id = ? ORDER BY sort_order, id`,
 		pageID,
 	)
 	if err != nil {
@@ -309,7 +309,7 @@ func (r *PageRepo) GetSectionsWithFields(ctx context.Context, pageID int64) ([]d
 	var sectionIDs []any
 	for sectionRows.Next() {
 		var s domain.PageSection
-		if err := sectionRows.Scan(&s.ID, &s.PageID, &s.BlockType, &s.CustomClass, &s.CustomID, &s.InContainer, &s.SortOrder); err != nil {
+		if err := sectionRows.Scan(&s.ID, &s.PageID, &s.BlockType, &s.CustomClass, &s.CustomID, &s.InContainer, &s.Depth, &s.SortOrder); err != nil {
 			return nil, err
 		}
 		s.Fields = []domain.PageSectionField{}
@@ -319,6 +319,7 @@ func (r *PageRepo) GetSectionsWithFields(ctx context.Context, pageID int64) ([]d
 	if err := sectionRows.Err(); err != nil {
 		return nil, err
 	}
+	domain.NormalizeSectionDepths(sections)
 	for i := range sections {
 		sectionByID[sections[i].ID] = &sections[i]
 	}
@@ -371,6 +372,7 @@ func joinPlaceholders(parts []string) string {
 // With a revision, the saved sections are also kept as a page revision
 // (see addPageRevision); templates and new global sections pass nil.
 func (r *PageRepo) ReplaceSections(ctx context.Context, pageID int64, sections []domain.PageSection, revision *domain.PageRevision) error {
+	domain.NormalizeSectionDepths(sections)
 	var previous []domain.PageSection
 	if revision != nil {
 		var err error
@@ -398,8 +400,8 @@ func (r *PageRepo) ReplaceSections(ctx context.Context, pageID int64, sections [
 	sort.SliceStable(sections, func(i, j int) bool { return sections[i].SortOrder < sections[j].SortOrder })
 	for _, section := range sections {
 		res, err := tx.ExecContext(ctx,
-			`INSERT INTO page_sections (page_id, block_type, custom_class, custom_id, in_container, sort_order) VALUES (?, ?, ?, ?, ?, ?)`,
-			pageID, section.BlockType, section.CustomClass, section.CustomID, section.InContainer, section.SortOrder,
+			`INSERT INTO page_sections (page_id, block_type, custom_class, custom_id, in_container, depth, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			pageID, section.BlockType, section.CustomClass, section.CustomID, section.Depth > 0, section.Depth, section.SortOrder,
 		)
 		if err != nil {
 			return err

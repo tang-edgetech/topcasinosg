@@ -8,6 +8,15 @@ const GAP_VALUES: Record<string, string> = { s: "16px", m: "30px", l: "50px" };
 const SPACE_VALUES: Record<string, string> = { none: "0px", s: "25px", m: "50px", l: "80px" };
 const CONTENT_WIDTHS: Record<string, string> = { "1270": "1270px", "960": "960px", "768": "768px", full: "none" };
 const ALIGN_CLASSES: Record<string, string> = { start: "items-start", center: "items-center", end: "items-end", stretch: "items-stretch" };
+const JUSTIFY_CLASSES: Record<string, string> = {
+  start: "justify-start",
+  center: "justify-center",
+  end: "justify-end",
+  between: "justify-between",
+  around: "justify-around",
+};
+const MIN_HEIGHTS: Record<string, string> = { s: "200px", m: "400px", l: "600px", screen: "100vh" };
+const STACK_ON = ["mobile", "tablet", "never"];
 const GRID_COLUMNS = ["2", "3", "4"];
 const SLIDES_PER_VIEW = ["1", "2", "3", "4"];
 const PANEL_LAYOUTS = ["tabs", "accordion", "carousel"];
@@ -29,6 +38,11 @@ export interface ContainerPanel {
 // and "carousel" as a swipeable slider. Content width, gap and space
 // above/below are presets, and textTone "light" turns the text of Title &
 // Text, Rich Text, Image/Video captions and dividers inside white.
+// "row" puts them side by side (flex): each takes an equal share, or its
+// own "Width in container"; justify and align place them, and the row
+// stacks on mobile (or tablet, or never: stackOn). A Container inside
+// another one (nested, depth 1+) is a box in its parent: full width of its
+// slot, no space of its own unless set, its background inside the box.
 // componentSpacing "own" (stack layout only) leaves spacing to the components:
 // each keeps its own padding and width and the container adds none - what
 // the wrapper Containers from migration 0084 use, so pages that predate the
@@ -37,26 +51,34 @@ export default function ContainerSection({ section, panels }: { section: PageSec
   const text = (key: string) => field(section.fields, 0, key)?.textValue ?? "";
   const layout = text("layout");
   const grid = layout === "grid";
+  const nested = Boolean(section.nested);
   const ownSpacing = (layout || "stack") === "stack" && text("componentSpacing") === "own";
   const light = text("textTone") === "light";
   const columns = GRID_COLUMNS.includes(text("columns")) ? text("columns") : "2";
   const gap = ownSpacing ? "0px" : (GAP_VALUES[text("gap")] ?? (grid || PANEL_LAYOUTS.includes(layout) ? GAP_VALUES.m : GAP_VALUES.l));
   const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
+  // A nested Container fills its slot unless a width is chosen, and adds no
+  // space of its own unless set.
+  const defaultSpace = nested ? SPACE_VALUES.none : SPACE_VALUES.m;
   const style = {
     ...bgStyle,
-    "--container-max": CONTENT_WIDTHS[text("contentWidth")] ?? CONTENT_WIDTHS["1270"],
+    "--container-max": CONTENT_WIDTHS[text("contentWidth")] ?? (nested ? CONTENT_WIDTHS.full : CONTENT_WIDTHS["1270"]),
     "--container-gap": gap,
+    ...(MIN_HEIGHTS[text("minHeight")] ? { "--container-min-height": MIN_HEIGHTS[text("minHeight")] } : {}),
   } as CSSProperties;
   const bodyStyle: CSSProperties = ownSpacing
     ? {}
     : {
-        paddingTop: SPACE_VALUES[text("spaceTop")] ?? SPACE_VALUES.m,
-        paddingBottom: SPACE_VALUES[text("spaceBottom")] ?? SPACE_VALUES.m,
+        paddingTop: SPACE_VALUES[text("spaceTop")] ?? defaultSpace,
+        paddingBottom: SPACE_VALUES[text("spaceBottom")] ?? defaultSpace,
+        ...(nested ? { paddingInline: SPACE_VALUES[text("spaceSides")] ?? SPACE_VALUES.none } : {}),
       };
   const classes = [
     "section--container",
     `section--container-${layout || "stack"}`,
     ownSpacing && "section--container-own",
+    nested && "section--container-nested",
+    MIN_HEIGHTS[text("minHeight")] && "section--container-min-height",
     hasBleedBg && "section--bg",
     light && "section--tone-light",
   ];
@@ -131,10 +153,26 @@ function ContainerBody({
     );
   }
 
+  if (layout === "row") {
+    const stackOn = STACK_ON.includes(text("stackOn")) ? text("stackOn") : "mobile";
+    const rowClasses = [
+      "container-section__body--row container-section__body--boxed flex",
+      `container-section__body--stack-${stackOn}`,
+      text("wrap") === "no" ? "flex-nowrap" : "flex-wrap",
+      JUSTIFY_CLASSES[text("justify")] ?? JUSTIFY_CLASSES.start,
+      ALIGN_CLASSES[text("align")] ?? ALIGN_CLASSES.stretch,
+    ];
+    return (
+      <div className={`${base} ${rowClasses.join(" ")}`} style={style}>
+        {panels.map((panel) => panel.content)}
+      </div>
+    );
+  }
+
   const bodyClasses =
     layout === "grid"
       ? `container-section__body--grid container-section__body--boxed container-section__body--cols-${columns} ${ALIGN_CLASSES[text("align")] ?? ALIGN_CLASSES.stretch}`
-      : "container-section__body--stack flex flex-col";
+      : ["container-section__body--stack flex flex-col", ALIGN_CLASSES[text("align")], JUSTIFY_CLASSES[text("justify")]].filter(Boolean).join(" ");
   return (
     <div className={`${base} ${bodyClasses}`} style={style}>
       {panels.map((panel) => panel.content)}

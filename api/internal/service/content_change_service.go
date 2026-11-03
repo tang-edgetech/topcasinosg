@@ -51,6 +51,10 @@ type SectionInput struct {
 	CustomClass string `json:"customClass"`
 	CustomID    string `json:"customId"`
 	InContainer bool   `json:"inContainer"`
+	// Depth is the level: 0 directly on the page, N inside the nearest
+	// Container before it at level N-1. Without it, inContainer true means
+	// level 1.
+	Depth int `json:"depth"`
 	// SortOrder is accepted so the admin's own section shape can be sent
 	// as is, but ignored: the list order is the page order.
 	SortOrder int          `json:"sortOrder,omitempty"`
@@ -106,7 +110,7 @@ func SectionInputs(sections []domain.PageSection) []SectionInput {
 				MediaID: f.MediaID, MediaURL: f.MediaURL, URLValue: f.URLValue, SortOrder: f.SortOrder,
 			}
 		}
-		out[i] = SectionInput{BlockType: s.BlockType, CustomClass: s.CustomClass, CustomID: s.CustomID, InContainer: s.InContainer, Fields: fields}
+		out[i] = SectionInput{BlockType: s.BlockType, CustomClass: s.CustomClass, CustomID: s.CustomID, InContainer: s.InContainer, Depth: s.Depth, Fields: fields}
 	}
 	return out
 }
@@ -123,31 +127,43 @@ func toDomainSectionList(pageID int64, sections []SectionInput) []domain.PageSec
 		}
 		out[i] = domain.PageSection{
 			PageID: pageID, BlockType: s.BlockType, CustomClass: s.CustomClass, CustomID: s.CustomID,
-			InContainer: s.InContainer, SortOrder: i, Fields: fields,
+			InContainer: s.InContainer, Depth: s.Depth, SortOrder: i, Fields: fields,
 		}
 	}
+	domain.NormalizeSectionDepths(out)
 	return out
 }
 
 // checkPageSections explains exactly which section breaks which rule, since
 // the caller is usually an AI tool that has to fix and resend it.
 func (s *ContentChangeService) checkPageSections(ctx context.Context, sections []SectionInput) error {
+	var open []int // depths of the Containers the next section can be inside
 	for i, section := range sections {
 		where := fmt.Sprintf("sections[%d]", i)
 		if !isKnownBlockType(section.BlockType) {
 			return invalid("%s: unknown blockType %q (GET /api/v1/schema lists them)", where, section.BlockType)
 		}
-		if section.BlockType == domain.BlockTypeContainer && section.InContainer {
-			return invalid("%s: a Container can't be inside another Container (set inContainer to false)", where)
+		depth := section.Depth
+		if depth <= 0 && section.InContainer {
+			depth = 1
 		}
-		if section.InContainer && i == 0 {
-			return invalid("%s: inContainer is true, but there is no Container before it", where)
+		if depth < 0 || depth > domain.MaxSectionDepth {
+			return invalid("%s: depth must be 0 to %d (got %d)", where, domain.MaxSectionDepth, depth)
 		}
-		if !section.InContainer && section.BlockType != domain.BlockTypeContainer && section.BlockType != domain.BlockTypeGlobalSection {
-			return invalid("%s: %q is a component, so it must be inside a Container: put a container section before it and set inContainer to true", where, section.BlockType)
+		for len(open) > 0 && open[len(open)-1] >= depth {
+			open = open[:len(open)-1]
 		}
-		if section.InContainer && section.BlockType == domain.BlockTypeGlobalSection {
-			return invalid("%s: a Global Section is placed directly on the page (set inContainer to false)", where)
+		if depth > 0 && (len(open) == 0 || open[len(open)-1] != depth-1) {
+			return invalid("%s: depth %d needs a Container at depth %d before it (a section belongs to the nearest Container before it, one level up)", where, depth, depth-1)
+		}
+		if depth == 0 && section.BlockType != domain.BlockTypeContainer && section.BlockType != domain.BlockTypeGlobalSection {
+			return invalid("%s: %q is a component, so it must be inside a Container: put a container section before it and give this one depth 1", where, section.BlockType)
+		}
+		if section.BlockType == domain.BlockTypeContainer {
+			if depth >= domain.MaxSectionDepth {
+				return invalid("%s: a Container can be at most at depth %d, so it has room for components", where, domain.MaxSectionDepth-1)
+			}
+			open = append(open, depth)
 		}
 		for j, f := range section.Fields {
 			fwhere := fmt.Sprintf("%s.fields[%d]", where, j)

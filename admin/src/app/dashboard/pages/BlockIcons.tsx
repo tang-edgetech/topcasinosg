@@ -60,6 +60,19 @@ const BLOCK_ICON_SHAPES: Record<PageBlockType, ReactNode> = {
   game_casino_finder: [solid(3, 3, 42, 6, 1), ...repeat(4, (i) => box(3 + i * 11, 12, 9, 6, `g${i}`)), line(3, 23, 42, 2), line(3, 27, 30, 3)],
   two_column_table: repeat(4, (i) => [box(3, 3 + i * 6.5, 42, 6.5, `r${i}`), line(5, 5 + i * 6.5, 10, `a${i}`), line(20, 5 + i * 6.5, 22, `b${i}`)]),
   data_table: [solid(3, 3, 42, 5, 1), ...repeat(4, (i) => [line(3, 11 + i * 5, 10, `a${i}`), line(16, 11 + i * 5, 12, `b${i}`), line(31, 11 + i * 5, 14, `c${i}`)])],
+  heading: [solid(4, 11, 40, 10, 1)],
+  text: repeat(5, (i) => line(4, 6 + i * 5, i === 4 ? 24 : 40, i)),
+  icon: [<path key="s" d="M24 6l3 6 6.5 1-4.7 4.6 1.1 6.4L24 21l-5.9 3 1.1-6.4-4.7-4.6 6.5-1z" fillOpacity={0.3} stroke="currentColor" strokeWidth={1.5} />],
+  icon_box: [dot(24, 9, 4, 1), solid(14, 16, 20, 4, 2), line(10, 23, 28, 3), line(14, 27, 20, 4)],
+  icon_list: repeat(4, (i) => [dot(7, 6 + i * 7, 2, `d${i}`), line(12, 5 + i * 7, i % 2 ? 22 : 30, `l${i}`)]),
+  divider: [line(4, 15, 40, 1)],
+  card: [box(10, 2, 28, 28, 1), solid(10, 2, 28, 11, 2), line(13, 17, 18, 3), line(13, 21, 22, 4), solid(13, 25, 10, 3, 5)],
+  counter: [solid(12, 6, 24, 12, 1), line(14, 23, 20, 2)],
+  progress_bars: repeat(3, (i) => [box(4, 5 + i * 9, 40, 5, `b${i}`), solid(4, 5 + i * 9, [32, 24, 36][i], 5, `s${i}`)]),
+  alert: [box(4, 7, 40, 18, 1), solid(4, 7, 3, 18, 2), dot(13, 16, 3, 3), line(19, 13, 20, 4), line(19, 18, 14, 5)],
+  table: [solid(4, 4, 40, 6, 1), ...repeat(3, (i) => [line(4, 14 + i * 6, 11, `a${i}`), line(18, 14 + i * 6, 11, `b${i}`), line(32, 14 + i * 6, 12, `c${i}`)])],
+  star_rating: repeat(5, (i) => <path key={i} d={`M${7 + i * 8.5} 11l1.6 3.3 3.6.5-2.6 2.5.6 3.6-3.2-1.7-3.2 1.7.6-3.6-2.6-2.5 3.6-.5z`} fillOpacity={i < 4 ? 0.6 : 0.2} />),
+  testimonial: [<path key="q" d="M6 6h5v5l-3 5H6l2-5H6zM14 6h5v5l-3 5h-2l2-5h-2z" fillOpacity={0.4} />, line(6, 20, 36, 1), dot(9, 27, 3, 2), line(15, 26, 14, 3)],
 };
 
 export default function BlockIcon({ blockType, className = "" }: { blockType: PageBlockType; className?: string }) {
