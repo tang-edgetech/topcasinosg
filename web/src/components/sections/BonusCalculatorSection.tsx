@@ -79,12 +79,23 @@ function calculate(inputs: CalculatorInputs, basis: WagerBasis, currency: string
   ];
 }
 
+// "display" (admin DisplayFields): "compact" (default) is the 465px column on
+// the left, "centered" the same column centred under a centred heading,
+// "side" the form and the result side by side on wide screens.
+const CALCULATOR_COLUMN: Record<string, string> = {
+  compact: "section-col flex w-full max-w-[465px] flex-col gap-4",
+  centered: "section-col mx-auto flex w-full max-w-[465px] flex-col gap-4",
+  side: "section-col grid w-full grid-cols-1 items-start gap-4 lg:grid-cols-2",
+};
+
 // introHtml arrives already sanitized from the server (SectionRenderer), so
 // the HTML sanitizer never ships in this client component's bundle.
 export default function BonusCalculatorSection({ section, introHtml }: { section: PageSection; introHtml: string }) {
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
   const subheading = field(section.fields, 0, "subheading")?.textValue ?? "";
   const currency = field(section.fields, 0, "currency")?.textValue || "$";
+  const display = field(section.fields, 0, "display")?.textValue ?? "";
+  const columnClass = CALCULATOR_COLUMN[display] ?? CALCULATOR_COLUMN.compact;
   const defaultBasis: WagerBasis = field(section.fields, 0, "wagerBasis")?.textValue === "deposit_bonus" ? "deposit_bonus" : "bonus";
 
   const [inputs, setInputs] = useState<CalculatorInputs>(BLANK_INPUTS);
@@ -133,7 +144,7 @@ export default function BonusCalculatorSection({ section, introHtml }: { section
       <div className="section-container relative z-10 flex flex-col gap-6 py-[3.125rem]">
         {(heading || subheading || introHtml) && (
           <div className="section-row">
-            <div className="section-col flex flex-col gap-2">
+            <div className={display === "centered" ? "section-col flex flex-col items-center gap-2 text-center" : "section-col flex flex-col gap-2"}>
               {heading && <h2 className="section-heading text-[36px] leading-[43px] font-bold text-primary-900">{heading}</h2>}
               {subheading && <p className="text-lg font-semibold text-primary-900">{subheading}</p>}
               {introHtml && (
@@ -147,7 +158,7 @@ export default function BonusCalculatorSection({ section, introHtml }: { section
         )}
 
         <div className="section-row">
-          <div className="section-col flex w-full max-w-[465px] flex-col gap-4">
+          <div className={columnClass}>
             <form
               className="bonus-calculator flex flex-col gap-2.5 rounded-[30px] bg-calc-surface p-5 text-white"
               noValidate

@@ -3,6 +3,11 @@ import Link from "next/link";
 import { field, mediaUrl, sectionClassName, sectionBgStyle, type PageSection } from "@/lib/pages";
 import { sanitizeRichText } from "@/lib/sanitize-html";
 import SwipeRow from "@/components/SwipeRow";
+import HorizontalSlider from "@/components/HorizontalSlider";
+import DataTable from "@/components/data-table/DataTable";
+import { COLUMNS } from "@/components/data-table/columns";
+import { loadRows } from "@/components/data-table/loadRows";
+import { cardDisplay, perRow, GRID_COLUMNS } from "@/lib/cardLayout";
 import {
   getActiveRegionByCode,
   getRegionBonuses,
@@ -34,7 +39,9 @@ export interface Pick {
 // source "bonuses" (default) lists casinos that have a bonus of the
 // configured type; source "casinos" ranks the region's top-rated casinos
 // regardless, showing that bonus only when the casino has one. On mobile the
-// cards become a swipeable row with the next card peeking in.
+// cards become a swipeable row with the next card peeking in. "display"
+// swaps that for a grid, a carousel with arrows, a list of rows or a table
+// (see lib/cardLayout.ts); "perRow" sets the cards per row.
 export default async function TopBonusPicksSection({ section, regionCode: pageRegionCode = "" }: { section: PageSection; regionCode?: string }) {
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
   const intro = field(section.fields, 0, "intro")?.textValue ?? "";
@@ -42,6 +49,8 @@ export default async function TopBonusPicksSection({ section, regionCode: pageRe
   const bonusType = (field(section.fields, 0, "bonusType")?.textValue || "welcome") as BonusType;
   const limit = Number(field(section.fields, 0, "limit")?.textValue) || 3;
   const byCasino = field(section.fields, 0, "source")?.textValue === "casinos";
+  const display = cardDisplay(field(section.fields, 0, "display")?.textValue, ["swipe", "grid", "carousel", "list", "table"] as const);
+  const columns = perRow(field(section.fields, 0, "perRow")?.textValue, 3);
   const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
 
   if (!regionCode) return null;
@@ -54,6 +63,11 @@ export default async function TopBonusPicksSection({ section, regionCode: pageRe
   const picks = byCasino ? picksByCasino(casinos, bonuses, limit) : picksByBonus(casinos, bonuses, limit);
 
   if (picks.length === 0) return null;
+  const bonusLabel = `${toTitleCase(bonusType)} Bonus`;
+  const flagUrl = mediaUrl(region?.flagUrl);
+  const cards = picks.map((pick, i) => (
+    <BonusPickCard key={pick.casino.id} pick={pick} rank={i + 1} bonusLabel={bonusLabel} flagUrl={i === 0 ? flagUrl : null} />
+  ));
 
   return (
     <SectionTag section={section}
@@ -75,20 +89,38 @@ export default async function TopBonusPicksSection({ section, regionCode: pageRe
             </div>
           </div>
         )}
-        <SwipeRow label={heading || "Top bonus picks"} className="bonus-picks__track section-row pb-1" slideClassName="w-[85%]" gridFrom="md" gridColumns={3} gridGap={30}>
-          {picks.map((pick, i) => (
-            <BonusPickCard
-              key={pick.casino.id}
-              pick={pick}
-              rank={i + 1}
-              bonusLabel={`${toTitleCase(bonusType)} Bonus`}
-              flagUrl={i === 0 ? mediaUrl(region?.flagUrl) : null}
-            />
-          ))}
-        </SwipeRow>
+        {display === "swipe" ? (
+          <SwipeRow label={heading || "Top bonus picks"} className="bonus-picks__track section-row pb-1" slideClassName="w-[85%]" gridFrom="md" gridColumns={columns} gridGap={30}>
+            {cards}
+          </SwipeRow>
+        ) : display === "table" ? (
+          <PicksTable picks={picks} regionCode={regionCode} bonusLabel={bonusLabel} />
+        ) : (
+          <div className="section-row">
+            <div className="section-col">
+              <HorizontalSlider label={heading || "Top bonus picks"} layout={display === "carousel" ? "slider" : display} slideClassName="w-[85%] sm:w-[340px]" showArrows gridClassName={GRID_COLUMNS[columns]}>
+                {display === "list"
+                  ? picks.map((pick, i) => <BonusPickRow key={pick.casino.id} pick={pick} rank={i + 1} bonusLabel={bonusLabel} />)
+                  : cards}
+              </HorizontalSlider>
+            </div>
+          </div>
+        )}
       </div>
     </SectionTag>
   );
+}
+
+// display "table": the picks as a casino table, the pick's bonus first.
+async function PicksTable({ picks, regionCode, bonusLabel }: { picks: Pick[]; regionCode: string; bonusLabel: string }) {
+  const { rows, ctx } = await loadRows({ source: "casinos", regionCode, limit: picks.length, includeCasinoIds: picks.map((p) => p.casino.id) });
+  const withBonus = rows.map((row) => ({ ...row, bonus: picks.find((p) => p.casino.id === row.casino?.id)?.bonus }));
+  const columns = [
+    { key: "details", label: bonusLabel, def: COLUMNS.details },
+    { key: "rating", label: COLUMNS.rating.label, def: COLUMNS.rating },
+    { key: "payments", label: COLUMNS.payments.label, def: COLUMNS.payments },
+  ];
+  return <DataTable rows={withBonus} ctx={ctx} columns={columns} ctaLabel="Visit Site" moreInfo mobile="stack" />;
 }
 
 function picksByCasino(casinos: CasinoDTO[], bonuses: BonusDTO[], limit: number): Pick[] {
@@ -109,6 +141,43 @@ function picksByBonus(casinos: CasinoDTO[], bonuses: BonusDTO[], limit: number):
     picks.push({ bonus, casino });
   }
   return picks.sort((a, b) => b.casino.rating - a.casino.rating).slice(0, limit);
+}
+
+// display "list": one row per pick - rank, logo, score, bonus and buttons
+// side by side (stacked on mobile).
+export function BonusPickRow({ pick, rank, bonusLabel }: { pick: Pick; rank: number; bonusLabel: string }) {
+  const { bonus, casino } = pick;
+  return (
+    <article className="bonus-pick-row flex flex-col items-center gap-4 rounded-lg border border-primary-100 bg-surface p-4 sm:flex-row">
+      <span className="w-6 shrink-0 text-center text-sm font-semibold text-primary-500">{rank}</span>
+      <div className="flex shrink-0 flex-col items-center gap-1 sm:w-32">
+        <CasinoLogo src={casino.logoUrl} name={casino.name} className="h-12 w-24" />
+        <span className="text-sm text-primary-600">{casino.name}</span>
+      </div>
+      <ScoreDisplay rating={casino.rating} />
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5 text-center sm:text-left">
+        {bonus && (
+          <>
+            <span className="text-xs text-primary-500">{bonusLabel}</span>
+            <span className="text-base leading-snug font-bold text-primary-900">{bonus.title}</span>
+          </>
+        )}
+      </div>
+      <div className="flex w-full shrink-0 gap-2 sm:w-auto">
+        <VisitSiteLink
+          href={casino.ctaUrl}
+          fallbackHref={`/casinos/${casino.slug}`}
+          className="flex-1 cursor-pointer rounded-md bg-primary-900 px-4 py-2 text-center text-sm font-semibold whitespace-nowrap text-white hover:bg-primary-800"
+        />
+        <Link
+          href={`/casinos/${casino.slug}`}
+          className="flex-1 cursor-pointer rounded-md border border-primary-100 bg-white px-4 py-2 text-center text-sm whitespace-nowrap text-primary-600 hover:text-primary-900"
+        >
+          More Info
+        </Link>
+      </div>
+    </article>
+  );
 }
 
 // Corner ribbon from Figma (49×166): full width at the top, then a concave

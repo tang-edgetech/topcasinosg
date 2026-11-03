@@ -5,7 +5,9 @@ import DataTable from "@/components/data-table/DataTable";
 import { COLUMNS } from "@/components/data-table/columns";
 import { loadRows } from "@/components/data-table/loadRows";
 import SwipeRow from "@/components/SwipeRow";
-import { BonusPickCard } from "./TopBonusPicksSection";
+import HorizontalSlider from "@/components/HorizontalSlider";
+import { cardDisplay, perRow, GRID_COLUMNS } from "@/lib/cardLayout";
+import { BonusPickCard, BonusPickRow } from "./TopBonusPicksSection";
 import SectionTag from "./SectionTag";
 
 const DEFAULT_COLUMNS = ["cashback", "payments", "rating", "safeIndex"];
@@ -36,6 +38,8 @@ function idList(value: string | undefined): number[] {
 // countryCount active regions (by sort order), each with its best-rated
 // casino, then the next best — or, in "custom" mode,
 // the countries, featured casinos and table casinos the editor picked.
+// "display" / "perRow" lay the featured cards out as a grid, a carousel or
+// a list instead (see lib/cardLayout.ts).
 export default async function TopCasinosByRegionSection({ section }: { section: PageSection }) {
   const text = (itemIndex: number, key: string) => field(section.fields, itemIndex, key)?.textValue ?? "";
   const heading = text(0, "heading");
@@ -46,6 +50,8 @@ export default async function TopCasinosByRegionSection({ section }: { section: 
   const ctaLabel = text(0, "ctaLabel") || DEFAULT_CTA_LABEL;
   const columnKeys = text(0, "columns").split(",").map((key) => key.trim()).filter((key) => COLUMNS[key]?.source === "casino");
   const columns = (columnKeys.length > 0 ? columnKeys : DEFAULT_COLUMNS).map((key) => ({ key, label: COLUMNS[key].label, def: COLUMNS[key] }));
+  const display = cardDisplay(text(0, "display"), ["swipe", "grid", "carousel", "list"] as const);
+  const cardsPerRow = perRow(text(0, "perRow"), 3);
   const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
 
   const regions = (await getRegions()).sort((a, b) => a.sortOrder - b.sortOrder);
@@ -89,6 +95,9 @@ export default async function TopCasinosByRegionSection({ section }: { section: 
   ).filter((entry): entry is NonNullable<typeof entry> => entry !== null);
 
   if (perRegion.length === 0) return null;
+  const featuredCards = perRegion.map(({ region, topCasino, bonus }) => (
+    <BonusPickCard key={region.id} pick={{ casino: topCasino, bonus }} rank={1} featured bonusLabel={bonusLabel} flagUrl={mediaUrl(region.flagUrl)} />
+  ));
 
   return (
     <SectionTag section={section}
@@ -105,18 +114,21 @@ export default async function TopCasinosByRegionSection({ section }: { section: 
           </div>
         )}
 
-        <SwipeRow label={heading || "Top casinos by country"} className="bonus-picks__track section-row pb-1" slideClassName="w-[85%]" gridFrom="md" gridColumns={3} gridGap={30}>
-          {perRegion.map(({ region, topCasino, bonus }) => (
-            <BonusPickCard
-              key={region.id}
-              pick={{ casino: topCasino, bonus }}
-              rank={1}
-              featured
-              bonusLabel={bonusLabel}
-              flagUrl={mediaUrl(region.flagUrl)}
-            />
-          ))}
-        </SwipeRow>
+        {display === "swipe" ? (
+          <SwipeRow label={heading || "Top casinos by country"} className="bonus-picks__track section-row pb-1" slideClassName="w-[85%]" gridFrom="md" gridColumns={cardsPerRow} gridGap={30}>
+            {featuredCards}
+          </SwipeRow>
+        ) : (
+          <div className="section-row">
+            <div className="section-col">
+              <HorizontalSlider label={heading || "Top casinos by country"} layout={display === "carousel" ? "slider" : display} slideClassName="w-[85%] sm:w-[340px]" showArrows gridClassName={GRID_COLUMNS[cardsPerRow]}>
+                {display === "list"
+                  ? perRegion.map(({ region, topCasino, bonus }, i) => <BonusPickRow key={region.id} pick={{ casino: topCasino, bonus }} rank={i + 1} bonusLabel={`${bonusLabel} · ${region.name}`} />)
+                  : featuredCards}
+              </HorizontalSlider>
+            </div>
+          </div>
+        )}
 
         {perRegion
           .filter(({ more }) => more && more.rows.length > 0)

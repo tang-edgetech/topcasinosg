@@ -1,5 +1,7 @@
 import { field, itemIndexes, type PageSection } from "@/lib/pages";
-import type { BonusType } from "@/app/[region]/_lib/api";
+import { toTitleCase, type BonusType } from "@/app/[region]/_lib/api";
+import { cardDisplay, perRow, GRID_COLUMNS } from "@/lib/cardLayout";
+import { BonusPickCard, BonusPickRow } from "./TopBonusPicksSection";
 import DataTable, { type TableColumn } from "@/components/data-table/DataTable";
 import { COLUMNS, SIMPLE_BONUS_DETAILS } from "@/components/data-table/columns";
 import { loadRows } from "@/components/data-table/loadRows";
@@ -31,6 +33,8 @@ const DEFAULT_CASINO_COLUMNS: [string, string?][] = [["cashback"], ["payments"],
 // column: "column" key + optional "label") or come from a preset. Optional
 // tip / recommendation boxes sit above the table and an outro below it.
 // regionCode blank = the page's region. A table with no rows is left out.
+// "display" cards / list shows the rows as Top Bonus Picks cards (a grid of
+// "perRow" columns) or rows instead of the table (see lib/cardLayout.ts).
 export default async function DataTableSection({ section, regionCode: pageRegionCode = "" }: { section: PageSection; regionCode?: string }) {
   const value = (key: string) => field(section.fields, 0, key)?.textValue ?? "";
   const source = value("source") === "bonuses" ? "bonuses" : "casinos";
@@ -67,6 +71,8 @@ export default async function DataTableSection({ section, regionCode: pageRegion
   });
   if (rows.length === 0) return null;
 
+  const display = cardDisplay(value("display"), ["table", "cards", "list"] as const);
+  const bonusLabel = `${toTitleCase(bonusType)} Bonus`;
   const tipHeading = value("tipHeading");
   const tipBody = value("tipBody");
   const recommendation = value("recommendation");
@@ -90,7 +96,19 @@ export default async function DataTableSection({ section, regionCode: pageRegion
           )}
         </div>
       )}
-      <DataTable rows={rows} ctx={ctx} columns={columns} ctaLabel={ctaLabel} moreInfo={moreInfo} mobile={source === "casinos" ? "swipe" : "stack"} />
+      {display === "table" ? (
+        <DataTable rows={rows} ctx={ctx} columns={columns} ctaLabel={ctaLabel} moreInfo={moreInfo} mobile={source === "casinos" ? "swipe" : "stack"} />
+      ) : (
+        <div className={display === "list" ? "section-row flex flex-col gap-3" : `section-row grid gap-5 ${GRID_COLUMNS[perRow(value("perRow"), 3)]}`}>
+          {rows.flatMap((row, i) => {
+            if (!row.casino) return [];
+            const pick = { casino: row.casino, bonus: row.bonus };
+            return display === "list"
+              ? [<BonusPickRow key={row.key} pick={pick} rank={i + 1} bonusLabel={bonusLabel} />]
+              : [<BonusPickCard key={row.key} pick={pick} rank={i + 1} bonusLabel={bonusLabel} flagUrl={null} />];
+          })}
+        </div>
+      )}
       {value("outro") && (
         <div className="section-row">
           <RichText html={value("outro")} className="section-col text-sm leading-relaxed text-primary-600" />

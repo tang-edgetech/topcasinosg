@@ -12,7 +12,9 @@ import SwipeRow from "./SwipeRow";
 // All" button (Comp / CTA 3: 120x39, 0.5px border, 5px radius) 10px before
 // the joined 39x39 arrow pair. Controls line up with the bottom of the
 // header (a title with text under it), or its top (controlsAlign "start",
-// a title on its own).
+// a title on its own). layout "grid" / "list" keeps the header and See All
+// but lays the cards out as a grid (gridClassName sets the columns) or a
+// stacked list instead of a slider, with no arrows.
 export default function HorizontalSlider({
   children,
   header,
@@ -24,6 +26,8 @@ export default function HorizontalSlider({
   seeAllUrl,
   seeAllLabel = "See All",
   controlsAlign = "end",
+  layout = "slider",
+  gridClassName = "",
 }: {
   children: ReactNode;
   header?: ReactNode;
@@ -35,6 +39,8 @@ export default function HorizontalSlider({
   seeAllUrl?: string;
   seeAllLabel?: string;
   controlsAlign?: "start" | "end";
+  layout?: "slider" | "grid" | "list";
+  gridClassName?: string;
 }) {
   const [swiper, setSwiper] = useState<SwiperInstance | null>(null);
   const [edges, setEdges] = useState({ atStart: true, atEnd: false });
@@ -44,7 +50,9 @@ export default function HorizontalSlider({
     ? "border-danger text-white hover:bg-white/10"
     : "border-primary-100 bg-surface text-primary-400 hover:bg-primary-50 hover:text-primary-900";
   const arrowClass = dark ? controlClass : "border-primary-100 bg-surface text-primary-900 hover:bg-primary-50";
-  const hasControls = showArrows || Boolean(seeAllUrl);
+  const slider = layout === "slider";
+  const arrows = slider && showArrows;
+  const hasControls = arrows || Boolean(seeAllUrl);
 
   return (
     <div className="horizontal-slider flex flex-col gap-5">
@@ -61,7 +69,7 @@ export default function HorizontalSlider({
                   {seeAllLabel}
                 </Link>
               )}
-              {showArrows && (
+              {arrows && (
                 <div className={`horizontal-slider__arrows flex overflow-hidden rounded-[5px] border-[0.5px] ${dark ? "border-danger" : "border-primary-100"}`}>
                   <button
                     type="button"
@@ -87,6 +95,7 @@ export default function HorizontalSlider({
           )}
         </div>
       )}
+      {slider ? (
       <SwipeRow
         label={label}
         className={`horizontal-slider__track w-full ${trackClassName}`}
@@ -96,6 +105,9 @@ export default function HorizontalSlider({
       >
         {children}
       </SwipeRow>
+      ) : (
+        <div className={layout === "list" ? "horizontal-slider__list flex flex-col gap-3" : `horizontal-slider__grid grid gap-5 ${gridClassName}`}>{children}</div>
+      )}
     </div>
   );
 }

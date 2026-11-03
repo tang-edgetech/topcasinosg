@@ -3,6 +3,7 @@ import { field, itemIndexes, mediaUrl, sectionClassName, sectionBgStyle, type Pa
 import { getAllCasinos, getRtpEntries, type RTPCategory } from "@/app/[region]/_lib/api";
 import HorizontalSlider from "@/components/HorizontalSlider";
 import Thumbnail from "@/components/Thumbnail";
+import { cardDisplay, perRow, GRID_COLUMNS } from "@/lib/cardLayout";
 import SectionTag from "./SectionTag";
 
 const DEFAULT_LIMIT = 10;
@@ -25,9 +26,13 @@ interface GameCard {
 // for the region, highest RTP first, so editors maintain each game once in
 // the RTP Entries screen; the card links to the entry's casino. source
 // "manual" keeps hand-picked cards, where a picked casino supplies the link.
+// "display" / "perRow" swap the slider for a grid or a list of rows (see
+// lib/cardLayout.ts).
 export default async function GameRtpCarouselSection({ section, regionCode: pageRegionCode }: { section: PageSection; regionCode?: string }) {
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
   const seeAllUrl = field(section.fields, 0, "seeAllUrl")?.textValue ?? "";
+  const display = cardDisplay(field(section.fields, 0, "display")?.textValue, ["carousel", "grid", "list"] as const);
+  const columns = perRow(field(section.fields, 0, "perRow")?.textValue, 5);
   const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
   const cards = await loadCards(section, pageRegionCode);
 
@@ -48,8 +53,10 @@ export default async function GameRtpCarouselSection({ section, regionCode: page
               showArrows
               seeAllUrl={seeAllUrl || undefined}
               header={heading && <h2 className="section-heading text-2xl font-bold text-primary-900">{heading}</h2>}
+              layout={display === "carousel" ? "slider" : display}
+              gridClassName={GRID_COLUMNS[columns]}
             >
-              {cards.map((card) => (
+              {cards.map((card) => display === "list" ? <GameRow key={card.key} card={card} /> : (
                 <article
                   key={card.key}
                   className="game-rtp-carousel__card flex flex-col overflow-hidden rounded-lg border-2 border-white bg-white shadow-sm"
@@ -77,6 +84,30 @@ export default async function GameRtpCarouselSection({ section, regionCode: page
         </div>
       </div>
     </SectionTag>
+  );
+}
+
+// display "list": thumbnail, name and provider, RTP and the button in one row.
+function GameRow({ card }: { card: GameCard }) {
+  return (
+    <article className="game-rtp-row flex items-center gap-3 overflow-hidden rounded-lg bg-white p-2 shadow-sm">
+      <Thumbnail src={card.image} className="h-14 w-20 shrink-0 rounded" />
+      <div className="flex min-w-0 flex-1 flex-col">
+        {card.name && <span className="truncate text-sm font-semibold text-primary-900">{card.name}</span>}
+        {card.provider && <span className="text-xs text-primary-500">by {card.provider}</span>}
+      </div>
+      {card.rtp && <span className="shrink-0 text-lg font-bold text-primary-900 sm:text-2xl">{card.rtp}</span>}
+      {card.ctaUrl && (
+        <a
+          href={card.ctaUrl}
+          target="_blank"
+          rel="noopener noreferrer sponsored"
+          className="hidden shrink-0 cursor-pointer rounded bg-primary-900 px-3 py-1.5 text-center text-sm font-semibold text-white hover:bg-primary-800 sm:block"
+        >
+          {card.ctaLabel}
+        </a>
+      )}
+    </article>
   );
 }
 

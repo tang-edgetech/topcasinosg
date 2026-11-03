@@ -5,6 +5,7 @@ import { getGuides } from "@/app/[region]/_lib/api";
 import { getNewsArticles } from "@/app/news/_lib/api";
 import HorizontalSlider from "@/components/HorizontalSlider";
 import Thumbnail from "@/components/Thumbnail";
+import { cardDisplay, perRow, GRID_COLUMNS } from "@/lib/cardLayout";
 import SectionTag from "./SectionTag";
 
 interface CarouselCard {
@@ -19,7 +20,8 @@ interface CarouselCard {
 // Latest Casino News): heading + short intro, See All and prev/next arrows,
 // then a swipeable row of cards (cover image, title, excerpt, More Info).
 // mode "manual" shows the guides/articles picked in the editor, in that
-// order; "latest" shows the newest published ones.
+// order; "latest" shows the newest published ones. "display" / "perRow" swap
+// the slider for a grid or a list of rows (see lib/cardLayout.ts).
 export default async function ContentCarouselSection({ section }: { section: PageSection }) {
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
   const intro = field(section.fields, 0, "intro")?.textValue ?? "";
@@ -34,6 +36,8 @@ export default async function ContentCarouselSection({ section }: { section: Pag
   const cards = await loadCards(sourceType, mode, limit, manualSlugs);
   if (cards.length === 0) return null;
 
+  const display = cardDisplay(field(section.fields, 0, "display")?.textValue, ["carousel", "grid", "list"] as const);
+  const columns = perRow(field(section.fields, 0, "perRow")?.textValue, 4);
   const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
 
   return (
@@ -56,15 +60,17 @@ export default async function ContentCarouselSection({ section }: { section: Pag
                   {intro && <p className="text-sm whitespace-pre-line text-primary-600">{intro}</p>}
                 </div>
               }
+              layout={display === "carousel" ? "slider" : display}
+              gridClassName={GRID_COLUMNS[columns]}
             >
               {cards.map((card) => (
                 <Link
                   key={card.slug}
                   href={card.href}
-                  className="content-carousel-card group flex cursor-pointer flex-col overflow-hidden rounded-lg bg-surface"
+                  className={display === "list" ? "content-carousel-row group flex cursor-pointer gap-4 overflow-hidden rounded-lg bg-surface" : "content-carousel-card group flex cursor-pointer flex-col overflow-hidden rounded-lg bg-surface"}
                 >
-                  <Thumbnail src={card.cover} className="aspect-[31/22] w-full rounded-lg" />
-                  <div className="flex flex-1 flex-col gap-1.5 pt-3">
+                  <Thumbnail src={card.cover} className={display === "list" ? "aspect-[31/22] w-28 shrink-0 rounded-lg sm:w-44" : "aspect-[31/22] w-full rounded-lg"} />
+                  <div className={display === "list" ? "flex flex-1 flex-col gap-1.5 py-1" : "flex flex-1 flex-col gap-1.5 pt-3"}>
                     <h3 className="text-base font-bold text-primary-900 group-hover:text-primary-700">{card.title}</h3>
                     <p className="line-clamp-2 text-sm text-primary-600">{card.excerpt}</p>
                     <span className="mt-auto pt-1 text-sm text-primary-500 group-hover:underline">More Info</span>

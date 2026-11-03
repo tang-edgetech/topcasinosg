@@ -1429,6 +1429,7 @@ function BonusCalculatorFields({ fields, onChange }: { fields: EditableField[]; 
   const intro = getField(fields, 0, "intro");
   return (
     <div className="flex flex-col gap-4">
+      <DisplayFields fields={fields} onChange={onChange} options={["compact", "centered", "side"]} />
       <TextInputField
         label="Heading"
         value={heading?.textValue ?? ""}
@@ -1597,6 +1598,7 @@ function TopCasinosByRegionFields({ fields, onChange }: { fields: EditableField[
 
   return (
     <div className="flex flex-col gap-4">
+      <DisplayFields fields={fields} onChange={onChange} options={["swipe", "grid", "carousel", "list"]} gridWith={["swipe", "grid"]} perRowDefault={3} />
       <TextInputField
         label="Heading"
         value={text(0, "heading")}
@@ -2264,6 +2266,7 @@ function BlacklistPreviewFields({ fields, onChange }: { fields: EditableField[];
 
   return (
     <div className="flex flex-col gap-4">
+      <DisplayFields fields={fields} onChange={onChange} options={["carousel", "grid", "list"]} gridWith={["grid"]} perRowDefault={5} />
       <TextInputField
         label="Heading"
         value={heading?.textValue ?? ""}
@@ -2347,6 +2350,7 @@ function ContentCarouselFields({ fields, onChange }: { fields: EditableField[]; 
 
   return (
     <div className="flex flex-col gap-4">
+      <DisplayFields fields={fields} onChange={onChange} options={["carousel", "grid", "list"]} gridWith={["grid"]} perRowDefault={4} />
       <TextInputField
         label="Heading"
         value={heading?.textValue ?? ""}
@@ -2434,6 +2438,7 @@ function RegionExplorerFields({ fields, onChange }: { fields: EditableField[]; o
 
   return (
     <div className="flex flex-col gap-4">
+      <DisplayFields fields={fields} onChange={onChange} options={["panel", "grid", "list"]} gridWith={["grid"]} perRowDefault={4} />
       <TextInputField
         label="Heading"
         value={heading?.textValue ?? ""}
@@ -3018,6 +3023,7 @@ function GameRtpCarouselFields({ fields, onChange }: { fields: EditableField[]; 
 
   return (
     <div className="flex flex-col gap-4">
+      <DisplayFields fields={fields} onChange={onChange} options={["carousel", "grid", "list"]} gridWith={["grid"]} perRowDefault={5} />
       <TextInputField
         label="Heading"
         value={text(0, "heading")}
@@ -3360,6 +3366,7 @@ function LinkCardGridFields({ fields, onChange }: { fields: EditableField[]; onC
 function TopBonusPicksFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
   return (
     <div className="flex flex-col gap-4">
+      <DisplayFields fields={fields} onChange={onChange} options={["swipe", "grid", "carousel", "list", "table"]} gridWith={["swipe", "grid"]} perRowDefault={3} />
       <TextInputField
         label="Heading"
         value={getField(fields, 0, "heading")?.textValue ?? ""}
@@ -4028,6 +4035,7 @@ function DataTableFields({ fields, onChange }: { fields: EditableField[]; onChan
 
   return (
     <div className="flex flex-col gap-4">
+      <DisplayFields fields={fields} onChange={onChange} options={["table", "cards", "list"]} gridWith={["cards"]} perRowDefault={3} />
       <TextInputField label="Heading" value={text(0, "heading")} placeholder="{regionAdj} Online Casinos List" onChange={set("heading", 1)} />
       <RichTextField label="Intro (optional)" value={text(0, "intro")} onChange={set("intro", 2, "richtext")} />
       <SourceChoiceField
@@ -4750,5 +4758,62 @@ function TestimonialWidgetFields({ fields, onChange }: WidgetFieldsProps) {
         </LabeledField>
       </StyleFields>
     </div>
+  );
+}
+
+
+// Style tab "Layout" of the data widgets (web/src/lib/cardLayout.ts and
+// BonusCalculatorSection): "display" picks how the cards are laid out, the
+// first option being the widget's original look; "perRow" sets how many
+// cards sit in a row on wide screens (only for the layouts in gridWith).
+const DISPLAY_LABELS: Record<string, string> = {
+  swipe: "Cards (swipe on mobile)",
+  cards: "Cards",
+  grid: "Grid",
+  carousel: "Carousel with arrows",
+  list: "List (one row each)",
+  table: "Table",
+  panel: "Gold panel",
+  compact: "Compact, on the left",
+  centered: "Compact, centred",
+  side: "Form and result side by side",
+};
+
+function DisplayFields({
+  fields,
+  onChange,
+  options,
+  gridWith = [],
+  perRowDefault,
+}: {
+  fields: EditableField[];
+  onChange: (f: EditableField[]) => void;
+  options: string[];
+  gridWith?: string[];
+  perRowDefault?: number;
+}) {
+  const stored = getField(fields, 0, "display")?.textValue ?? "";
+  const display = options.includes(stored) ? stored : options[0];
+  return (
+    <StyleFields>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <LabeledField label="Layout">
+          <Select
+            value={display}
+            onChange={(v: string) => onChange(upsertField(fields, 0, "display", "text", 90, { textValue: v }))}
+            options={options.map((value) => ({ value, label: DISPLAY_LABELS[value] ?? value }))}
+          />
+        </LabeledField>
+        {perRowDefault && gridWith.includes(display) && (
+          <LabeledField label="Cards per row (wide screens)">
+            <Select
+              value={getField(fields, 0, "perRow")?.textValue || String(perRowDefault)}
+              onChange={(v: string) => onChange(upsertField(fields, 0, "perRow", "text", 91, { textValue: v }))}
+              options={["2", "3", "4", "5", "6"].map((value) => ({ value, label: value }))}
+            />
+          </LabeledField>
+        )}
+      </div>
+    </StyleFields>
   );
 }

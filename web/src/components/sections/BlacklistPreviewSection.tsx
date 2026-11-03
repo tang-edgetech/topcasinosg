@@ -4,6 +4,7 @@ import { getBlacklistEntries, type BlacklistEntryDTO } from "@/app/[region]/_lib
 import HorizontalSlider from "@/components/HorizontalSlider";
 import StarRating from "@/components/StarRating";
 import CasinoLogo from "@/components/CasinoLogo";
+import { cardDisplay, perRow, GRID_COLUMNS } from "@/lib/cardLayout";
 import SectionTag from "./SectionTag";
 
 const MAX_REASONS = 3;
@@ -16,6 +17,8 @@ const MAX_REASONS = 3;
 // and intro sit in the slider's row beside See All and the arrows; heading
 // size "medium" is the 26px sub-title used inside a Container (Figma Home
 // "What Makes a Casino Get Blacklisted?"), "large" the 36px region title.
+// "display" / "perRow" swap the slider for a grid or a list of rows (see
+// lib/cardLayout.ts).
 export default async function BlacklistPreviewSection({ section }: { section: PageSection }) {
   const heading = field(section.fields, 0, "heading")?.textValue ?? "";
   const highlightText = field(section.fields, 0, "highlightText")?.textValue ?? "";
@@ -24,6 +27,8 @@ export default async function BlacklistPreviewSection({ section }: { section: Pa
   const limit = Number(field(section.fields, 0, "limit")?.textValue) || 10;
   const seeAllUrl = field(section.fields, 0, "seeAllUrl")?.textValue || "/blacklist";
   const regionCode = field(section.fields, 0, "regionCode")?.textValue || undefined;
+  const display = cardDisplay(field(section.fields, 0, "display")?.textValue, ["carousel", "grid", "list"] as const);
+  const columns = perRow(field(section.fields, 0, "perRow")?.textValue, 5);
   const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields, { bgType: "gradient", bgFrom: "primary-900", bgTo: "danger" });
 
   const { entries } = await getBlacklistEntries(regionCode, 1, limit);
@@ -59,10 +64,8 @@ export default async function BlacklistPreviewSection({ section }: { section: Pa
       <div className="section-container relative z-10 py-[3.125rem]">
         <div className="section-row">
           <div className="section-col">
-            <HorizontalSlider label="Blacklisted casinos" slideClassName="w-[200px]" showArrows arrowTheme="dark" seeAllUrl={seeAllUrl} header={header} controlsAlign={subheading ? "end" : "start"}>
-              {entries.map((entry) => (
-                <BlacklistCard key={entry.id} entry={entry} />
-              ))}
+            <HorizontalSlider label="Blacklisted casinos" slideClassName="w-[200px]" showArrows arrowTheme="dark" seeAllUrl={seeAllUrl} header={header} controlsAlign={subheading ? "end" : "start"} layout={display === "carousel" ? "slider" : display} gridClassName={GRID_COLUMNS[columns]}>
+              {entries.map((entry) => (display === "list" ? <BlacklistRow key={entry.id} entry={entry} /> : <BlacklistCard key={entry.id} entry={entry} />))}
             </HorizontalSlider>
           </div>
         </div>
@@ -88,6 +91,35 @@ function BlacklistCard({ entry }: { entry: BlacklistEntryDTO }) {
         {entry.rating != null && <StarRating rating={entry.rating / 2} />}
       </div>
       <ul className="flex flex-1 flex-col gap-1 bg-danger px-4 py-3 text-sm text-white">
+        {reasons.map((reason) => (
+          <li key={reason} className="flex items-start gap-2">
+            <span aria-hidden="true" className="font-bold">
+              ✕
+            </span>
+            <span>{reason}</span>
+          </li>
+        ))}
+      </ul>
+    </article>
+  );
+}
+
+// display "list": logo and score on the left, the reasons beside them.
+function BlacklistRow({ entry }: { entry: BlacklistEntryDTO }) {
+  const reasons = (entry.reasons?.length ? entry.reasons : [entry.reason]).filter(Boolean).slice(0, MAX_REASONS);
+
+  return (
+    <article className="blacklist-row flex flex-col overflow-hidden rounded-lg bg-white sm:flex-row">
+      <div className="flex shrink-0 flex-col items-center justify-center gap-1 px-4 py-3 sm:w-44">
+        <CasinoLogo src={mediaUrl(entry.logoUrl)} name={entry.name} className="h-10 w-24" />
+        {entry.rating != null && (
+          <p className="text-danger">
+            <span className="text-xl font-bold">{entry.rating.toFixed(1)}</span>
+            <span className="text-xs">/10</span>
+          </p>
+        )}
+      </div>
+      <ul className="flex flex-1 flex-col justify-center gap-1 bg-danger px-4 py-3 text-sm text-white sm:flex-row sm:flex-wrap sm:items-center sm:justify-start sm:gap-x-6">
         {reasons.map((reason) => (
           <li key={reason} className="flex items-start gap-2">
             <span aria-hidden="true" className="font-bold">
