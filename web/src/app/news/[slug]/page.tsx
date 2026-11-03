@@ -6,6 +6,7 @@ import { sanitizeRichText } from "@/lib/sanitize-html";
 import { articleJsonLd, buildMetadata, getSeoMeta } from "@/lib/seo";
 import JsonLd from "@/components/JsonLd";
 import Thumbnail from "@/components/Thumbnail";
+import PageGrid from "@/components/PageGrid";
 
 interface NewsDetailPageProps {
   params: Promise<{ slug: string }>;
@@ -53,7 +54,9 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
   return (
     <div id="news-detail-page" className="news-detail-page flex flex-1 flex-col bg-white">
       <JsonLd data={jsonLd} />
-      <div className="news-detail-page__content mx-auto w-full max-w-3xl flex-1 px-6 py-10 sm:px-8">
+      {/* Same width and Sidebar as the region and news list pages. */}
+      <PageGrid>
+      <div className="news-detail-page__content w-full flex-1 py-10">
         <nav
           id="news-detail-breadcrumb"
           aria-label="Breadcrumb"
@@ -105,6 +108,7 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
           </Link>
         </div>
       </div>
+      </PageGrid>
     </div>
   );
 }

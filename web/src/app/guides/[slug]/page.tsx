@@ -5,6 +5,7 @@ import { sanitizeRichText } from "@/lib/sanitize-html";
 import { articleJsonLd, buildMetadata, getSeoMeta } from "@/lib/seo";
 import JsonLd from "@/components/JsonLd";
 import Thumbnail from "@/components/Thumbnail";
+import PageGrid from "@/components/PageGrid";
 
 /**
  * Public guide detail page. Content is scheduled-publish aware: the API
@@ -129,14 +130,12 @@ export default async function GuideDetailPage({
     seo: await getSeoMeta("guide", guide.id),
   });
 
+  // Same width and Sidebar as the region and news/guide list pages (PageGrid).
   return (
     <div id="guide-detail-page" className="flex flex-1 flex-col bg-surface font-sans">
       <JsonLd data={jsonLd} />
-      <section
-        id="guide-detail-breadcrumb"
-        className="guide-detail__breadcrumb border-b border-primary-100 bg-primary-50"
-      >
-        <div className="mx-auto w-full max-w-4xl px-6 py-4">
+      <PageGrid>
+      <div id="guide-detail-breadcrumb" className="guide-detail__breadcrumb border-b border-primary-100 pt-10 pb-4">
           <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-sm text-primary-500">
             <Link href="/" className="cursor-pointer hover:text-primary-700 hover:underline">
               Home
@@ -150,10 +149,9 @@ export default async function GuideDetailPage({
               {guide.title}
             </span>
           </nav>
-        </div>
-      </section>
+      </div>
 
-      <article id="guide-detail-article" className="guide-detail__article mx-auto w-full max-w-4xl px-6 py-12">
+      <article id="guide-detail-article" className="guide-detail__article w-full pt-8 pb-12">
         <header id="guide-detail-header" className="guide-detail__header flex flex-col gap-4">
           {regionName && (
             <span className="guide-detail__region-badge inline-flex w-fit items-center rounded-full bg-secondary-50 px-3 py-1 text-xs font-semibold text-secondary-800">
@@ -187,6 +185,7 @@ export default async function GuideDetailPage({
           </Link>
         </div>
       </article>
+      </PageGrid>
     </div>
   );
 }
