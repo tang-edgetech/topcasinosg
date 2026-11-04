@@ -81,13 +81,9 @@ func Audit(audit *service.AuditService, snapshot Snapshotter) func(http.Handler)
 			}
 
 			ip, port := ClientAddress(r)
-			actorName := actor.FullName
-			if key := APIKeyFromContext(r.Context()); key != nil {
-				actorName = fmt.Sprintf("%s (API key: %s)", actor.FullName, key.Name)
-			}
 			entry := &domain.AuditLog{
 				ActorID:       &actor.ID,
-				ActorName:     actorName,
+				ActorName:     actor.FullName,
 				ActorRole:     string(actor.Role),
 				Action:        route.action,
 				EntityType:    route.entityType,
@@ -118,6 +114,7 @@ func Audit(audit *service.AuditService, snapshot Snapshotter) func(http.Handler)
 			if isSuperAdminRecord(before) || isSuperAdminRecord(after) {
 				entry.Restricted = true
 			}
+			StampAPIKey(r, entry)
 			audit.Record(context.WithoutCancel(r.Context()), entry)
 		})
 	}
@@ -400,6 +397,12 @@ func auditDisplayValue(path string, value any) any {
 	}
 	return "(large value)"
 }
+
+// AuditDiff and AuditLabel are diffAuditSnapshots and auditLabel, for
+// entries recorded outside this middleware.
+func AuditDiff(before, after map[string]any) domain.AuditChanges { return diffAuditSnapshots(before, after) }
+
+func AuditLabel(records ...map[string]any) string { return auditLabel(records...) }
 
 func auditLabel(records ...map[string]any) string {
 	for _, record := range records {

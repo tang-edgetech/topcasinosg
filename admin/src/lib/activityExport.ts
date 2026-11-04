@@ -17,6 +17,8 @@ function exportRecord(log: AuditLogDTO) {
     user: log.actorName || null,
     role: log.actorRole || null,
     action: log.action,
+    source: log.source,
+    apiKey: log.apiKeyName || null,
     section: log.entityType,
     record: log.entityLabel || null,
     recordId: log.entityId,
@@ -34,7 +36,7 @@ export function activityToJSON(logs: AuditLogDTO[]): string {
   return JSON.stringify(logs.map(exportRecord), null, 2);
 }
 
-const CSV_COLUMNS = ["id", "time", "user", "role", "action", "section", "record", "recordId", "request", "status", "statusCode", "error", "ip", "browser", "changes"] as const;
+const CSV_COLUMNS = ["id", "time", "user", "role", "action", "source", "apiKey", "section", "record", "recordId", "request", "status", "statusCode", "error", "ip", "browser", "changes"] as const;
 
 function csvCell(value: unknown): string {
   if (value === null || value === undefined) return "";
@@ -58,7 +60,7 @@ export function activityDebugReport(logs: AuditLogDTO[], context: { site: string
     `- Filters: ${context.filters || "none"}`,
     `- Copied: ${new Date().toISOString()}`,
     "- Stack: Next.js admin (admin/) → Go API (api/, routes in internal/server/server.go), MySQL.",
-    "- `status` is Success or Failed and `statusCode` the API's HTTP status; `error` is the message the admin saw; `changes` holds what was submitted (secrets hidden).",
+    "- `status` is Success or Failed and `statusCode` the API's HTTP status; `error` is the message the admin saw; `changes` holds what was submitted (secrets hidden). `source` is dashboard, api (an API key) or connector (the AI connector); `apiKey` names the key.",
   ];
   if (failed.length > 0) {
     lines.push("", "### Failed requests");

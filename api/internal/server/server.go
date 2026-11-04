@@ -327,7 +327,12 @@ func NewRouter(deps Deps) http.Handler {
 	// service.ContentChangeService) and uploads media. A Direct key's
 	// proposals are applied at once, and every other /api/v1 path runs the
 	// matching admin endpoint (directAPI), with deletes going to the bin.
-	withKey := middleware.AuthenticateAPIKey(deps.AuthenticateAPIKey)
+	// Every request is in the activity log (middleware.APIRequestLog): reads,
+	// writes and refused ones, with the key, its admin and the IP address.
+	requestLog := middleware.APIRequestLog(deps.Audit)
+	keyAuth := middleware.AuthenticateAPIKey(deps.AuthenticateAPIKey)
+	withKey := func(h http.Handler) http.Handler { return requestLog(keyAuth(h)) }
+	deps.ContentAPIHandler.SetSnapshotter(adminSnapshotter(mux))
 	scoped := func(scope string, h http.HandlerFunc) http.Handler {
 		return withKey(middleware.RequireScope(scope)(h))
 	}

@@ -292,16 +292,14 @@ func (b *recycleBin) moveToBin(w http.ResponseWriter, r *http.Request, itemType 
 // record adds a Recycle Bin action to the activity log.
 func (b *recycleBin) record(r *http.Request, action, itemType string, id int64, label string) {
 	actor := middleware.UserFromContext(r.Context())
-	name := actor.FullName
-	if key := middleware.APIKeyFromContext(r.Context()); key != nil {
-		name = fmt.Sprintf("%s (API key: %s)", actor.FullName, key.Name)
-	}
 	ip, port := middleware.ClientAddress(r)
-	b.audit.Record(context.WithoutCancel(r.Context()), &domain.AuditLog{
-		ActorID: &actor.ID, ActorName: name, ActorRole: string(actor.Role), Action: action, EntityType: itemType,
+	entry := &domain.AuditLog{
+		ActorID: &actor.ID, ActorName: actor.FullName, ActorRole: string(actor.Role), Action: action, EntityType: itemType,
 		EntityID: &id, EntityLabel: label, IPAddress: ip, IPPort: port, UserAgent: r.UserAgent(),
 		RequestMethod: r.Method, RequestPath: r.URL.RequestURI(), StatusCode: http.StatusOK,
-	})
+	}
+	middleware.StampAPIKey(r, entry)
+	b.audit.Record(context.WithoutCancel(r.Context()), entry)
 }
 
 func (b *recycleBin) list(w http.ResponseWriter, r *http.Request) {

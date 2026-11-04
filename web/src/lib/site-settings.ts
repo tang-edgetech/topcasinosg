@@ -1,3 +1,5 @@
+import { DEFAULT_BREAKPOINTS, normalizeBreakpoints, type Breakpoints } from "./deviceCss";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
 
 // Settings can change at any moment from the admin dashboard — keep this
@@ -21,6 +23,8 @@ export interface SiteSettings {
   ogImageUrl: string | null;
   twitterHandle: string;
   footer: FooterConfig;
+  // Page builder screen sizes: tablet and desktop start here (lib/deviceCss.ts).
+  breakpoints: Breakpoints;
 }
 
 // The footer's arrangement, bottom bar and badges, edited on the admin
@@ -74,6 +78,7 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
   ogImageUrl: null,
   twitterHandle: "",
   footer: DEFAULT_FOOTER,
+  breakpoints: DEFAULT_BREAKPOINTS,
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {
@@ -89,6 +94,7 @@ export async function getSiteSettings(): Promise<SiteSettings> {
       logoUrl: data.logoUrl || null,
       ogImageUrl: data.ogImageUrl || null,
       footer: data.footer ?? DEFAULT_FOOTER,
+      breakpoints: normalizeBreakpoints(data.breakpoints),
     };
   } catch {
     return DEFAULT_SITE_SETTINGS;

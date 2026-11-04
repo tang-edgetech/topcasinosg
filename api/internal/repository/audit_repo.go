@@ -19,7 +19,7 @@ func NewAuditRepo(db *sql.DB) *AuditRepo {
 }
 
 const auditColumns = `id, actor_id, actor_name, actor_role, action, entity_type, entity_id, entity_label,
-	changes, restricted, ip_address, ip_port, user_agent, request_method, request_path, status_code, error_message, created_at`
+	changes, restricted, source, api_key_id, api_key_name, ip_address, ip_port, user_agent, request_method, request_path, status_code, error_message, created_at`
 
 func scanAuditLog(row interface{ Scan(...any) error }) (*domain.AuditLog, error) {
 	var l domain.AuditLog
@@ -27,7 +27,7 @@ func scanAuditLog(row interface{ Scan(...any) error }) (*domain.AuditLog, error)
 	var port sql.NullInt32
 	if err := row.Scan(
 		&l.ID, &l.ActorID, &l.ActorName, &l.ActorRole, &l.Action, &l.EntityType, &l.EntityID, &l.EntityLabel,
-		&changesJSON, &l.Restricted, &l.IPAddress, &port, &l.UserAgent,
+		&changesJSON, &l.Restricted, &l.Source, &l.APIKeyID, &l.APIKeyName, &l.IPAddress, &port, &l.UserAgent,
 		&l.RequestMethod, &l.RequestPath, &l.StatusCode, &l.ErrorMessage, &l.CreatedAt,
 	); err != nil {
 		return nil, err
@@ -51,12 +51,15 @@ func (r *AuditRepo) Insert(ctx context.Context, l *domain.AuditLog) error {
 		}
 		changes = string(encoded)
 	}
+	if l.Source == "" {
+		l.Source = domain.AuditSourceDashboard
+	}
 	_, err := r.db.ExecContext(ctx, `
 		INSERT INTO audit_logs (actor_id, actor_name, actor_role, action, entity_type, entity_id, entity_label,
-			changes, restricted, ip_address, ip_port, user_agent, request_method, request_path, status_code, error_message, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			changes, restricted, source, api_key_id, api_key_name, ip_address, ip_port, user_agent, request_method, request_path, status_code, error_message, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		l.ActorID, l.ActorName, l.ActorRole, l.Action, l.EntityType, l.EntityID, l.EntityLabel,
-		changes, l.Restricted, l.IPAddress, l.IPPort, l.UserAgent, l.RequestMethod, l.RequestPath, l.StatusCode, l.ErrorMessage, time.Now().UTC(),
+		changes, l.Restricted, l.Source, l.APIKeyID, truncate(l.APIKeyName, 255), l.IPAddress, l.IPPort, l.UserAgent, l.RequestMethod, l.RequestPath, l.StatusCode, l.ErrorMessage, time.Now().UTC(),
 	)
 	return err
 }
@@ -87,6 +90,14 @@ func (r *AuditRepo) List(ctx context.Context, f domain.AuditFilter) ([]domain.Au
 	if f.Action != "" {
 		where = append(where, "action = ?")
 		args = append(args, f.Action)
+	}
+	if f.Source != "" {
+		where = append(where, "source = ?")
+		args = append(args, f.Source)
+	}
+	if f.APIKeyID != nil {
+		where = append(where, "api_key_id = ?")
+		args = append(args, *f.APIKeyID)
 	}
 	switch f.Outcome {
 	case domain.AuditOutcomeFailed:

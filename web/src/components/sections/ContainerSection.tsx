@@ -3,6 +3,7 @@ import { field, sectionClassName, sectionBgStyle, type PageSection } from "@/lib
 import HorizontalSlider from "@/components/HorizontalSlider";
 import ContainerTabs from "./ContainerTabs";
 import SectionTag from "./SectionTag";
+import { boxSides, minHeightValue } from "@/lib/sectionStyle";
 
 const GAP_VALUES: Record<string, string> = { s: "16px", m: "30px", l: "50px" };
 const SPACE_VALUES: Record<string, string> = { none: "0px", s: "25px", m: "50px", l: "80px" };
@@ -19,6 +20,19 @@ const MIN_HEIGHTS: Record<string, string> = { s: "200px", m: "400px", l: "600px"
 const STACK_ON = ["mobile", "tablet", "never"];
 const GRID_COLUMNS = ["2", "3", "4"];
 const SLIDES_PER_VIEW = ["1", "2", "3", "4"];
+// Tablet and mobile columns / slides (columnsTablet, perViewMobile, ...):
+// blank keeps the default (2 on tablet, 1 on mobile; a carousel peeks the
+// next slide on mobile). Classes from lib/deviceCss.ts.
+const DEVICE_COUNTS = ["1", "2", "3", "4"];
+
+function deviceCountClasses(text: (key: string) => string, key: string, prefix: string): string {
+  return [
+    DEVICE_COUNTS.includes(text(`${key}Tablet`)) && `${prefix}t-${text(`${key}Tablet`)}`,
+    DEVICE_COUNTS.includes(text(`${key}Mobile`)) && `${prefix}m-${text(`${key}Mobile`)}`,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
 const PANEL_LAYOUTS = ["tabs", "accordion", "carousel"];
 
 export interface ContainerPanel {
@@ -55,30 +69,39 @@ export default function ContainerSection({ section, panels }: { section: PageSec
   const ownSpacing = (layout || "stack") === "stack" && text("componentSpacing") === "own";
   const light = text("textTone") === "light";
   const columns = GRID_COLUMNS.includes(text("columns")) ? text("columns") : "2";
-  const gap = ownSpacing ? "0px" : (GAP_VALUES[text("gap")] ?? (grid || PANEL_LAYOUTS.includes(layout) ? GAP_VALUES.m : GAP_VALUES.l));
+  // gap: a preset (s/m/l), or px from the Style tab: "24" or "24 40" (between
+  // rows, then between columns).
+  const [rowGap, columnGap] = boxSides(GAP_VALUES[text("gap")] ? "" : text("gap"));
+  const gap = ownSpacing ? "0px" : (GAP_VALUES[text("gap")] ?? columnGap ?? (grid || PANEL_LAYOUTS.includes(layout) ? GAP_VALUES.m : GAP_VALUES.l));
+  const minHeight = MIN_HEIGHTS[text("minHeight")] ?? minHeightValue(text("minHeight"));
   const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
   // A nested Container fills its slot unless a width is chosen, and adds no
   // space of its own unless set.
   const defaultSpace = nested ? SPACE_VALUES.none : SPACE_VALUES.m;
+  // Padding from the Style tab (px per side) wins over the space presets.
+  const [padTop, padRight, padBottom, padLeft] = boxSides(text("stPadding"));
   const style = {
     ...bgStyle,
     "--container-max": CONTENT_WIDTHS[text("contentWidth")] ?? (nested ? CONTENT_WIDTHS.full : CONTENT_WIDTHS["1270"]),
     "--container-gap": gap,
-    ...(MIN_HEIGHTS[text("minHeight")] ? { "--container-min-height": MIN_HEIGHTS[text("minHeight")] } : {}),
+    ...(!ownSpacing && rowGap && rowGap !== gap ? { "--container-row-gap": rowGap } : {}),
+    ...(minHeight ? { "--container-min-height": minHeight } : {}),
   } as CSSProperties;
   const bodyStyle: CSSProperties = ownSpacing
     ? {}
     : {
-        paddingTop: SPACE_VALUES[text("spaceTop")] ?? defaultSpace,
-        paddingBottom: SPACE_VALUES[text("spaceBottom")] ?? defaultSpace,
+        paddingTop: padTop ?? SPACE_VALUES[text("spaceTop")] ?? defaultSpace,
+        paddingBottom: padBottom ?? SPACE_VALUES[text("spaceBottom")] ?? defaultSpace,
         ...(nested ? { paddingInline: SPACE_VALUES[text("spaceSides")] ?? SPACE_VALUES.none } : {}),
+        ...(padRight ? { paddingRight: padRight } : {}),
+        ...(padLeft ? { paddingLeft: padLeft } : {}),
       };
   const classes = [
     "section--container",
     `section--container-${layout || "stack"}`,
     ownSpacing && "section--container-own",
     nested && "section--container-nested",
-    MIN_HEIGHTS[text("minHeight")] && "section--container-min-height",
+    minHeight && "section--container-min-height",
     hasBleedBg && "section--bg",
     light && "section--tone-light",
   ];
@@ -140,7 +163,7 @@ function ContainerBody({
           showArrows
           arrowTheme={light ? "dark" : "light"}
           label="Carousel"
-          trackClassName={`container-carousel container-carousel--${perView}`}
+          trackClassName={`container-carousel container-carousel--${perView} ${deviceCountClasses(text, "perView", "container-carousel--")}`.trim()}
           slideClassName={panels.map((panel) => `container-carousel__slide ${panel.visibility}`)}
         >
           {panels.map((panel) => (
@@ -171,7 +194,7 @@ function ContainerBody({
 
   const bodyClasses =
     layout === "grid"
-      ? `container-section__body--grid container-section__body--boxed container-section__body--cols-${columns} ${ALIGN_CLASSES[text("align")] ?? ALIGN_CLASSES.stretch}`
+      ? `container-section__body--grid container-section__body--boxed container-section__body--cols-${columns} ${deviceCountClasses(text, "columns", "container-section__body--cols-")} ${ALIGN_CLASSES[text("align")] ?? ALIGN_CLASSES.stretch}`
       : ["container-section__body--stack flex flex-col", ALIGN_CLASSES[text("align")], JUSTIFY_CLASSES[text("justify")]].filter(Boolean).join(" ");
   return (
     <div className={`${base} ${bodyClasses}`} style={style}>

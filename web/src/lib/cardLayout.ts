@@ -16,13 +16,14 @@ export function perRow(value: string | undefined, fallback: number): number {
   return Number.isInteger(n) && n >= 1 && n <= 6 ? n : fallback;
 }
 
-// Grid columns per "perRow": fewer on small screens so cards keep a
-// readable width. Full class names, so Tailwind generates every option.
+// Grid columns per "perRow" on desktop, fewer on tablet and mobile so cards
+// keep a readable width (the pb-cols classes follow the Site Settings screen
+// sizes: lib/deviceCss.ts).
 export const GRID_COLUMNS: Record<number, string> = {
-  1: "grid-cols-1",
-  2: "grid-cols-1 sm:grid-cols-2",
-  3: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
-  4: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4",
-  5: "grid-cols-2 md:grid-cols-3 lg:grid-cols-5",
-  6: "grid-cols-2 md:grid-cols-3 lg:grid-cols-6",
+  1: "pb-cols pb-cols--m-1 pb-cols--t-1 pb-cols--1",
+  2: "pb-cols pb-cols--m-1 pb-cols--t-2 pb-cols--2",
+  3: "pb-cols pb-cols--m-1 pb-cols--t-2 pb-cols--3",
+  4: "pb-cols pb-cols--m-1 pb-cols--t-2 pb-cols--4",
+  5: "pb-cols pb-cols--m-2 pb-cols--t-3 pb-cols--5",
+  6: "pb-cols pb-cols--m-2 pb-cols--t-3 pb-cols--6",
 };

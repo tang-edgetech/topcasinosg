@@ -18,7 +18,8 @@ func NewSiteSettingsRepo(db *sql.DB) *SiteSettingsRepo {
 
 const siteSettingsColumns = `site_url, site_title, seo_index, seo_follow, timezone, language,
 	logo_url, favicon_url, og_image_url, twitter_handle, two_factor_enabled, security_policy,
-	footer_description, contact_address, contact_email, facebook_url, skype_url, footer_config, updated_at`
+	footer_description, contact_address, contact_email, facebook_url, skype_url, footer_config,
+	breakpoint_tablet, breakpoint_desktop, updated_at`
 
 func (r *SiteSettingsRepo) Get(ctx context.Context) (*domain.SiteSettings, error) {
 	var s domain.SiteSettings
@@ -26,7 +27,8 @@ func (r *SiteSettingsRepo) Get(ctx context.Context) (*domain.SiteSettings, error
 	err := r.db.QueryRowContext(ctx, `SELECT `+siteSettingsColumns+` FROM site_settings WHERE id = 1`).Scan(
 		&s.SiteURL, &s.SiteTitle, &s.SEOIndex, &s.SEOFollow, &s.Timezone, &s.Language,
 		&s.LogoURL, &s.FaviconURL, &s.OGImageURL, &s.TwitterHandle, &s.TwoFactorEnabled, &securityPolicy,
-		&s.FooterDescription, &s.ContactAddress, &s.ContactEmail, &s.FacebookURL, &s.SkypeURL, &footerConfig, &s.UpdatedAt,
+		&s.FooterDescription, &s.ContactAddress, &s.ContactEmail, &s.FacebookURL, &s.SkypeURL, &footerConfig,
+		&s.Breakpoints.Tablet, &s.Breakpoints.Desktop, &s.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -75,6 +77,11 @@ func (r *SiteSettingsRepo) Update(ctx context.Context, s *domain.SiteSettings) e
 		WHERE id = 1`,
 		s.SiteURL, s.SiteTitle, s.SEOIndex, s.SEOFollow, s.Timezone, s.Language,
 	)
+	return err
+}
+
+func (r *SiteSettingsRepo) UpdateBreakpoints(ctx context.Context, b domain.Breakpoints) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE site_settings SET breakpoint_tablet = ?, breakpoint_desktop = ? WHERE id = 1`, b.Tablet, b.Desktop)
 	return err
 }
 

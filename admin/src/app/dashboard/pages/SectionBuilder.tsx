@@ -30,7 +30,26 @@ import ComponentPicker, { type ComponentGroup } from "./ComponentPicker";
 import LivePreview from "./LivePreview";
 import { copySectionsToClipboard, useSectionClipboard, type CopiedSection } from "@/lib/sectionClipboard";
 import { CLASSIC_BLOCK_TYPES, READY_TEMPLATES, type ReadyTemplate } from "@/lib/readyTemplates";
-import type { GlobalSectionDTO, PageBlockType, PageSectionDTO, SectionTemplateDTO } from "@/lib/types";
+import type { GlobalSectionDTO, MediaDTO, PageBlockType, PageSectionDTO, SectionTemplateDTO } from "@/lib/types";
+import {
+  BackgroundControl,
+  ColorField,
+  DEVICE_SUFFIX,
+  DeviceRanges,
+  DeviceSwitch,
+  EditDeviceContext,
+  PxInput,
+  SideBoxes,
+  StylePanel,
+  StyleRow,
+  ToggleButtons,
+  inheritedSides,
+  inheritedValue,
+  joinSides,
+  useEditDevice,
+  type BackgroundValue,
+  type EditDevice,
+} from "./StyleControls";
 
 // depth: 0 directly on the page, N inside the nearest Container before it
 // at level N-1 (api/internal/domain/page.go).
@@ -82,8 +101,8 @@ const ROW_WIDTH_OPTIONS = [
 const WIDTH_CLASSES = ROW_WIDTH_OPTIONS.map((o) => o.value).filter(Boolean);
 // Container layouts whose components each get a "Width in container".
 const SIZED_LAYOUTS = ["grid", "row"];
-// Hide a component on some devices (shared/theme/sections.css): mobile
-// below 640px, tablet 640-1199px, desktop 1200px and up.
+// Hide a component on some devices (web/src/lib/deviceCss.ts), at the
+// screen sizes set in Site Settings.
 const VISIBILITY_OPTIONS = [
   { cls: "section--hide-mobile", label: "Mobile" },
   { cls: "section--hide-tablet", label: "Tablet" },
@@ -640,9 +659,11 @@ function SectionEditor({
             forceRender: true,
             children: (
               <div className="flex flex-col gap-4">
+                <DeviceSwitch id={`section-${section.key}-device`} />
+                <StylePanel title="General">
                 <div ref={setStyleTarget} className="section-style-fields flex flex-col gap-4 empty:hidden" />
-                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-md bg-surface px-4 py-3 dark:bg-surface-muted-dark">
-                  <span className="text-xs font-semibold tracking-wide text-text-muted uppercase dark:text-text-muted-dark">Spacing</span>
+                <SpacingSettings section={section} onUpdate={onUpdate} />
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
                   <Checkbox
                     checked={hasClass(section.customClass, TIGHT_TOP_CLASS)}
                     onChange={(e) => onUpdate({ customClass: toggleClass(section.customClass, TIGHT_TOP_CLASS, e.target.checked) })}
@@ -676,6 +697,7 @@ function SectionEditor({
                     </label>
                   )}
                 </div>
+                </StylePanel>
                 <BoxSettings section={section} onUpdate={onUpdate} />
                 <LayoutSettings section={section} inGrid={inGrid} onUpdate={onUpdate} />
               </div>
@@ -698,7 +720,7 @@ function SectionEditor({
                     {option.label}
                   </Checkbox>
                 ))}
-                <span className="text-xs text-text-muted dark:text-text-muted-dark">Mobile is below 640px, tablet 640–1199px, desktop 1200px and up.</span>
+                <DeviceRanges />
               </div>
               <label className="flex flex-wrap items-center gap-3 rounded-md bg-surface px-4 py-3 text-sm dark:bg-surface-muted-dark">
                 <span className="text-xs font-semibold tracking-wide text-text-muted uppercase dark:text-text-muted-dark">Entrance animation</span>
@@ -742,35 +764,387 @@ function SectionEditor({
   );
 }
 
-// Style tab "Box & text": background, text colour, border, corners, shadow
-// and spacing presets for any component or Container. They style the
-// component's own box, on top of its own look.
-function BoxSettings({ section, onUpdate }: { section: EditableSection; onUpdate: (patch: Partial<EditableSection>) => void }) {
+// ---- Style tab: spacing, background, font and border ----------------------
+// Free-form values stored as text fields on itemIndex 0 (read by the site in
+// web/src/lib/sectionStyle.ts). The older presets (section--pad-*, --box-*,
+// --text-*, ...) still render; the controls show them as values, and
+// changing one replaces its preset class with the field.
+
+const STYLE_FIELD_ORDER: Record<string, number> = {
+  stPadding: 100,
+  stMargin: 101,
+  stMinHeight: 102,
+  stBg: 103,
+  stBgColor: 104,
+  stBgColor2: 105,
+  stBgAngle: 106,
+  stBgImage: 107,
+  stBgSize: 108,
+  stBgPosition: 109,
+  stBgOverlay: 110,
+  stFontSize: 111,
+  stFontWeight: 112,
+  stColor: 113,
+  stBorder: 114,
+  stBorderWidth: 115,
+  stBorderColor: 116,
+  stRadius: 117,
+  bgType: 1,
+  bgFrom: 2,
+  bgTo: 3,
+  bgImage: 4,
+  gap: 7,
+  minHeight: 20,
+  bgAngle: 120,
+  bgSize: 121,
+  bgPosition: 122,
+  bgOverlay: 123,
+  // Tablet and mobile values (see DEVICE_SUFFIX).
+  ...Object.fromEntries(
+    ["stPadding", "stMargin", "stMinHeight", "stFontSize", "gap", "minHeight"].flatMap((key, i) => [
+      [`${key}Tablet`, 130 + i * 2],
+      [`${key}Mobile`, 131 + i * 2],
+    ])
+  ),
+};
+
+function fieldText(section: EditableSection, key: string): string {
+  return section.fields.find((f) => f.itemIndex === 0 && f.fieldKey === key)?.textValue ?? "";
+}
+
+function withTextFields(fields: EditableField[], values: Record<string, string>): EditableField[] {
+  let next = fields;
+  for (const [key, value] of Object.entries(values)) {
+    const i = next.findIndex((f) => f.itemIndex === 0 && f.fieldKey === key);
+    if (i >= 0) next = next.map((f, j) => (j === i ? { ...f, textValue: value } : f));
+    else if (value !== "")
+      next = [
+        ...next,
+        { itemIndex: 0, fieldKey: key, fieldType: "text", textValue: value, mediaId: null, mediaUrl: null, urlValue: "", sortOrder: STYLE_FIELD_ORDER[key] ?? 100 },
+      ];
+  }
+  return next;
+}
+
+function withImageField(fields: EditableField[], key: string, media: MediaDTO | null): EditableField[] {
+  const patch = { mediaId: media?.id ?? null, mediaUrl: media ? mediaUrl(media.url) : null };
+  const i = fields.findIndex((f) => f.itemIndex === 0 && f.fieldKey === key);
+  if (i >= 0) return fields.map((f, j) => (j === i ? { ...f, ...patch } : f));
+  return [...fields, { itemIndex: 0, fieldKey: key, fieldType: "image", textValue: "", urlValue: "", sortOrder: STYLE_FIELD_ORDER[key] ?? 100, ...patch }];
+}
+
+const PRESET_PADDING: Record<string, string> = { "section--pad-s": "16", "section--pad-m": "30", "section--pad-l": "50" };
+const PRESET_MARGIN_TOP: Record<string, string> = { "section--mt-s": "16", "section--mt-m": "30", "section--mt-l": "50" };
+const PRESET_MARGIN_BOTTOM: Record<string, string> = { "section--mb-s": "16", "section--mb-m": "30", "section--mb-l": "50" };
+const MARGIN_CLASSES = [...Object.keys(PRESET_MARGIN_TOP), ...Object.keys(PRESET_MARGIN_BOTTOM)];
+const PRESET_BOX: Record<string, Partial<BackgroundValue>> = {
+  "section--box-white": { type: "color", color: "white" },
+  "section--box-light": { type: "color", color: "primary-50" },
+  "section--box-cream": { type: "color", color: "secondary-50" },
+  "section--box-mint": { type: "color", color: "success-subtle" },
+  "section--box-navy": { type: "color", color: "primary-900" },
+  "section--box-blue": { type: "color", color: "primary-glow" },
+  "section--box-gold": { type: "color", color: "secondary-600" },
+  "section--box-gradient": { type: "linear", color: "primary-900", color2: "primary-glow", angle: "90" },
+};
+const PRESET_TEXT: Record<string, string> = {
+  "section--text-navy": "primary-900",
+  "section--text-muted": "primary-500",
+  "section--text-white": "white",
+  "section--text-gold": "secondary-600",
+  "section--text-blue": "primary-glow",
+};
+const PRESET_BORDER: Record<string, { style: string; width: string; color: string }> = {
+  "section--border-light": { style: "solid", width: "1", color: "primary-100" },
+  "section--border-navy": { style: "solid", width: "2", color: "primary-900" },
+  "section--border-gold": { style: "solid", width: "2", color: "secondary-600" },
+};
+const PRESET_RADIUS: Record<string, string> = { "section--radius-s": "6", "section--radius-m": "12", "section--radius-l": "20", "section--radius-pill": "999" };
+const SHADOW_OPTIONS = STYLE_GROUPS.find((g) => g.id === "shadow")!.options;
+const SHADOW_CLASSES = SHADOW_OPTIONS.map((o) => o.value).filter(Boolean);
+
+// A Container's space presets in px (web ContainerSection).
+const CONTAINER_SPACE_PX: Record<string, string> = { none: "0", s: "25", m: "50", l: "80" };
+const CONTAINER_GAP_PX: Record<string, string> = { s: "16", m: "30", l: "50" };
+const MIN_HEIGHT_PRESETS: Record<string, string> = { s: "200", m: "400", l: "600", screen: "100vh" };
+
+const FONT_WEIGHT_OPTIONS = [
+  { value: "", label: "Default" },
+  { value: "300", label: "Light" },
+  { value: "400", label: "Regular" },
+  { value: "500", label: "Medium" },
+  { value: "600", label: "Semi-bold" },
+  { value: "700", label: "Bold" },
+  { value: "800", label: "Extra bold" },
+];
+const BORDER_STYLE_OPTIONS = [
+  { value: "", label: "Default" },
+  { value: "none", label: "None" },
+  { value: "solid", label: "Solid ───" },
+  { value: "dashed", label: "Dashed - - -" },
+  { value: "dotted", label: "Dotted ·····" },
+  { value: "double", label: "Double ═══" },
+];
+
+// Minimum height: a number with px or vh (% of the screen height).
+function MinHeightInput({ id, value, placeholder, onChange }: { id: string; value: string; placeholder?: string; onChange: (v: string) => void }) {
+  const vh = value ? value.endsWith("vh") : Boolean(placeholder?.endsWith("vh"));
+  const number = value.replace(/vh$/, "");
   return (
-    <div className="section-box-settings flex flex-col gap-3 rounded-md bg-surface px-4 py-3 dark:bg-surface-muted-dark">
-      <span className="text-xs font-semibold tracking-wide text-text-muted uppercase dark:text-text-muted-dark">Box &amp; text</span>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {STYLE_GROUPS.map((group) => {
-          const classes = group.options.map((o) => o.value).filter(Boolean);
-          return (
-            <label key={group.id} className="flex flex-col gap-1 text-sm">
-              <span className="text-xs text-text-muted dark:text-text-muted-dark">{group.label}</span>
-              <Select
-                id={`section-${section.key}-style-${group.id}`}
-                size="small"
-                value={groupClass(section.customClass, classes)}
-                onChange={(cls: string) => onUpdate({ customClass: setExclusiveClass(section.customClass, classes, cls) })}
-                options={group.options}
-              />
-            </label>
-          );
-        })}
-      </div>
-      <span className="text-xs text-text-muted dark:text-text-muted-dark">
-        These style the component&apos;s own box, on top of its own look. With a dark background, pick a white text colour. Buttons keep
-        their own colours.
-      </span>
+    <div className="flex flex-wrap items-center gap-2">
+      <PxInput id={id} value={number} placeholder={placeholder?.replace(/vh$/, "") || "None"} max={vh ? 100 : 3000} suffix="" onChange={(v) => onChange(v === "" ? "" : vh ? `${v}vh` : v)} />
+      <ToggleButtons
+        id={`${id}-unit`}
+        value={vh ? "vh" : "px"}
+        options={[
+          { value: "px", label: "px" },
+          { value: "vh", label: "% of screen" },
+        ]}
+        onChange={(unit) => number !== "" && onChange(unit === "vh" ? `${Math.min(100, Number(number))}vh` : number)}
+      />
     </div>
+  );
+}
+
+// General: padding, margin, a Container's gap between its items, and the
+// minimum height.
+function SpacingSettings({ section, onUpdate }: { section: EditableSection; onUpdate: (patch: Partial<EditableSection>) => void }) {
+  const text = (key: string) => fieldText(section, key);
+  const { device } = useEditDevice();
+  const sfx = DEVICE_SUFFIX[device];
+  const desktop = device === "desktop";
+  const container = section.blockType === CONTAINER;
+  const id = `section-${section.key}`;
+  const set = (values: Record<string, string>, clearClasses: string[] = []) =>
+    onUpdate({
+      fields: withTextFields(section.fields, values),
+      ...(clearClasses.length ? { customClass: setExclusiveClass(section.customClass, clearClasses, "") } : {}),
+    });
+
+  const padClass = groupClass(section.customClass, Object.keys(PRESET_PADDING));
+  const padding = text("stPadding") || (padClass ? PRESET_PADDING[padClass] : "");
+  const mt = PRESET_MARGIN_TOP[groupClass(section.customClass, Object.keys(PRESET_MARGIN_TOP))] ?? "";
+  const mb = PRESET_MARGIN_BOTTOM[groupClass(section.customClass, Object.keys(PRESET_MARGIN_BOTTOM))] ?? "";
+  const margin = text("stMargin") || joinSides([mt, "", mb, ""]);
+
+  const layout = text("layout") || "stack";
+  const ownSpacing = container && layout === "stack" && text("componentSpacing") === "own";
+  const nested = section.depth > 0;
+  const spaceDefault = nested ? "none" : "m";
+  const sides = nested ? CONTAINER_SPACE_PX[text("spaceSides") || "none"] : "25";
+  const paddingPlaceholders = container
+    ? [CONTAINER_SPACE_PX[text("spaceTop") || spaceDefault], sides, CONTAINER_SPACE_PX[text("spaceBottom") || spaceDefault], sides]
+    : [];
+  const gapDefault = layout === "grid" || ["tabs", "accordion", "carousel"].includes(layout) ? "30" : "50";
+  const gapValue = CONTAINER_GAP_PX[text("gap")] ?? text("gap");
+  const minHeightKey = container ? "minHeight" : "stMinHeight";
+  const minHeight = MIN_HEIGHT_PRESETS[text(minHeightKey)] ?? (text(minHeightKey) === "none" ? "" : text(minHeightKey));
+
+  // On tablet / mobile: the device's own value, with the one it inherits as
+  // the placeholder. Desktop edits also drop the old preset classes.
+  const deviceBox = (key: string, desktopValue: string, defaults: string[] = []) =>
+    desktop
+      ? { value: desktopValue, placeholders: defaults }
+      : {
+          value: text(key + sfx),
+          placeholders: inheritedSides(device === "mobile" ? [text(key + DEVICE_SUFFIX.tablet), desktopValue] : [desktopValue], defaults),
+        };
+  const setDevice = (key: string, v: string, clearClasses: string[] = []) => set({ [key + sfx]: v }, desktop ? clearClasses : []);
+  const paddingBox = deviceBox("stPadding", padding, paddingPlaceholders);
+  const marginBox = deviceBox("stMargin", margin);
+  const gapBox = deviceBox("gap", gapValue, [gapDefault, gapDefault]);
+  const minHeightOwn = desktop ? minHeight : text(minHeightKey + sfx);
+  const minHeightInherited = desktop ? "" : inheritedValue(text, minHeightKey, device, minHeight);
+
+  return (
+    <div className="flex flex-col gap-3">
+      {ownSpacing ? (
+        <span className="text-xs text-text-muted dark:text-text-muted-dark">
+          Padding and gap are off: this container is set to “Each component keeps its own” spacing.
+        </span>
+      ) : (
+        <StyleRow
+          label="Padding"
+          responsive
+          hint={container ? "Space inside the container, around its content. Empty boxes keep the default shown." : "Space inside the component's box."}
+        >
+          <SideBoxes
+            id={`${id}-padding-${device}`}
+            value={paddingBox.value}
+            placeholders={paddingBox.placeholders}
+            onChange={(v) => setDevice("stPadding", v, Object.keys(PRESET_PADDING))}
+          />
+        </StyleRow>
+      )}
+      <StyleRow label="Margin" responsive hint="Space outside the box, pushing it away from what is around it.">
+        <SideBoxes
+          id={`${id}-margin-${device}`}
+          value={marginBox.value}
+          placeholders={marginBox.placeholders}
+          onChange={(v) => setDevice("stMargin", v, MARGIN_CLASSES)}
+        />
+      </StyleRow>
+      {container && !ownSpacing && (
+        <StyleRow label="Gap" responsive hint="Space between the components inside.">
+          <SideBoxes
+            id={`${id}-gap-${device}`}
+            value={gapBox.value}
+            labels={["Between rows", "Between columns"]}
+            placeholders={gapBox.placeholders}
+            onChange={(v) => setDevice("gap", v)}
+          />
+        </StyleRow>
+      )}
+      {(!container || layout === "stack" || layout === "row") && (
+        <StyleRow label="Minimum height" responsive>
+          <MinHeightInput
+            id={`${id}-min-height-${device}`}
+            value={minHeightOwn}
+            placeholder={minHeightInherited}
+            onChange={(v) => setDevice(minHeightKey, v)}
+          />
+        </StyleRow>
+      )}
+    </div>
+  );
+}
+
+// Box & text: background, font and border of the component's own box. A
+// Container's background is its full-width band (the bgType fields).
+function BoxSettings({ section, onUpdate }: { section: EditableSection; onUpdate: (patch: Partial<EditableSection>) => void }) {
+  const text = (key: string) => fieldText(section, key);
+  const container = section.blockType === CONTAINER;
+  const id = `section-${section.key}`;
+  const update = (fields: EditableField[], clearClasses: string[] = []) =>
+    onUpdate({ fields, ...(clearClasses.length ? { customClass: setExclusiveClass(section.customClass, clearClasses, "") } : {}) });
+  const set = (values: Record<string, string>, clearClasses: string[] = []) => update(withTextFields(section.fields, values), clearClasses);
+  const { device } = useEditDevice();
+  const fontSizeKey = `stFontSize${DEVICE_SUFFIX[device]}`;
+
+  // Background: which fields it lives in, and its value (or its preset's).
+  const keys = container
+    ? { type: "bgType", color: "bgFrom", color2: "bgTo", angle: "bgAngle", image: "bgImage", size: "bgSize", position: "bgPosition", overlay: "bgOverlay" }
+    : { type: "stBg", color: "stBgColor", color2: "stBgColor2", angle: "stBgAngle", image: "stBgImage", size: "stBgSize", position: "stBgPosition", overlay: "stBgOverlay" };
+  const boxClasses = Object.keys(PRESET_BOX);
+  const boxPreset = PRESET_BOX[groupClass(section.customClass, boxClasses)];
+  const storedType = container ? (text("bgType") === "gradient" ? "linear" : text("bgType")) : text("stBg");
+  const imageField = section.fields.find((f) => f.itemIndex === 0 && f.fieldKey === keys.image);
+  const brandDefaults = container && storedType !== "" && storedType !== "none";
+  const background: BackgroundValue =
+    (!storedType || storedType === "none") && boxPreset
+      ? { type: "none", color: "", color2: "", angle: "", imageUrl: null, size: "", position: "", overlay: "", ...boxPreset }
+      : {
+          type: storedType || "none",
+          color: text(keys.color) || (brandDefaults ? "primary-900" : ""),
+          color2: text(keys.color2) || (brandDefaults ? "primary-glow" : ""),
+          // A Container's gradient without an angle runs top to bottom.
+          angle: text(keys.angle) || (container && storedType === "linear" ? "180" : ""),
+          imageUrl: imageField?.mediaUrl ?? null,
+          size: text(keys.size),
+          position: text(keys.position),
+          overlay: text(keys.overlay),
+        };
+
+  function setBackground(patch: Partial<BackgroundValue>) {
+    const next = { ...background, ...patch };
+    // Starting a colour or gradient: begin from brand colours, not nothing.
+    if (patch.type === "color" && !next.color) next.color = "primary-50";
+    if ((patch.type === "linear" || patch.type === "radial") && !next.color) next.color = "primary-900";
+    if ((patch.type === "linear" || patch.type === "radial") && !next.color2) next.color2 = "primary-glow";
+    set(
+      {
+        [keys.type]: container && next.type === "linear" ? "gradient" : next.type,
+        [keys.color]: next.color,
+        [keys.color2]: next.color2,
+        [keys.angle]: next.angle,
+        [keys.size]: next.size,
+        [keys.position]: next.position,
+        [keys.overlay]: next.overlay,
+      },
+      boxClasses
+    );
+  }
+
+  const color = text("stColor") || PRESET_TEXT[groupClass(section.customClass, Object.keys(PRESET_TEXT))] || "";
+  const borderPreset = PRESET_BORDER[groupClass(section.customClass, Object.keys(PRESET_BORDER))];
+  const borderStyle = text("stBorder") || borderPreset?.style || "";
+  const borderWidth = text("stBorderWidth") || borderPreset?.width || "";
+  const borderColor = text("stBorderColor") || borderPreset?.color || "";
+  const setBorder = (values: Record<string, string>) =>
+    set({ stBorder: borderStyle, stBorderWidth: borderWidth, stBorderColor: borderColor, ...values }, Object.keys(PRESET_BORDER));
+  const radius = text("stRadius") || PRESET_RADIUS[groupClass(section.customClass, Object.keys(PRESET_RADIUS))] || "";
+  const hasBorder = borderStyle !== "" && borderStyle !== "none";
+
+  return (
+    <StylePanel title="Box & text" className="section-box-settings">
+      <StyleRow label="Background" hint={container ? "Fills the container's full width." : "The component's own box."}>
+        <BackgroundControl
+          id={`${id}-bg`}
+          value={background}
+          onChange={setBackground}
+          onImage={(media) => update(withImageField(withTextFields(section.fields, { [keys.type]: "image" }), keys.image, media), boxClasses)}
+        />
+      </StyleRow>
+      <div className="border-t border-border dark:border-border-dark" />
+      <StyleRow label="Font size" responsive hint={container ? "For text inside that has no size of its own." : "All the component's text; buttons keep theirs."}>
+        <PxInput
+          id={`${id}-font-size-${device}`}
+          value={text(fontSizeKey)}
+          placeholder={inheritedValue(text, "stFontSize", device) || "Default"}
+          max={200}
+          onChange={(v) => set({ [fontSizeKey]: v })}
+        />
+      </StyleRow>
+      <StyleRow label="Font weight">
+        <ToggleButtons id={`${id}-font-weight`} value={text("stFontWeight")} options={FONT_WEIGHT_OPTIONS} onChange={(v) => set({ stFontWeight: v })} />
+      </StyleRow>
+      <StyleRow label="Text colour" hint="Headings, text and lists; buttons and links keep theirs.">
+        <ColorField id={`${id}-text-color`} value={color} onChange={(v) => set({ stColor: v }, Object.keys(PRESET_TEXT))} />
+      </StyleRow>
+      <div className="border-t border-border dark:border-border-dark" />
+      <StyleRow label="Border">
+        <div className="flex flex-wrap items-center gap-2">
+          <Select
+            id={`${id}-border-style`}
+            size="small"
+            className="min-w-36"
+            value={borderStyle}
+            onChange={(v: string) => setBorder({ stBorder: v, ...(v && v !== "none" && !borderWidth ? { stBorderWidth: "1" } : {}) })}
+            options={BORDER_STYLE_OPTIONS}
+          />
+          {hasBorder && <PxInput id={`${id}-border-width`} value={borderWidth} placeholder="1" max={50} onChange={(v) => setBorder({ stBorderWidth: v })} />}
+        </div>
+      </StyleRow>
+      {hasBorder && (
+        <StyleRow label="Border colour">
+          <ColorField id={`${id}-border-color`} value={borderColor} onChange={(v) => setBorder({ stBorderColor: v })} />
+        </StyleRow>
+      )}
+      <StyleRow label="Rounded corners">
+        <div className="flex flex-wrap items-center gap-2">
+          <PxInput id={`${id}-radius`} value={radius} placeholder="0" max={999} onChange={(v) => set({ stRadius: v }, Object.keys(PRESET_RADIUS))} />
+          <ToggleButtons
+            value={["0", "6", "12", "20", "999"].includes(radius) ? radius : ""}
+            options={[
+              { value: "0", label: "Square" },
+              { value: "6", label: "S" },
+              { value: "12", label: "M" },
+              { value: "20", label: "L" },
+              { value: "999", label: "Pill" },
+            ]}
+            onChange={(v) => set({ stRadius: v }, Object.keys(PRESET_RADIUS))}
+          />
+        </div>
+      </StyleRow>
+      <StyleRow label="Shadow">
+        <ToggleButtons
+          id={`${id}-shadow`}
+          value={groupClass(section.customClass, SHADOW_CLASSES)}
+          options={SHADOW_OPTIONS}
+          onChange={(cls) => onUpdate({ customClass: setExclusiveClass(section.customClass, SHADOW_CLASSES, cls) })}
+        />
+      </StyleRow>
+    </StylePanel>
   );
 }
 
@@ -788,7 +1162,7 @@ function LayoutSettings({
 }) {
   return (
     <div className="section-layout-settings flex flex-col gap-3 rounded-md bg-surface px-4 py-3 dark:bg-surface-muted-dark">
-      <span className="text-xs font-semibold tracking-wide text-text-muted uppercase dark:text-text-muted-dark">Layout</span>
+      <span className="text-xs font-semibold tracking-wide text-text-muted uppercase dark:text-text-muted-dark">Responsive</span>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[520px] text-sm">
           <thead>
@@ -856,7 +1230,7 @@ function LayoutSettings({
       )}
       <span className="text-xs text-text-muted dark:text-text-muted-dark">
         Default keeps the component&apos;s own layout. Max width is the content&apos;s width; position places it when it is
-        narrower than the page. Mobile is below 640px, tablet 640–1199px, desktop 1200px and up.
+        narrower than the page. <DeviceRanges />
       </span>
     </div>
   );
@@ -944,6 +1318,9 @@ export default function SectionBuilder({
   const [savingLibrary, setSavingLibrary] = useState(false);
   const [templates, setTemplates] = useState<SectionTemplateDTO[]>([]);
   const [previewOpen, setPreviewOpen] = useState(false);
+  // The device the Style tab edits and the Live Preview shows.
+  const [editDevice, setEditDevice] = useState<EditDevice>("desktop");
+  const deviceContext = useMemo(() => ({ device: editDevice, setDevice: setEditDevice }), [editDevice]);
   const clipboard = useSectionClipboard();
 
   useEffect(() => {
@@ -1604,6 +1981,7 @@ export default function SectionBuilder({
   }
 
   return (
+    <EditDeviceContext.Provider value={deviceContext}>
     <div id="section-builder" className="section-builder flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -1729,5 +2107,6 @@ export default function SectionBuilder({
         )}
       </div>
     </div>
+    </EditDeviceContext.Provider>
   );
 }

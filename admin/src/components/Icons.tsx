@@ -596,3 +596,82 @@ export function IconColumnRight(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+// Container layouts (Style tab), and linking the four sides of padding,
+// margin or gap so they change together.
+
+export function IconLayoutStack(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <rect x="4" y="4" width="16" height="6" rx="1" />
+      <rect x="4" y="14" width="16" height="6" rx="1" />
+    </svg>
+  );
+}
+
+export function IconLayoutRow(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="5" width="8" height="14" rx="1" />
+      <rect x="13" y="5" width="8" height="14" rx="1" />
+    </svg>
+  );
+}
+
+export function IconLayoutGrid(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <rect x="4" y="4" width="7" height="7" rx="1" />
+      <rect x="13" y="4" width="7" height="7" rx="1" />
+      <rect x="4" y="13" width="7" height="7" rx="1" />
+      <rect x="13" y="13" width="7" height="7" rx="1" />
+    </svg>
+  );
+}
+
+export function IconLayoutTabs(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3 9h18v11H3z" />
+      <path d="M3 9V5h6v4M9 5h6v4" />
+    </svg>
+  );
+}
+
+export function IconLayoutAccordion(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="4" width="18" height="4" rx="1" />
+      <rect x="3" y="10" width="18" height="10" rx="1" />
+      <path d="M17 6h1" />
+    </svg>
+  );
+}
+
+export function IconLayoutCarousel(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <rect x="6" y="5" width="12" height="14" rx="1" />
+      <path d="M3 8v8M21 8v8" />
+    </svg>
+  );
+}
+
+export function IconLink(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1" />
+      <path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1" />
+    </svg>
+  );
+}
+
+export function IconUnlink(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M15.66 14l3-3a4 4 0 0 0-5.66-5.66l-1 1" />
+      <path d="M8.34 10l-3 3a4 4 0 0 0 5.66 5.66l1-1" />
+      <path d="M4 4l16 16" />
+    </svg>
+  );
+}

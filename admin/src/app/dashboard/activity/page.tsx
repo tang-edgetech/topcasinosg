@@ -5,7 +5,7 @@ import { App as AntApp, Button, DatePicker, Drawer, Dropdown, Select, Table, Tag
 import dayjs, { type Dayjs } from "dayjs";
 import { useAuth } from "@/lib/auth-context";
 import { api, ApiError } from "@/lib/api";
-import type { AuditActorDTO, AuditLogDTO } from "@/lib/types";
+import type { APIKeyDTO, AuditActorDTO, AuditLogDTO, AuditSource } from "@/lib/types";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { titleCase } from "@/lib/format";
 import PageHeading from "@/components/PageHeading";
@@ -20,6 +20,15 @@ const OUTCOME_FILTERS = [
   { value: "success", label: "Success" },
   { value: "error", label: "Failed" },
 ];
+
+// Where an entry came from; API and connector entries are every request an
+// API key made, reads included (api/internal/middleware/api_request_log.go).
+const SOURCE_LABELS: Record<AuditSource, string> = {
+  dashboard: "Dashboard",
+  api: "API",
+  connector: "AI connector",
+};
+const SOURCE_COLORS: Record<AuditSource, string> = { dashboard: "default", api: "blue", connector: "purple" };
 
 const SECTION_LABELS: Record<string, string> = {
   pages: "Pages",
@@ -43,6 +52,12 @@ const SECTION_LABELS: Record<string, string> = {
   imports: "Import",
   account: "My Account",
   auth: "Sign-in",
+  "content-changes": "AI Changes",
+  changes: "AI Changes",
+  "recycle-bin": "Recycle Bin",
+  schema: "API schema",
+  me: "API key info",
+  "global-sections": "Global Sections",
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -61,9 +76,15 @@ const ACTION_LABELS: Record<string, string> = {
   logout: "Signed out",
   download: "Downloaded",
   preview: "Previewed",
+  read: "Viewed",
+  "dry run": "Checked (not saved)",
+  withdraw: "Withdrew",
+  "approve AI change": "Approved AI change",
+  "move to recycle bin": "Moved to Recycle Bin",
+  "restore from recycle bin": "Restored from Recycle Bin",
 };
 
-const ACTION_FILTERS = ["create", "update", "delete", "status", "login", "login_failed", "logout"];
+const ACTION_FILTERS = ["create", "update", "delete", "status", "read", "dry run", "login", "login_failed", "logout"];
 
 function sectionLabel(entityType: string): string {
   const [root, ...rest] = entityType.split("/");
@@ -94,6 +115,8 @@ function displayValue(value: unknown): string {
 
 interface ActivityFilters {
   actorId?: string;
+  source?: AuditSource;
+  apiKeyId?: string;
   entityType?: string;
   action?: string;
   outcome?: string;
@@ -103,6 +126,8 @@ interface ActivityFilters {
 function describeFilters(filters: ActivityFilters, actors: AuditActorDTO[]): string {
   const parts: string[] = [];
   if (filters.actorId) parts.push(`user: ${actors.find((a) => String(a.id) === filters.actorId)?.name ?? filters.actorId}`);
+  if (filters.source) parts.push(`source: ${SOURCE_LABELS[filters.source]}`);
+  if (filters.apiKeyId) parts.push(`API key id: ${filters.apiKeyId}`);
   if (filters.entityType) parts.push(`section: ${SECTION_LABELS[filters.entityType] ?? filters.entityType}`);
   if (filters.action) parts.push(`action: ${actionLabel(filters.action)}`);
   if (filters.outcome) parts.push(`status: ${filters.outcome === "error" ? "failed" : "success"}`);
@@ -113,6 +138,8 @@ function describeFilters(filters: ActivityFilters, actors: AuditActorDTO[]): str
 function buildQuery(filters: ActivityFilters, page: number, pageSize: number): string {
   const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
   if (filters.actorId) params.set("actorId", filters.actorId);
+  if (filters.source) params.set("source", filters.source);
+  if (filters.apiKeyId) params.set("apiKeyId", filters.apiKeyId);
   if (filters.entityType) params.set("entityType", filters.entityType);
   if (filters.action) params.set("action", filters.action);
   if (filters.outcome) params.set("outcome", filters.outcome);
@@ -133,6 +160,8 @@ export default function ActivityPage() {
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [filters, setFilters] = useState<ActivityFilters>({});
   const [actors, setActors] = useState<AuditActorDTO[]>([]);
+  // API keys, for the key filter (only Super Admins and Admins can list them).
+  const [apiKeys, setApiKeys] = useState<APIKeyDTO[]>([]);
   const [selected, setSelected] = useState<AuditLogDTO | null>(null);
   const [checked, setChecked] = useState<Map<number, AuditLogDTO>>(new Map());
   const [exporting, setExporting] = useState(false);
@@ -142,6 +171,10 @@ export default function ActivityPage() {
       .get<{ actors: AuditActorDTO[] | null }>("/api/admin/activity/actors")
       .then((data) => setActors(data.actors ?? []))
       .catch(() => setActors([]));
+    api
+      .get<{ apiKeys: APIKeyDTO[] | null }>("/api/admin/api-keys")
+      .then((data) => setApiKeys(data.apiKeys ?? []))
+      .catch(() => setApiKeys([]));
   }, []);
 
   const query = buildQuery(filters, page, pageSize);
@@ -170,7 +203,7 @@ export default function ActivityPage() {
   if (!user) return null;
 
   const isEditor = user.role === "editor";
-  const hasFilters = Boolean(filters.actorId || filters.entityType || filters.action || filters.outcome || filters.range);
+  const hasFilters = Boolean(filters.actorId || filters.source || filters.apiKeyId || filters.entityType || filters.action || filters.outcome || filters.range);
   const exportScope = checked.size > 0 ? `${checked.size} selected` : `all ${total} matching`;
 
   function updateFilters(next: Partial<ActivityFilters>) {
@@ -269,6 +302,31 @@ export default function ActivityPage() {
           />
         )}
         <Select
+          id="activity-filter-source"
+          allowClear
+          placeholder="All sources"
+          className="min-w-36"
+          value={filters.source}
+          onChange={(value) => updateFilters({ source: value })}
+          options={Object.entries(SOURCE_LABELS).map(([value, label]) => ({ value, label }))}
+        />
+        {apiKeys.length > 0 && (
+          <Select
+            id="activity-filter-api-key"
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            placeholder="All API keys"
+            className="min-w-44"
+            value={filters.apiKeyId}
+            onChange={(value) => updateFilters({ apiKeyId: value })}
+            options={apiKeys.map((key) => ({
+              value: String(key.id),
+              label: `${key.name} (${key.prefix}…)${key.revokedAt ? " · revoked" : ""}`,
+            }))}
+          />
+        )}
+        <Select
           id="activity-filter-section"
           allowClear
           placeholder="All sections"
@@ -302,7 +360,7 @@ export default function ActivityPage() {
           disabledDate={(date) => date.isAfter(dayjs(), "day")}
         />
         {hasFilters && (
-          <Button id="activity-filters-clear" onClick={() => updateFilters({ actorId: undefined, entityType: undefined, action: undefined, outcome: undefined, range: null })}>
+          <Button id="activity-filters-clear" onClick={() => updateFilters({ actorId: undefined, source: undefined, apiKeyId: undefined, entityType: undefined, action: undefined, outcome: undefined, range: null })}>
             Clear filters
           </Button>
         )}
@@ -374,7 +432,14 @@ export default function ActivityPage() {
               log.actorName ? (
                 <div>
                   <p className="text-[15px] font-semibold leading-tight text-text dark:text-text-dark">{log.actorName}</p>
-                  <p className="text-[13px] leading-tight text-text-muted dark:text-text-muted-dark">{titleCase(log.actorRole)}</p>
+                  <p className="text-[13px] leading-tight text-text-muted dark:text-text-muted-dark">
+                    {log.actorRole ? titleCase(log.actorRole) : "Not signed in"}
+                    {log.source && log.source !== "dashboard" && (
+                      <Tag color={SOURCE_COLORS[log.source]} className="ml-1.5">
+                        {SOURCE_LABELS[log.source]}
+                      </Tag>
+                    )}
+                  </p>
                 </div>
               ) : (
                 <span className="text-text-muted dark:text-text-muted-dark">Unknown</span>
@@ -433,7 +498,20 @@ export default function ActivityPage() {
               <dt className="text-text-muted dark:text-text-muted-dark">When</dt>
               <dd>{dayjs(selected.createdAt).format(DATE_TIME_FORMAT)}</dd>
               <dt className="text-text-muted dark:text-text-muted-dark">User</dt>
-              <dd>{selected.actorName ? `${selected.actorName} (${titleCase(selected.actorRole)})` : "Unknown"}</dd>
+              <dd>
+                {selected.actorName ? `${selected.actorName}${selected.actorRole ? ` (${titleCase(selected.actorRole)})` : ""}` : "Unknown"}
+              </dd>
+              <dt className="text-text-muted dark:text-text-muted-dark">Source</dt>
+              <dd>{SOURCE_LABELS[selected.source] ?? selected.source}</dd>
+              {selected.apiKeyName && (
+                <>
+                  <dt className="text-text-muted dark:text-text-muted-dark">API key</dt>
+                  <dd>
+                    {selected.apiKeyName}
+                    {selected.apiKeyId !== null && <span className="ml-1 text-text-muted dark:text-text-muted-dark">#{selected.apiKeyId}</span>}
+                  </dd>
+                </>
+              )}
               <dt className="text-text-muted dark:text-text-muted-dark">Action</dt>
               <dd>{actionLabel(selected.action)}</dd>
               <dt className="text-text-muted dark:text-text-muted-dark">Section</dt>
@@ -465,7 +543,7 @@ export default function ActivityPage() {
               )}
               <dt className="text-text-muted dark:text-text-muted-dark">IP Address</dt>
               <dd>{formatClientAddress(selected) || "—"}</dd>
-              <dt className="text-text-muted dark:text-text-muted-dark">Browser</dt>
+              <dt className="text-text-muted dark:text-text-muted-dark">{selected.source === "dashboard" ? "Browser" : "Client"}</dt>
               <dd className="break-words">{selected.userAgent || "—"}</dd>
             </dl>
 

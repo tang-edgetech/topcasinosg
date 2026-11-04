@@ -69,6 +69,13 @@ export interface SiteSettingsDTO {
   twitterHandle: string;
   footer: FooterConfigDTO;
   security: SecurityPolicyDTO;
+  // Page builder screen sizes: tablet and desktop start at these widths (px).
+  breakpoints?: BreakpointsDTO;
+}
+
+export interface BreakpointsDTO {
+  tablet: number;
+  desktop: number;
 }
 
 // The public footer's arrangement, bottom bar and badges (Footer page).
@@ -618,6 +625,11 @@ export interface AuditLogDTO {
   entityId: number | null;
   entityLabel: string;
   changes: Record<string, AuditChange> | null;
+  // Where it came from (api/internal/domain/audit.go AuditSource*): the
+  // dashboard, the Content API with a key, or the AI connector (mcp/).
+  source: AuditSource;
+  apiKeyId: number | null;
+  apiKeyName: string;
   ipAddress: string;
   ipPort: number | null;
   userAgent: string;
@@ -627,6 +639,8 @@ export interface AuditLogDTO {
   error: string;
   createdAt: string;
 }
+
+export type AuditSource = "dashboard" | "api" | "connector";
 
 export interface AuditActorDTO {
   id: number;

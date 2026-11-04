@@ -39,6 +39,8 @@ type siteSettingsDTO struct {
 	// Security: lockout and password rules. Not secret, and the sign-in and
 	// change-password pages show the password rules.
 	Security domain.SecurityPolicy `json:"security"`
+	// Breakpoints: the page builder's tablet and desktop screen sizes.
+	Breakpoints domain.Breakpoints `json:"breakpoints"`
 }
 
 type socialDefaultsJSON struct {
@@ -69,6 +71,7 @@ func toSiteSettingsDTO(s *domain.SiteSettings) siteSettingsDTO {
 		socialDefaultsJSON: socialDefaultsJSON(s.SocialDefaults),
 		Footer:             withFooterBadges(s.Footer),
 		Security:           s.Security,
+		Breakpoints:        s.Breakpoints,
 	}
 }
 
@@ -97,7 +100,8 @@ func siteSettingsErrorStatus(err error) int {
 		errors.Is(err, service.ErrTooManyFooterBadges),
 		errors.Is(err, service.ErrInvalidFooterBadge),
 		errors.Is(err, service.ErrInvalidLockout),
-		errors.Is(err, service.ErrInvalidPasswordLength):
+		errors.Is(err, service.ErrInvalidPasswordLength),
+		errors.Is(err, service.ErrInvalidBreakpoints):
 		return http.StatusBadRequest
 	default:
 		return http.StatusInternalServerError
@@ -121,6 +125,8 @@ type updateSiteSettingsRequest struct {
 	Timezone  string `json:"timezone"`
 	Language  string `json:"language"`
 	socialDefaultsJSON
+	// Optional: left out keeps the saved screen sizes.
+	Breakpoints *domain.Breakpoints `json:"breakpoints"`
 }
 
 func (h *SiteSettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
@@ -138,6 +144,9 @@ func (h *SiteSettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Timezone:       req.Timezone,
 		Language:       domain.Language(req.Language),
 		SocialDefaults: domain.SocialDefaults(req.socialDefaultsJSON),
+	}
+	if req.Breakpoints != nil {
+		next.Breakpoints = *req.Breakpoints
 	}
 	if err := h.settings.Update(r.Context(), actor, next); err != nil {
 		response.Err(w, siteSettingsErrorStatus(err), err.Error())

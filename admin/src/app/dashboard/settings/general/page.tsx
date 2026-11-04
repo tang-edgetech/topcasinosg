@@ -30,6 +30,9 @@ export default function GeneralSettingsPage() {
   const [language, setLanguage] = useState("en");
   const [ogImageUrl, setOgImageUrl] = useState("");
   const [twitterHandle, setTwitterHandle] = useState("");
+  // Page builder screen sizes (px): tablet and desktop start here.
+  const [bpTablet, setBpTablet] = useState(768);
+  const [bpDesktop, setBpDesktop] = useState(1200);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -49,6 +52,10 @@ export default function GeneralSettingsPage() {
     setLanguage(settings.language);
     setOgImageUrl(settings.ogImageUrl ?? "");
     setTwitterHandle(settings.twitterHandle ?? "");
+    if (settings.breakpoints?.tablet) {
+      setBpTablet(settings.breakpoints.tablet);
+      setBpDesktop(settings.breakpoints.desktop);
+    }
   }, [settings]);
 
   if (!user) return null;
@@ -75,6 +82,7 @@ export default function GeneralSettingsPage() {
         language,
         ogImageUrl,
         twitterHandle,
+        breakpoints: { tablet: bpTablet, desktop: bpDesktop },
       });
       await refresh();
       setSuccess(true);
@@ -364,6 +372,63 @@ export default function GeneralSettingsPage() {
               className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-primary-500 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark"
             />
           </div>
+        </fieldset>
+
+        <fieldset
+          id="settings-screen-sizes"
+          className="settings-screen-sizes mt-4 flex flex-col gap-4 rounded-md border border-border p-4 dark:border-border-dark"
+        >
+          <legend className="px-1 text-lg font-bold text-text dark:text-text-dark">Screen Sizes</legend>
+          <p className="text-sm text-text-muted dark:text-text-muted-dark">
+            Where the page builder&apos;s Mobile, Tablet and Desktop settings switch over: per-device styles, Hide on, grid columns,
+            carousel slides and when rows stack.
+          </p>
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="form-field flex flex-col gap-1">
+              <label htmlFor="settings-bp-tablet" className="text-sm font-medium text-text dark:text-text-dark">
+                Tablet from (px)
+              </label>
+              <input
+                id="settings-bp-tablet"
+                type="number"
+                min={480}
+                max={2460}
+                required
+                value={bpTablet}
+                onChange={(e) => setBpTablet(Number(e.target.value))}
+                className="w-28 rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-primary-500 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark"
+              />
+            </div>
+            <div className="form-field flex flex-col gap-1">
+              <label htmlFor="settings-bp-desktop" className="text-sm font-medium text-text dark:text-text-dark">
+                Desktop from (px)
+              </label>
+              <input
+                id="settings-bp-desktop"
+                type="number"
+                min={bpTablet + 100}
+                max={2560}
+                required
+                value={bpDesktop}
+                onChange={(e) => setBpDesktop(Number(e.target.value))}
+                className="w-28 rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-primary-500 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark"
+              />
+            </div>
+            <button
+              type="button"
+              id="settings-bp-reset"
+              onClick={() => {
+                setBpTablet(768);
+                setBpDesktop(1200);
+              }}
+              className="cursor-pointer pb-2 text-sm text-primary-700 hover:underline dark:text-primary-300"
+            >
+              Reset to 768 / 1200
+            </button>
+          </div>
+          <p id="settings-bp-summary" className="text-sm text-text dark:text-text-dark">
+            Mobile: below {bpTablet}px · Tablet: {bpTablet}–{bpDesktop - 1}px · Desktop: {bpDesktop}px and up
+          </p>
         </fieldset>
 
         <p id="settings-footer-moved" className="mt-4 text-sm text-text-muted dark:text-text-muted-dark">

@@ -57,9 +57,13 @@ var classicAbout = "Classic fixed block: still renders, but new content should b
 var blockDocs = map[string]blockDoc{
 	"container": {Kind: "container", About: "Holds and arranges the sections after it at the next depth. The only block (with global_section) allowed at depth 0.", Fields: []fieldDoc{
 		txt("layout", "How the children are arranged. Empty means stack. Tabs and accordion use each child's \"panelTitle\" field as its title; carousel shows perView children at a time.", "stack", "row", "grid", "tabs", "accordion", "carousel"),
-		txt("gap", "Space between children: s=16px, m=30px, l=50px. Default l for stack/row, m for grid and panels.", "s", "m", "l"),
-		txt("columns", "Grid columns (layout grid).", "2", "3", "4"),
-		txt("perView", "Slides visible at once (layout carousel).", "1", "2", "3", "4"),
+		txt("gap", "Space between children: a preset (s=16px, m=30px, l=50px), or px: \"24\", or \"24 40\" for between rows then between columns. Default 50 for stack/row, 30 for grid and panels."),
+		txt("columns", "Grid columns on desktop (layout grid).", "2", "3", "4"),
+		txt("columnsTablet", "Grid columns on tablet (default 2).", "1", "2", "3", "4"),
+		txt("columnsMobile", "Grid columns on mobile (default 1).", "1", "2", "3", "4"),
+		txt("perView", "Slides visible at once on desktop (layout carousel).", "1", "2", "3", "4"),
+		txt("perViewTablet", "Slides visible on tablet (default 2).", "1", "2", "3", "4"),
+		txt("perViewMobile", "Slides visible on mobile (default one and a peek of the next).", "1", "2", "3", "4"),
 		txt("justify", "Main-axis placement (row, or stack).", "start", "center", "end", "between", "around"),
 		txt("align", "Cross-axis alignment. Default stretch; in a stack, center makes children shrink to their content.", "start", "center", "end", "stretch"),
 		txt("wrap", "Row only: \"no\" keeps everything on one line.", "no"),
@@ -67,15 +71,19 @@ var blockDocs = map[string]blockDoc{
 		txt("tabsAlign", "Tabs only: where the tab buttons sit.", "start", "center"),
 		txt("firstOpen", "Accordion only: \"no\" starts with every panel closed.", "no"),
 		txt("componentSpacing", "Stack only: \"own\" drops the gap and lets each child's own spacing apply.", "own"),
-		txt("spaceTop", "Padding above: none=0, s=25px, m=50px, l=80px. Default m at depth 0, none when nested.", "none", "s", "m", "l"),
+		txt("spaceTop", "Padding above as a preset: none=0, s=25px, m=50px, l=80px. Default m at depth 0, none when nested. The stPadding style field overrides it.", "none", "s", "m", "l"),
 		txt("spaceBottom", "Padding below, same values as spaceTop.", "none", "s", "m", "l"),
 		txt("spaceSides", "Nested containers only: padding left and right.", "none", "s", "m", "l"),
 		txt("contentWidth", "Max content width. Default 1270 at depth 0, full when nested.", "1270", "960", "768", "full"),
-		txt("minHeight", "Minimum height: s=200px, m=400px, l=600px, screen=full window.", "s", "m", "l", "screen"),
-		txt("bgType", "Full-width background behind the container.", "none", "color", "gradient", "image"),
-		txt("bgFrom", "Background colour (color) or gradient start.", bgTokens...),
-		txt("bgTo", "Gradient end colour.", bgTokens...),
+		txt("minHeight", "Minimum height (stack and row): a preset (s=200px, m=400px, l=600px, screen) or px like \"450\" or \"70vh\"."),
+		txt("bgType", "Full-width background behind the container. gradient is linear.", "none", "color", "gradient", "radial", "image"),
+		txt("bgFrom", "Background colour, or the gradient's first colour: a colour token or #hex (see styleFields).", bgTokens...),
+		txt("bgTo", "The gradient's second colour.", bgTokens...),
+		txt("bgAngle", "Linear gradient direction in degrees, 0-360 (default 180, downwards)."),
 		{Key: "bgImage", Type: "image", About: "Background image (bgType image): a mediaId."},
+		txt("bgSize", "Image size.", "cover", "contain", "auto"),
+		txt("bgPosition", "Image position.", "center", "top", "bottom", "left", "right"),
+		txt("bgOverlay", "A colour over the image, usually see-through: #rrggbbaa, e.g. #1a1e7199."),
 		txt("textTone", "\"light\" makes text white, for dark backgrounds.", "light"),
 	}},
 	"global_section": {Kind: "other", About: "Includes a reusable global section (GET /api/v1/global-sections). Depth 0 only.", Fields: []fieldDoc{
@@ -231,6 +239,32 @@ func init() {
 			blockDocs[t] = blockDoc{Kind: "classic", About: classicAbout}
 		}
 	}
+}
+
+// styleFields are the Style tab's free-form settings (web/src/lib/
+// sectionStyle.ts), text fields on itemIndex 0 that any section can have.
+var styleFields = map[string]any{
+	"about": "Any section can also have these text fields on itemIndex 0 to style its own box. Sizes are numbers of px. Colours are a token name (primary-50 ... primary-900, primary-glow, secondary-50 ... secondary-900, success, success-subtle, danger, white, black) or #hex / #rrggbbaa. Leave a field out for the default. Tablet and mobile: stPadding, stMargin, stMinHeight and stFontSize (and a container's gap and minHeight) can also be set per device by adding \"Tablet\" or \"Mobile\" to the key (stPaddingMobile, gapTablet, ...). The plain key is desktop and applies everywhere; a Tablet value overrides it on tablet and mobile, a Mobile value on mobile only. Screen sizes come from Site Settings (default: mobile below 768px, tablet 768-1199px, desktop 1200px and up).",
+	"fields": []fieldDoc{
+		txt("stPadding", "Space inside: \"top right bottom left\" in px, \"-\" for a side left at its default, or one number for all four. Give all four sides: \"40 24 40 24\", not \"40 24\". On a container it is the space around its content."),
+		txt("stMargin", "Space outside, same format as stPadding."),
+		txt("stMinHeight", "Minimum height of a component: px like \"300\" or \"50vh\". Containers use their minHeight field."),
+		txt("stBg", "Background of the component's own box (containers use bgType instead).", "none", "color", "linear", "radial", "image"),
+		txt("stBgColor", "Background colour, or the gradient's first colour."),
+		txt("stBgColor2", "The gradient's second colour."),
+		txt("stBgAngle", "Linear gradient direction in degrees (default 90, left to right)."),
+		{Key: "stBgImage", Type: "image", About: "Background image (stBg image): a mediaId."},
+		txt("stBgSize", "Image size.", "cover", "contain", "auto"),
+		txt("stBgPosition", "Image position.", "center", "top", "bottom", "left", "right"),
+		txt("stBgOverlay", "A colour over the image, e.g. #00000080."),
+		txt("stFontSize", "Text size in px for all the component's text (a container: for text without its own size)."),
+		txt("stFontWeight", "Text weight.", "300", "400", "500", "600", "700", "800"),
+		txt("stColor", "Text colour for headings, text and lists; buttons and links keep theirs."),
+		txt("stBorder", "Border style.", "none", "solid", "dashed", "dotted", "double"),
+		txt("stBorderWidth", "Border thickness in px (default 1)."),
+		txt("stBorderColor", "Border colour."),
+		txt("stRadius", "Rounded corners in px (999 for a pill)."),
+	},
 }
 
 // styleClasses are the Style presets a section can carry in customClass

@@ -29,8 +29,27 @@ type SiteSettings struct {
 	Security         SecurityPolicy
 	FooterContact
 	SocialDefaults
-	Footer    FooterConfig
-	UpdatedAt time.Time
+	Footer      FooterConfig
+	Breakpoints Breakpoints
+	UpdatedAt   time.Time
+}
+
+// Breakpoints are the page builder's device sizes in px: tablet from Tablet,
+// desktop from Desktop, mobile below Tablet.
+type Breakpoints struct {
+	Tablet  int `json:"tablet"`
+	Desktop int `json:"desktop"`
+}
+
+const (
+	MinBreakpointTablet  = 480
+	MaxBreakpointDesktop = 2560
+)
+
+// Valid: tablet from at least MinBreakpointTablet, desktop at least 100px
+// wider and at most MaxBreakpointDesktop.
+func (b Breakpoints) Valid() bool {
+	return b.Tablet >= MinBreakpointTablet && b.Desktop >= b.Tablet+100 && b.Desktop <= MaxBreakpointDesktop
 }
 
 // FooterConfig is the public footer's arrangement and the parts that used

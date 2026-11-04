@@ -6,10 +6,27 @@ import { Checkbox, Input, Radio, Select } from "antd";
 import RichTextEditor from "@/components/content/RichTextEditor";
 import MediaField from "@/components/media/MediaField";
 import IconButton from "@/components/IconButton";
-import { IconPhoto, IconPlus, IconTrash } from "@/components/Icons";
+import {
+  IconAlignCenter,
+  IconAlignJustify,
+  IconAlignLeft,
+  IconAlignRight,
+  IconLayoutAccordion,
+  IconLayoutCarousel,
+  IconLayoutGrid,
+  IconLayoutRow,
+  IconLayoutStack,
+  IconLayoutTabs,
+  IconMobile,
+  IconPhoto,
+  IconPlus,
+  IconTablet,
+  IconTrash,
+} from "@/components/Icons";
 import { api } from "@/lib/api";
 import type { CasinoDTO, GlobalSectionDTO, MediaDTO, PageBlockType, PageFieldType, RegionDTO } from "@/lib/types";
 import { WIDGET_ICONS } from "@/lib/widgetIcons";
+import { BackgroundControl, DEVICE_SUFFIX, StyleRow, ToggleButtons, useEditDevice, type BackgroundValue, type ToggleOption } from "./StyleControls";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
 
@@ -726,45 +743,56 @@ function SectionBackgroundFields({
   defaultBgFrom?: string;
   defaultBgTo?: string;
 }) {
-  const bgType = getField(fields, 0, "bgType")?.textValue || defaultBgType;
-  const bgFrom = getField(fields, 0, "bgFrom")?.textValue || defaultBgFrom;
-  const bgTo = getField(fields, 0, "bgTo")?.textValue || defaultBgTo;
-  const bgImage = getField(fields, 0, "bgImage");
+  const text = (key: string) => getField(fields, 0, key)?.textValue ?? "";
+  const bgType = text("bgType") || defaultBgType;
+  // web sectionBgStyle: "gradient" is a linear gradient, top to bottom
+  // unless an angle is set.
+  const value: BackgroundValue = {
+    type: bgType === "gradient" ? "linear" : bgType,
+    color: text("bgFrom") || defaultBgFrom,
+    color2: text("bgTo") || defaultBgTo,
+    angle: text("bgAngle") || (bgType === "gradient" ? "180" : ""),
+    imageUrl: getField(fields, 0, "bgImage")?.mediaUrl ?? null,
+    size: text("bgSize"),
+    position: text("bgPosition"),
+    overlay: text("bgOverlay"),
+  };
+  const orders: Record<string, number> = { ...sortOrders, bgAngle: 120, bgSize: 121, bgPosition: 122, bgOverlay: 123 };
 
-  function setStyleField(key: string, sortOrder: number, value: string) {
-    onChange(upsertField(fields, 0, key, "text", sortOrder, { textValue: value }));
+  function setValues(values: Record<string, string>) {
+    let next = fields;
+    for (const [key, v] of Object.entries(values)) next = upsertField(next, 0, key, "text", orders[key], { textValue: v });
+    onChange(next);
   }
 
   return (
     <StyleFields>
-    <div className="section-bg-fields flex flex-col gap-3 rounded-md bg-surface-muted p-4 dark:bg-surface-muted-dark">
-      <LabeledField label="Section Background">
-        <Select value={bgType} onChange={(v) => setStyleField("bgType", sortOrders.bgType, v)} options={SECTION_BG_TYPE_OPTIONS} />
-      </LabeledField>
-      {bgType === "color" && (
-        <LabeledField label="Color">
-          <Select value={bgFrom} onChange={(v) => setStyleField("bgFrom", sortOrders.bgFrom, v)} options={SECTION_BG_COLOR_OPTIONS} />
-        </LabeledField>
-      )}
-      {bgType === "gradient" && (
-        <div className="flex gap-3">
-          <LabeledField label="From">
-            <Select value={bgFrom} onChange={(v) => setStyleField("bgFrom", sortOrders.bgFrom, v)} options={SECTION_BG_COLOR_OPTIONS} />
-          </LabeledField>
-          <LabeledField label="To">
-            <Select value={bgTo} onChange={(v) => setStyleField("bgTo", sortOrders.bgTo, v)} options={SECTION_BG_COLOR_OPTIONS} />
-          </LabeledField>
-        </div>
-      )}
-      {bgType === "image" && (
-        <ImagePickerField
-          label="Background Image"
-          mediaId={bgImage?.mediaId ?? null}
-          mediaUrl={bgImage?.mediaUrl ?? null}
-          onChange={(mediaId, mediaUrl) => onChange(upsertField(fields, 0, "bgImage", "image", sortOrders.bgImage, { mediaId, mediaUrl }))}
+      <StyleRow label="Full-width background" hint="Fills the page's full width behind this component.">
+        <BackgroundControl
+          id="section-bg"
+          value={value}
+          onChange={(patch) => {
+            const next = { ...value, ...patch };
+            setValues({
+              bgType: next.type === "linear" ? "gradient" : next.type,
+              bgFrom: next.color,
+              bgTo: next.color2,
+              ...(patch.angle !== undefined ? { bgAngle: next.angle } : {}),
+              ...(patch.size !== undefined ? { bgSize: next.size } : {}),
+              ...(patch.position !== undefined ? { bgPosition: next.position } : {}),
+              ...(patch.overlay !== undefined ? { bgOverlay: next.overlay } : {}),
+            });
+          }}
+          onImage={(media) =>
+            onChange(
+              upsertField(upsertField(fields, 0, "bgType", "text", sortOrders.bgType, { textValue: "image" }), 0, "bgImage", "image", sortOrders.bgImage, {
+                mediaId: media?.id ?? null,
+                mediaUrl: media ? mediaUrl(media.url) : null,
+              })
+            )
+          }
         />
-      )}
-    </div>
+      </StyleRow>
     </StyleFields>
   );
 }
@@ -1765,6 +1793,16 @@ function textSetter(fields: EditableField[], onChange: (f: EditableField[]) => v
   return (key: string, order: number) => (v: string) => onChange(upsertField(fields, 0, key, "text", order, { textValue: v }));
 }
 
+// The Container's layout as toggle buttons with a picture of each.
+const CONTAINER_LAYOUT_TOGGLES: ToggleOption[] = [
+  { value: "stack", label: "Stack", icon: <><IconLayoutStack /> Stack</> },
+  { value: "row", label: "Row", icon: <><IconLayoutRow /> Row</> },
+  { value: "grid", label: "Grid", icon: <><IconLayoutGrid /> Grid</> },
+  { value: "tabs", label: "Tabs", icon: <><IconLayoutTabs /> Tabs</> },
+  { value: "accordion", label: "Accordion", icon: <><IconLayoutAccordion /> Accordion</> },
+  { value: "carousel", label: "Carousel", icon: <><IconLayoutCarousel /> Carousel</> },
+];
+
 export const CONTAINER_LAYOUTS = [
   { value: "stack", label: "Stack (one under another)" },
   { value: "row", label: "Row (side by side)" },
@@ -1786,208 +1824,183 @@ function ContainerFields({ fields, nested, onChange }: { fields: EditableField[]
   const layout = CONTAINER_LAYOUTS.some((o) => o.value === text("layout")) ? text("layout") : "stack";
   const grid = layout === "grid";
   const row = layout === "row";
-  const defaultSpace = nested ? "none" : "m";
   // "own": each component keeps its own padding and width (stack only).
   const ownSpacing = layout === "stack" && text("componentSpacing") === "own";
+  // Columns and slides per device: desktop in "columns" / "perView", tablet
+  // and mobile in columnsTablet, perViewMobile, ... (blank = the default).
+  const { device } = useEditDevice();
+  const countRow = (key: string, desktopOptions: string[], desktopDefault: string, sortOrder: number, deviceDefaults: Record<string, string>) => {
+    if (device === "desktop") {
+      return (
+        <ToggleButtons
+          value={desktopOptions.includes(text(key)) ? text(key) : desktopDefault}
+          onChange={set(key, sortOrder)}
+          options={desktopOptions.map((n) => ({ value: n, label: n }))}
+        />
+      );
+    }
+    const deviceKey = key + DEVICE_SUFFIX[device];
+    return (
+      <ToggleButtons
+        value={["1", "2", "3", "4"].includes(text(deviceKey)) ? text(deviceKey) : ""}
+        onChange={set(deviceKey, sortOrder + (device === "tablet" ? 20 : 21))}
+        options={[{ value: "", label: `Default (${deviceDefaults[device]})` }, ...["1", "2", "3", "4"].map((n) => ({ value: n, label: n }))]}
+      />
+    );
+  };
 
   return (
     <div className="flex flex-col gap-4">
       <p className="text-xs text-text-muted dark:text-text-muted-dark">
         A Container is the only thing placed directly on a page (level 0, rendered as &lt;section&gt;); every component sits inside one
         and shares its background and layout. A Container can also go inside another one: use a Row with two Containers in it for two
-        columns, or a Container with a background as a box. Add with “+ Add Component Inside”, or drag in. Layout, spacing, colours and
-        background are in the Style tab; in a row or grid, set each item&apos;s width in its own Style tab. With Tabs or Accordion, each
+        columns, or a Container with a background as a box. Add with “+ Add Component Inside”, or drag in. Layout, padding, gap,
+        background and colours are in the Style tab; in a row or grid, set each item&apos;s width in its own Style tab. With Tabs or Accordion, each
         component&apos;s title is set at the top of its own Content tab.
       </p>
       <StyleFields>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <LabeledField label="Layout">
-          <Select value={layout} onChange={set("layout", 5)} options={CONTAINER_LAYOUTS} />
-        </LabeledField>
-        {layout === "tabs" && (
-          <LabeledField label="Tab alignment">
-            <Select
-              value={text("tabsAlign") === "center" ? "center" : "start"}
-              onChange={set("tabsAlign", 13)}
-              options={[
-                { value: "start", label: "Left" },
-                { value: "center", label: "Centre" },
-              ]}
-            />
-          </LabeledField>
-        )}
-        {layout === "accordion" && (
-          <LabeledField label="First item">
-            <Select
-              value={text("firstOpen") === "no" ? "no" : "yes"}
-              onChange={set("firstOpen", 14)}
-              options={[
-                { value: "yes", label: "Open" },
-                { value: "no", label: "Closed" },
-              ]}
-            />
-          </LabeledField>
-        )}
-        {layout === "carousel" && (
-          <LabeledField label="Slides visible (desktop)">
-            <Select
-              value={["1", "2", "3", "4"].includes(text("perView")) ? text("perView") : "3"}
-              onChange={set("perView", 15)}
-              options={["1", "2", "3", "4"].map((n) => ({ value: n, label: `${n} slide${n === "1" ? "" : "s"}` }))}
-            />
-          </LabeledField>
-        )}
-        {row && (
-          <>
-            <LabeledField label="Horizontal position">
-              <Select
-                value={text("justify") || "start"}
-                onChange={set("justify", 17)}
+        <div className="flex flex-col gap-3">
+          <StyleRow label="Layout">
+            <ToggleButtons value={layout} options={CONTAINER_LAYOUT_TOGGLES} onChange={set("layout", 5)} />
+          </StyleRow>
+          {layout === "tabs" && (
+            <StyleRow label="Tab buttons">
+              <ToggleButtons
+                value={text("tabsAlign") === "center" ? "center" : "start"}
+                onChange={set("tabsAlign", 13)}
                 options={[
-                  { value: "start", label: "Left" },
-                  { value: "center", label: "Centre" },
-                  { value: "end", label: "Right" },
-                  { value: "between", label: "Space between" },
-                  { value: "around", label: "Space around" },
+                  { value: "start", label: "Left", icon: <IconAlignLeft /> },
+                  { value: "center", label: "Centre", icon: <IconAlignCenter /> },
                 ]}
               />
-            </LabeledField>
-            <LabeledField label="Wrap to next line">
-              <Select
-                value={text("wrap") === "no" ? "no" : "yes"}
-                onChange={set("wrap", 18)}
+            </StyleRow>
+          )}
+          {layout === "accordion" && (
+            <StyleRow label="First item">
+              <ToggleButtons
+                value={text("firstOpen") === "no" ? "no" : "yes"}
+                onChange={set("firstOpen", 14)}
                 options={[
-                  { value: "yes", label: "Yes, when there's no room" },
-                  { value: "no", label: "No, keep on one line" },
+                  { value: "yes", label: "Open" },
+                  { value: "no", label: "Closed" },
                 ]}
               />
-            </LabeledField>
-            <LabeledField label="Stack into one column on">
-              <Select
-                value={["mobile", "tablet", "never"].includes(text("stackOn")) ? text("stackOn") : "mobile"}
-                onChange={set("stackOn", 19)}
+            </StyleRow>
+          )}
+          {layout === "carousel" && (
+            <StyleRow label="Slides visible" responsive hint={device === "desktop" ? "Tablet and mobile show fewer unless set." : undefined}>
+              {countRow("perView", ["1", "2", "3", "4"], "3", 15, { tablet: text("perView") === "1" ? "1" : "2", mobile: "1 and a peek" })}
+            </StyleRow>
+          )}
+          {grid && (
+            <StyleRow label="Columns" responsive hint={device === "desktop" ? "Tablet shows 2 and mobile 1 unless set." : undefined}>
+              {countRow("columns", ["2", "3", "4"], "2", 6, { tablet: "2", mobile: "1" })}
+            </StyleRow>
+          )}
+          {row && (
+            <>
+              <StyleRow label="Horizontal">
+                <ToggleButtons
+                  value={text("justify") || "start"}
+                  onChange={set("justify", 17)}
+                  options={[
+                    { value: "start", label: "Left", icon: <IconAlignLeft /> },
+                    { value: "center", label: "Centre", icon: <IconAlignCenter /> },
+                    { value: "end", label: "Right", icon: <IconAlignRight /> },
+                    { value: "between", label: "Space between" },
+                    { value: "around", label: "Space around" },
+                  ]}
+                />
+              </StyleRow>
+              <StyleRow label="Wrap">
+                <ToggleButtons
+                  value={text("wrap") === "no" ? "no" : "yes"}
+                  onChange={set("wrap", 18)}
+                  options={[
+                    { value: "yes", label: "Wrap when there's no room" },
+                    { value: "no", label: "Keep on one line" },
+                  ]}
+                />
+              </StyleRow>
+              <StyleRow label="Stack on">
+                <ToggleButtons
+                  value={["mobile", "tablet", "never"].includes(text("stackOn")) ? text("stackOn") : "mobile"}
+                  onChange={set("stackOn", 19)}
+                  options={[
+                    { value: "mobile", label: "Mobile", icon: <IconMobile /> },
+                    { value: "tablet", label: "Mobile and tablet", icon: <IconTablet /> },
+                    { value: "never", label: "Never" },
+                  ]}
+                />
+              </StyleRow>
+            </>
+          )}
+          {(grid || row) && (
+            <StyleRow label="Vertical">
+              <ToggleButtons
+                value={text("align") || "stretch"}
+                onChange={set("align", 8)}
                 options={[
-                  { value: "mobile", label: "Mobile (below 640px)" },
-                  { value: "tablet", label: "Mobile and tablet (below 1024px)" },
-                  { value: "never", label: "Never" },
+                  { value: "stretch", label: "Stretch (equal height)" },
+                  { value: "start", label: "Top" },
+                  { value: "center", label: "Middle" },
+                  { value: "end", label: "Bottom" },
                 ]}
               />
-            </LabeledField>
-          </>
-        )}
-        {grid && (
-          <LabeledField label="Columns (desktop)">
-            <Select
-              value={["2", "3", "4"].includes(text("columns")) ? text("columns") : "2"}
-              onChange={set("columns", 6)}
-              options={["2", "3", "4"].map((n) => ({ value: n, label: `${n} columns` }))}
-            />
-          </LabeledField>
-        )}
-        {layout === "stack" && (
-          <LabeledField label="Spacing">
-            <Select
-              value={ownSpacing ? "own" : "container"}
-              onChange={set("componentSpacing", 16)}
-              options={[
-                { value: "container", label: "Set by this container" },
-                { value: "own", label: "Each component keeps its own" },
-              ]}
-            />
-          </LabeledField>
-        )}
-        {!ownSpacing && (
-          <LabeledField label="Gap between components">
-            <Select
-              value={text("gap") || (layout === "stack" ? "l" : "m")}
-              onChange={set("gap", 7)}
-              options={[
-                { value: "s", label: "Small (16px)" },
-                { value: "m", label: "Medium (30px)" },
-                { value: "l", label: "Large (50px)" },
-              ]}
-            />
-          </LabeledField>
-        )}
-        {(grid || row) && (
-          <LabeledField label="Vertical alignment">
-            <Select
-              value={text("align") || "stretch"}
-              onChange={set("align", 8)}
-              options={[
-                { value: "stretch", label: "Stretch (equal height)" },
-                { value: "start", label: "Top" },
-                { value: "center", label: "Middle" },
-                { value: "end", label: "Bottom" },
-              ]}
-            />
-          </LabeledField>
-        )}
-        {layout === "stack" && (
-          <LabeledField label="Horizontal alignment">
-            <Select
-              value={text("align") || "stretch"}
-              onChange={set("align", 8)}
-              options={[
-                { value: "stretch", label: "Full width" },
-                { value: "start", label: "Left" },
-                { value: "center", label: "Centre" },
-                { value: "end", label: "Right" },
-              ]}
-            />
-          </LabeledField>
-        )}
-        {(layout === "stack" || row) && (
-          <LabeledField label="Minimum height">
-            <Select
-              value={text("minHeight") || "none"}
-              onChange={set("minHeight", 20)}
-              options={[
-                { value: "none", label: "None (fit content)" },
-                { value: "s", label: "Small (200px)" },
-                { value: "m", label: "Medium (400px)" },
-                { value: "l", label: "Large (600px)" },
-                { value: "screen", label: "Full screen height" },
-              ]}
-            />
-          </LabeledField>
-        )}
-        {!ownSpacing && (
-          <>
-            <LabeledField label="Content width">
-              <Select
+            </StyleRow>
+          )}
+          {layout === "stack" && (
+            <>
+              <StyleRow label="Spacing">
+                <ToggleButtons
+                  value={ownSpacing ? "own" : "container"}
+                  onChange={set("componentSpacing", 16)}
+                  options={[
+                    { value: "container", label: "Set by this container" },
+                    { value: "own", label: "Each component keeps its own" },
+                  ]}
+                />
+              </StyleRow>
+              <StyleRow label="Horizontal">
+                <ToggleButtons
+                  value={text("align") || "stretch"}
+                  onChange={set("align", 8)}
+                  options={[
+                    { value: "stretch", label: "Full width", icon: <IconAlignJustify /> },
+                    { value: "start", label: "Left", icon: <IconAlignLeft /> },
+                    { value: "center", label: "Centre", icon: <IconAlignCenter /> },
+                    { value: "end", label: "Right", icon: <IconAlignRight /> },
+                  ]}
+                />
+              </StyleRow>
+            </>
+          )}
+          {!ownSpacing && (
+            <StyleRow label="Content width">
+              <ToggleButtons
                 value={text("contentWidth") || (nested ? "full" : "1270")}
                 onChange={set("contentWidth", 9)}
                 options={[
-                  { value: "1270", label: "Boxed (1270px)" },
-                  { value: "960", label: "Narrow (960px)" },
-                  { value: "768", label: "Reading (768px)" },
+                  { value: "1270", label: "Boxed 1270" },
+                  { value: "960", label: "Narrow 960" },
+                  { value: "768", label: "Reading 768" },
                   { value: "full", label: "Full width" },
                 ]}
               />
-            </LabeledField>
-            <LabeledField label="Space above">
-              <Select value={text("spaceTop") || defaultSpace} onChange={set("spaceTop", 10)} options={SPACE_OPTIONS} />
-            </LabeledField>
-            <LabeledField label="Space below">
-              <Select value={text("spaceBottom") || defaultSpace} onChange={set("spaceBottom", 11)} options={SPACE_OPTIONS} />
-            </LabeledField>
-            {nested && (
-              <LabeledField label="Space on the sides">
-                <Select value={text("spaceSides") || "none"} onChange={set("spaceSides", 21)} options={SPACE_OPTIONS} />
-              </LabeledField>
-            )}
-          </>
-        )}
-        <LabeledField label="Text colour inside">
-          <Select value={text("textTone") === "light" ? "light" : "dark"} onChange={set("textTone", 12)} options={TEXT_TONE_OPTIONS} />
-        </LabeledField>
-      </div>
-      <p className="text-xs text-text-muted dark:text-text-muted-dark">
-        Text colour applies to Title &amp; Text (when set to “Follow container”), Rich Text, Image and Video captions and divider lines.
-      </p>
+            </StyleRow>
+          )}
+          <StyleRow label="Text inside" hint="For Title & Text (set to “Follow container”), Rich Text, captions and divider lines.">
+            <ToggleButtons
+              value={text("textTone") === "light" ? "light" : "dark"}
+              onChange={set("textTone", 12)}
+              options={[
+                { value: "dark", label: "Dark (light background)" },
+                { value: "light", label: "White (dark background)" },
+              ]}
+            />
+          </StyleRow>
+        </div>
       </StyleFields>
-      <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 1, bgFrom: 2, bgTo: 3, bgImage: 4 }} />
     </div>
   );
 }

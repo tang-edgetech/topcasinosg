@@ -8,6 +8,7 @@ import ScrollToTop from "@/components/ScrollToTop";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import { getActiveSnippets } from "@/lib/snippets";
 import { getSiteSettings } from "@/lib/site-settings";
+import { deviceCss } from "@/lib/deviceCss";
 import { assetUrl, buildMetadata, siteBaseUrl } from "@/lib/seo";
 import JsonLd from "@/components/JsonLd";
 import "./globals.css";
@@ -77,6 +78,8 @@ export default async function RootLayout({
   return (
     <html lang="en" className={`${figtree.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col overflow-x-clip font-sans">
+        {/* Per-device page builder rules at the Site Settings screen sizes. */}
+        <style id="device-css" dangerouslySetInnerHTML={{ __html: deviceCss(settings.breakpoints) }} />
         <RawHtmlBlock html={topOfBody} />
         <JsonLd
           data={[

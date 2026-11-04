@@ -29,6 +29,9 @@ type AuditLogDTO struct {
 	EntityID    *int64              `json:"entityId"`
 	EntityLabel string              `json:"entityLabel"`
 	Changes     domain.AuditChanges `json:"changes"`
+	Source      string              `json:"source"`
+	APIKeyID    *int64              `json:"apiKeyId"`
+	APIKeyName  string              `json:"apiKeyName"`
 	IPAddress   string              `json:"ipAddress"`
 	IPPort      *int                `json:"ipPort"`
 	UserAgent   string              `json:"userAgent"`
@@ -55,6 +58,9 @@ func toAuditLogDTO(l *domain.AuditLog) AuditLogDTO {
 		EntityID:    l.EntityID,
 		EntityLabel: l.EntityLabel,
 		Changes:     l.Changes,
+		Source:      l.Source,
+		APIKeyID:    l.APIKeyID,
+		APIKeyName:  l.APIKeyName,
 		IPAddress:   l.IPAddress,
 		IPPort:      l.IPPort,
 		UserAgent:   l.UserAgent,
@@ -84,11 +90,15 @@ func (h *AuditHandler) List(w http.ResponseWriter, r *http.Request) {
 		From:       parseQueryTime(r, "from"),
 		To:         parseQueryTime(r, "to"),
 		Outcome:    query.Get("outcome"),
+		Source:     query.Get("source"),
 		Page:       page,
 		PageSize:   pageSize,
 	}
 	if actorID, err := strconv.ParseInt(query.Get("actorId"), 10, 64); err == nil {
 		filter.ActorID = &actorID
+	}
+	if keyID, err := strconv.ParseInt(query.Get("apiKeyId"), 10, 64); err == nil {
+		filter.APIKeyID = &keyID
 	}
 
 	logs, total, err := h.audit.List(r.Context(), actor, filter)

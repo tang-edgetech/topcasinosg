@@ -5,16 +5,25 @@
 // from Settings > API Keys. No dependencies: Node 18+ only.
 //
 // Settings come from the environment:
-//   TOPCASINOSG_API_URL  the API, e.g. https://api.example.com
+//   TOPCASINOSG_API_URL  the API (default: the live site, https://backapi.topcasinosg.com.sg)
 //   TOPCASINOSG_API_KEY  the key (Bearer); never printed
+import { AsyncLocalStorage } from "node:async_hooks";
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { createInterface } from "node:readline";
 
-const API_URL = (process.env.TOPCASINOSG_API_URL || "http://localhost:8090").replace(/\/+$/, "");
+const API_URL = (process.env.TOPCASINOSG_API_URL || "https://backapi.topcasinosg.com.sg").replace(/\/+$/, "");
 const API_KEY = process.env.TOPCASINOSG_API_KEY || "";
 const SERVER_INFO = { name: "topcasinosg", version: "1.0.0" };
 const PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
+
+// The site's Activity Log shows each call as made by the AI connector, in
+// which AI app and by which tool: "topcasinosg-mcp/<version> (<app>; <tool>)"
+// (domain.AuditConnectorUserAgent in the API).
+let clientApp = "unknown app";
+const currentTool = new AsyncLocalStorage();
+const userAgent = () =>
+  `topcasinosg-mcp/${SERVER_INFO.version} (${clientApp}; ${currentTool.getStore() ?? "no tool"}) node/${process.versions.node}`;
 
 const INSTRUCTIONS = `This connector edits the TopCasinoSG website through its Content API.
 How to work:
@@ -28,7 +37,7 @@ How to work:
 
 async function api(method, path, body) {
   if (!API_KEY) throw new Error("TOPCASINOSG_API_KEY is not set in the connector's settings.");
-  const headers = { Authorization: `Bearer ${API_KEY}`, Accept: "application/json" };
+  const headers = { Authorization: `Bearer ${API_KEY}`, Accept: "application/json", "User-Agent": userAgent() };
   let payload;
   if (body instanceof FormData) payload = body;
   else if (body !== undefined) {
@@ -278,6 +287,8 @@ async function handle(msg) {
   switch (method) {
     case "initialize": {
       const asked = params?.protocolVersion;
+      const app = [params?.clientInfo?.name, params?.clientInfo?.version].filter(Boolean).join(" ");
+      if (app) clientApp = app.replace(/[^\w .@+-]/g, "").slice(0, 60) || clientApp;
       return reply({
         protocolVersion: PROTOCOL_VERSIONS.includes(asked) ? asked : PROTOCOL_VERSIONS[0],
         capabilities: { tools: {} },
@@ -293,7 +304,7 @@ async function handle(msg) {
       const tool = TOOLS.find((t) => t.name === params?.name);
       if (!tool) return fail(-32602, `Unknown tool: ${params?.name}`);
       try {
-        const result = await tool.run(params.arguments ?? {});
+        const result = await currentTool.run(tool.name, () => tool.run(params.arguments ?? {}));
         return reply({ content: [{ type: "text", text: typeof result === "string" ? result : JSON.stringify(result, null, 2) }] });
       } catch (err) {
         return reply({ content: [{ type: "text", text: err.message }], isError: true });

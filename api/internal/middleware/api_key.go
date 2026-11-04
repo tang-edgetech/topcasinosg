@@ -40,9 +40,11 @@ func AuthenticateAPIKey(authenticate APIKeyAuthenticator) func(http.Handler) htt
 			}
 			key, owner, err := authenticate(r.Context(), raw)
 			if err != nil {
+				noteAPIKey(r.Context(), raw, nil, nil)
 				response.Err(w, http.StatusUnauthorized, "this API key is not valid, has been revoked, or its admin account is no longer active")
 				return
 			}
+			noteAPIKey(r.Context(), raw, key, owner)
 			if wait, ok := limiter.allow(key.ID); !ok {
 				w.Header().Set("Retry-After", strconv.Itoa(int(wait.Seconds())+1))
 				response.Err(w, http.StatusTooManyRequests, "too many requests for this API key; wait a minute and try again")

@@ -1,19 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Drawer, Segmented, Switch, Tooltip } from "antd";
 import { api, ApiError } from "@/lib/api";
 import { useSiteSettings } from "@/lib/site-settings-context";
 import { IconDesktop, IconExternalLink, IconMobile, IconRefresh, IconTablet } from "@/components/Icons";
+import { useBreakpoints, useEditDevice, type EditDevice } from "./StyleControls";
 
 const WEB_URL = process.env.NEXT_PUBLIC_WEB_URL;
 const AUTO_REFRESH_DELAY_MS = 900;
-const DEVICES = {
-  desktop: { width: 1280, label: "Desktop", icon: <IconDesktop /> },
-  tablet: { width: 768, label: "Tablet", icon: <IconTablet /> },
-  mobile: { width: 375, label: "Mobile", icon: <IconMobile /> },
-} as const;
-type Device = keyof typeof DEVICES;
+const DEVICES: Record<EditDevice, { label: string; icon: ReactNode }> = {
+  desktop: { label: "Desktop", icon: <IconDesktop /> },
+  tablet: { label: "Tablet", icon: <IconTablet /> },
+  mobile: { label: "Mobile", icon: <IconMobile /> },
+};
+type Device = EditDevice;
 
 // Side panel showing the page as the public site renders it, including
 // changes not saved yet: the unsaved sections are sent to the API
@@ -36,7 +37,9 @@ export default function LivePreview({
 }) {
   const { settings } = useSiteSettings();
   const base = (WEB_URL || settings?.siteUrl || "").replace(/\/+$/, "");
-  const [device, setDevice] = useState<Device>("desktop");
+  // Shared with the Style tab's device switch (SectionBuilder).
+  const { device, setDevice } = useEditDevice();
+  const bp = useBreakpoints();
   const [auto, setAuto] = useState(true);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -77,7 +80,8 @@ export default function LivePreview({
     return () => observer.disconnect();
   }, [boxEl]);
 
-  const width = DEVICES[device].width;
+  // Each device at a typical width inside its Site Settings range.
+  const width = device === "desktop" ? Math.max(1280, bp.desktop) : device === "tablet" ? bp.tablet : Math.min(375, bp.tablet - 1);
   const scale = box.width > 0 ? Math.min(1, box.width / width) : 1;
   const src = token && base ? `${base}/preview/${token}` : "";
 

@@ -33,6 +33,7 @@ var (
 	ErrInvalidFooterBadge       = errors.New("each badge needs a name (up to 100 characters) and an image; links must be http(s) or start with /")
 	ErrInvalidLockout           = errors.New("lockout: 0 (off) or 3–20 attempts, for 1–1440 minutes")
 	ErrInvalidPasswordLength    = errors.New("minimum password length must be 8–72 characters")
+	ErrInvalidBreakpoints       = errors.New("screen sizes: tablet from at least 480px, desktop at least 100px wider than tablet and at most 2560px")
 )
 
 // SiteSettingsService — reads are public (the login page needs the site title
@@ -64,8 +65,18 @@ func (s *SiteSettingsService) Update(ctx context.Context, actor *domain.AdminUse
 	if err != nil {
 		return err
 	}
+	// Breakpoints left at zero were not sent: keep the saved ones.
+	updateBreakpoints := next.Breakpoints != (domain.Breakpoints{})
+	if updateBreakpoints && !next.Breakpoints.Valid() {
+		return ErrInvalidBreakpoints
+	}
 	if err := s.settings.Update(ctx, next); err != nil {
 		return err
+	}
+	if updateBreakpoints {
+		if err := s.settings.UpdateBreakpoints(ctx, next.Breakpoints); err != nil {
+			return err
+		}
 	}
 	return s.settings.UpdateSocialDefaults(ctx, sd)
 }

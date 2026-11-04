@@ -29,7 +29,13 @@ type ContentAPIHandler struct {
 	media    *service.MediaService
 	settings *service.SiteSettingsService
 	audit    *service.AuditService
+	// snapshot reads a page or article through its admin GET route, for the
+	// before/after of an applied change (server.adminSnapshotter).
+	snapshot middleware.Snapshotter
 }
+
+// SetSnapshotter is called once the admin routes exist.
+func (h *ContentAPIHandler) SetSnapshotter(snapshot middleware.Snapshotter) { h.snapshot = snapshot }
 
 func NewContentAPIHandler(
 	keys *service.APIKeyService, changes *service.ContentChangeService, pages *service.PageService,
@@ -258,7 +264,7 @@ func (h *ContentAPIHandler) Schema(w http.ResponseWriter, r *http.Request) {
 			"Build new content from containers holding widgets (blockTypes with kind \"widget\"); kind \"data\" blocks list the site's own casinos, bonuses and articles; kind \"classic\" blocks are older fixed layouts, kept so existing pages still work.",
 			"A field marked perItem repeats once per item (itemIndex 1, 2, 3...); other fields go on itemIndex 0. When a field lists allowed values, use one of them or leave it empty for the default.",
 			"Inside a tabs or accordion container, give each child a \"panelTitle\" text field: it becomes the tab or panel title.",
-			"Look and spacing come from styleClasses in a section's customClass, not from fields.",
+			"Look and spacing: the styleFields (padding, margin, background, font, border, any colour) on a section's itemIndex 0, or the simpler styleClasses presets in its customClass.",
 			approvalRule(middleware.APIKeyFromContext(r.Context())),
 		},
 		"endpoints": keyEndpoints(middleware.APIKeyFromContext(r.Context())),
@@ -269,6 +275,7 @@ func (h *ContentAPIHandler) Schema(w http.ResponseWriter, r *http.Request) {
 			"button":   "A link: the label in textValue and the URL in urlValue.",
 		},
 		"blockTypes":   blocks,
+		"styleFields":  styleFields,
 		"styleClasses": styleClasses,
 	})
 }
@@ -397,7 +404,8 @@ func (h *ContentAPIHandler) UploadMedia(w http.ResponseWriter, r *http.Request) 
 		response.Err(w, mediaErrorStatus(err), err.Error())
 		return
 	}
-	h.recordKeyAction(r, domain.AuditActionCreate, "media", &media.ID, media.OriginalFilename, http.StatusCreated)
+	h.recordKeyAction(r, domain.AuditActionCreate, "media", &media.ID, media.OriginalFilename, http.StatusCreated,
+		domain.AuditChanges{"filename": {"to": media.OriginalFilename}, "url": {"to": toMediaDTO(media).URL}})
 	response.JSON(w, http.StatusCreated, map[string]any{"media": toMediaDTO(media)})
 }
 
@@ -435,8 +443,9 @@ func (h *ContentAPIHandler) ProposePage(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	p := service.Proposal{Key: middleware.APIKeyFromContext(r.Context()), TargetID: target, Note: req.Note, DryRun: isDryRun(r, req.DryRun)}
+	before := h.contentSnapshot(r, domain.ContentChangePage, target)
 	change, err := h.changes.ProposePage(r.Context(), p, req.PageChange)
-	h.respondProposal(w, r, change, err, p.DryRun, "page not found")
+	h.respondProposal(w, r, change, err, p.DryRun, "page not found", req, before)
 }
 
 // ProposeNews: POST /api/v1/news (a new article) and POST
@@ -456,8 +465,9 @@ func (h *ContentAPIHandler) ProposeNews(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	p := service.Proposal{Key: middleware.APIKeyFromContext(r.Context()), TargetID: target, Note: req.Note, DryRun: isDryRun(r, req.DryRun)}
+	before := h.contentSnapshot(r, domain.ContentChangeNews, target)
 	change, err := h.changes.ProposeNews(r.Context(), p, req.NewsChange)
-	h.respondProposal(w, r, change, err, p.DryRun, "article not found")
+	h.respondProposal(w, r, change, err, p.DryRun, "article not found", req, before)
 }
 
 // decodeStrict reads a JSON body and names any field the API doesn't know,
@@ -471,7 +481,10 @@ func decodeStrict(r *http.Request, v any) error {
 	return nil
 }
 
-func (h *ContentAPIHandler) respondProposal(w http.ResponseWriter, r *http.Request, change *domain.ContentChange, err error, dryRun bool, notFound string) {
+// respondProposal answers a proposal. Its activity entry holds what the key
+// sent; a Direct key's change, applied at once, gets a second entry with the
+// page's or article's real before/after (recordApplied).
+func (h *ContentAPIHandler) respondProposal(w http.ResponseWriter, r *http.Request, change *domain.ContentChange, err error, dryRun bool, notFound string, submitted any, before map[string]any) {
 	if err != nil {
 		contentChangeError(w, err, notFound)
 		return
@@ -487,7 +500,7 @@ func (h *ContentAPIHandler) respondProposal(w http.ResponseWriter, r *http.Reque
 		})
 		return
 	}
-	h.recordKeyAction(r, domain.AuditActionCreate, "content-changes", &change.ID, change.Label, http.StatusCreated)
+	h.recordKeyAction(r, domain.AuditActionCreate, "content-changes", &change.ID, change.Label, http.StatusCreated, submittedChanges(submitted))
 	if key := middleware.APIKeyFromContext(r.Context()); key.IsDirect() {
 		// A Direct key's change is applied at once, recorded in AI Changes
 		// as approved by the key's admin.
@@ -496,6 +509,7 @@ func (h *ContentAPIHandler) respondProposal(w http.ResponseWriter, r *http.Reque
 			contentChangeError(w, err, notFound)
 			return
 		}
+		h.recordApplied(r, applied, before)
 		message := "Done. The change is live."
 		if applied.Action == domain.ContentChangeCreate {
 			message = fmt.Sprintf("Done. It was created as a draft (id %d); to put it on the site, PUT /api/v1/%s/%d/status with {\"status\": \"published\"}.", derefID(applied.ResultID), pluralType(applied.ContentType), derefID(applied.ResultID))
@@ -660,22 +674,77 @@ func (h *ContentAPIHandler) WithdrawOwnChange(w http.ResponseWriter, r *http.Req
 		contentChangeError(w, err, "change not found")
 		return
 	}
-	h.recordKeyAction(r, "withdraw", "content-changes", &change.ID, change.Label, http.StatusOK)
+	h.recordKeyAction(r, "withdraw", "content-changes", &change.ID, change.Label, http.StatusOK, nil)
 	response.JSON(w, http.StatusOK, map[string]any{"change": toContentChangeDTO(change)})
 }
 
 // recordKeyAction adds a Content API write to the activity log, credited
-// to the key's admin and naming the key.
-func (h *ContentAPIHandler) recordKeyAction(r *http.Request, action, entityType string, entityID *int64, label string, status int) {
-	key := middleware.APIKeyFromContext(r.Context())
-	owner := middleware.UserFromContext(r.Context())
+// to the key's admin and naming the key (middleware.StampAPIKey).
+func (h *ContentAPIHandler) recordKeyAction(r *http.Request, action, entityType string, entityID *int64, label string, status int, changes domain.AuditChanges) {
 	ip, port := middleware.ClientAddress(r)
-	ownerID := owner.ID
-	h.audit.Record(context.WithoutCancel(r.Context()), &domain.AuditLog{
-		ActorID: &ownerID, ActorName: fmt.Sprintf("%s (API key: %s)", owner.FullName, key.Name), ActorRole: string(owner.Role),
-		Action: action, EntityType: entityType, EntityID: entityID, EntityLabel: label,
+	entry := &domain.AuditLog{
+		Action: action, EntityType: entityType, EntityID: entityID, EntityLabel: label, Changes: changes,
 		IPAddress: ip, IPPort: port, UserAgent: r.UserAgent(), RequestMethod: r.Method, RequestPath: r.URL.RequestURI(), StatusCode: status,
-	})
+	}
+	middleware.StampAPIKey(r, entry)
+	h.audit.Record(context.WithoutCancel(r.Context()), entry)
+}
+
+// submittedChanges is a proposal as sent, for its activity entry.
+func submittedChanges(submitted any) domain.AuditChanges {
+	raw, err := json.Marshal(submitted)
+	if err != nil {
+		return nil
+	}
+	var body map[string]any
+	if json.Unmarshal(raw, &body) != nil {
+		return nil
+	}
+	delete(body, "dryRun")
+	return middleware.AuditDiff(nil, body)
+}
+
+// contentSnapshot is a page or article as its admin GET route shows it, or
+// nil (a new one, or no snapshotter).
+func (h *ContentAPIHandler) contentSnapshot(r *http.Request, contentType string, id *int64) map[string]any {
+	if h.snapshot == nil || id == nil {
+		return nil
+	}
+	return h.snapshot(r, fmt.Sprintf("/api/admin/%s/%d", pluralType(contentType), *id))
+}
+
+// recordApplied logs what an applied AI change did to the page or article
+// itself: a Direct key's change, or one an admin approved. before is the
+// record as it was (nil for a new one).
+func (h *ContentAPIHandler) recordApplied(r *http.Request, c *domain.ContentChange, before map[string]any) {
+	actor := middleware.UserFromContext(r.Context())
+	if actor == nil || c.ResultID == nil {
+		return
+	}
+	after := h.contentSnapshot(r, c.ContentType, c.ResultID)
+	ip, port := middleware.ClientAddress(r)
+	action := domain.AuditActionUpdate
+	if before == nil {
+		action = domain.AuditActionCreate
+	}
+	label := c.Label
+	if name := middleware.AuditLabel(after, before); name != "" {
+		label = name
+	}
+	entry := &domain.AuditLog{
+		ActorID: &actor.ID, ActorName: actor.FullName, ActorRole: string(actor.Role),
+		Action: action, EntityType: pluralType(c.ContentType), EntityID: c.ResultID, EntityLabel: label,
+		Changes:   middleware.AuditDiff(before, after),
+		IPAddress: ip, IPPort: port, UserAgent: r.UserAgent(), RequestMethod: r.Method, RequestPath: r.URL.RequestURI(), StatusCode: http.StatusOK,
+	}
+	if c.APIKeyName != "" && middleware.APIKeyFromContext(r.Context()) == nil {
+		// An admin approving it in the dashboard: say whose change it was.
+		entry.Action = "approve AI change"
+		entry.APIKeyID = c.APIKeyID
+		entry.APIKeyName = c.APIKeyName
+	}
+	middleware.StampAPIKey(r, entry)
+	h.audit.Record(context.WithoutCancel(r.Context()), entry)
 }
 
 // --- Admin: API keys (Super Admin and Admin) ---
@@ -814,11 +883,16 @@ func (h *ContentAPIHandler) ApproveChange(w http.ResponseWriter, r *http.Request
 		response.Err(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
+	var before map[string]any
+	if pending, err := h.changes.Get(r.Context(), id); err == nil {
+		before = h.contentSnapshot(r, pending.ContentType, pending.TargetID)
+	}
 	change, err := h.changes.Approve(r.Context(), id, requireActor(r), req.Note, req.Force)
 	if err != nil {
 		contentChangeError(w, err, "change not found")
 		return
 	}
+	h.recordApplied(r, change, before)
 	response.JSON(w, http.StatusOK, map[string]any{"change": toContentChangeDTO(change)})
 }
 

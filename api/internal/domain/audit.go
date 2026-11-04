@@ -21,6 +21,19 @@ const (
 	// is Failed, anything below is Success.
 	AuditOutcomeSuccess = "success"
 	AuditOutcomeFailed  = "error"
+
+	// AuditActionRead is a Content API read (GET /api/v1/...). Dashboard
+	// reads aren't recorded; every API key request is.
+	AuditActionRead   = "read"
+	AuditActionDryRun = "dry run"
+
+	// AuditSource* say where a request came from: the dashboard, the Content
+	// API with a key, or the AI connector (mcp/server.mjs, which identifies
+	// itself with an AuditConnectorUserAgent user agent).
+	AuditSourceDashboard    = "dashboard"
+	AuditSourceAPI          = "api"
+	AuditSourceConnector    = "connector"
+	AuditConnectorUserAgent = "topcasinosg-mcp/"
 )
 
 // AuditChanges maps a field name to {"from": old, "to": new}. A create has
@@ -41,9 +54,14 @@ type AuditLog struct {
 	EntityLabel string
 	Changes     AuditChanges
 	Restricted  bool
-	IPAddress   string
-	IPPort      *int
-	UserAgent   string
+	// Source is an AuditSource* value; APIKeyID and APIKeyName name the key
+	// of a Content API request (the actor is the key's admin).
+	Source     string
+	APIKeyID   *int64
+	APIKeyName string
+	IPAddress  string
+	IPPort     *int
+	UserAgent  string
 	// RequestMethod and RequestPath are the admin request that was made;
 	// StatusCode 400 and above marks a failed one, with ErrorMessage being
 	// the error the admin saw.
@@ -61,6 +79,8 @@ type AuditFilter struct {
 	From              *time.Time
 	To                *time.Time
 	Outcome           string // "", AuditOutcomeSuccess or AuditOutcomeFailed
+	Source            string // "" or an AuditSource* value
+	APIKeyID          *int64
 	IncludeRestricted bool
 	OnlyActorID       *int64
 	Page              int

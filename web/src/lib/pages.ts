@@ -7,6 +7,8 @@
  * item's fields (an icon box, a gallery image, ...).
  */
 
+import { backgroundImage, backgroundPosition, backgroundSize, cssColor } from "./sectionStyle";
+
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
 
 // Scheduled-publish pages can flip visibility at any moment — keep this
@@ -251,23 +253,13 @@ export function sectionClassName(canonical: string, section: Pick<PageSection, "
 }
 
 // Reusable responsive-column convention for any repeatable-item block: 1
-// column on mobile, 2 on tablet, and an admin-chosen 1/2/3 on desktop
-// (>=1200px — not a stock Tailwind breakpoint, hence the arbitrary
-// `min-[1200px]:` variant). Keep new block types on this same convention
-// (see admin's ColumnsField) so column behavior stays consistent site-wide.
-// Full class names (not interpolated) so Tailwind generates every option.
-// The tablet step uses min-[640px] rather than sm: because Tailwind sorts
-// arbitrary min-[...] variants before named ones, so sm:grid-cols-2 would
-// always beat min-[1200px]:grid-cols-N.
-const DESKTOP_COLUMN_CLASSES: Record<string, string> = {
-  "1": "min-[1200px]:grid-cols-1",
-  "2": "min-[1200px]:grid-cols-2",
-  "3": "min-[1200px]:grid-cols-3",
-  "4": "min-[1200px]:grid-cols-4",
-};
-
+// column on mobile, 2 on tablet, and an admin-chosen 1-4 on desktop, at the
+// Site Settings screen sizes (pb-cols classes, lib/deviceCss.ts). Keep new
+// block types on this same convention (see admin's ColumnsField) so column
+// behavior stays consistent site-wide.
 export function columnsClassName(columns: string | undefined): string {
-  return `grid-cols-1 min-[640px]:grid-cols-2 ${DESKTOP_COLUMN_CLASSES[columns ?? ""] ?? DESKTOP_COLUMN_CLASSES["3"]}`;
+  const desktop = ["1", "2", "3", "4"].includes(columns ?? "") ? columns : "3";
+  return `pb-cols pb-cols--m-1 pb-cols--t-2 pb-cols--${desktop}`;
 }
 
 export type ButtonStyle = "primary" | "secondary" | "outline" | "white";
@@ -316,7 +308,7 @@ const SECTION_BG_COLOR_VALUES: Record<string, string> = {
 };
 
 export function sectionBgColorValue(token: string | undefined): string {
-  return SECTION_BG_COLOR_VALUES[token ?? ""] ?? SECTION_BG_COLOR_VALUES["primary-900"];
+  return SECTION_BG_COLOR_VALUES[token ?? ""] ?? cssColor(token) ?? SECTION_BG_COLOR_VALUES["primary-900"];
 }
 
 export interface SectionBg {
@@ -345,8 +337,23 @@ export function sectionBgStyle(
   const bgTo = field(fields, 0, "bgTo")?.textValue || defaults.bgTo || "primary-glow";
   const bgImageUrl = mediaUrl(field(fields, 0, "bgImage")?.mediaUrl);
 
+  // Style tab extras (admin StyleControls.tsx): image size, position and
+  // overlay, a gradient angle, and a radial gradient. Without them the
+  // background renders exactly as before.
+  const text = (key: string) => field(fields, 0, key)?.textValue ?? "";
+  const extras: Record<string, string> = {};
+  const size = backgroundSize(text("bgSize"));
+  const position = backgroundPosition(text("bgPosition"));
+  if (size) extras["--section-bg-size"] = size;
+  if (position) extras["--section-bg-position"] = position;
+
   if (bgType === "image" && bgImageUrl) {
-    return { hasBleedBg: true, style: { "--section-bg-image": `url(${bgImageUrl})` } };
+    const overlay = text("bgOverlay") ? backgroundImage({ type: "image", imageUrl: bgImageUrl, overlay: text("bgOverlay") }) : undefined;
+    return { hasBleedBg: true, style: { "--section-bg-image": overlay ?? `url(${bgImageUrl})`, ...extras } };
+  }
+  if (bgType === "radial" || (bgType === "gradient" && text("bgAngle"))) {
+    const image = backgroundImage({ type: bgType === "radial" ? "radial" : "linear", color: bgFrom, color2: bgTo, angle: text("bgAngle") });
+    if (image) return { hasBleedBg: true, style: { "--section-bg-image": image } };
   }
   if (bgType === "gradient") {
     return {

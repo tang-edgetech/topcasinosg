@@ -1,5 +1,6 @@
 import { field, sectionClassName, type PageSection } from "@/lib/pages";
 import { JUSTIFY, WIDGET_CONTAINER } from "@/lib/widgets";
+import SectionTag from "./SectionTag";
 
 const STYLE: Record<string, string> = { solid: "border-solid", dashed: "border-dashed", dotted: "border-dotted" };
 const WIDTH: Record<string, string> = { full: "w-full", half: "w-1/2", short: "w-24" };
@@ -20,10 +21,10 @@ export default function DividerWidget({ section }: { section: PageSection }) {
   ].join(" ");
 
   return (
-    <div id={section.customId || undefined} className={sectionClassName("section--divider", section)}>
+    <SectionTag section={section} id={section.customId || undefined} className={sectionClassName("section--divider", section)}>
       <div className={`${WIDGET_CONTAINER} flex ${JUSTIFY[text("align")] ?? JUSTIFY.center} ${SPACE[text("space")] ?? SPACE.m}`}>
         <hr className={lineClass} />
       </div>
-    </div>
+    </SectionTag>
   );
 }
