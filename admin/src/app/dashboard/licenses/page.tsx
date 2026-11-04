@@ -148,7 +148,7 @@ export default function LicensesPage() {
                       <IconButton
                         id={`license-${license.id}-edit`}
                         title="Edit License"
-                        onClick={() => router.push(`/dashboard/licenses/${license.id}`)}
+                        href={`/dashboard/licenses/${license.id}`}
                         icon={<IconEdit />}
                         variant="muted"
                       />

@@ -183,7 +183,7 @@ export default function PaymentMethodsPage() {
                 <IconButton
                   id={`payment-method-${pm.id}-edit`}
                   title="Edit Payment Method"
-                  onClick={() => router.push(`/dashboard/payment-methods/${pm.id}`)}
+                  href={`/dashboard/payment-methods/${pm.id}`}
                   icon={<IconEdit />}
                   variant="muted"
                 />

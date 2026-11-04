@@ -45,6 +45,7 @@ type Deps struct {
 	ContentImportHandler  *handler.ContentImportHandler
 	SeoHandler            *handler.SeoHandler
 	SystemHandler         *handler.SystemHandler
+	HTMLExportHandler     *handler.HTMLExportHandler
 	ContentAPIHandler     *handler.ContentAPIHandler
 	AuthenticateAPIKey    middleware.APIKeyAuthenticator
 	RecycleBin            *repository.RecycleBinRepo
@@ -162,6 +163,14 @@ func NewRouter(deps Deps) http.Handler {
 	mux.Handle("PUT /api/admin/settings/2fa", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.SetTwoFactorEnabled))))
 	mux.Handle("PUT /api/admin/settings/security", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.UpdateSecurityPolicy))))
 	// Settings > Log: server version and deploys; resolving/removing deploys.
+	// HTML Export: the whole public site as a zip of HTML files. Super Admin
+	// only: it copies everything the site shows, so it's treated like a backup.
+	superAdminOnly := middleware.RequireRoles(domain.RoleSuperAdmin)
+	mux.Handle("GET /api/admin/html-export", authenticate(superAdminOnly(http.HandlerFunc(deps.HTMLExportHandler.Status))))
+	mux.Handle("POST /api/admin/html-export", authenticate(superAdminOnly(http.HandlerFunc(deps.HTMLExportHandler.Start))))
+	mux.Handle("POST /api/admin/html-export/cancel", authenticate(superAdminOnly(http.HandlerFunc(deps.HTMLExportHandler.Cancel))))
+	mux.Handle("GET /api/admin/html-export/download", authenticate(superAdminOnly(http.HandlerFunc(deps.HTMLExportHandler.Download))))
+
 	mux.Handle("GET /api/admin/system/status", authenticate(staffOnly(http.HandlerFunc(deps.SystemHandler.Status))))
 	mux.Handle("PUT /api/admin/system/deployments/limit", authenticate(staffOnly(http.HandlerFunc(deps.SystemHandler.SetDeploymentLimit))))
 	mux.Handle("POST /api/admin/system/deployments/resolve", authenticate(staffOnly(http.HandlerFunc(deps.SystemHandler.ResolveDeployment))))

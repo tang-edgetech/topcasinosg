@@ -73,6 +73,27 @@ export interface SiteSettingsDTO {
   breakpoints?: BreakpointsDTO;
 }
 
+// Settings > HTML Export — service.HTMLExportStatus in
+// api/internal/service/html_export_service.go.
+export type HTMLExportState = "idle" | "running" | "done" | "failed";
+
+export interface HTMLExportDTO {
+  state: HTMLExportState;
+  siteUrl: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  startedBy: string;
+  pages: number;
+  files: number;
+  bytes: number;
+  queued: number;
+  failures: { url: string; reason: string }[];
+  failureCount: number;
+  error: string;
+  fileName: string;
+  fileSize: number;
+}
+
 export interface BreakpointsDTO {
   tablet: number;
   desktop: number;

@@ -127,7 +127,7 @@ export default function GlobalSectionsPage() {
                 <IconButton
                   id={`global-section-${record.id}-edit`}
                   title="Edit"
-                  onClick={() => router.push(`/dashboard/global-sections/${record.id}`)}
+                  href={`/dashboard/global-sections/${record.id}`}
                   icon={<IconEdit />}
                   variant="muted"
                 />

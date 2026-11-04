@@ -77,7 +77,7 @@ export default function CodePanel({ snippets, pages, onReload }: { snippets: Sni
             key: "actions",
             render: (_, s) => (
               <div className="flex gap-2">
-                <IconButton id={`code-${s.id}-edit`} title="Edit Snippet" onClick={() => router.push(`/dashboard/snippets/code/${s.id}`)} icon={<IconEdit />} variant="muted" />
+                <IconButton id={`code-${s.id}-edit`} title="Edit Snippet" href={`/dashboard/snippets/code/${s.id}`} icon={<IconEdit />} variant="muted" />
                 <IconButton id={`code-${s.id}-delete`} title="Delete Snippet" onClick={() => handleDelete(s)} icon={<IconTrash />} variant="danger" />
               </div>
             ),

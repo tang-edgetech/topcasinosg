@@ -40,6 +40,11 @@ type Config struct {
 	// for the commit shown there; the API runs from api/, so it defaults to "..".
 	LogDir  string
 	RepoDir string
+
+	// WebURL is where the HTML export reads the public site; empty uses Site
+	// Settings' Site URL. HTMLExportDir keeps the latest export's zip.
+	WebURL        string
+	HTMLExportDir string
 }
 
 func Load() Config {
@@ -61,6 +66,9 @@ func Load() Config {
 
 		LogDir:  getEnv("LOG_DIR", defaultLogDir()),
 		RepoDir: getEnv("REPO_DIR", ".."),
+
+		WebURL:        getEnv("WEB_URL", ""),
+		HTMLExportDir: getEnv("HTML_EXPORT_DIR", filepath.Join("tmp", "html-export")),
 	}
 }
 

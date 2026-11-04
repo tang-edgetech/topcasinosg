@@ -103,6 +103,9 @@ func main() {
 	apiKeyService := service.NewAPIKeyService(repository.NewAPIKeyRepo(conn), users)
 	contentChangeService := service.NewContentChangeService(repository.NewContentChangeRepo(conn), pageService, newsArticleService, mediaService)
 
+	htmlExportService := service.NewHTMLExportService(pageService, regionService, siteSettingsService, cfg.WebURL, cfg.HTMLExportDir)
+	htmlExportHandler := handler.NewHTMLExportHandler(htmlExportService, auditService)
+
 	deps := server.Deps{
 		Config:                cfg,
 		JWT:                   jwtIssuer,
@@ -129,6 +132,7 @@ func main() {
 		SidebarHandler:        handler.NewSidebarHandler(sidebarService),
 		AuditHandler:          handler.NewAuditHandler(auditService),
 		TransferHandler:       handler.NewTransferHandler(service.NewTransferService(transferRepo, fileStorage)),
+		HTMLExportHandler:     htmlExportHandler,
 		SystemHandler:         handler.NewSystemHandler(service.NewSystemService(cfg.LogDir, cfg.RepoDir, repository.NewDeploymentReviewRepo(conn))),
 		SeoHandler:            handler.NewSeoHandler(service.NewSeoService(repository.NewSeoRepo(conn))),
 		ContentImportHandler: handler.NewContentImportHandler(service.NewContentImportService(

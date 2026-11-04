@@ -89,7 +89,7 @@ export default function HeaderFooterPanel({ snippets, onReload }: { snippets: Sn
                 <IconButton
                   id={`snippet-${s.id}-edit`}
                   title="Edit Snippet"
-                  onClick={() => router.push(`/dashboard/snippets/header-footer/${s.id}`)}
+                  href={`/dashboard/snippets/header-footer/${s.id}`}
                   icon={<IconEdit />}
                   variant="muted"
                 />

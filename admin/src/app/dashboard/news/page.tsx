@@ -170,7 +170,7 @@ export default function NewsPage() {
                 <IconButton
                   id={`news-${a.id}-edit`}
                   title="Edit News Article"
-                  onClick={() => router.push(`/dashboard/news/${a.id}`)}
+                  href={`/dashboard/news/${a.id}`}
                   icon={<IconEdit />}
                   variant="muted"
                 />

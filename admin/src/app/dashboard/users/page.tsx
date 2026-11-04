@@ -267,7 +267,7 @@ export default function UsersPage() {
                   <IconButton
                     id={`user-row-${target.id}-edit`}
                     title="Edit User"
-                    onClick={() => router.push(`/dashboard/users/${target.id}`)}
+                    href={`/dashboard/users/${target.id}`}
                     icon={<IconEdit />}
                     variant="muted"
                   />

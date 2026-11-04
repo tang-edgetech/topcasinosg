@@ -459,7 +459,7 @@ export default function PagesPage() {
                     <IconButton
                       id={`page-${p.id}-edit`}
                       title="Edit Page"
-                      onClick={() => router.push(`/dashboard/pages/${p.id}`)}
+                      href={`/dashboard/pages/${p.id}`}
                       icon={<IconEdit />}
                       variant="muted"
                     />

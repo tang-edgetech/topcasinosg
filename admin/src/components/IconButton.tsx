@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 type Variant = "primary" | "danger" | "muted";
@@ -7,7 +8,10 @@ type Variant = "primary" | "danger" | "muted";
 interface IconButtonProps {
   id: string;
   title: string;
-  onClick: () => void;
+  // href makes it a link (e.g. Edit), so it can also be opened in a new tab
+  // with Ctrl/Cmd-click, middle-click or the right-click menu.
+  href?: string;
+  onClick?: () => void;
   icon: ReactNode;
   variant?: Variant;
   disabled?: boolean;
@@ -23,7 +27,15 @@ const VARIANT_CLASSES: Record<Variant, string> = {
     "bg-primary-100 text-primary-700 border-primary-200 hover:bg-transparent hover:text-primary-700 dark:bg-surface-muted-dark dark:text-text-dark dark:border-border-dark",
 };
 
-export default function IconButton({ id, title, onClick, icon, variant = "primary", disabled }: IconButtonProps) {
+export default function IconButton({ id, title, href, onClick, icon, variant = "primary", disabled }: IconButtonProps) {
+  const className = `icon-button inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${VARIANT_CLASSES[variant]}`;
+  if (href && !disabled) {
+    return (
+      <Link id={id} href={href} title={title} aria-label={title} onClick={onClick} className={className}>
+        {icon}
+      </Link>
+    );
+  }
   return (
     <button
       type="button"
@@ -32,7 +44,7 @@ export default function IconButton({ id, title, onClick, icon, variant = "primar
       aria-label={title}
       onClick={onClick}
       disabled={disabled}
-      className={`icon-button inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${VARIANT_CLASSES[variant]}`}
+      className={className}
     >
       {icon}
     </button>

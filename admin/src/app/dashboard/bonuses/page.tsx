@@ -185,7 +185,7 @@ export default function BonusesPage() {
                 <IconButton
                   id={`bonus-${b.id}-edit`}
                   title="Edit Bonus"
-                  onClick={() => router.push(`/dashboard/bonuses/${b.id}`)}
+                  href={`/dashboard/bonuses/${b.id}`}
                   icon={<IconEdit />}
                   variant="muted"
                 />

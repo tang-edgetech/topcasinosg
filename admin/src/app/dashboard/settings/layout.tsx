@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { isStaff } from "@/lib/roles";
+import { isStaff, isSuperAdmin } from "@/lib/roles";
 import PageHeading from "@/components/PageHeading";
 
 // Each tab is its own route so it can be linked to and bookmarked. Add new
@@ -13,6 +13,8 @@ const SETTINGS_TABS = [
   { href: "/dashboard/settings/security", label: "Security" },
   { href: "/dashboard/settings/api-keys", label: "API Keys" },
   { href: "/dashboard/settings/log", label: "Log" },
+  // Super Admin only (the API refuses everyone else too).
+  { href: "/dashboard/settings/html-export", label: "HTML Export", superAdminOnly: true },
 ];
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
@@ -33,7 +35,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
     <div id="settings-page" className="flex flex-col gap-6">
       <PageHeading title="Settings" help="settings" />
       <nav id="settings-tabs" className="settings-tabs flex gap-1 border-b border-border dark:border-border-dark" aria-label="Settings sections">
-        {SETTINGS_TABS.map((tab) => {
+        {SETTINGS_TABS.filter((tab) => !tab.superAdminOnly || isSuperAdmin(user)).map((tab) => {
           const active = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
           return (
             <Link

@@ -210,7 +210,7 @@ export default function RTPEntriesPage() {
                 <IconButton
                   id={`rtp-${e.id}-edit`}
                   title="Edit RTP Entry"
-                  onClick={() => router.push(`/dashboard/rtp/${e.id}`)}
+                  href={`/dashboard/rtp/${e.id}`}
                   icon={<IconEdit />}
                   variant="muted"
                 />

@@ -183,7 +183,7 @@ export default function CasinosPage() {
                 <IconButton
                   id={`casino-${c.id}-edit`}
                   title="Edit Casino"
-                  onClick={() => router.push(`/dashboard/casinos/${c.id}`)}
+                  href={`/dashboard/casinos/${c.id}`}
                   icon={<IconEdit />}
                   variant="muted"
                 />

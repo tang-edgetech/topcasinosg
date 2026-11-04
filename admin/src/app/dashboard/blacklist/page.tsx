@@ -183,7 +183,7 @@ export default function BlacklistPage() {
                 <IconButton
                   id={`blacklist-${e.id}-edit`}
                   title="Edit Blacklist Entry"
-                  onClick={() => router.push(`/dashboard/blacklist/${e.id}`)}
+                  href={`/dashboard/blacklist/${e.id}`}
                   icon={<IconEdit />}
                   variant="muted"
                 />

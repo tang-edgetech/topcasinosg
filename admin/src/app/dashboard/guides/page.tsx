@@ -177,7 +177,7 @@ export default function GuidesPage() {
                 <IconButton
                   id={`guide-${g.id}-edit`}
                   title="Edit Guide"
-                  onClick={() => router.push(`/dashboard/guides/${g.id}`)}
+                  href={`/dashboard/guides/${g.id}`}
                   icon={<IconEdit />}
                   variant="muted"
                 />

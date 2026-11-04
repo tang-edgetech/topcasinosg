@@ -148,7 +148,7 @@ export default function GameProvidersPage() {
                       <IconButton
                         id={`game-provider-${provider.id}-edit`}
                         title="Edit Game Provider"
-                        onClick={() => router.push(`/dashboard/game-providers/${provider.id}`)}
+                        href={`/dashboard/game-providers/${provider.id}`}
                         icon={<IconEdit />}
                         variant="muted"
                       />

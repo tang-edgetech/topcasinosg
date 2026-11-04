@@ -126,7 +126,7 @@ export default function RegionsPage() {
                     <IconButton
                       id={`region-${region.id}-edit`}
                       title="Edit Region"
-                      onClick={() => router.push(`/dashboard/regions/${region.id}`)}
+                      href={`/dashboard/regions/${region.id}`}
                       icon={<IconEdit />}
                       variant="muted"
                     />

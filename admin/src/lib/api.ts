@@ -114,14 +114,14 @@ export function hasSessionCookie(): boolean {
   return document.cookie.split("; ").some((c) => c.startsWith(`${HAS_SESSION_COOKIE}=`));
 }
 
-// requestBlob posts JSON and returns a binary download (export zips). Errors
-// still arrive as the JSON envelope.
+// requestBlob posts JSON (or, with no data, GETs) and returns a binary
+// download (export zips). Errors still arrive as the JSON envelope.
 async function requestBlob(path: string, data: unknown, _retried = false): Promise<Blob> {
   const res = await fetch(`${API_URL}${path}`, {
-    method: "POST",
+    method: data === undefined ? "GET" : "POST",
     credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+    headers: data === undefined ? undefined : { "Content-Type": "application/json" },
+    body: data === undefined ? undefined : JSON.stringify(data),
   });
 
   if (res.status === 401 && !_retried) {
@@ -145,5 +145,5 @@ export const api = {
     request<T>(path, { method: "PUT", body: data !== undefined ? JSON.stringify(data) : undefined }),
   del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
   upload: <T>(path: string, form: FormData) => requestForm<T>(path, form),
-  download: (path: string, data: unknown) => requestBlob(path, data),
+  download: (path: string, data?: unknown) => requestBlob(path, data),
 };
