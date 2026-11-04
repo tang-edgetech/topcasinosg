@@ -184,7 +184,7 @@ export interface LicenseDTO {
 }
 
 export async function getCasino(slug: string): Promise<CasinoDTO | null> {
-  const data = await fetchData<{ casino: CasinoDTO }>(`${API_BASE_URL}/api/casinos/${encodeURIComponent(slug)}`);
+  const data = await fetchData<{ casino: CasinoDTO }>(`${API_BASE_URL}/api/casinos/${encodeURIComponent(slug)}?missing=ok`);
   return data?.casino ?? null;
 }
 

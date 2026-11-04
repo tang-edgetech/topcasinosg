@@ -52,7 +52,7 @@ export async function getNewsArticles(): Promise<NewsArticleDTO[]> {
 /** Returns null if the slug doesn't exist, or the article isn't published (backend hides it and reports success:false). */
 export async function getNewsArticleBySlug(slug: string): Promise<NewsArticleDTO | null> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/news/${encodeURIComponent(slug)}`, {
+    const res = await fetch(`${API_BASE_URL}/api/news/${encodeURIComponent(slug)}?missing=ok`, {
       next: { revalidate: REVALIDATE_SECONDS },
     });
     if (!res.ok) return null;

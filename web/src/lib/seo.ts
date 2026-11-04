@@ -49,7 +49,7 @@ export interface SeoInput {
 export async function getSeoMeta(type: SeoEntityType, id: number | undefined): Promise<SeoMeta | null> {
   if (!id) return null;
   try {
-    const res = await fetch(`${API_BASE_URL}/api/seo/${type}/${id}`, { next: { revalidate: REVALIDATE_SECONDS } });
+    const res = await fetch(`${API_BASE_URL}/api/seo/${type}/${id}?missing=ok`, { next: { revalidate: REVALIDATE_SECONDS } });
     if (!res.ok) return null;
     const body = (await res.json()) as { success: boolean; data?: { seo?: SeoMeta } };
     return body.success ? (body.data?.seo ?? null) : null;

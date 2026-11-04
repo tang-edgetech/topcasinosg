@@ -52,7 +52,7 @@ interface RegionsApiResponse {
 
 async function getGuide(slug: string): Promise<GuideDTO | null> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/guides/${encodeURIComponent(slug)}`, {
+    const res = await fetch(`${API_BASE_URL}/api/guides/${encodeURIComponent(slug)}?missing=ok`, {
       next: { revalidate: 60 },
     });
 

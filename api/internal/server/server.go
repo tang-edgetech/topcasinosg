@@ -361,5 +361,5 @@ func NewRouter(deps Deps) http.Handler {
 	// now and daily; it runs through the routes above.
 	go bin.purgeExpired()
 
-	return middleware.CORS(deps.Config.CORSAllowedOrigins)(mux)
+	return middleware.CORS(deps.Config.CORSAllowedOrigins)(middleware.CacheableNotFound(mux))
 }

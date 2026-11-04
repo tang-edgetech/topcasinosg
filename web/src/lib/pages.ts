@@ -134,10 +134,14 @@ function fillYear(result: PageWithSections): PageWithSections {
   };
 }
 
+// ?missing=ok: the API answers "not found" as a 200, so Next.js caches it
+// (it only caches 200s). Otherwise a deleted, unpublished or renamed page
+// would keep showing its last cached copy (api middleware.CacheableNotFound).
+// The other detail lookups (news, bonuses, guides, casinos, SEO) do the same.
 export async function getPage(path: string): Promise<PageWithSections | null> {
   try {
     const encodedPath = path.split("/").map(encodeURIComponent).join("/");
-    const res = await fetch(`${API_BASE_URL}/api/pages/${encodedPath}`, {
+    const res = await fetch(`${API_BASE_URL}/api/pages/${encodedPath}?missing=ok`, {
       next: { revalidate: REVALIDATE_SECONDS },
     });
     if (!res.ok) return null;
@@ -155,7 +159,7 @@ export async function getPage(path: string): Promise<PageWithSections | null> {
 // same {year} filling as page content.
 export async function getGlobalSections(id: number): Promise<PageSection[] | null> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/global-sections/${id}`, { next: { revalidate: REVALIDATE_SECONDS } });
+    const res = await fetch(`${API_BASE_URL}/api/global-sections/${id}?missing=ok`, { next: { revalidate: REVALIDATE_SECONDS } });
     if (!res.ok) return null;
     const body = (await res.json()) as ApiEnvelope<{ sections?: PageSection[] }>;
     if (!body.success) return null;

@@ -52,7 +52,7 @@ interface RegionsApiResponse {
 
 async function getBonus(slug: string): Promise<BonusDTO | null> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/bonuses/${encodeURIComponent(slug)}`, {
+    const res = await fetch(`${API_BASE_URL}/api/bonuses/${encodeURIComponent(slug)}?missing=ok`, {
       next: { revalidate: 60 },
     });
 
