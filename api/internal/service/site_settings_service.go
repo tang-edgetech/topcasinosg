@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/mail"
 	"net/url"
 	"regexp"
@@ -33,6 +34,7 @@ var (
 	ErrInvalidFooterBadge       = errors.New("each badge needs a name (up to 100 characters) and an image; links must be http(s) or start with /")
 	ErrInvalidLockout           = errors.New("lockout: 0 (off) or 3–20 attempts, for 1–1440 minutes")
 	ErrInvalidPasswordLength    = errors.New("minimum password length must be 8–72 characters")
+	ErrInvalidThemeColor        = errors.New("theme: colours are #rgb, #rrggbb or #rrggbbaa, for the colours listed in Settings > Theme (GET .../settings/theme)")
 	ErrInvalidBreakpoints       = errors.New("screen sizes: tablet from at least 480px, desktop at least 100px wider than tablet and at most 2560px")
 )
 
@@ -79,6 +81,30 @@ func (s *SiteSettingsService) Update(ctx context.Context, actor *domain.AdminUse
 		}
 	}
 	return s.settings.UpdateSocialDefaults(ctx, sd)
+}
+
+// UpdateTheme saves the site-wide colour theme. A colour equal to its
+// default isn't stored, so the default can change later without a stale copy.
+func (s *SiteSettingsService) UpdateTheme(ctx context.Context, actor *domain.AdminUser, theme domain.ThemeConfig) error {
+	if !canEditSiteSettings(actor) {
+		return ErrForbidden
+	}
+	colors := map[string]string{}
+	for token, value := range theme.Colors {
+		value = strings.ToLower(strings.TrimSpace(value))
+		if value == "" {
+			continue // back to the default
+		}
+		if !domain.ThemeColorToken(token) || !domain.IsThemeColor(value) {
+			return fmt.Errorf("%w (got %q: %q)", ErrInvalidThemeColor, token, value)
+		}
+		for _, c := range domain.ThemeColors {
+			if c.Token == token && c.Default != value {
+				colors[token] = value
+			}
+		}
+	}
+	return s.settings.UpdateTheme(ctx, domain.ThemeConfig{Colors: colors})
 }
 
 // UpdateFooter saves the Footer page: the brand/contact block and the

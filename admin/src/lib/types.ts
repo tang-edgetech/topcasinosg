@@ -73,6 +73,18 @@ export interface SiteSettingsDTO {
   breakpoints?: BreakpointsDTO;
 }
 
+// Settings > Theme — one colour the theme can change (GET
+// /api/admin/settings/theme; domain.ThemeColors in
+// api/internal/domain/site_theme.go).
+export interface ThemeColorDTO {
+  token: string;
+  group: string;
+  label: string;
+  default: string;
+  value: string;
+  changed: boolean;
+}
+
 // Settings > HTML Export — service.HTMLExportStatus in
 // api/internal/service/html_export_service.go.
 export type HTMLExportState = "idle" | "running" | "done" | "failed";

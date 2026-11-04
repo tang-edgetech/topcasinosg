@@ -41,6 +41,13 @@ free plan is enough: the connector doesn't need a paid AI plan.
    The key is shown **once**. Copy it straight into the config below.
    Give each person their own key, so the Activity Log shows who did what.
 
+   **For site-wide changes** (Global Sections, header and footer menus, the
+   website's colours), the key must belong to an **Admin or Super Admin** and
+   be **Direct** with the **navigation** and **settings** areas ticked. Global
+   Sections also work with a Needs-approval key; menus and colours don't.
+   These are usually for the person in charge of the site, since one change
+   shows on every page.
+
 ## Set up Claude Desktop
 
 1. Open Claude Desktop and go to **Settings > Developer > Edit Config**.
@@ -106,6 +113,9 @@ claude mcp add topcasinosg --env TOPCASINOSG_API_URL=https://backapi.topcasinosg
 - *"Write a draft news article about the three newest casinos, about 400 words."*
 - *"Upload this image to the Media Library and use it on the About page hero."*
 - *"Which of my changes are still waiting for approval?"*
+- *"Which pages use the 'Responsible gambling' global section? Change its text to …"*
+- *"Add 'Payment Guides' to the header menu under 'Casino Reviews', linking to /guides."*
+- *"Make the brand colour a bit darker blue and show me the old and new colours before saving."*
 
 How the AI works with the site:
 
@@ -151,6 +161,9 @@ To undo a change while we look into it:
 | A title or meta text | The Activity Log entry shows the old value: type it back in. |
 | Something deleted | **Recycle Bin**: restore it within 30 days. |
 | Published by mistake | Set it back to **Draft** in the dashboard, or ask the AI to unpublish it. |
+| A Global Section | **Pages > Global Sections > Edit > Revisions**: restore the earlier version. |
+| A menu item | The Activity Log entry shows what it was: add it back in **Navigation**, or ask the AI to. |
+| The website's colours | **Settings > Theme**: **Reset** one colour or **Reset all to original**; the Activity Log shows the old values. |
 
 ## What the AI can do
 
@@ -160,7 +173,10 @@ To undo a change while we look into it:
 | `get_schema` | Shows how pages are built: every block, its fields and allowed values, and the style classes. |
 | `list_pages`, `get_page` | Reads pages and their sections. |
 | `save_page_sections`, `create_page` | Changes a page or adds one (as a draft). `dryRun` only checks the change. |
-| `list_global_sections` | Lists the reusable sections a page can include. |
+| `list_global_sections`, `get_global_section` | Lists Global Sections (shared blocks), and shows one with the pages that use it. |
+| `save_global_section` | Changes a Global Section, on every page that uses it at once. Admin keys only. |
+| `get_menus`, `save_menu_item`, `delete_menu_item` | Reads and changes the header and footer menus. Only items with nothing under them can be deleted. Admin, Direct keys. |
+| `get_theme`, `save_theme` | Reads and changes the website's colours (Settings > Theme). Admin, Direct keys. |
 | `list_news`, `get_news`, `save_news` | Reads, writes and changes news articles. |
 | `list_media`, `upload_image` | Uses the Media Library, and adds images from a file or a web address. |
 | `list_my_changes` | Shows the changes this key sent and whether they were approved. |

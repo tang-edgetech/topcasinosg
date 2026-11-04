@@ -160,9 +160,88 @@ const TOOLS = [
   },
   {
     name: "list_global_sections",
-    description: "Reusable sections a page can include with a global_section block.",
+    description: "Global Sections: reusable blocks (e.g. a shared banner or CTA) that pages include with a global_section block. One edit changes every page that shows it.",
     inputSchema: { type: "object", properties: {} },
     run: () => api("GET", "/global-sections"),
+  },
+  {
+    name: "get_global_section",
+    description: "One Global Section: its sections (same shape as a page's) and usedOn, the pages that show it. Read usedOn before changing it.",
+    inputSchema: { type: "object", properties: { id }, required: ["id"] },
+    run: ({ id }) => api("GET", `/global-sections/${id}`),
+  },
+  {
+    name: "save_global_section",
+    description:
+      "Change a Global Section: send its WHOLE section list back, edited, and/or a new name. It changes every page in usedOn at once, so tell the user which pages and run dryRun first. Only an Admin's API key can. With a Needs-approval key this proposes the change.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id,
+        sections: sectionsSchema,
+        name: { type: "string" },
+        note: { type: "string", description: "Why: shown to the admin who reviews it." },
+        dryRun: { type: "boolean", description: "true: check the change without saving it." },
+      },
+      required: ["id"],
+    },
+    run: ({ id, ...change }) => api("POST", `/global-sections/${id}/changes`, change),
+  },
+  {
+    name: "get_menus",
+    description:
+      "The header and footer menus: every menu item with id, location (header/footer), parentId (null for a top-level item), label, href, sourceType and sortOrder. Direct key with the navigation area; the key's admin must be an Admin.",
+    inputSchema: { type: "object", properties: {} },
+    run: async () => ({
+      header: await api("GET", "/menu-items?location=header"),
+      footer: await api("GET", "/menu-items?location=footer"),
+    }),
+  },
+  {
+    name: "save_menu_item",
+    description:
+      "Add a menu item (no id) or change one (with id: send all its fields, as get_menus shows them). sourceType \"static\" is a normal link (href like \"/sg/bonuses\"); \"dynamic_regions\" / \"dynamic_casinos\" list the site's regions or casinos under it. parentId puts it under another item; sortOrder orders items (lower first).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "integer", description: "Leave out to add a new item." },
+        location: { type: "string", enum: ["header", "footer"] },
+        parentId: { type: ["integer", "null"] },
+        label: { type: "string" },
+        href: { type: ["string", "null"] },
+        sourceType: { type: "string", enum: ["static", "dynamic_regions", "dynamic_casinos"] },
+        sortOrder: { type: "integer" },
+      },
+      required: ["location", "label", "sourceType"],
+    },
+    run: ({ id, ...item }) => (id ? api("PUT", `/menu-items/${id}`, item) : api("POST", "/menu-items", item)),
+  },
+  {
+    name: "delete_menu_item",
+    description:
+      "Delete a menu item that has nothing under it (move or delete its child items first). It is deleted for good; the Activity Log keeps what it was, so it can be added back with save_menu_item. Confirm with the user first.",
+    inputSchema: { type: "object", properties: { id }, required: ["id"] },
+    run: ({ id }) => api("DELETE", `/menu-items/${id}`),
+  },
+  {
+    name: "get_theme",
+    description:
+      "The website's colours (Settings > Theme): every colour token (primary-50 ... primary-900, secondary-50 ... secondary-900, success, danger, star...) with its group, label, original default and current value. Direct key with the settings area; the key's admin must be an Admin.",
+    inputSchema: { type: "object", properties: {} },
+    run: () => api("GET", "/settings/theme"),
+  },
+  {
+    name: "save_theme",
+    description:
+      "Change the website's colours everywhere at once. colors maps a token to a #hex colour. It REPLACES the whole theme: any token left out goes back to its original, so include every colour that should stay changed (start from get_theme's current values). Show the user the old and new colours and confirm before saving.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        colors: { type: "object", additionalProperties: { type: "string" }, description: "e.g. {\"primary-500\": \"#3e4ba8\", \"secondary-500\": \"#f7c30b\"}" },
+      },
+      required: ["colors"],
+    },
+    run: ({ colors }) => api("PUT", "/settings/theme", { colors }),
   },
   {
     name: "list_news",

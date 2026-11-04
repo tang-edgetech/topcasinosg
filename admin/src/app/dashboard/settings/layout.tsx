@@ -10,6 +10,7 @@ import PageHeading from "@/components/PageHeading";
 // tabs (e.g. Extra) here and as a sibling folder.
 const SETTINGS_TABS = [
   { href: "/dashboard/settings/general", label: "General" },
+  { href: "/dashboard/settings/theme", label: "Theme" },
   { href: "/dashboard/settings/security", label: "Security" },
   { href: "/dashboard/settings/api-keys", label: "API Keys" },
   { href: "/dashboard/settings/log", label: "Log" },

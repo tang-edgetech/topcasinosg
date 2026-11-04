@@ -31,6 +31,7 @@ type SiteSettings struct {
 	SocialDefaults
 	Footer      FooterConfig
 	Breakpoints Breakpoints
+	Theme       ThemeConfig
 	UpdatedAt   time.Time
 }
 

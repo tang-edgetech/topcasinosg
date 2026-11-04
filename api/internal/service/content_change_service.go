@@ -90,6 +90,9 @@ type Proposal struct {
 	TargetID *int64
 	Note     string
 	DryRun   bool
+	// Global: TargetID is a Global Section (shown on every page that places
+	// it), not a page.
+	Global bool
 }
 
 var slugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
@@ -136,7 +139,7 @@ func toDomainSectionList(pageID int64, sections []SectionInput) []domain.PageSec
 
 // checkPageSections explains exactly which section breaks which rule, since
 // the caller is usually an AI tool that has to fix and resend it.
-func (s *ContentChangeService) checkPageSections(ctx context.Context, sections []SectionInput) error {
+func (s *ContentChangeService) checkPageSections(ctx context.Context, kind string, sections []SectionInput) error {
 	var open []int // depths of the Containers the next section can be inside
 	for i, section := range sections {
 		where := fmt.Sprintf("sections[%d]", i)
@@ -190,18 +193,36 @@ func (s *ContentChangeService) checkPageSections(ctx context.Context, sections [
 		}
 	}
 	// The same rules the admin editor's save goes through.
-	if err := checkSections(domain.PageKindPage, toDomainSectionList(0, sections)); err != nil {
+	if kind == domain.PageKindGlobal && hasGlobalSectionBlock(toDomainSectionList(0, sections)) {
+		return invalid("a Global Section can't include another Global Section (no global_section blocks in it)")
+	}
+	if err := checkSections(kind, toDomainSectionList(0, sections)); err != nil {
 		return invalid("%s", err.Error())
 	}
 	return nil
 }
 
-func (s *ContentChangeService) livePage(ctx context.Context, id int64) (*domain.Page, error) {
+// livePage is a page of the given kind (a normal page, or a Global Section
+// for Proposal.Global).
+func (s *ContentChangeService) livePage(ctx context.Context, id int64, kind string) (*domain.Page, error) {
 	page, err := s.pages.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	if page.Kind != domain.PageKindPage {
+	if page.Kind != kind {
+		return nil, repository.ErrNotFound
+	}
+	return page, nil
+}
+
+// changeTarget is what a stored page change updates: a page or a Global
+// Section (checked when it was proposed).
+func (s *ContentChangeService) changeTarget(ctx context.Context, id int64) (*domain.Page, error) {
+	page, err := s.pages.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if page.Kind != domain.PageKindPage && page.Kind != domain.PageKindGlobal {
 		return nil, repository.ErrNotFound
 	}
 	return page, nil
@@ -210,7 +231,7 @@ func (s *ContentChangeService) livePage(ctx context.Context, id int64) (*domain.
 // PageFingerprint identifies a page's current editable content, to tell
 // whether it changed after a proposal was based on it.
 func (s *ContentChangeService) PageFingerprint(ctx context.Context, id int64) (string, error) {
-	page, err := s.livePage(ctx, id)
+	page, err := s.changeTarget(ctx, id)
 	if err != nil {
 		return "", err
 	}
@@ -253,7 +274,11 @@ func fingerprint(v any) (string, error) {
 func (s *ContentChangeService) ProposePage(ctx context.Context, p Proposal, change PageChange) (*domain.ContentChange, error) {
 	var warnings []string
 	if change.Sections != nil {
-		if err := s.checkPageSections(ctx, *change.Sections); err != nil {
+		kind := domain.PageKindPage
+		if p.Global {
+			kind = domain.PageKindGlobal
+		}
+		if err := s.checkPageSections(ctx, kind, *change.Sections); err != nil {
 			return nil, err
 		}
 		var err error
@@ -310,8 +335,20 @@ func (s *ContentChangeService) proposePage(ctx context.Context, p Proposal, chan
 		return nil, invalid("title can't be empty")
 	}
 	c := &domain.ContentChange{ContentType: domain.ContentChangePage, TargetID: p.TargetID}
+	if p.Global {
+		if p.TargetID == nil {
+			return nil, invalid("a Global Section is created in the dashboard (Pages > Global Sections); the API changes existing ones")
+		}
+		if change.MetaTitle != nil || change.MetaDescription != nil {
+			return nil, invalid("a Global Section has no SEO fields: send name and sections only")
+		}
+	}
 	if p.TargetID != nil {
-		page, err := s.livePage(ctx, *p.TargetID)
+		kind := domain.PageKindPage
+		if p.Global {
+			kind = domain.PageKindGlobal
+		}
+		page, err := s.livePage(ctx, *p.TargetID, kind)
 		if err != nil {
 			return nil, err
 		}
@@ -336,7 +373,7 @@ func (s *ContentChangeService) proposePage(ctx context.Context, p Proposal, chan
 			return nil, invalid("slug is required for a new page: lowercase letters, numbers and hyphens, e.g. \"payment-guide\"")
 		}
 		if change.ParentID != nil {
-			if _, err := s.livePage(ctx, *change.ParentID); err != nil {
+			if _, err := s.livePage(ctx, *change.ParentID, domain.PageKindPage); err != nil {
 				return nil, invalid("parentId %d is not a page", *change.ParentID)
 			}
 		}
@@ -558,7 +595,7 @@ func (s *ContentChangeService) apply(ctx context.Context, c *domain.ContentChang
 			}
 			return page.ID, nil
 		}
-		page, err := s.livePage(ctx, *c.TargetID)
+		page, err := s.changeTarget(ctx, *c.TargetID)
 		if err != nil {
 			return 0, err
 		}
@@ -566,6 +603,14 @@ func (s *ContentChangeService) apply(ctx context.Context, c *domain.ContentChang
 			if err := s.pages.ReplaceSections(ctx, page.ID, toDomainSectionList(page.ID, *change.Sections), &reviewerID, domain.PageRevisionAIChange); err != nil {
 				return 0, err
 			}
+		}
+		if page.Kind == domain.PageKindGlobal {
+			if change.Title != nil {
+				if err := s.pages.RenameGlobal(ctx, page.ID, *change.Title); err != nil {
+					return 0, err
+				}
+			}
+			return page.ID, nil
 		}
 		if change.Title != nil {
 			if err := s.pages.Update(ctx, page.ID, PageInput{ParentID: page.ParentID, Slug: page.Slug, Title: *change.Title}); err != nil {

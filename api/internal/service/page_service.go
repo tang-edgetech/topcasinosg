@@ -408,6 +408,16 @@ func (s *PageService) DeleteGlobal(ctx context.Context, id int64) error {
 	return s.pages.Delete(ctx, id)
 }
 
+// GetGlobal is one global section, with how many pages place it.
+func (s *PageService) GetGlobal(ctx context.Context, id int64) (*domain.GlobalSection, error) {
+	return s.pages.GetGlobal(ctx, id)
+}
+
+// GlobalUsedOn lists the ids of the pages that place a global section.
+func (s *PageService) GlobalUsedOn(ctx context.Context, id int64) ([]int64, error) {
+	return s.pages.GlobalUsedOn(ctx, id)
+}
+
 func (s *PageService) GlobalSections(ctx context.Context, id int64) ([]domain.PageSection, error) {
 	if _, err := s.pages.GetGlobal(ctx, id); err != nil {
 		return nil, err

@@ -1,4 +1,5 @@
 import { DEFAULT_BREAKPOINTS, normalizeBreakpoints, type Breakpoints } from "./deviceCss";
+import type { ThemeConfig } from "./themeCss";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
 
@@ -25,6 +26,8 @@ export interface SiteSettings {
   footer: FooterConfig;
   // Page builder screen sizes: tablet and desktop start here (lib/deviceCss.ts).
   breakpoints: Breakpoints;
+  // Site-wide colours changed from tokens.css's defaults (lib/themeCss.ts).
+  theme: ThemeConfig;
 }
 
 // The footer's arrangement, bottom bar and badges, edited on the admin
@@ -79,6 +82,7 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
   twitterHandle: "",
   footer: DEFAULT_FOOTER,
   breakpoints: DEFAULT_BREAKPOINTS,
+  theme: { colors: {} },
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {
@@ -95,6 +99,7 @@ export async function getSiteSettings(): Promise<SiteSettings> {
       ogImageUrl: data.ogImageUrl || null,
       footer: data.footer ?? DEFAULT_FOOTER,
       breakpoints: normalizeBreakpoints(data.breakpoints),
+      theme: { colors: data.theme?.colors ?? {} },
     };
   } catch {
     return DEFAULT_SITE_SETTINGS;

@@ -41,6 +41,8 @@ type siteSettingsDTO struct {
 	Security domain.SecurityPolicy `json:"security"`
 	// Breakpoints: the page builder's tablet and desktop screen sizes.
 	Breakpoints domain.Breakpoints `json:"breakpoints"`
+	// Theme: the colours changed from the defaults (Settings > Theme).
+	Theme domain.ThemeConfig `json:"theme"`
 }
 
 type socialDefaultsJSON struct {
@@ -72,6 +74,7 @@ func toSiteSettingsDTO(s *domain.SiteSettings) siteSettingsDTO {
 		Footer:             withFooterBadges(s.Footer),
 		Security:           s.Security,
 		Breakpoints:        s.Breakpoints,
+		Theme:              s.Theme,
 	}
 }
 
@@ -101,7 +104,8 @@ func siteSettingsErrorStatus(err error) int {
 		errors.Is(err, service.ErrInvalidFooterBadge),
 		errors.Is(err, service.ErrInvalidLockout),
 		errors.Is(err, service.ErrInvalidPasswordLength),
-		errors.Is(err, service.ErrInvalidBreakpoints):
+		errors.Is(err, service.ErrInvalidBreakpoints),
+		errors.Is(err, service.ErrInvalidThemeColor):
 		return http.StatusBadRequest
 	default:
 		return http.StatusInternalServerError
@@ -170,6 +174,50 @@ func (h *SiteSettingsHandler) UpdateFooter(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	if err := h.settings.UpdateFooter(r.Context(), actor, domain.FooterContact(req.footerContactJSON), req.Footer); err != nil {
+		response.Err(w, siteSettingsErrorStatus(err), err.Error())
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]bool{"updated": true})
+}
+
+// themeColorDTO: one colour the theme can change, with its value now.
+type themeColorDTO struct {
+	domain.ThemeColor
+	Value   string `json:"value"`
+	Changed bool   `json:"changed"`
+}
+
+// GetTheme: GET /api/admin/settings/theme, every colour the theme can
+// change (token, group, label, default and current value) and the changed
+// ones as they are stored.
+func (h *SiteSettingsHandler) GetTheme(w http.ResponseWriter, r *http.Request) {
+	settings, err := h.settings.Get(r.Context())
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "could not load the theme")
+		return
+	}
+	colors := make([]themeColorDTO, len(domain.ThemeColors))
+	for i, c := range domain.ThemeColors {
+		value, changed := settings.Theme.Colors[c.Token]
+		if !changed {
+			value = c.Default
+		}
+		colors[i] = themeColorDTO{ThemeColor: c, Value: value, Changed: changed}
+	}
+	response.JSON(w, http.StatusOK, map[string]any{"theme": settings.Theme, "colors": colors})
+}
+
+// UpdateTheme: PUT /api/admin/settings/theme with {"colors": {token: hex}}.
+// It replaces the whole theme: a colour left out (or "") goes back to its
+// default.
+func (h *SiteSettingsHandler) UpdateTheme(w http.ResponseWriter, r *http.Request) {
+	actor := middleware.UserFromContext(r.Context())
+	var req domain.ThemeConfig
+	if err := httpx.DecodeJSON(r, &req); err != nil {
+		response.Err(w, http.StatusBadRequest, "invalid request body: send {\"colors\": {\"primary-500\": \"#3e4ba8\"}}")
+		return
+	}
+	if err := h.settings.UpdateTheme(r.Context(), actor, req); err != nil {
 		response.Err(w, siteSettingsErrorStatus(err), err.Error())
 		return
 	}

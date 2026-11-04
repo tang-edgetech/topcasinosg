@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/tang-edgetech/topcasinosg/api/internal/domain"
+	"github.com/tang-edgetech/topcasinosg/api/internal/handler"
 	"github.com/tang-edgetech/topcasinosg/api/internal/middleware"
 	"github.com/tang-edgetech/topcasinosg/api/internal/repository"
 	"github.com/tang-edgetech/topcasinosg/api/internal/response"
@@ -44,7 +45,7 @@ var areaScopes = map[string]string{
 
 // settingsPaths: the Site Settings a key may change (not 2FA or security).
 var settingsPaths = map[string]bool{
-	"settings/site": true, "settings/footer": true, "settings/site/logo": true, "settings/site/favicon": true,
+	"settings/site": true, "settings/footer": true, "settings/theme": true, "settings/site/logo": true, "settings/site/favicon": true,
 }
 
 // directScope returns the scope an admin path (without /api/admin/) needs,
@@ -66,14 +67,15 @@ func directScope(path string) (string, bool) {
 
 // binTypes: what a key's DELETE moves to the Recycle Bin, by admin area.
 // Each has GET and PUT .../status routes ({status, publishAt}), except
-// snippets, which have .../active ({active}). Anything else (media, menu
-// items, global sections, providers, licenses...) can't be deleted by a key.
+// snippets, which have .../active ({active}). Menu items are deleted for
+// real when nothing is under them (see directAPI). Anything else (media,
+// global sections, providers, licenses...) can't be deleted by a key.
 var binTypes = map[string]bool{
 	"pages": true, "news": true, "casinos": true, "bonuses": true, "payment-methods": true,
 	"rtp": true, "guides": true, "blacklist": true, "snippets": true,
 }
 
-func directAPI(mux *http.ServeMux, bin *recycleBin) http.Handler {
+func directAPI(mux *http.ServeMux, bin *recycleBin, isGlobal func(context.Context, int64) bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		key := middleware.APIKeyFromContext(r.Context())
 		path := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/v1/"), "/")
@@ -91,7 +93,29 @@ func directAPI(mux *http.ServeMux, bin *recycleBin) http.Handler {
 			return
 		}
 		segments := strings.Split(path, "/")
-		if r.Method == http.MethodDelete {
+		if r.Method != http.MethodGet && touchesGlobal(r.Context(), segments, isGlobal) && !handler.IsAdminRole(middleware.UserFromContext(r.Context())) {
+			response.Err(w, http.StatusForbidden, "only an Admin's API key can change Global Sections: they show on many pages at once")
+			return
+		}
+		if r.Method == http.MethodDelete && segments[0] == "menu-items" && len(segments) == 2 {
+			// A menu item is deleted for real (the activity log keeps what it
+			// was, so it can be added back), but only one with nothing under
+			// it: deleting a parent would take its whole submenu with it.
+			id, err := strconv.ParseInt(segments[1], 10, 64)
+			if err != nil {
+				response.Err(w, http.StatusBadRequest, "invalid menu item id")
+				return
+			}
+			n, err := bin.menuChildren(r.Context(), id)
+			if err != nil {
+				response.Err(w, http.StatusServiceUnavailable, "could not check what is under this menu item, so it wasn't deleted; try again")
+				return
+			}
+			if n > 0 {
+				response.Err(w, http.StatusConflict, fmt.Sprintf("menu item %d has %d item(s) under it: delete or move those first (PUT /api/v1/menu-items/{id} with another parentId)", id, n))
+				return
+			}
+		} else if r.Method == http.MethodDelete {
 			id, err := strconv.ParseInt(segments[len(segments)-1], 10, 64)
 			if !binTypes[segments[0]] || len(segments) != 2 || err != nil {
 				response.Err(w, http.StatusForbidden, "API keys can't delete this; ask an admin to delete it in the dashboard")
@@ -106,6 +130,49 @@ func directAPI(mux *http.ServeMux, bin *recycleBin) http.Handler {
 		admin.RequestURI = admin.URL.RequestURI()
 		mux.ServeHTTP(w, admin)
 	})
+}
+
+// menuChildren counts the menu items directly under a menu item, in both
+// menus, from the admin lists as the key's admin sees them. An error means
+// it couldn't tell, and the item must not be deleted.
+func (b *recycleBin) menuChildren(ctx context.Context, id int64) (int, error) {
+	count := 0
+	for _, location := range []domain.MenuLocation{domain.MenuLocationHeader, domain.MenuLocationFooter} {
+		status, body := b.dispatch(ctx, http.MethodGet, "/api/admin/menu-items?location="+string(location), nil)
+		if status != http.StatusOK {
+			return 0, fmt.Errorf("menu items (%s): status %d", location, status)
+		}
+		var list struct {
+			Data struct {
+				MenuItems []struct {
+					ParentID *int64 `json:"parentId"`
+				} `json:"menuItems"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(body, &list); err != nil {
+			return 0, err
+		}
+		for _, item := range list.Data.MenuItems {
+			if item.ParentID != nil && *item.ParentID == id {
+				count++
+			}
+		}
+	}
+	return count, nil
+}
+
+// touchesGlobal: the path changes a Global Section (global-sections/..., or
+// pages/{id}/... where the page is one).
+func touchesGlobal(ctx context.Context, segments []string, isGlobal func(context.Context, int64) bool) bool {
+	if segments[0] == "global-sections" {
+		return true
+	}
+	if segments[0] == "pages" && len(segments) > 1 {
+		if id, err := strconv.ParseInt(segments[1], 10, 64); err == nil {
+			return isGlobal(ctx, id)
+		}
+	}
+	return false
 }
 
 // recycleBin keeps what Direct keys delete for domain.RecycleBinDays. An

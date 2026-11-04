@@ -342,6 +342,121 @@ func (h *ContentAPIHandler) ListGlobalSections(w http.ResponseWriter, r *http.Re
 	response.JSON(w, http.StatusOK, map[string]any{"globalSections": dtos})
 }
 
+// IsGlobalSection: whether a page id is a Global Section.
+func (h *ContentAPIHandler) IsGlobalSection(ctx context.Context, id int64) bool {
+	page, err := h.pages.GetByID(ctx, id)
+	return err == nil && page.Kind == domain.PageKindGlobal
+}
+
+// globalUsageDTO: a page that places a global section.
+type globalUsageDTO struct {
+	ID     int64  `json:"id"`
+	Title  string `json:"title"`
+	Path   string `json:"path"`
+	Status string `json:"status"`
+}
+
+// globalUsage lists the pages a global section is on.
+func (h *ContentAPIHandler) globalUsage(ctx context.Context, id int64) ([]globalUsageDTO, error) {
+	ids, err := h.pages.GlobalUsedOn(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	paths, err := h.pages.PathsByID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	used := make([]globalUsageDTO, 0, len(ids))
+	for _, pageID := range ids {
+		page, err := h.pages.GetByID(ctx, pageID)
+		if err != nil {
+			continue
+		}
+		used = append(used, globalUsageDTO{ID: page.ID, Title: page.Title, Path: "/" + paths[page.ID], Status: string(page.Status)})
+	}
+	return used, nil
+}
+
+// GetGlobalSection: GET /api/v1/global-sections/{id}, its sections (the same
+// shape as a page's) and the pages it is on.
+func (h *ContentAPIHandler) GetGlobalSection(w http.ResponseWriter, r *http.Request) {
+	id, ok := requestID(w, r)
+	if !ok {
+		return
+	}
+	global, err := h.pages.GetGlobal(r.Context(), id)
+	if err != nil {
+		response.Err(w, http.StatusNotFound, "global section not found")
+		return
+	}
+	sections, err := h.pages.GlobalSections(r.Context(), id)
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "could not load the global section")
+		return
+	}
+	used, err := h.globalUsage(r.Context(), id)
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "could not load the global section")
+		return
+	}
+	inputs := service.SectionInputs(sections)
+	if inputs == nil {
+		inputs = []service.SectionInput{}
+	}
+	response.JSON(w, http.StatusOK, map[string]any{
+		"globalSection": map[string]any{"id": global.ID, "name": global.Name, "updatedAt": global.UpdatedAt, "usedOn": used},
+		"sections":      inputs,
+	})
+}
+
+type globalProposalRequest struct {
+	Note     string                  `json:"note"`
+	DryRun   bool                    `json:"dryRun"`
+	Name     *string                 `json:"name"`
+	Sections *[]service.SectionInput `json:"sections"`
+}
+
+// ProposeGlobalSection: POST /api/v1/global-sections/{id}/changes. A Global
+// Section shows on every page that places it, so only a key whose admin is
+// an Admin or Super Admin may change one, and the answer names those pages.
+func (h *ContentAPIHandler) ProposeGlobalSection(w http.ResponseWriter, r *http.Request) {
+	id, ok := requestID(w, r)
+	if !ok {
+		return
+	}
+	if !IsAdminRole(middleware.UserFromContext(r.Context())) {
+		response.Err(w, http.StatusForbidden, "only an Admin's API key can change Global Sections: they show on many pages at once")
+		return
+	}
+	var req globalProposalRequest
+	if err := decodeStrict(r, &req); err != nil {
+		response.Err(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if req.Name == nil && req.Sections == nil {
+		response.Err(w, http.StatusBadRequest, "nothing to change: send name or sections")
+		return
+	}
+	p := service.Proposal{Key: middleware.APIKeyFromContext(r.Context()), TargetID: &id, Note: req.Note, DryRun: isDryRun(r, req.DryRun), Global: true}
+	before := h.contentSnapshot(r, domain.ContentChangePage, &id)
+	change, err := h.changes.ProposePage(r.Context(), p, service.PageChange{Title: req.Name, Sections: req.Sections})
+	if change != nil {
+		if used, err := h.globalUsage(r.Context(), id); err == nil && len(used) > 0 {
+			paths := make([]string, len(used))
+			for i, u := range used {
+				paths[i] = u.Path
+			}
+			change.Warnings = append(change.Warnings, fmt.Sprintf("This Global Section is on %d page(s), which all show the change: %s", len(used), strings.Join(paths, ", ")))
+		}
+	}
+	h.respondProposal(w, r, change, err, p.DryRun, "global section not found", req, before)
+}
+
+// IsAdminRole: an Admin or Super Admin (not an Editor).
+func IsAdminRole(u *domain.AdminUser) bool {
+	return u != nil && (u.Role == domain.RoleSuperAdmin || u.Role == domain.RoleAdmin)
+}
+
 func (h *ContentAPIHandler) ListNews(w http.ResponseWriter, r *http.Request) {
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	pageSize, _ := strconv.Atoi(r.URL.Query().Get("pageSize"))
@@ -563,7 +678,9 @@ func keyEndpoints(key *domain.APIKey) []string {
 			"GET /api/v1/pages/{id} - one page with all its sections",
 			"POST /api/v1/pages - a new page {title, slug, parentId, metaTitle, metaDescription, sections}",
 			"POST /api/v1/pages/{id}/changes - change a page: send the whole sections list back, edited",
-			"GET /api/v1/global-sections - reusable sections a page can include")
+			"GET /api/v1/global-sections - reusable sections a page can include (a global_section block places one)",
+			"GET /api/v1/global-sections/{id} - one Global Section with its sections and usedOn (the pages that show it)",
+			"POST /api/v1/global-sections/{id}/changes - change a Global Section {name, sections} the same way as a page (dryRun works too). It changes every page in usedOn at once, so check that list first. Only an Admin's key can.")
 	}
 	if key.HasScope(domain.APIScopeNews) {
 		list = append(list,
@@ -588,15 +705,15 @@ func keyEndpoints(key *domain.APIKey) []string {
 		domain.APIScopeGuides:         "guides",
 		domain.APIScopeBlacklist:      "blacklist",
 		domain.APIScopeRegions:        "regions (PUT /api/v1/regions/{id}/active {active} instead of delete)",
-		domain.APIScopeNavigation:     "menu-items (header and footer menus), sidebar (GET, then PUT the whole sidebar back)",
+		domain.APIScopeNavigation:     "menu-items (header and footer menus: {location: \"header\" | \"footer\", parentId, label, href, sourceType: \"static\" | \"dynamic_regions\" | \"dynamic_casinos\", sortOrder}; DELETE /api/v1/menu-items/{id} deletes one with nothing under it), sidebar (GET, then PUT the whole sidebar back)",
 		domain.APIScopeSnippets:       "snippets (PUT /api/v1/snippets/{id}/active {active}), pages/{id}/snippets",
-		domain.APIScopeSettings:       "settings/site and settings/footer (GET, then PUT them back changed)",
+		domain.APIScopeSettings:       "settings/site and settings/footer (GET, then PUT them back changed); settings/theme, the website's colours: GET lists every colour token with its default and current value, PUT {\"colors\": {\"primary-500\": \"#3e4ba8\", ...}} replaces the whole theme (a colour left out goes back to its default, so send every changed one)",
 	}
 	list = append(list,
 		"Direct key - for each area below: GET /api/v1/{area} lists, GET /api/v1/{area}/{id} reads one, POST /api/v1/{area} creates, PUT /api/v1/{area}/{id} updates (send the same fields GET returns), PUT /api/v1/{area}/{id}/status {\"status\": \"draft\" | \"published\" | \"scheduled\", \"publishAt\"} publishes or unpublishes, DELETE /api/v1/{area}/{id} moves it to the Recycle Bin",
 		"SEO: GET/PUT /api/v1/seo/{page|news|casino|bonus|guide}/{id}",
 		"GET /api/v1/recycle-bin - what was deleted; POST /api/v1/recycle-bin/{id}/restore - undo a delete",
-		"Only pages, news, casinos, bonuses, payment-methods, rtp, guides, blacklist and snippets can be deleted by a key; ask an admin for anything else",
+		"Only pages, news, casinos, bonuses, payment-methods, rtp, guides, blacklist and snippets can be deleted by a key (to the Recycle Bin), and menu items with nothing under them; ask an admin for anything else",
 	)
 	for _, scope := range key.Scopes {
 		if a, ok := areas[scope]; ok {

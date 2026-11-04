@@ -199,6 +199,28 @@ const globalUsageSQL = `(
 			WHERE s.block_type = 'global_section' AND CAST(f.text_value AS UNSIGNED) = p.id
 		)`
 
+// GlobalUsedOn lists the pages that place a global section, by id.
+func (r *PageRepo) GlobalUsedOn(ctx context.Context, id int64) ([]int64, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT DISTINCT s.page_id FROM page_sections s
+		JOIN page_section_fields f ON f.section_id = s.id AND f.item_index = 0 AND f.field_key = 'globalId'
+		WHERE s.block_type = 'global_section' AND CAST(f.text_value AS UNSIGNED) = ?
+		ORDER BY s.page_id`, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	ids := []int64{}
+	for rows.Next() {
+		var pageID int64
+		if err := rows.Scan(&pageID); err != nil {
+			return nil, err
+		}
+		ids = append(ids, pageID)
+	}
+	return ids, rows.Err()
+}
+
 func (r *PageRepo) GetGlobal(ctx context.Context, id int64) (*domain.GlobalSection, error) {
 	var g domain.GlobalSection
 	err := r.db.QueryRowContext(ctx,

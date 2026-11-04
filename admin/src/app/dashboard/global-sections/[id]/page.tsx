@@ -8,6 +8,7 @@ import { api, ApiError } from "@/lib/api";
 import type { GlobalSectionDTO, PageDTO, PageSectionDTO } from "@/lib/types";
 import SectionBuilder from "../../pages/SectionBuilder";
 import SaveActionBar, { type SaveAction } from "../../pages/SaveActionBar";
+import PageRevisions from "../../pages/PageRevisions";
 
 // Edits one global section: its name and its sections (the same builder as
 // a page's Page Content). Saving updates every page that places it.
@@ -22,6 +23,19 @@ export default function EditGlobalSectionPage() {
   const [name, setName] = useState("");
   const [renaming, setRenaming] = useState(false);
   const [actions, setActions] = useState<SaveAction[]>([]);
+  const [showRevisions, setShowRevisions] = useState(false);
+  // Bumped after a revision is restored, to reload the builder with it.
+  const [contentVersion, setContentVersion] = useState(0);
+
+  async function reloadContent() {
+    try {
+      const data = await api.get<{ sections: PageSectionDTO[] | null }>(`/api/admin/pages/${id}`);
+      setSections(data.sections ?? []);
+      setContentVersion((v) => v + 1);
+    } catch (err) {
+      message.error(err instanceof ApiError ? err.message : "Could not reload the global section.");
+    }
+  }
 
   useEffect(() => {
     async function load() {
@@ -100,7 +114,19 @@ export default function EditGlobalSectionPage() {
           Save Name
         </button>
       </div>
-      <SectionBuilder pageId={id} initialSections={sections} onActionsChange={setActions} isGlobal />
+      <SectionBuilder key={contentVersion} pageId={id} initialSections={sections} onActionsChange={setActions} isGlobal />
+      {/* Earlier versions, saved here or by an AI change (the Content API). */}
+      <div id="global-section-revisions" className="flex flex-col gap-3">
+        <button
+          type="button"
+          aria-expanded={showRevisions}
+          onClick={() => setShowRevisions((v) => !v)}
+          className="cursor-pointer self-start text-sm font-semibold text-primary-600 hover:text-primary-900 dark:text-secondary-500"
+        >
+          {showRevisions ? "Hide revisions" : "Revisions"}
+        </button>
+        {showRevisions && <PageRevisions pageId={id} active onRestored={reloadContent} />}
+      </div>
       <SaveActionBar actions={actions} />
     </section>
   );

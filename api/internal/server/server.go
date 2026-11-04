@@ -160,6 +160,8 @@ func NewRouter(deps Deps) http.Handler {
 	// Site settings, including the site-wide 2FA switch — Super Admin and Admin.
 	mux.Handle("PUT /api/admin/settings/site", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.Update))))
 	mux.Handle("PUT /api/admin/settings/footer", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.UpdateFooter))))
+	mux.Handle("GET /api/admin/settings/theme", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.GetTheme))))
+	mux.Handle("PUT /api/admin/settings/theme", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.UpdateTheme))))
 	mux.Handle("PUT /api/admin/settings/2fa", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.SetTwoFactorEnabled))))
 	mux.Handle("PUT /api/admin/settings/security", authenticate(staffOnly(http.HandlerFunc(deps.SiteSettingsHandler.UpdateSecurityPolicy))))
 	// Settings > Log: server version and deploys; resolving/removing deploys.
@@ -356,6 +358,8 @@ func NewRouter(deps Deps) http.Handler {
 	mux.Handle("POST /api/v1/pages", scoped(domain.APIScopePages, api.ProposePage))
 	mux.Handle("POST /api/v1/pages/{id}/changes", scoped(domain.APIScopePages, api.ProposePage))
 	mux.Handle("GET /api/v1/global-sections", scoped(domain.APIScopePages, api.ListGlobalSections))
+	mux.Handle("GET /api/v1/global-sections/{id}", scoped(domain.APIScopePages, api.GetGlobalSection))
+	mux.Handle("POST /api/v1/global-sections/{id}/changes", scoped(domain.APIScopePages, api.ProposeGlobalSection))
 	mux.Handle("GET /api/v1/news", scoped(domain.APIScopeNews, api.ListNews))
 	mux.Handle("GET /api/v1/news/{id}", scoped(domain.APIScopeNews, api.GetNews))
 	mux.Handle("POST /api/v1/news", scoped(domain.APIScopeNews, api.ProposeNews))
@@ -364,7 +368,7 @@ func NewRouter(deps Deps) http.Handler {
 	mux.Handle("POST /api/v1/media", scoped(domain.APIScopeMedia, api.UploadMedia))
 	mux.Handle("GET /api/v1/recycle-bin", withKey(directKeysOnly(bin.list)))
 	mux.Handle("POST /api/v1/recycle-bin/{id}/restore", withKey(directKeysOnly(bin.restore)))
-	mux.Handle("/api/v1/", withKey(directAPI(mux, bin)))
+	mux.Handle("/api/v1/", withKey(directAPI(mux, bin, api.IsGlobalSection)))
 
 	// Empty the Recycle Bin of anything older than domain.RecycleBinDays,
 	// now and daily; it runs through the routes above.
