@@ -28,11 +28,12 @@ import (
 // homepage, every published page and every active region, following
 // internal links), so the files are exactly what visitors get.
 //
-// In the zip, links stay root-relative ("/sg", "/_next/static/..."), so it
-// works when uploaded to the root of any static host (not opened from disk).
-// Images from the API's /uploads/ are copied in and pointed at the zip's own
-// /uploads/. Parts of the site that load data in the browser (search,
-// filters, the calculator) still call the live API.
+// In the zip, every link and file reference is relative to the page
+// ("../sg/index.html"), so the folder works anywhere: opened from disk,
+// under a local server, in a subfolder or at the root of a host (see
+// html_export_offline.go). Images from the API's /uploads/ are copied in,
+// and what Cloudflare adds to pages (analytics, email protection) is taken
+// out, since it only works behind Cloudflare.
 
 const (
 	HTMLExportIdle    = "idle"
@@ -232,7 +233,10 @@ type exportCrawl struct {
 	s    *HTMLExportService
 	site *url.URL
 	// origins: the site's address, and its public one when they differ.
-	origins   []string
+	origins []string
+	// publicURL: the site's public address, for canonical links and share
+	// images, which need a full address.
+	publicURL string
 	apiOrigin string
 	zip       *zip.Writer
 	zipMu     sync.Mutex
@@ -268,7 +272,8 @@ func (s *HTMLExportService) run(ctx context.Context, site *url.URL, aliases []st
 		return
 	}
 
-	c := &exportCrawl{s: s, site: site, origins: append([]string{site.String()}, aliases...), apiOrigin: apiOrigin, zip: zip.NewWriter(out), seen: map[string]bool{}}
+	origins := append([]string{site.String()}, aliases...)
+	c := &exportCrawl{s: s, site: site, origins: origins, publicURL: origins[len(origins)-1], apiOrigin: apiOrigin, zip: zip.NewWriter(out), seen: map[string]bool{}}
 	c.cond = sync.NewCond(&c.mu)
 	for _, seed := range seeds {
 		c.enqueue(seed, true)
@@ -494,16 +499,22 @@ func (c *exportCrawl) work(ctx context.Context) {
 	}
 }
 
-func (c *exportCrawl) fetch(ctx context.Context, it exportItem) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, it.source, nil)
+// errExportStatus is a response other than 200 OK.
+type errExportStatus int
+
+func (e errExportStatus) Error() string { return fmt.Sprintf("status %d", int(e)) }
+
+var errExportTooLarge = errors.New("too large or cut off")
+
+// get loads one URL from the site, with one retry for a server error or a
+// dropped connection: a busy site can fail a few of many requests in a row.
+func (c *exportCrawl) get(ctx context.Context, source string) ([]byte, string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, source, nil)
 	if err != nil {
-		c.s.fail(it.path, "bad address")
-		return
+		return nil, "", errors.New("bad address")
 	}
 	req.Header.Set("User-Agent", htmlExportUserAgent)
 	res, err := c.s.client.Do(req)
-	// One retry for a server error or a dropped connection: a busy site
-	// can fail a few of many requests in a row.
 	if (err != nil || res.StatusCode >= http.StatusInternalServerError) && ctx.Err() == nil {
 		if res != nil {
 			res.Body.Close()
@@ -511,32 +522,40 @@ func (c *exportCrawl) fetch(ctx context.Context, it exportItem) {
 		select {
 		case <-time.After(time.Second):
 		case <-ctx.Done():
-			return
+			return nil, "", ctx.Err()
 		}
 		res, err = c.s.client.Do(req)
 	}
 	if err != nil {
-		if ctx.Err() == nil {
-			c.s.fail(it.path, "could not load: "+err.Error())
-		}
-		return
+		return nil, "", fmt.Errorf("could not load: %w", err)
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		if it.optional {
+		return nil, "", errExportStatus(res.StatusCode)
+	}
+	body, err := io.ReadAll(io.LimitReader(res.Body, htmlExportMaxFile+1))
+	if err != nil || len(body) > htmlExportMaxFile {
+		return nil, "", errExportTooLarge
+	}
+	contentType, _, _ := mime.ParseMediaType(res.Header.Get("Content-Type"))
+	return body, contentType, nil
+}
+
+func (c *exportCrawl) fetch(ctx context.Context, it exportItem) {
+	body, contentType, err := c.get(ctx, it.source)
+	if err != nil {
+		if ctx.Err() != nil {
+			return
+		}
+		var status errExportStatus
+		if errors.As(err, &status) && it.optional {
 			return
 		}
 		// A page link to something that doesn't exist is a broken link on
 		// the site, worth knowing about.
-		c.s.fail(it.path, fmt.Sprintf("status %d", res.StatusCode))
+		c.s.fail(it.path, err.Error())
 		return
 	}
-	body, err := io.ReadAll(io.LimitReader(res.Body, htmlExportMaxFile+1))
-	if err != nil || len(body) > htmlExportMaxFile {
-		c.s.fail(it.path, "too large or cut off")
-		return
-	}
-	contentType, _, _ := mime.ParseMediaType(res.Header.Get("Content-Type"))
 	isHTML := contentType == "text/html"
 	if it.page && !isHTML && path.Ext(it.path) != "" {
 		it.page = false // a link to a file (PDF, image...)
@@ -554,9 +573,24 @@ func (c *exportCrawl) fetch(ctx context.Context, it exportItem) {
 		name = decoded
 	}
 
-	if isHTML || contentType == "text/css" || strings.Contains(contentType, "javascript") {
-		text := c.rewrite(string(body))
-		c.discover(text, isHTML, contentType == "text/css", it.path)
+	isCSS := contentType == "text/css"
+	isJS := strings.Contains(contentType, "javascript")
+	if isHTML || isCSS || isJS {
+		text := string(body)
+		if isHTML {
+			text = rewriteFlight(cleanCloudflare(text), exportRoot(name), c.rewrite)
+		}
+		text = c.rewrite(text)
+		c.discover(text, isHTML, isCSS, it.path)
+		// Then made to work from any folder (html_export_offline.go).
+		switch {
+		case isHTML:
+			text = relativeHTML(text, name, c.publicURL)
+		case isCSS:
+			text = relativeCSS(c.inlineFonts(ctx, text, it.path), name)
+		case isJS:
+			text = patchChunkRuntime(text)
+		}
 		body = []byte(text)
 	}
 	if err := c.write(name, body); err != nil {
@@ -666,7 +700,9 @@ func (c *exportCrawl) extras(ctx context.Context) {
 			body, _ := io.ReadAll(io.LimitReader(res.Body, htmlExportMaxFile))
 			res.Body.Close()
 			if res.StatusCode == http.StatusNotFound && len(body) > 0 {
-				_ = c.write("404.html", []byte(c.rewrite(string(body))))
+				text := rewriteFlight(cleanCloudflare(string(body)), "", c.rewrite)
+				text = c.rewrite(text)
+				_ = c.write("404.html", []byte(relativeHTML(text, "404.html", c.publicURL)))
 			}
 		}
 	}
@@ -679,20 +715,26 @@ func (c *exportCrawl) extras(ctx context.Context) {
 	readme := fmt.Sprintf(`TopCasinoSG website, saved as HTML
 Saved from %s on %s: %d pages and %d other files.
 
-How to use it
-- Upload everything in this folder to the root of a website (any static
-  host: cPanel public_html, Netlify, an S3 bucket...). Links start with "/",
-  so it must be the root of a domain or subdomain, not a subfolder, and
-  opening index.html straight from your computer won't load the styles.
-- Each page is <path>/index.html (e.g. /sg is sg/index.html), so the host
-  must serve index.html for a folder (almost all do). 404.html is the
-  site's "page not found" page.
+How to open it (unzip first; any of these works)
+- Double-click index.html: it opens in your browser from your computer.
+- VS Code: open this folder, right-click index.html > "Open with Live
+  Server".
+- XAMPP: copy the folder into htdocs (e.g. htdocs/topcasinosg-html) and
+  go to http://localhost/topcasinosg-html/
+- A web host: upload everything, to the root or to a subfolder.
 
-What's frozen and what's live
+Links between pages are relative ("../sg/index.html"), so the folder works
+wherever it is. Each page is <path>/index.html (e.g. /sg is
+sg/index.html). 404.html is the site's "page not found" page, for hosts
+that use one.
+
+What to know
 - Page content is as it was at export time. Changes in the admin after
   that need a new export.
-- Parts that load data in the browser (filters, search, the bonus
-  calculator) still call the live API, so they work only while it's up.
+- Menus, sliders, tabs, the casino finder and the bonus calculator work
+  offline; links to casinos' own sites go to the internet as usual.
+- Canonical links and share images point at the live site, so search
+  engines keep treating it as the original.
 `, c.site.String(), time.Now().Format("2 Jan 2006 15:04"), c.pages, c.files)
 	_ = c.write("README.txt", []byte(readme))
 }

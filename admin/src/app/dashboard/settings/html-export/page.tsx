@@ -121,13 +121,15 @@ export default function HTMLExportSettingsPage() {
       <div className={CARD_CLASS}>
         <h2 className={HEADING_CLASS}>Export the website as HTML</h2>
         <p className={MUTED_CLASS}>
-          Saves every public page as plain HTML files in one zip, with the styles, scripts, fonts and images they use. Upload the
-          files to the root of any web host to serve a copy of the site, or keep the zip as a snapshot.
+          Saves every public page as plain HTML files in one zip, with the styles, scripts, fonts and images they use. Unzip it and
+          open index.html directly, use VS Code Live Server, put the folder in XAMPP&apos;s htdocs, or upload it to any web host (root
+          or subfolder).
         </p>
         <ul className={`mt-2 list-disc pl-5 ${MUTED_CLASS}`}>
           <li>The copy is frozen at export time: later changes in the admin need a new export.</li>
-          <li>Search, filters and the bonus calculator still use the live API, so they work only while it&apos;s up.</li>
-          <li>The zip includes a README.txt on how to host it.</li>
+          <li>Menus, sliders, tabs, the casino finder and the bonus calculator work offline.</li>
+          <li>Cloudflare&apos;s analytics and email protection are left out, since they only work behind Cloudflare.</li>
+          <li>The zip includes a README.txt on how to open it.</li>
         </ul>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button id="html-export-start" type="primary" loading={busy === "start"} disabled={running || !status} onClick={start}>
