@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TopCasinoSG Content API: AI Integration Guide</title>
+<!-- Source of docs/content-api-developer.pdf. Regenerate with:
+     chrome --headless --no-pdf-header-footer --print-to-pdf=docs/content-api-developer.pdf docs/content-api-developer.html -->
+<style>
+  @page { size: A4; margin: 14mm 15mm 15mm; }
+  :root {
+    --ink: #1c2033; --muted: #5b6178; --line: #dfe2ec; --soft: #f4f5fa;
+    --brand: #2b3480; --brand-soft: #e8eaf7; --gold: #f5b800; --gold-soft: #fff6d6;
+    --green: #17804a; --green-soft: #e3f4ea; --red: #b42318; --red-soft: #fdebe9;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { margin: 0; font-family: "Segoe UI", Arial, sans-serif; font-size: 10.5pt; line-height: 1.5; color: var(--ink); background: #fff; }
+  h1, h2, h3 { line-height: 1.2; margin: 0; }
+  h2 { font-size: 19pt; color: var(--brand); margin: 0 0 2mm; }
+  h3 { font-size: 12.5pt; margin: 5mm 0 2mm; }
+  p { margin: 0 0 2.5mm; }
+  ul, ol { margin: 0 0 3mm; padding-left: 6mm; }
+  li { margin-bottom: 1.2mm; }
+  code { font-family: Consolas, "Courier New", monospace; font-size: 9.2pt; background: var(--soft); border: 1px solid var(--line); border-radius: 3px; padding: 0 1mm; }
+  .page { page-break-after: always; break-after: page; }
+  .page:last-child { page-break-after: auto; break-after: auto; }
+  .keep { break-inside: avoid; page-break-inside: avoid; }
+  .lead { font-size: 12pt; color: var(--muted); margin-bottom: 5mm; }
+  .eyebrow { font-size: 9pt; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin-bottom: 1.5mm; }
+
+  .cover-band { background: var(--brand); color: #fff; border-radius: 6mm; padding: 10mm 12mm 9mm; position: relative; overflow: hidden; margin-bottom: 5mm; }
+  .cover-band::after { content: ""; position: absolute; right: -25mm; top: -25mm; width: 80mm; height: 80mm; border-radius: 50%; background: var(--gold); opacity: .9; }
+  .cover-band .eyebrow { color: #c9cdf0; }
+  .cover-band h1 { font-size: 28pt; max-width: 130mm; position: relative; z-index: 1; }
+  .cover-band .sub { font-size: 12.5pt; color: #dfe2ff; margin-top: 4mm; max-width: 130mm; position: relative; z-index: 1; }
+
+  .box { border-radius: 3mm; padding: 3.5mm 5mm; margin: 3.5mm 0; }
+  .box b.t { display: block; margin-bottom: 1mm; font-size: 11pt; }
+  .box.info { background: var(--brand-soft); }
+  .box.tip { background: var(--gold-soft); border-left: 1.5mm solid var(--gold); }
+  .box.safe { background: var(--green-soft); border-left: 1.5mm solid var(--green); }
+  .box.warn { background: var(--red-soft); border-left: 1.5mm solid var(--red); }
+
+  .ways { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4mm; margin: 3mm 0 4mm; }
+  .way { border: 2px solid var(--line); border-radius: 4mm; padding: 3.5mm; font-size: 9.8pt; }
+  .way b { display: block; font-size: 12pt; color: var(--brand); margin-bottom: 1mm; }
+  .way .for { font-size: 9pt; color: var(--muted); display: block; margin-bottom: 2mm; }
+
+  .flow { counter-reset: step; list-style: none; padding: 0; margin: 2mm 0 3mm; }
+  .flow > li { counter-increment: step; position: relative; padding-left: 11mm; margin-bottom: 2.6mm; min-height: 7mm; }
+  .flow > li::before { content: counter(step); position: absolute; left: 0; top: -.3mm; width: 7mm; height: 7mm; border-radius: 50%; background: var(--brand); color: #fff; font-weight: 800; font-size: 10pt; display: flex; align-items: center; justify-content: center; }
+
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 9.4pt; }
+  th, td { text-align: left; vertical-align: top; padding: 1.8mm 2.5mm; border-bottom: 1px solid var(--line); }
+  th { background: var(--soft); font-size: 8.5pt; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  td code { font-size: 8.6pt; }
+  pre { background: #1d2140; color: #e6e8f5; border-radius: 3mm; padding: 3mm 4.5mm; font-family: Consolas, "Courier New", monospace; font-size: 8.2pt; line-height: 1.42; white-space: pre-wrap; margin: 2mm 0 3.5mm; }
+  pre .c { color: #9aa3d8; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; align-items: start; }
+</style>
+</head>
+<body>
+
+<!-- ============ 1. OVERVIEW ============ -->
+<section class="page">
+  <div class="cover-band">
+    <div class="eyebrow">TopCasinoSG · For developers and AI integrators</div>
+    <h1>Content API: AI integration guide</h1>
+    <div class="sub">Connect any AI tool so it learns the website's structure by itself, then reads, checks and applies content changes safely.</div>
+  </div>
+
+  <h3 style="margin-top:0">The basics</h3>
+  <table class="keep">
+    <tr><th style="width:24%">Item</th><th>Value</th></tr>
+    <tr><td><b>Base URL</b></td><td><code>https://backapi.topcasinosg.com.sg/api/v1</code></td></tr>
+    <tr><td><b>Authentication</b></td><td><code>Authorization: Bearer tcs_…</code> (or <code>X-API-Key: tcs_…</code>). Keys are made in the admin dashboard: <b>Settings → API Keys</b>, by an Admin or Super Admin, and shown once.</td></tr>
+    <tr><td><b>Format</b></td><td>JSON in and out. Success: <code>{"success": true, "data": {…}}</code>. Failure: <code>{"success": false, "error": {"message": "…"}}</code></td></tr>
+    <tr><td><b>Rate limit</b></td><td>120 requests a minute per key. Over it: <b>429</b> with a <code>Retry-After</code> header.</td></tr>
+  </table>
+
+  <h3>Three ways to connect an AI tool</h3>
+  <div class="ways">
+    <div class="way"><b>① MCP connector</b><span class="for">Claude Desktop, Claude Code, any MCP client</span>Ready-made tools (<code>get_page</code>, <code>save_page_sections</code>, <code>get_menus</code>, <code>save_theme</code>…). Set-up in <code>mcp/README.md</code>. Easiest for Claude.</div>
+    <div class="way"><b>② OpenAPI import</b><span class="for">ChatGPT GPT Actions, n8n, Make, Zapier, LangChain, any OpenAPI-aware agent</span>Import <code>content-api-openapi.yaml</code> (OpenAPI 3.1, sent with this guide) and set Bearer auth with the key. Every endpoint becomes a tool.</div>
+    <div class="way"><b>③ Plain HTTP</b><span class="for">Your own scripts or agents</span>Call the endpoints directly. Give the model the system prompt on page 7 and let it call <code>/me</code> and <code>/schema</code> first.</div>
+  </div>
+
+  <h3>Two kinds of key</h3>
+  <table class="keep">
+    <tr><th style="width:20%">Mode</th><th>What it does</th></tr>
+    <tr><td><b>Needs approval</b><br><code>review</code></td><td>Areas: pages, news, media only. Page, news and Global Section changes become <b>proposals</b> that an admin approves in <b>AI Changes</b>; the response carries a <code>previewUrl</code>. Media uploads apply at once. Everything else returns 403.</td></tr>
+    <tr><td><b>Direct</b><br><code>direct</code></td><td>Any ticked area. Changes go <b>live at once</b> (new pages and articles start as drafts). Also reaches casinos, bonuses, payment methods, RTP, guides, blacklist, regions, menus, snippets and settings. Deletes go to a 30-day Recycle Bin.</td></tr>
+  </table>
+</section>
+
+<!-- ============ 2. SELF-DISCOVERY ============ -->
+<section class="page">
+  <div class="eyebrow">How the AI learns the site</div>
+  <h2>Self-discovery: two calls, no hard-coding</h2>
+  <p class="lead">The API describes itself from the live site, so the AI never needs a copy of the structure that can go out of date.</p>
+
+  <div class="two">
+    <div>
+      <h3 style="margin-top:0"><code>GET /me</code></h3>
+      <p>Who this key is and what it may do:</p>
+<pre>{ "name": "Content AI", "mode": "direct",
+  "scopes": ["pages", "news", "navigation"],
+  "actingFor": "Jane Tan",
+  "requestsPerMinute": 120,
+  "whatThisKeyCanDo": [
+    "This is a Direct key. Changes go live
+     straight away, with no approval step.", … ] }</pre>
+    </div>
+    <div>
+      <h3 style="margin-top:0"><code>GET /schema</code></h3>
+      <p>Everything needed to build or edit content:</p>
+      <ul>
+        <li><b>rules</b>: how a page is built, in plain sentences.</li>
+        <li><b>endpoints</b>: only the ones <i>this key</i> can use.</li>
+        <li><b>fieldTypes</b>: text, richtext, image, button.</li>
+        <li><b>blockTypes</b>: every block, its <code>kind</code>, what it is for, and its <b>fields</b>, with allowed values, which repeat per item, how many sections use them, and a <b>real example value</b> from the site.</li>
+        <li><b>styleFields</b>, <b>styleClasses</b>: spacing, colours, fonts.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>The loop that avoids errors</h3>
+  <ol class="flow">
+    <li><b>Discover</b>: <code>GET /me</code> and <code>GET /schema</code> once per session.</li>
+    <li><b>Find</b>: <code>GET /pages</code> (id, path, status), <code>GET /news</code>, <code>GET /global-sections</code>, <code>GET /{area}</code>.</li>
+    <li><b>Read right before writing</b>: <code>GET /pages/{id}</code> returns the full ordered <code>sections</code> list. Read it again just before each change, so you never overwrite someone else's newer edit.</li>
+    <li><b>Edit in place</b>: change only the field values you need. Keep every other section and field exactly as returned.</li>
+    <li><b>Check</b>: send the change with <code>"dryRun": true</code>. Nothing is saved; the answer is <code>{valid, message, warnings}</code> or a 400 naming the exact problem.</li>
+    <li><b>Apply</b>: send the same body without <code>dryRun</code>.</li>
+    <li><b>Verify</b>: read it back, and tell the user what changed, with ids. Direct changes reach the public site within about a minute.</li>
+  </ol>
+
+  <div class="box safe">
+    <b class="t">Why this stays error-free when the site changes</b>
+    New block types, fields or layouts added by developers appear in <code>/schema</code> straight away, with examples taken from pages that already use them.
+    An AI that reads <code>/schema</code> first adapts by itself; there is nothing to update on the AI side.
+  </div>
+  <p style="font-size:9.5pt;color:var(--muted)">A key acts as the admin who made it, and every change is in the Activity Log as “(API key: name)”. It never reaches users, passwords, API keys, security settings or deployments.</p>
+</section>
+
+<!-- ============ 3. PAGE STRUCTURE ============ -->
+<section class="page">
+  <div class="eyebrow">Content model</div>
+  <h2>How a page is built</h2>
+  <p class="lead">A page is an ordered list of sections: list order is page order. Containers arrange components; depth says what sits inside what.</p>
+
+  <table class="keep">
+    <tr><th style="width:22%">Part</th><th>Rule</th></tr>
+    <tr><td><b>Depth 0</b></td><td>Only a <code>container</code> or a <code>global_section</code> (a shared block, by its <code>globalId</code> field).</td></tr>
+    <tr><td><b>Depth N</b></td><td>Belongs to the nearest container <i>before it</i> at depth N-1. Depth goes up to 4; a container can be at most depth 3.</td></tr>
+    <tr><td><b>Container layout</b></td><td><code>layout</code>: <code>stack</code>, <code>row</code>, <code>grid</code>, <code>tabs</code>, <code>accordion</code>, <code>carousel</code>. Tab/accordion children take a <code>panelTitle</code> field.</td></tr>
+    <tr><td><b>Components</b></td><td>Every other <code>blockType</code> from <code>/schema</code>. Prefer <code>kind: "widget"</code>; <code>"data"</code> blocks list the site's casinos, bonuses or articles; <code>"classic"</code> blocks are older layouts kept for existing pages.</td></tr>
+    <tr><td><b>Fields</b></td><td><code>{itemIndex, fieldKey, fieldType, textValue, urlValue, mediaId}</code>. <code>itemIndex</code> 0 = the section's own fields; 1, 2, 3… = repeated items (FAQ questions, slides). Fields marked <code>perItem</code> in <code>/schema</code> repeat per item.</td></tr>
+    <tr><td><b>Values</b></td><td>text and richtext (HTML, scripts removed) in <code>textValue</code>; a button: label in <code>textValue</code>, link in <code>urlValue</code>; an image: <code>mediaId</code>.</td></tr>
+    <tr><td><b>Style</b></td><td>The <code>styleFields</code> (padding, margin, background, font, border, colours) on itemIndex 0, or <code>styleClasses</code> presets in <code>customClass</code>. Tablet and mobile values: add <code>Tablet</code> or <code>Mobile</code> to the key (<code>stPaddingMobile</code>).</td></tr>
+  </table>
+
+  <h3>Example: a container with a heading and a two-line icon list</h3>
+<pre>"sections": [
+  { "blockType": "container", "depth": 0, "fields": [
+      { "itemIndex": 0, "fieldKey": "layout", "fieldType": "text", "textValue": "stack" } ] },
+  { "blockType": "heading", "depth": 1, "fields": [
+      { "itemIndex": 0, "fieldKey": "heading", "fieldType": "text", "textValue": "Why play here" } ] },
+  { "blockType": "icon_list", "depth": 1, "fields": [
+      { "itemIndex": 0, "fieldKey": "color", "fieldType": "text", "textValue": "success" },
+      { "itemIndex": 1, "fieldKey": "icon", "fieldType": "text", "textValue": "bolt" },
+      { "itemIndex": 1, "fieldKey": "text", "fieldType": "text", "textValue": "Fast withdrawals" },
+      { "itemIndex": 2, "fieldKey": "icon", "fieldType": "text", "textValue": "shield-check" },
+      { "itemIndex": 2, "fieldKey": "text", "fieldType": "text", "textValue": "Licensed and audited" } ] }
+]</pre>
+  <p style="font-size:9.5pt;color:var(--muted)">List settings on itemIndex 0; each line is an item (1, 2…). <code>/schema</code> lists the allowed values (colours, icons).</p>
+
+  <div class="box tip">
+    <b class="t">Editing rule</b>
+    Send the <b>whole</b> <code>sections</code> list back, edited: a section left out is removed from the page.
+    Global Sections work the same way; read <code>usedOn</code> first, as every listed page changes.
+  </div>
+</section>
+
+<!-- ============ 4. ENDPOINTS ============ -->
+<section class="page">
+  <div class="eyebrow">Reference</div>
+  <h2>Endpoints</h2>
+  <table>
+    <tr><th style="width:40%">Endpoint</th><th>What it does</th></tr>
+    <tr><td><code>GET /me</code> · <code>GET /schema</code></td><td>This key; the content model and this key's endpoints.</td></tr>
+    <tr><td><code>GET /pages</code> · <code>GET /pages/{id}</code></td><td>Pages (id, parentId, path, title, SEO, status); one page with <code>sections</code>.</td></tr>
+    <tr><td><code>POST /pages</code></td><td>New page <code>{title, slug, parentId, metaTitle, metaDescription, sections, note, dryRun}</code>. Direct: created as a draft.</td></tr>
+    <tr><td><code>POST /pages/{id}/changes</code></td><td>Change <code>{title, metaTitle, metaDescription, sections, note, dryRun}</code>; anything left out stays. Slug and parent are not changed here.</td></tr>
+    <tr><td><code>GET /global-sections</code> · <code>GET /global-sections/{id}</code></td><td>Shared blocks; one with <code>sections</code> and <code>usedOn</code> (the pages that show it).</td></tr>
+    <tr><td><code>POST /global-sections/{id}/changes</code></td><td><code>{name, sections, note, dryRun}</code>. Admin's key only. The dry run warns which pages change. No create or delete.</td></tr>
+    <tr><td><code>GET /news?page=&amp;pageSize=</code> · <code>GET /news/{id}</code></td><td>Articles; one with its HTML <code>content</code>.</td></tr>
+    <tr><td><code>POST /news</code> · <code>POST /news/{id}/changes</code></td><td><code>{title, slug, excerpt, content, coverMediaId, note, dryRun}</code>.</td></tr>
+    <tr><td><code>GET /media</code> · <code>POST /media</code></td><td>Media Library; upload as multipart field <code>file</code>, then use its <code>id</code> as <code>mediaId</code>.</td></tr>
+    <tr><td><code>GET /changes?status=</code> · <code>GET /changes/{id}</code> · <code>POST /changes/{id}/withdraw</code></td><td>Changes this key sent: pending, approved, rejected (with the reviewer's note) or withdrawn.</td></tr>
+  </table>
+
+  <h3>What a change returns</h3>
+<pre><span class="c">// dryRun: nothing saved</span>
+{ "valid": true, "message": "This change is valid. Send it again without dryRun to apply it…",
+  "warnings": ["This Global Section is on 3 page(s), which all show the change: /sg, /my, /th"] }
+
+<span class="c">// Direct key: applied (201)</span>
+{ "change": { "id": 88, "contentType": "page", "action": "update", "status": "approved",
+              "targetId": 12, "resultId": 12, … },
+  "message": "Done. The change is live.", "warnings": [] }
+
+<span class="c">// Needs-approval key: waiting (201)</span>
+{ "change": { "id": 89, "status": "pending", … }, "previewUrl": "https://…",
+  "message": "Submitted. It goes live only after an admin approves it…", "warnings": [] }</pre>
+</section>
+
+<section class="page">
+  <div class="eyebrow">Reference</div>
+  <h2>Direct keys: every other area</h2>
+  <table>
+    <tr><th style="width:40%">Pattern</th><th>What it does</th></tr>
+    <tr><td><code>GET /{area}</code> · <code>GET /{area}/{id}</code></td><td>List; read one with all its fields.</td></tr>
+    <tr><td><code>POST /{area}</code> · <code>PUT /{area}/{id}</code></td><td>Create; update. Send <b>all</b> fields as GET returned them, with your edits.</td></tr>
+    <tr><td><code>PUT /{area}/{id}/status</code></td><td><code>{"status": "draft" | "published" | "scheduled", "publishAt": RFC 3339 | null}</code>. Also for pages and news.</td></tr>
+    <tr><td><code>DELETE /{area}/{id}</code></td><td>To the Recycle Bin (pages, news, casinos, bonuses, payment-methods, rtp, guides, blacklist, snippets). Other types: 403.</td></tr>
+    <tr><td><code>GET /recycle-bin</code> · <code>POST /recycle-bin/{id}/restore</code></td><td>What was deleted (30 days); undo, with the previous status.</td></tr>
+    <tr><td><code>GET/PUT /seo/{page|news|casino|bonus|guide}/{id}</code></td><td>SEO fields.</td></tr>
+  </table>
+  <table>
+    <tr><th style="width:22%">Area (scope)</th><th>Paths</th></tr>
+    <tr><td>casinos</td><td><code>casinos</code>, <code>game-providers</code>, <code>licenses</code></td></tr>
+    <tr><td>bonuses · guides</td><td><code>bonuses</code> · <code>guides</code></td></tr>
+    <tr><td>payment_methods · rtp · blacklist</td><td><code>payment-methods</code> · <code>rtp</code> · <code>blacklist</code></td></tr>
+    <tr><td>regions</td><td><code>regions</code>; <code>PUT /regions/{id}/active {"active": bool}</code> instead of delete</td></tr>
+    <tr><td>navigation</td><td><code>menu-items?location=header|footer</code> <code>{location, parentId, label, href, sourceType: static|dynamic_regions|dynamic_casinos, sortOrder}</code>; DELETE removes for good, only with nothing under it (409). <code>sidebar</code>: GET, PUT whole.</td></tr>
+    <tr><td>snippets</td><td><code>snippets</code>, <code>PUT /snippets/{id}/active</code>, <code>pages/{id}/snippets</code></td></tr>
+    <tr><td>settings</td><td><code>settings/site</code> (GET includes footer; PUT), <code>PUT settings/footer</code>, <code>settings/theme</code>: GET lists colour tokens with default and current value; PUT <code>{"colors": {"primary-500": "#3e4ba8"}}</code> <b>replaces the whole theme</b>. Menus, theme and Global Sections need the key's admin to be an Admin or Super Admin.</td></tr>
+  </table>
+</section>
+
+<!-- ============ 5. ERRORS ============ -->
+<section class="page">
+  <div class="eyebrow">Getting it right first time</div>
+  <h2>Built-in safeguards and errors</h2>
+
+  <h3 style="margin-top:0">What the API checks before saving anything</h3>
+  <ul>
+    <li><b>Unknown JSON fields are refused</b>, by name, so a typo can't silently drop a change.</li>
+    <li><b>Block types, depths and nesting</b> are checked against the rules in <code>/schema</code>; <b>field types</b> must be text, richtext, image or button.</li>
+    <li><b>Every mediaId, globalId, parentId and coverMediaId must exist</b>; slugs must be lowercase-with-hyphens and free.</li>
+    <li><b>Warnings</b> (not errors): a field no section of that type uses, so it may not show; and for Global Sections, which pages change. Read <code>warnings</code> on every response.</li>
+  </ul>
+
+  <h3>Typical messages and the fix</h3>
+  <table>
+    <tr><th style="width:52%">Message (400 unless noted)</th><th>Fix</th></tr>
+    <tr><td><code>sections[3]: unknown blockType "hero2" (GET /api/v1/schema lists them)</code></td><td>Use a <code>blockType</code> from <code>/schema</code>.</td></tr>
+    <tr><td><code>sections[2]: "icon_list" is a component, so it must be inside a Container…</code></td><td>Put a container before it and give it depth 1.</td></tr>
+    <tr><td><code>sections[4]: depth 2 needs a Container at depth 1 before it…</code></td><td>Fix the depths: each level needs its container.</td></tr>
+    <tr><td><code>sections[1].fields[0]: mediaId 99 is not in the Media Library…</code></td><td><code>GET /media</code> or upload with <code>POST /media</code>.</td></tr>
+    <tr><td><code>the request body is not valid JSON for this endpoint: unknown field "heading"</code></td><td>Send only the documented fields.</td></tr>
+    <tr><td><code>an update can't change the page's slug or parent…</code></td><td>Direct key: <code>PUT /pages/{id}</code>; otherwise ask an admin.</td></tr>
+    <tr><td><code>a page already exists at /…</code> · <code>another article already uses the slug…</code></td><td>Pick another slug (one in the Recycle Bin still counts).</td></tr>
+    <tr><td><code>menu item 12 has 2 item(s) under it…</code> (409)</td><td>Move or delete the child items first.</td></tr>
+  </table>
+
+  <table class="keep">
+    <tr><th style="width:12%">Status</th><th>Meaning</th></tr>
+    <tr><td><b>400</b></td><td>Invalid request; the message names the field.</td></tr>
+    <tr><td><b>401</b></td><td>Missing, wrong or revoked key, or its admin was disabled.</td></tr>
+    <tr><td><b>403</b></td><td>Wrong mode, area not ticked, not deletable, or Admin-only (Global Sections, menus, theme).</td></tr>
+    <tr><td><b>404</b></td><td>No such item, or a path keys can't use.</td></tr>
+    <tr><td><b>409</b></td><td>Conflict: slug taken, already in the bin, items under a menu item, or a proposal outdated by a newer edit.</td></tr>
+    <tr><td><b>429 · 5xx</b></td><td>Wait (<code>Retry-After</code>) and retry. Before retrying a <b>create</b>, list first: the first call may have worked.</td></tr>
+  </table>
+</section>
+
+<!-- ============ 6. SYSTEM PROMPT ============ -->
+<section class="page">
+  <div class="eyebrow">Copy into the AI tool</div>
+  <h2>Instructions for the AI</h2>
+  <p class="lead">Paste this into the tool's system prompt or instructions (ChatGPT: the GPT's Instructions; Claude: Project instructions; n8n/Make: the agent's system message).</p>
+<pre>You manage the TopCasinoSG website through its Content API
+(https://backapi.topcasinosg.com.sg/api/v1, key sent as "Authorization: Bearer").
+
+Learn first
+1. At the start, call GET /me (your mode and areas) and GET /schema (rules, every
+   blockType with its fields, allowed values and real examples, and your endpoints).
+   Never guess a blockType, fieldKey or endpoint: use only what /schema lists.
+
+Change safely
+2. Find the item (GET /pages, /news, /global-sections, /{area}), then read it
+   (GET .../{id}) right before changing it.
+3. Change only what the user asked. Pages and Global Sections: send the WHOLE
+   sections list back, edited, keeping every other section and field exactly as
+   returned. PUT /{area}/{id}: send all fields as GET returned them.
+4. Always send the change with "dryRun": true first. If it fails, read the message
+   (it names the field), fix that, and dry-run again. Then send it without dryRun.
+5. Read every "warnings" list and tell the user about them.
+6. Images: use a mediaId from GET /media, or upload with POST /media first.
+
+Ask before
+7. Publishing, deleting, changing many items, or anything site-wide (Global
+   Sections: check usedOn; menus; the theme, where PUT replaces the whole theme,
+   so start from GET /settings/theme). Say exactly what you will do; wait for yes.
+8. New pages and articles start as drafts; publish only when asked
+   (PUT /{type}/{id}/status {"status": "published"}).
+
+Afterwards
+9. Read the item back and report what you changed, with ids, in plain words.
+10. On 429 or 5xx wait and retry; before retrying a create, check it wasn't made.
+11. Undo a delete: GET /recycle-bin, then POST /recycle-bin/{id}/restore.
+
+Writing: match the site's tone and spelling; never invent bonus amounts, licences,
+RTP figures or other facts; no scripts or styles in HTML.</pre>
+
+  <div class="box info">
+    <b class="t">Testing the connection</b>
+    Ask the AI: <i>“What can you do with this key?”</i> It should call <code>/me</code> and answer with the mode and areas.
+    Then try a dry run: <i>“Check, without saving, a change to the About Us page title.”</i>
+  </div>
+  <div class="box warn">
+    <b class="t">Keep the key secret</b>
+    Put it in the tool's authentication settings, never in a chat message or a prompt. One key per person or tool. If it leaks: <b>Settings → API Keys → Revoke</b>.
+  </div>
+</section>
+
+</body>
+</html>

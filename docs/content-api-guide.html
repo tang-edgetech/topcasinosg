@@ -120,11 +120,11 @@
   <div class="box info cover-note">
     <b class="t">What's inside</b>
     Page 2: four words to know · Page 3: pick a mode · Page 4: make a key · Page 5: give it to your AI ·
-    Pages 6–7: sentences you can copy · Page 8: how to undo · Page 9: safety rules · Page 10: problems &amp; questions ·
-    Pages 11–13: technical part (only for developers).
+    Pages 6–7: sentences you can copy · Page 8: site-wide changes (shared sections, menus, colours) · Page 9: how to undo ·
+    Page 10: safety rules · Page 11: problems &amp; questions · Pages 12–14: technical part (only for developers).
   </div>
 
-  <div class="cover-foot"><span>Admin dashboard → Settings → API Keys</span><span>Version 2 · Direct keys &amp; Recycle Bin</span></div>
+  <div class="cover-foot"><span>Admin dashboard → Settings → API Keys</span><span>Version 3 · Global Sections, menus &amp; colours</span></div>
 </section>
 
 <!-- ============ WORDS ============ -->
@@ -165,12 +165,13 @@
       <ul class="yes">
         <li>Suggest changes to pages</li>
         <li>Suggest new pages and news</li>
+        <li>Suggest changes to Global Sections</li>
         <li>Upload images</li>
       </ul>
       <ul class="no">
         <li>Publish or hide anything</li>
         <li>Delete anything</li>
-        <li>Casinos, bonuses, menus, settings</li>
+        <li>Casinos, bonuses, menus, colours, settings</li>
       </ul>
       <p style="margin-top:3mm">Every suggestion waits in <span class="ui">AI Changes</span> until someone clicks <span class="ui">Approve</span>.</p>
     </div>
@@ -181,7 +182,8 @@
         <li>Change pages and news, live</li>
         <li>Create, publish and hide things</li>
         <li>Casinos, bonuses, payment methods, RTP, guides, blacklist</li>
-        <li>Menus, sidebar, snippets, regions, site settings</li>
+        <li>Global Sections, header &amp; footer menus, website colours</li>
+        <li>Sidebar, snippets, regions, site settings</li>
         <li>Delete (goes to the Recycle Bin)</li>
       </ul>
       <ul class="no">
@@ -262,6 +264,7 @@ https://backapi.topcasinosg.com.sg/api/v1 (send the key as "Authorization: Beare
    will do and wait for the user to say yes.
 8. After every change, tell the user what you did, with ids, in plain words.
    To undo a delete: GET /recycle-bin, then POST /recycle-bin/{id}/restore.
+9. Global Sections, menus and colours change every page: always confirm first.
 Writing rules: match the site's tone and spelling; never invent bonus amounts,
 licences or other facts; no scripts or styles in HTML.</pre>
 
@@ -317,7 +320,7 @@ licences or other facts; no scripts or styles in HTML.</pre>
 <!-- ============ STEP 3b ============ -->
 <section class="page">
   <div class="eyebrow">Step 3 · more sentences</div>
-  <h2>Casinos, menus and more</h2>
+  <h2>Casinos, settings and more</h2>
   <p class="lead">All of these need a <b>Direct</b> key with the right area ticked.</p>
 
   <div class="group">🎰 Casinos &amp; bonuses</div>
@@ -330,10 +333,8 @@ licences or other facts; no scripts or styles in HTML.</pre>
     <div class="prompt"><q>Update the RTP of <u>…</u> to <u>96.5%</u>.</q></div>
   </div>
 
-  <div class="group">🧭 Menus, footer &amp; settings</div>
+  <div class="group">⚙️ Settings &amp; regions</div>
   <div class="prompts">
-    <div class="prompt"><q>In the footer menu, rename <u>Get Listed Now</u> to <u>List Your Casino</u>.</q></div>
-    <div class="prompt"><q>Add <u>Responsible Gambling</u> to the header menu under <u>More</u>, linking to <u>/responsible-gambling</u>.</q></div>
     <div class="prompt"><q>Change the contact email in Site Settings to <u>…</u></q></div>
     <div class="prompt"><q>Switch off the region <u>Vietnam</u>.</q></div>
   </div>
@@ -348,8 +349,47 @@ licences or other facts; no scripts or styles in HTML.</pre>
 
   <div class="box info">
     <b class="t">The AI can't delete these (ask an admin instead)</b>
-    Images in the Media Library, menu items, global sections, game providers, licenses and regions. To remove a menu item, ask the AI to
-    <i>rename</i> or <i>re-link</i> it, or delete it yourself in the dashboard.
+    Images in the Media Library, Global Sections, game providers, licenses and regions. Menu items are on the next page.
+  </div>
+</section>
+
+<!-- ============ SITE-WIDE ============ -->
+<section class="page">
+  <div class="eyebrow">Step 3 · for the person in charge of the site</div>
+  <h2>Site-wide changes</h2>
+  <p class="lead">These three change <b>every page at once</b>, so they're usually for one person: the one in charge of the website.</p>
+
+  <table class="keep">
+    <tr><th style="width:24%">What</th><th style="width:40%">What it is</th><th>The key needs</th></tr>
+    <tr><td><b>🧩 Global Sections</b></td><td>Shared blocks (a banner, a “Play responsibly” box) that many pages show.</td><td>The <b>pages</b> area. <b>Direct</b>: changed live. <b>Needs approval</b>: suggested in <span class="ui">AI Changes</span>.</td></tr>
+    <tr><td><b>🧭 Menus</b></td><td>The <b>header</b> menu at the top and the <b>footer</b> menu at the bottom.</td><td><b>Direct</b>, with the <b>navigation</b> area.</td></tr>
+    <tr><td><b>🎨 Colours</b></td><td>The website's colours (brand blue, gold…), also in <span class="ui">Settings</span> → <span class="ui">Theme</span>.</td><td><b>Direct</b>, with the <b>settings</b> area.</td></tr>
+  </table>
+  <p style="font-size:10pt;color:var(--muted);margin-top:-2mm">The key's maker must still be an <b>Admin</b> or <b>Super Admin</b>. If they become an Editor, the key can't make these changes.</p>
+
+  <div class="group">🧩 Global Sections</div>
+  <div class="prompts">
+    <div class="prompt"><q>Which pages use the <u>Responsible gambling</u> global section?</q></div>
+    <div class="prompt"><q>Change the text in the <u>Responsible gambling</u> global section to <u>…</u>. Tell me which pages it changes first.</q></div>
+  </div>
+
+  <div class="group">🧭 Menus</div>
+  <div class="prompts">
+    <div class="prompt"><q>In the footer menu, rename <u>Get Listed Now</u> to <u>List Your Casino</u>.</q></div>
+    <div class="prompt"><q>Add <u>Payment Guides</u> to the header menu under <u>Casino Reviews</u>, linking to <u>/guides</u>.</q></div>
+  </div>
+
+  <div class="group">🎨 Colours</div>
+  <div class="prompts">
+    <div class="prompt"><q>What colours does the website use right now?</q></div>
+    <div class="prompt"><q>Make the brand blue a bit darker. Show me the old and new colours first.</q></div>
+  </div>
+
+  <div class="box warn">
+    <b class="t">Good to know</b>
+    The AI can't create or delete Global Sections (do that in <span class="ui">Pages</span> → <span class="ui">Global Sections</span>).
+    A menu item with items under it can't be removed until those are moved first. A removed menu item doesn't go to the Recycle Bin,
+    but the Activity Log keeps what it was. Changes show on the website within about a minute.
   </div>
 </section>
 
@@ -364,11 +404,14 @@ licences or other facts; no scripts or styles in HTML.</pre>
     <tr><td><b>The AI deleted something</b></td><td>Click <span class="ui">Recycle Bin</span> in the menu (under Content) → find it → click <span class="ui">Restore</span>. It comes back exactly as it was, published or not. You have <b>30 days</b>.</td></tr>
     <tr><td><b>The AI changed a page badly</b></td><td>Click <span class="ui">Pages</span> → open the page → <span class="ui">Revisions</span> tab → pick the version from before → <span class="ui">Restore</span>. Each page keeps its last 10 versions.</td></tr>
     <tr><td><b>The AI changed a casino, bonus, news or menu badly</b></td><td>Click <span class="ui">Activity Log</span> in the menu (under Administration). Every change by a key says <i>“(API key: name)”</i> and shows the old and new values. Copy the old value back, or ask the AI: <i>“Change it back to …”</i></td></tr>
+    <tr><td><b>The AI changed a Global Section badly</b></td><td><span class="ui">Pages</span> → <span class="ui">Global Sections</span> → <span class="ui">Edit</span> → <span class="ui">Revisions</span> → pick the version from before → <span class="ui">Restore</span>. Every page that shows it goes back too.</td></tr>
+    <tr><td><b>The AI removed a menu item</b></td><td>Open the <span class="ui">Activity Log</span> entry to see what it was, then add it back in <span class="ui">Navigation</span>, or ask the AI: <i>“Add <u>…</u> back to the menu as it was.”</i></td></tr>
+    <tr><td><b>The AI changed the colours badly</b></td><td><span class="ui">Settings</span> → <span class="ui">Theme</span> → <span class="ui">Reset</span> next to one colour, or <span class="ui">Reset all to original</span>. The Activity Log shows the old colours.</td></tr>
     <tr><td><b>The AI published something too early</b></td><td>Ask: <i>“Hide <u>…</u> again.”</i> Or open it in the dashboard and set it to Draft.</td></tr>
     <tr><td><b>The key was shared by mistake</b></td><td><b>Right now:</b> <span class="ui">Settings</span> → <span class="ui">API Keys</span> → <span class="ui">Revoke</span>. It stops working at once. Then check the Activity Log.</td></tr>
   </table>
 
-  <img class="shot keep" src="content-api-guide-img/recycle-bin.jpg" alt="The Recycle Bin page">
+  <img class="shot keep" style="width:52%;margin:0 auto" src="content-api-guide-img/recycle-bin.jpg" alt="The Recycle Bin page">
   <div class="shot-caption">The <b>Recycle Bin</b>: what was deleted, by which key, and the date it's gone for good.</div>
 </section>
 
@@ -418,6 +461,8 @@ licences or other facts; no scripts or styles in HTML.</pre>
     <tr><td>“This API key is not valid, has been revoked…”</td><td>The key is wrong or switched off → make a new key (Step 1) and give it to the AI again (Step 2).</td></tr>
     <tr><td>“This API key can't use <i>casinos</i>”</td><td>That area isn't ticked on the key → make a new key with that area ticked.</td></tr>
     <tr><td>“This is a Needs approval key”</td><td>It can only suggest → approve in <span class="ui">AI Changes</span>, or make a Direct key.</td></tr>
+    <tr><td>“Only an Admin's API key can change Global Sections”</td><td>The key's maker is an Editor now → an Admin makes a new key.</td></tr>
+    <tr><td>“Menu item … has items under it”</td><td>It has a submenu → move or remove those items first, then try again.</td></tr>
     <tr><td>“API keys can't delete this”</td><td>That type can't be deleted by AI → delete it yourself in the dashboard.</td></tr>
     <tr><td>“Already in the Recycle Bin”</td><td>It was deleted before → restore it, or leave it.</td></tr>
     <tr><td>“Slug already exists” / “already taken”</td><td>Another item uses that web address (maybe one in the Recycle Bin) → pick a different one.</td></tr>
@@ -458,9 +503,9 @@ licences or other facts; no scripts or styles in HTML.</pre>
     <tr><td>bonuses · guides</td><td><code>bonuses</code>, <code>seo/bonus/{id}</code> · <code>guides</code>, <code>seo/guide/{id}</code></td></tr>
     <tr><td>payment_methods · rtp · blacklist</td><td><code>payment-methods</code> · <code>rtp</code> · <code>blacklist</code></td></tr>
     <tr><td>regions</td><td><code>regions</code>, <code>regions/{id}/active</code> ({"active": bool})</td></tr>
-    <tr><td>navigation</td><td><code>menu-items?location=header|footer</code>, <code>sidebar</code> (GET, PUT whole)</td></tr>
+    <tr><td>navigation</td><td><code>menu-items?location=header|footer</code> (DELETE: for good, 409 if items are under it), <code>sidebar</code> (GET, PUT whole)</td></tr>
     <tr><td>snippets</td><td><code>snippets</code>, <code>snippets/{id}/active</code>, <code>pages/{id}/snippets</code></td></tr>
-    <tr><td>settings</td><td><code>settings/site</code>, <code>settings/footer</code>, <code>settings/site/logo|favicon</code></td></tr>
+    <tr><td>settings</td><td><code>settings/site</code>, <code>settings/footer</code>, <code>settings/site/logo|favicon</code>, <code>settings/theme</code></td></tr>
     <tr><td><i>never</i></td><td>users, api-keys, account, auth, settings/2fa, settings/security, system, exports, imports, content-imports, content-changes (review), activity</td></tr>
   </table>
   <p>Pattern per area: <code>GET /{area}</code> list · <code>GET /{area}/{id}</code> read · <code>POST /{area}</code> create · <code>PUT /{area}/{id}</code> update (same fields as GET) · <code>PUT /{area}/{id}/status</code> <code>{"status": "draft"|"scheduled"|"published", "publishAt": RFC3339|null}</code> · <code>DELETE /{area}/{id}</code> → Recycle Bin.</p>
@@ -476,6 +521,8 @@ licences or other facts; no scripts or styles in HTML.</pre>
     <tr><td><code>GET /pages</code>, <code>GET /pages/{id}</code></td><td>Pages (id, path, status) and one page with its sections.</td></tr>
     <tr><td><code>POST /pages</code>, <code>POST /pages/{id}/changes</code></td><td>New page / page change: <code>{title, slug, parentId, metaTitle, metaDescription, sections, note, dryRun}</code>. Review: proposal. Direct: applied (new pages as drafts).</td></tr>
     <tr><td><code>GET /news</code>, <code>GET /news/{id}</code>, <code>POST /news</code>, <code>POST /news/{id}/changes</code></td><td>The same for articles: <code>{title, slug, excerpt, content, coverMediaId, note, dryRun}</code>.</td></tr>
+    <tr><td><code>GET /global-sections</code>, <code>GET /global-sections/{id}</code>, <code>POST /global-sections/{id}/changes</code></td><td>Scope <code>pages</code>. GET returns <code>{globalSection: {id, name, updatedAt, usedOn}, sections}</code>. Changes: <code>{name, sections, note, dryRun}</code>, like a page; the dry run warns which pages it changes. Admin's key only (403 otherwise). Review: proposal. Direct: applied, saved as a revision. No create or delete.</td></tr>
+    <tr><td><code>GET /settings/theme</code>, <code>PUT /settings/theme</code></td><td>Direct, scope <code>settings</code>. GET lists every colour token with its default and current value. PUT <code>{"colors": {"primary-500": "#3e4ba8", …}}</code> replaces the whole theme: a token left out goes back to its default.</td></tr>
     <tr><td><code>GET /media</code>, <code>POST /media</code></td><td>Media Library; upload as multipart field <code>file</code>.</td></tr>
     <tr><td><code>GET /changes</code>, <code>GET /changes/{id}</code>, <code>POST /changes/{id}/withdraw</code></td><td>This key's proposals and their review notes.</td></tr>
     <tr><td><code>GET /recycle-bin</code>, <code>POST /recycle-bin/{id}/restore</code></td><td>Direct keys: what was deleted, and undo.</td></tr>

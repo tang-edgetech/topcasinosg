@@ -1,0 +1,455 @@
+openapi: 3.1.0
+info:
+  title: TopCasinoSG Content API
+  version: "3.0"
+  description: >-
+    Manage the TopCasinoSG website's content with an API key. Start every session with
+    GET /me (what this key may do) and GET /schema (every block type, its fields and the
+    page-building rules, read live from the site). Read before you write, send whole
+    section lists back edited, and check with dryRun first. Responses are wrapped as
+    {"success": true, "data": {...}} or {"success": false, "error": {"message": "..."}};
+    error messages name the exact field and say how to fix it.
+servers:
+  - url: https://backapi.topcasinosg.com.sg/api/v1
+security:
+  - bearerAuth: []
+
+paths:
+  /me:
+    get:
+      operationId: getMe
+      summary: This key's name, mode (direct or review), areas (scopes) and what it can do.
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Error" }
+  /schema:
+    get:
+      operationId: getSchema
+      summary: Page-building rules, field types, every block type with its fields, style fields and this key's endpoints. Read it before building or editing sections.
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+
+  /pages:
+    get:
+      operationId: listPages
+      summary: Every page with id, parentId, path, title, SEO title/description and status.
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+    post:
+      operationId: createPage
+      summary: Create a page (as a draft with a Direct key; as a proposal with a review key).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NewPage" }
+      responses:
+        "200": { $ref: "#/components/responses/DryRun" }
+        "201": { $ref: "#/components/responses/Change" }
+        "400": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+  /pages/{id}:
+    get:
+      operationId: getPage
+      summary: One page with its full ordered sections list. Edit this list and send it back to changePage.
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "404": { $ref: "#/components/responses/Error" }
+  /pages/{id}/changes:
+    post:
+      operationId: changePage
+      summary: Change a page's title, SEO title/description and/or its WHOLE sections list. Use dryRun true first.
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PageChange" }
+      responses:
+        "200": { $ref: "#/components/responses/DryRun" }
+        "201": { $ref: "#/components/responses/Change" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /global-sections:
+    get:
+      operationId: listGlobalSections
+      summary: Global Sections (shared blocks shown on many pages), with id and name.
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+  /global-sections/{id}:
+    get:
+      operationId: getGlobalSection
+      summary: One Global Section with its sections and usedOn (the pages that show it).
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "404": { $ref: "#/components/responses/Error" }
+  /global-sections/{id}/changes:
+    post:
+      operationId: changeGlobalSection
+      summary: Change a Global Section (every page in usedOn changes). Admin's key only. Use dryRun first.
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GlobalSectionChange" }
+      responses:
+        "200": { $ref: "#/components/responses/DryRun" }
+        "201": { $ref: "#/components/responses/Change" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+
+  /news:
+    get:
+      operationId: listNews
+      summary: News articles (without content), newest first.
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PageSize" }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+    post:
+      operationId: createNews
+      summary: Create a news article (a draft with a Direct key; a proposal with a review key).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NewsChange" }
+      responses:
+        "200": { $ref: "#/components/responses/DryRun" }
+        "201": { $ref: "#/components/responses/Change" }
+        "400": { $ref: "#/components/responses/Error" }
+  /news/{id}:
+    get:
+      operationId: getNews
+      summary: One news article with its HTML content.
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+  /news/{id}/changes:
+    post:
+      operationId: changeNews
+      summary: Change a news article. Fields left out stay as they are.
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NewsChange" }
+      responses:
+        "200": { $ref: "#/components/responses/DryRun" }
+        "201": { $ref: "#/components/responses/Change" }
+        "400": { $ref: "#/components/responses/Error" }
+
+  /media:
+    get:
+      operationId: listMedia
+      summary: The Media Library (id, url, title, altText). Image fields use these ids as mediaId.
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PageSize" }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+    post:
+      operationId: uploadMedia
+      summary: Upload an image to the Media Library (multipart field "file").
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "201": { $ref: "#/components/responses/Ok" }
+
+  /changes:
+    get:
+      operationId: listChanges
+      summary: Changes this key has sent, with status (pending, approved, rejected, withdrawn) and review notes.
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - name: status
+          in: query
+          schema: { type: string, enum: [pending, approved, rejected, withdrawn] }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+  /changes/{id}:
+    get:
+      operationId: getChange
+      summary: One change this key sent.
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+  /changes/{id}/withdraw:
+    post:
+      operationId: withdrawChange
+      summary: Withdraw a pending change this key sent.
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /recycle-bin:
+    get:
+      operationId: listRecycleBin
+      summary: Direct keys. What this site's keys deleted (kept 30 days).
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+  /recycle-bin/{id}/restore:
+    post:
+      operationId: restoreFromRecycleBin
+      summary: Direct keys. Undo a delete; the item comes back with its previous status.
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+
+  /{area}:
+    get:
+      operationId: listItems
+      summary: Direct keys. List an area's items. menu-items needs location=header or footer.
+      parameters:
+        - { $ref: "#/components/parameters/Area" }
+        - name: location
+          in: query
+          description: Only for menu-items.
+          schema: { type: string, enum: [header, footer] }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Error" }
+    post:
+      operationId: createItem
+      summary: Direct keys. Create an item; send the same fields getItem returns.
+      parameters: [{ $ref: "#/components/parameters/Area" }]
+      requestBody: { $ref: "#/components/requestBodies/Item" }
+      responses:
+        "201": { $ref: "#/components/responses/Ok" }
+        "400": { $ref: "#/components/responses/Error" }
+  /{area}/{id}:
+    get:
+      operationId: getItem
+      summary: Direct keys. Read one item with all its fields.
+      parameters:
+        - { $ref: "#/components/parameters/Area" }
+        - { $ref: "#/components/parameters/Id" }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+    put:
+      operationId: updateItem
+      summary: Direct keys. Update an item; send ALL its fields as getItem returned them, with your edits.
+      parameters:
+        - { $ref: "#/components/parameters/Area" }
+        - { $ref: "#/components/parameters/Id" }
+      requestBody: { $ref: "#/components/requestBodies/Item" }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "400": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: deleteItem
+      summary: Direct keys. Move to the Recycle Bin (30 days). Menu items are deleted for good, and only with nothing under them.
+      parameters:
+        - { $ref: "#/components/parameters/Area" }
+        - { $ref: "#/components/parameters/Id" }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+  /{contentType}/{id}/status:
+    put:
+      operationId: setStatus
+      summary: Direct keys. Publish, unpublish (draft) or schedule an item.
+      parameters:
+        - name: contentType
+          in: path
+          required: true
+          schema: { type: string, enum: [pages, news, casinos, bonuses, payment-methods, rtp, guides, blacklist] }
+        - { $ref: "#/components/parameters/Id" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [draft, published, scheduled] }
+                publishAt: { type: [string, "null"], format: date-time, description: Required for scheduled (RFC 3339). }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+
+  /settings/{name}:
+    get:
+      operationId: getSettings
+      summary: "Direct keys, settings area. site (includes the footer fields) or theme (the website's colours: every token with default and current value)."
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema: { type: string, enum: [site, theme] }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+    put:
+      operationId: saveSettings
+      summary: "Direct keys. site: the site fields back, changed. footer: footerDescription etc. and footer, as GET site shows them. theme: {colors: {token: #hex}} replaces the whole theme."
+      parameters: [{ $ref: "#/components/parameters/SettingsName" }]
+      requestBody: { $ref: "#/components/requestBodies/Item" }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "400": { $ref: "#/components/responses/Error" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: An API key (tcs_...) made in Settings > API Keys. X-API-Key works too.
+
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1 }
+    PageSize:
+      name: pageSize
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100 }
+    Area:
+      name: area
+      in: path
+      required: true
+      description: The key needs the matching scope (GET /me lists them).
+      schema:
+        type: string
+        enum: [casinos, game-providers, licenses, bonuses, payment-methods, rtp, guides, blacklist, regions, menu-items, snippets]
+    SettingsName:
+      name: name
+      in: path
+      required: true
+      schema: { type: string, enum: [site, footer, theme] }
+
+  requestBodies:
+    Item:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: true
+            description: The same fields the matching GET returns.
+
+  responses:
+    Ok:
+      description: '{"success": true, "data": {...}}'
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Envelope" }
+    Error:
+      description: '{"success": false, "error": {"message": "..."}}. The message names the field and the fix.'
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    DryRun:
+      description: 'dryRun: data is {valid: true, message, warnings: [...]}. Nothing was saved.'
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Envelope" }
+    Change:
+      description: 'Saved. data is {change, message, warnings}; a review key also gets previewUrl.'
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Envelope" }
+
+  schemas:
+    Envelope:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { type: object, additionalProperties: true }
+    ErrorEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, const: false }
+        error:
+          type: object
+          properties:
+            message: { type: string }
+
+    Field:
+      type: object
+      required: [fieldKey, fieldType]
+      properties:
+        itemIndex: { type: integer, minimum: 0, description: "0 = the section's own fields; 1, 2, 3... = repeated items (FAQ questions, slides...)." }
+        fieldKey: { type: string, description: The field's name for this block type (GET /schema lists them). }
+        fieldType: { type: string, enum: [text, richtext, image, button] }
+        textValue: { type: string, description: "text, richtext (HTML) or a button's label." }
+        urlValue: { type: string, description: A button's link. }
+        mediaId: { type: [integer, "null"], description: An image's Media Library id. }
+    Section:
+      type: object
+      required: [blockType, depth, fields]
+      properties:
+        blockType: { type: string, description: "container, global_section or a component from GET /schema." }
+        depth: { type: integer, minimum: 0, maximum: 4, description: "0 = on the page (container or global_section only); N = inside the nearest container before it at depth N-1. A container is at most depth 3." }
+        customClass: { type: string }
+        customId: { type: string }
+        fields:
+          type: array
+          items: { $ref: "#/components/schemas/Field" }
+    Sections:
+      type: array
+      description: The WHOLE ordered list; list order is page order. Keep every section you didn't change exactly as GET returned it.
+      items: { $ref: "#/components/schemas/Section" }
+
+    PageChange:
+      type: object
+      additionalProperties: false
+      properties:
+        title: { type: string }
+        metaTitle: { type: string }
+        metaDescription: { type: string }
+        sections: { $ref: "#/components/schemas/Sections" }
+        note: { type: string, description: Why; shown to the reviewer and in the Activity Log. }
+        dryRun: { type: boolean, description: true = only check it. }
+    NewPage:
+      type: object
+      additionalProperties: false
+      required: [title, slug]
+      properties:
+        title: { type: string }
+        slug: { type: string, pattern: "^[a-z0-9]+(-[a-z0-9]+)*$" }
+        parentId: { type: [integer, "null"] }
+        metaTitle: { type: string }
+        metaDescription: { type: string }
+        sections: { $ref: "#/components/schemas/Sections" }
+        note: { type: string }
+        dryRun: { type: boolean }
+    GlobalSectionChange:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string }
+        sections: { $ref: "#/components/schemas/Sections" }
+        note: { type: string }
+        dryRun: { type: boolean }
+    NewsChange:
+      type: object
+      additionalProperties: false
+      properties:
+        title: { type: string }
+        slug: { type: string, pattern: "^[a-z0-9]+(-[a-z0-9]+)*$" }
+        excerpt: { type: string }
+        content: { type: string, description: HTML. Scripts and styles are removed. }
+        coverMediaId: { type: [integer, "null"] }
+        note: { type: string }
+        dryRun: { type: boolean }
