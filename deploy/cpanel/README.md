@@ -20,7 +20,7 @@ EasyApache) or CloudLinux's **Setup Node.js App** (startup file `server.cjs`).
   background process on `127.0.0.1:PORT` and `api/server.cjs` forwards
   `backapi.topcasinosg.com.sg` to it. `deploy/cpanel/api-process.sh` starts,
   restarts and keeps it alive.
-- `deploy/cpanel/deploy.sh` runs from cron every 10 minutes. When `main` has a
+- `deploy/cpanel/deploy.sh` runs from cron every 15 minutes. When `main` has a
   new commit it pulls, rebuilds only what changed and restarts those apps. A
   failed build keeps the previous version running.
 
@@ -143,7 +143,7 @@ domains.
 
 | Schedule | Command |
 | --- | --- |
-| `*/10 * * * *` | `/bin/bash /home/topcasinosg/public_html/topcasinosg.com.sg/deploy/cpanel/deploy.sh >> /home/topcasinosg/logs/deploy.log 2>&1` |
+| `*/15 * * * *` | `/bin/bash /home/topcasinosg/public_html/topcasinosg.com.sg/deploy/cpanel/deploy.sh >> /home/topcasinosg/logs/deploy.log 2>&1` |
 | `* * * * *` | `/bin/bash /home/topcasinosg/public_html/topcasinosg.com.sg/deploy/cpanel/api-process.sh ensure >> /home/topcasinosg/logs/api-process.log 2>&1` |
 | `* * * * *` | `/bin/bash /home/topcasinosg/public_html/topcasinosg.com.sg/deploy/cpanel/watchdog.sh >> /home/topcasinosg/logs/watchdog.log 2>&1` |
 
@@ -166,7 +166,7 @@ account is recreated with that password on the next API start.)
 
 ## Day to day
 
-- Push to `main` → live within about 10 minutes (plus build time).
+- Push to `main` → live within about 15 minutes (plus build time).
 - Logs: `~/logs/deploy.log` (deploys), `~/logs/api.log` (API output),
   `~/logs/api-error.log` (API errors, slow requests — JSON),
   `~/logs/api-process.log` (API starts/stops), `~/logs/watchdog.log` (downtime).

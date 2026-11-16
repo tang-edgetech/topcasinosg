@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Pull-and-redeploy for the cPanel server, run by cron every 10 minutes:
-#   */10 * * * * /bin/bash /home/topcasinosg/public_html/topcasinosg.com.sg/deploy/cpanel/deploy.sh >> /home/topcasinosg/logs/deploy.log 2>&1
+# Pull-and-redeploy for the cPanel server, run by cron every 15 minutes:
+#   */15 * * * * /bin/bash /home/topcasinosg/public_html/topcasinosg.com.sg/deploy/cpanel/deploy.sh >> /home/topcasinosg/logs/deploy.log 2>&1
 # Does nothing unless origin/$BRANCH has a new commit. Then it rebuilds only
 # what changed (web, admin, api) and restarts those apps. --force rebuilds
 # all three (first deploy, or after changing api/.env or production.env).
