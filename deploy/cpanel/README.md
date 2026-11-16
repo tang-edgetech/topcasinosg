@@ -180,6 +180,12 @@ account is recreated with that password on the next API start.)
 
 ## Troubleshooting
 
+- **Site keeps going down / Cloudflare 52x errors**: run
+  `bash deploy/cpanel/diagnose.sh 2>&1 | tee ~/diagnose.txt` from the repo
+  folder. It checks the server's load, the API, HTTPS on this server (what
+  Cloudflare connects to, with the certificate), and the server reaching
+  Cloudflare. It changes nothing.
+
 - **Web build fails: "took more than 60 seconds" on several pages**: the
   build fetches each page's data from the API. It does so on this machine
   (`API_INTERNAL_URL=http://127.0.0.1:<PORT from api/.env>`, set by
