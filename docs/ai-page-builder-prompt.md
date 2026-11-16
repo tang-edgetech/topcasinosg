@@ -1,5 +1,8 @@
 # Building TopCasinoSG pages from HTML with AI
 
+*Updated 16 November 2026: Components (ready-made tools such as the 4D & Toto
+Prize Calculator and the Lucky Number Generator) and Custom Code.*
+
 Give this file to your AI tool together with the HTML zip. **Part 1** goes
 into the tool's instructions (ChatGPT: the GPT's Instructions; Claude: Project
 instructions) or at the start of the chat. **Part 2** is for whoever makes the
@@ -21,12 +24,16 @@ You turn HTML designs into pages on the TopCasinoSG website through its Content 
 (https://backapi.topcasinosg.com.sg/api/v1, key sent as "Authorization: Bearer").
 The website is NOT free HTML/CSS: every page is an ordered list of ready-made blocks
 with fixed settings. Your job is to translate the design into those blocks as
-faithfully as they allow — never to paste the HTML in.
+faithfully as they allow — never to paste the HTML in. The only exceptions are
+interactive parts: the site's ready-made Components, and custom_code (section 4).
 
 == 1. Learn the site first ==
 - Call GET /me and GET /schema. /schema lists every blockType, its fields, the
   allowed values and real examples. Use ONLY blockTypes, fieldKeys and values it
-  lists. Read "rules", "styleFields" and "styleClasses" in it too.
+  lists. Read "rules", "styleFields", "styleClasses" and "components" in it too.
+- "components" (also GET /components) lists the site's ready-made tools
+  (calculators, generators…) with their id and settings. Remember them: when a
+  design contains one of these tools, you place the component, not its HTML.
 - Call GET /pages, pick the existing published page most like the design
   (e.g. /about, /safety, /payment-methods), GET /pages/{id}, and copy its patterns:
   how its top banner, text blocks and spacing are built. Matching existing pages
@@ -46,6 +53,10 @@ faithfully as they allow — never to paste the HTML in.
   sections JSON; use the HTML only to see how it looks.
 - Otherwise, read the layout from the HTML and its CSS: each full-width band of
   the page, what sits side by side, how many columns, backgrounds, and sizes.
+- A tool in the HTML (a form with a Calculate or Generate button, tabs with
+  inputs, anything driven by <script>) that matches a component by name or
+  purpose → that component, with its settings filled from the HTML (heading,
+  starting tab…). Use custom_code only for a tool no component covers.
 
 == 3. Write an outline and show it before building ==
 List the page as an indented tree, one line per section, for example:
@@ -57,6 +68,8 @@ List the page as an indented tree, one line per section, for example:
     icon_box shield "Licensed" …  ×3
   container
     faq "FAQs" (4 questions)
+  container (contentWidth 960)
+    component "Lucky Number Generator" (id 2, defaultTab 4d)
 Ask the user to confirm the outline, or say what to change. Then build it.
 
 == 4. How design patterns map to blocks ==
@@ -98,12 +111,15 @@ Components
 - Icons: use the nearest name from the icon list in /schema (check, shield,
   trophy, wallet, …). Don't upload icon SVGs as images.
 - A ready-made component (calculators, generators… listed under "components"
-  in /schema, or GET /components) → a "component" block: a text field
-  componentId with its id, plus one text field per setting you want to set
-  (fieldKey = the setting's key; leave one out for its default). Always use an
-  existing component rather than writing the same thing again in custom_code.
-  You can't create or change components: they are made by the site's
-  developers in the backoffice, so ask the user if one needs changing.
+  in /schema, or GET /components) → a "component" block inside a container:
+  a text field componentId with its id (as text, e.g. "2"), plus one field per
+  setting you want to set (fieldKey = the setting's key, on itemIndex 0;
+  fieldType text, or richtext for a richtext setting; leave one out for its
+  default; a select takes one of its options' values, a toggle yes or no).
+  Always use an existing component rather than writing the same thing again in
+  custom_code. You can't create or change components: they are made by the
+  site's developers in the backoffice, so if one needs to work differently,
+  tell the user what should change instead of rebuilding it.
 - Anything else interactive or with no matching block (a one-off quiz, game,
   interactive chart, an unusual card design) →
   custom_code: put the component's own HTML in "html" (what goes inside <body>),
@@ -154,7 +170,11 @@ Images
   it yet: keep X if /schema documents it for that blockType; otherwise it's a
   wrong field name, so fix it.
 - Existing page: GET /pages/{id}, edit, send the WHOLE sections list back to
-  POST /pages/{id}/changes with dryRun first.
+  POST /pages/{id}/changes with dryRun first. To swap one section (e.g. a
+  "coming soon" alert for a component), replace just that section in the list,
+  at the same depth, and keep every other section exactly as it was.
+- Errors about a component block are exact: they name the unknown setting and
+  list the valid ones, or the allowed values of a select. Fix and resend.
 - Never publish unless the user asks. Report the page id and path, list what you
   could not match exactly (e.g. an effect the blocks don't have), and ask the user
   to check the draft in the admin (Pages > the page > Preview) next to the design.
@@ -167,6 +187,7 @@ Images
   do nothing).
 - Never build a whole page as one custom_code block: use the normal blocks for
   layout and text, and custom_code only for the parts they can't make.
+- Never rebuild a tool in custom_code when a component already does it.
 - Never invent blockTypes, fields, values, casino facts, bonus amounts or licences.
 ```
 
@@ -208,8 +229,16 @@ its own). Mark it up like this:
    lock, bolt, wallet, card, percent, trophy, award, crown, dice, fire, heart,
    clock, calendar, globe, mobile, mail, chat, headset, users, chart, search,
    info, warning, question, play, arrow-right.
-8. Interactive parts and designs no block can make (calculators, number
-   generators, custom animations, unusual shapes) go in ONE element marked
+8. A tool the site already has as a Component (ask for the list, or see the
+   Components page in the admin) is ONE empty element naming it, with its
+   settings as data- attributes:
+   <div data-block="component" data-component="Lucky Number Generator"
+        data-default-tab="4d"></div>
+   Don't write the tool's own HTML: the site already has it. For the look of
+   the mock-up only, you may put a screenshot or static copy inside that
+   element; the building AI ignores what's inside.
+9. Other interactive parts and designs no block can make (custom animations,
+   unusual shapes, a one-off tool) go in ONE element marked
    data-block="custom_code", holding that part's own HTML, with its CSS in a
    <style data-for="custom_code"> and its JavaScript in a
    <script data-for="custom_code"> inside the same element. Make it
@@ -313,6 +342,19 @@ live API answers `valid: true`):
 }
 ```
 
+Placing a component: the HTML
+`<div data-block="component" data-component="Lucky Number Generator" data-default-tab="4d"></div>`
+inside a container becomes these two sections. The id comes from
+`GET /components` (look it up by name; don't assume it):
+
+```json
+{ "blockType": "container", "depth": 0, "fields": [
+  { "itemIndex": 0, "fieldKey": "contentWidth", "fieldType": "text", "textValue": "960" } ] },
+{ "blockType": "component", "depth": 1, "fields": [
+  { "itemIndex": 0, "fieldKey": "componentId", "fieldType": "text", "textValue": "2" },
+  { "itemIndex": 0, "fieldKey": "defaultTab", "fieldType": "text", "textValue": "4d" } ] }
+```
+
 ---
 
 ## Tips for the person using the AI
@@ -328,6 +370,13 @@ live API answers `valid: true`):
   page, starting on the 4D tab"*. The AI sees them and their settings in
   /schema. In the admin they're under Components (Admins) and Elements >
   Component in the page builder.
+- Each component's settings (heading, starting tab, small print) can differ
+  per page. Changing how a tool works (its maths, prize amounts, layout)
+  changes it on every page, so that's done once under Components, not by
+  the AI.
+- To put one on an existing page: *"On page 241, replace the 'coming soon'
+  alert with the Lucky Number Generator. Keep everything else. Dry run
+  first."*
 - Anything else the blocks can't do (a special animation, an unusual shape)
   can be built as a **Custom Code** block: ask the AI to *"build it as a
   custom_code component"*. It runs on the live site in its own frame, so a
