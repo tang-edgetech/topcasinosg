@@ -124,8 +124,10 @@ How the AI works with the site:
    their allowed values. That way it builds content the way the page
    builder does, rather than guessing.
 3. It reads the page or article and changes only what you asked. For larger
-   changes it can do a dry run first, which checks the change without saving
-   it.
+   changes to pages, news and Global Sections it can do a dry run first,
+   which checks the change without saving it. Other areas (casinos, bonuses,
+   regions, menus, settings...) have no dry run: those changes save at once,
+   so the AI should tell you what it will change and wait for your yes.
 4. It saves:
    - **Direct key:** the change is live. Check it on https://topcasinosg.com.sg.
    - **Needs approval key:** the change waits in **AI Changes** with a preview
@@ -134,7 +136,7 @@ How the AI works with the site:
 The AI is told to ask you before it publishes, deletes or changes anything
 you didn't ask for. Treat its summary as a report, and check the result on
 the site. With a Direct key, it helps to say *"do a dry run first"* for big
-changes, and to ask for one page at a time.
+page, news or Global Section changes, and to ask for one page at a time.
 
 ## Debugging together
 

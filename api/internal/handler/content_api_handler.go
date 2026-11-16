@@ -711,6 +711,7 @@ func keyEndpoints(key *domain.APIKey) []string {
 	}
 	list = append(list,
 		"Direct key - for each area below: GET /api/v1/{area} lists, GET /api/v1/{area}/{id} reads one, POST /api/v1/{area} creates, PUT /api/v1/{area}/{id} updates (send the same fields GET returns), PUT /api/v1/{area}/{id}/status {\"status\": \"draft\" | \"published\" | \"scheduled\", \"publishAt\"} publishes or unpublishes, DELETE /api/v1/{area}/{id} moves it to the Recycle Bin",
+		"These Direct-key calls (everything except POST /api/v1/pages, /pages/{id}/changes, /news, /news/{id}/changes and /global-sections/{id}/changes) save at once and have no dry run: a request with dryRun is refused with 400 and nothing is saved. Read the item first, say exactly what you will change, and send it once the user agrees",
 		"SEO: GET/PUT /api/v1/seo/{page|news|casino|bonus|guide}/{id}",
 		"GET /api/v1/recycle-bin - what was deleted; POST /api/v1/recycle-bin/{id}/restore - undo a delete",
 		"Only pages, news, casinos, bonuses, payment-methods, rtp, guides, blacklist and snippets can be deleted by a key (to the Recycle Bin), and menu items with nothing under them; ask an admin for anything else",

@@ -334,7 +334,7 @@ const TOOLS = [
   {
     name: "api_request",
     description:
-      "Any other Content API call this key allows (see whoami and get_schema's endpoints), e.g. GET /casinos, PUT /bonuses/12, GET /recycle-bin. path is relative to /api/v1. DELETE moves things to the Recycle Bin: only when the user asked.",
+      "Any other Content API call this key allows (see whoami and get_schema's endpoints), e.g. GET /casinos, PUT /bonuses/12, GET /recycle-bin. path is relative to /api/v1. These calls save at once and have no dry run (a dryRun is refused with 400), so read the item first and get the user's OK before a POST, PUT or DELETE. DELETE moves things to the Recycle Bin: only when the user asked.",
     inputSchema: {
       type: "object",
       properties: {

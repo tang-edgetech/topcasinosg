@@ -6,7 +6,9 @@ info:
     Manage the TopCasinoSG website's content with an API key. Start every session with
     GET /me (what this key may do) and GET /schema (every block type, its fields and the
     page-building rules, read live from the site). Read before you write, send whole
-    section lists back edited, and check with dryRun first. Responses are wrapped as
+    section lists back edited, and check page, news and Global Section changes with dryRun
+    first. The Direct-key area endpoints (/{area}, /{area}/{id}, status, SEO, settings) have
+    no dry run: they save at once, and a request with dryRun is refused. Responses are wrapped as
     {"success": true, "data": {...}} or {"success": false, "error": {"message": "..."}};
     error messages name the exact field and say how to fix it.
 servers:
@@ -225,7 +227,7 @@ paths:
         "403": { $ref: "#/components/responses/Error" }
     post:
       operationId: createItem
-      summary: Direct keys. Create an item; send the same fields getItem returns.
+      summary: Direct keys. Create an item; send the same fields getItem returns. Saves at once; no dryRun (refused with 400).
       parameters: [{ $ref: "#/components/parameters/Area" }]
       requestBody: { $ref: "#/components/requestBodies/Item" }
       responses:
@@ -242,7 +244,7 @@ paths:
         "200": { $ref: "#/components/responses/Ok" }
     put:
       operationId: updateItem
-      summary: Direct keys. Update an item; send ALL its fields as getItem returned them, with your edits.
+      summary: Direct keys. Update an item; send ALL its fields as getItem returned them, with your edits. Saves at once; no dryRun (refused with 400).
       parameters:
         - { $ref: "#/components/parameters/Area" }
         - { $ref: "#/components/parameters/Id" }

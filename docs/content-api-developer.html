@@ -130,7 +130,7 @@
     <li><b>Find</b>: <code>GET /pages</code> (id, path, status), <code>GET /news</code>, <code>GET /global-sections</code>, <code>GET /{area}</code>.</li>
     <li><b>Read right before writing</b>: <code>GET /pages/{id}</code> returns the full ordered <code>sections</code> list. Read it again just before each change, so you never overwrite someone else's newer edit.</li>
     <li><b>Edit in place</b>: change only the field values you need. Keep every other section and field exactly as returned.</li>
-    <li><b>Check</b>: send the change with <code>"dryRun": true</code>. Nothing is saved; the answer is <code>{valid, message, warnings}</code> or a 400 naming the exact problem.</li>
+    <li><b>Check</b>: send the change with <code>"dryRun": true</code>. Nothing is saved; the answer is <code>{valid, message, warnings}</code> or a 400 naming the exact problem. Dry runs exist for pages, news and Global Sections only; the Direct-key area endpoints save at once and refuse <code>dryRun</code>.</li>
     <li><b>Apply</b>: send the same body without <code>dryRun</code>.</li>
     <li><b>Verify</b>: read it back, and tell the user what changed, with ids. Direct changes reach the public site within about a minute.</li>
   </ol>
@@ -221,7 +221,7 @@
   <table>
     <tr><th style="width:40%">Pattern</th><th>What it does</th></tr>
     <tr><td><code>GET /{area}</code> · <code>GET /{area}/{id}</code></td><td>List; read one with all its fields.</td></tr>
-    <tr><td><code>POST /{area}</code> · <code>PUT /{area}/{id}</code></td><td>Create; update. Send <b>all</b> fields as GET returned them, with your edits.</td></tr>
+    <tr><td><code>POST /{area}</code> · <code>PUT /{area}/{id}</code></td><td>Create; update. Send <b>all</b> fields as GET returned them, with your edits. Saves at once: there is no dry run here, and a request with <code>dryRun</code> is refused (400) without saving.</td></tr>
     <tr><td><code>PUT /{area}/{id}/status</code></td><td><code>{"status": "draft" | "published" | "scheduled", "publishAt": RFC 3339 | null}</code>. Also for pages and news.</td></tr>
     <tr><td><code>DELETE /{area}/{id}</code></td><td>To the Recycle Bin (pages, news, casinos, bonuses, payment-methods, rtp, guides, blacklist, snippets). Other types: 403.</td></tr>
     <tr><td><code>GET /recycle-bin</code> · <code>POST /recycle-bin/{id}/restore</code></td><td>What was deleted (30 days); undo, with the previous status.</td></tr>
@@ -246,7 +246,7 @@
 
   <h3 style="margin-top:0">What the API checks before saving anything</h3>
   <ul>
-    <li><b>Unknown JSON fields are refused</b>, by name, so a typo can't silently drop a change.</li>
+    <li><b>Unknown JSON fields are refused</b>, by name, on page, news and Global Section changes, so a typo can't silently drop a change. The Direct-key area endpoints ignore unknown fields (so check the read-back), except <code>dryRun</code>, which they refuse.</li>
     <li><b>Block types, depths and nesting</b> are checked against the rules in <code>/schema</code>; <b>field types</b> must be text, richtext, image or button.</li>
     <li><b>Every mediaId, globalId, parentId and coverMediaId must exist</b>; slugs must be lowercase-with-hyphens and free.</li>
     <li><b>Warnings</b> (not errors): a field no section of that type uses, so it may not show; and for Global Sections, which pages change. Read <code>warnings</code> on every response.</li>
@@ -295,8 +295,11 @@ Change safely
 3. Change only what the user asked. Pages and Global Sections: send the WHOLE
    sections list back, edited, keeping every other section and field exactly as
    returned. PUT /{area}/{id}: send all fields as GET returned them.
-4. Always send the change with "dryRun": true first. If it fails, read the message
-   (it names the field), fix that, and dry-run again. Then send it without dryRun.
+4. Pages, news and Global Sections: always send the change with "dryRun": true
+   first. If it fails, read the message (it names the field), fix that, and
+   dry-run again. Then send it without dryRun. Every other endpoint (/{area},
+   status, SEO, settings) has NO dry run and saves at once: never send dryRun
+   there; say exactly what you will change and wait for the user's yes.
 5. Read every "warnings" list and tell the user about them.
 6. Images: use a mediaId from GET /media, or upload with POST /media first.
 

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -93,6 +94,19 @@ func directAPI(mux *http.ServeMux, bin *recycleBin, isGlobal func(context.Contex
 			return
 		}
 		segments := strings.Split(path, "/")
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			// The admin endpoints have no dry run and ignore fields they don't
+			// know, so a "dryRun" sent here would be saved for real.
+			asked, err := askedForDryRun(w, r)
+			if err != nil {
+				response.Err(w, http.StatusRequestEntityTooLarge, "the request body is too large")
+				return
+			}
+			if asked {
+				response.Err(w, http.StatusBadRequest, fmt.Sprintf("dryRun isn't supported on %s /api/v1/%s, so nothing was saved: this endpoint saves at once. Only POST /api/v1/pages, /api/v1/pages/{id}/changes, /api/v1/news, /api/v1/news/{id}/changes and /api/v1/global-sections/{id}/changes can be checked with dryRun. Here, read the item first (GET), and send the change without dryRun once the user has agreed to it", r.Method, path))
+				return
+			}
+		}
 		if r.Method != http.MethodGet && touchesGlobal(r.Context(), segments, isGlobal) && !handler.IsAdminRole(middleware.UserFromContext(r.Context())) {
 			response.Err(w, http.StatusForbidden, "only an Admin's API key can change Global Sections: they show on many pages at once")
 			return
@@ -130,6 +144,42 @@ func directAPI(mux *http.ServeMux, bin *recycleBin, isGlobal func(context.Contex
 		admin.RequestURI = admin.URL.RequestURI()
 		mux.ServeHTTP(w, admin)
 	})
+}
+
+// maxDirectJSONBody: the most askedForDryRun reads of a JSON body.
+const maxDirectJSONBody = 10 << 20
+
+// askedForDryRun: the request asks for a dry run, by a dryRun query
+// parameter or a top-level "dryRun" field in a JSON object body, with any
+// value but an explicit no (false, 0, null, ""). The body is put back for
+// the admin handler. Other bodies (file uploads) aren't read.
+func askedForDryRun(w http.ResponseWriter, r *http.Request) (bool, error) {
+	if q := r.URL.Query(); q.Has("dryRun") && !isNo(q.Get("dryRun")) {
+		return true, nil
+	}
+	if r.Body == nil || r.Body == http.NoBody || strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/") {
+		return false, nil
+	}
+	raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxDirectJSONBody))
+	_ = r.Body.Close()
+	if err != nil {
+		return false, err
+	}
+	r.Body = io.NopCloser(bytes.NewReader(raw))
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(raw, &fields) != nil {
+		return false, nil // not a JSON object: the admin handler answers it
+	}
+	value, ok := fields["dryRun"]
+	return ok && !isNo(strings.Trim(string(bytes.TrimSpace(value)), `"`)), nil
+}
+
+func isNo(v string) bool {
+	switch strings.ToLower(v) {
+	case "false", "0", "null", "":
+		return true
+	}
+	return false
 }
 
 // menuChildren counts the menu items directly under a menu item, in both
