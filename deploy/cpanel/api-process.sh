@@ -6,7 +6,8 @@
 # Settings come from api/.env (see deploy/cpanel/api.env.example).
 set -uo pipefail
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# -P: the real path (no symlinks), as /proc/<pid>/exe shows it in api_pids.
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 API_DIR="$REPO_DIR/api"
 PID_FILE="$API_DIR/tmp/api.pid"
 LOG_DIR="${LOG_DIR:-$HOME/logs}"
@@ -29,18 +30,39 @@ load_env() {
   done < "$1"
 }
 
+API_BIN="$API_DIR/bin/api"
+
+# The API processes running from this folder, found by their binary rather
+# than the PID file alone: a start that lost a race (two starters at once)
+# can leave the PID file naming a dead process while another copy serves.
+# After a deploy swaps the binary, a running one shows as "... (deleted)".
+api_pids() {
+  local d exe
+  for d in /proc/[0-9]*; do
+    exe="$(readlink "$d/exe" 2>/dev/null)" || continue
+    if [ "$exe" = "$API_BIN" ] || [ "$exe" = "$API_BIN (deleted)" ]; then echo "${d#/proc/}"; fi
+  done
+}
+
+# Running when the PID file's process is alive, or, if it isn't, when an API
+# from this folder is running anyway: that one is adopted into the PID file.
 running() {
-  [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null
+  if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then return 0; fi
+  local pid; pid="$(api_pids | head -n 1)"
+  [ -n "$pid" ] || return 1
+  echo "$pid" > "$PID_FILE"
+  log "api found running untracked (pid $pid), now tracked"
 }
 
 start() {
   if running; then log "api already running (pid $(cat "$PID_FILE"))"; return 0; fi
-  if [ ! -x "$API_DIR/bin/api" ]; then log "api/bin/api missing — run deploy.sh --force first"; return 1; fi
+  if [ ! -x "$API_BIN" ]; then log "api/bin/api missing — run deploy.sh --force first"; return 1; fi
   if [ ! -f "$API_DIR/.env" ]; then log "api/.env missing — copy deploy/cpanel/api.env.example"; return 1; fi
   (
     cd "$API_DIR" || exit 1
     load_env ./.env
-    nohup ./bin/api >> "$LOG_DIR/api.log" 2>&1 &
+    # 8>&-: the API mustn't inherit the lock below, or it would hold it.
+    nohup ./bin/api >> "$LOG_DIR/api.log" 2>&1 8>&- &
     echo $! > "$PID_FILE"
   )
   sleep 2
@@ -48,13 +70,20 @@ start() {
 }
 
 stop() {
-  if ! running; then rm -f "$PID_FILE"; return 0; fi
-  local pid; pid="$(cat "$PID_FILE")"
-  kill "$pid" 2>/dev/null
-  for _ in $(seq 1 20); do kill -0 "$pid" 2>/dev/null || break; sleep 0.5; done
-  kill -9 "$pid" 2>/dev/null || true
+  local pids; pids="$( { [ -f "$PID_FILE" ] && cat "$PID_FILE"; api_pids; } | sort -u)"
   rm -f "$PID_FILE"
-  log "api stopped (pid $pid)"
+  [ -n "$pids" ] || return 0
+  # shellcheck disable=SC2086
+  kill $pids 2>/dev/null
+  for _ in $(seq 1 20); do
+    local alive=0 pid
+    for pid in $pids; do kill -0 "$pid" 2>/dev/null && alive=1; done
+    [ "$alive" = 0 ] && break
+    sleep 0.5
+  done
+  # shellcheck disable=SC2086
+  kill -9 $pids 2>/dev/null || true
+  log "api stopped (pid $(echo $pids))"
 }
 
 # api.log is the API's stdout, kept open by the process in append mode, so
@@ -72,6 +101,16 @@ rotate_api_log() {
 test_alert() {
   ( cd "$API_DIR" && load_env ./.env && ./bin/api telegram-test )
 }
+
+# One at a time: the deploy's restart, the keep-alive cron and the proxy
+# (api/server.cjs, when the API stops answering) can all call this at once,
+# and two starts together leave one copy failing on the port.
+case "${1:-}" in
+  start|stop|restart|ensure)
+    exec 8>"$API_DIR/tmp/api-process.lock"
+    flock -w 60 8 || { log "api-process.sh: another run is still busy, skipping ${1}"; exit 0; }
+    ;;
+esac
 
 case "${1:-}" in
   start) start ;;
