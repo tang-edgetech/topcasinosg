@@ -87,7 +87,7 @@ Find `"chat":{"id":-100…` in the reply. The number, including the minus sign
 In cPanel → Terminal (as the `topcasinosg` user), edit `api/.env`:
 
 ```bash
-nano ~/apps/topcasinosg/api/.env
+nano /home/topcasinosg/public_html/topcasinosg.com.sg/api/.env
 ```
 
 Add (or fill in) these lines:
@@ -100,7 +100,7 @@ TELEGRAM_CHAT_ID=-1001234567890
 Save, then restart the API so it reads them:
 
 ```bash
-bash ~/apps/topcasinosg/deploy/cpanel/api-process.sh restart
+bash /home/topcasinosg/public_html/topcasinosg.com.sg/deploy/cpanel/api-process.sh restart
 ```
 
 Without these two lines everything still runs and logs; it just sends no
@@ -109,8 +109,8 @@ messages.
 ### 5. Send test alerts
 
 ```bash
-bash ~/apps/topcasinosg/deploy/cpanel/api-process.sh test-alert
-bash ~/apps/topcasinosg/deploy/cpanel/watchdog.sh test
+bash /home/topcasinosg/public_html/topcasinosg.com.sg/deploy/cpanel/api-process.sh test-alert
+bash /home/topcasinosg/public_html/topcasinosg.com.sg/deploy/cpanel/watchdog.sh test
 ```
 
 Each prints `Test alert sent.` and a 🧪 message appears in the group. If not,
@@ -123,10 +123,10 @@ after the restart in step 4.
 cPanel → **Cron Jobs → Add New Cron Job**, every minute (`* * * * *`):
 
 ```
-/bin/bash /home/topcasinosg/apps/topcasinosg/deploy/cpanel/watchdog.sh >> /home/topcasinosg/logs/watchdog.log 2>&1
+/bin/bash /home/topcasinosg/public_html/topcasinosg.com.sg/deploy/cpanel/watchdog.sh >> /home/topcasinosg/logs/watchdog.log 2>&1
 ```
 
-See what it last saw: `bash ~/apps/topcasinosg/deploy/cpanel/watchdog.sh status`.
+See what it last saw: `bash /home/topcasinosg/public_html/topcasinosg.com.sg/deploy/cpanel/watchdog.sh status`.
 
 ### 7. Optional, recommended: an outside monitor
 

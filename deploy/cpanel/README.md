@@ -7,14 +7,15 @@ EasyApache) or CloudLinux's **Setup Node.js App** (startup file `server.cjs`).
 
 | Domain | App root / application path | What runs |
 | --- | --- | --- |
-| `topcasinosg.com.sg` | `apps/topcasinosg/web` | Next.js public site |
-| `backoffice.topcasinosg.com.sg` | `apps/topcasinosg/admin` | Next.js backoffice |
-| `backapi.topcasinosg.com.sg` | `apps/topcasinosg/api` | Node proxy → Go API |
+| `topcasinosg.com.sg` | `public_html/topcasinosg.com.sg/web` | Next.js public site |
+| `backoffice.topcasinosg.com.sg` | `public_html/topcasinosg.com.sg/admin` | Next.js backoffice |
+| `backapi.topcasinosg.com.sg` | `public_html/topcasinosg.com.sg/api` | Node proxy → Go API |
 
-- The code lives in `/home/topcasinosg/apps/topcasinosg`, **not** in
-  `public_html`: anything under a document root can be downloaded, including
-  `api/.env`. The domains' document roots stay empty; cPanel only writes an
-  `.htaccess` there that hands requests to the Node app.
+- The code lives in `/home/topcasinosg/public_html/topcasinosg.com.sg`. Every
+  request to the three domains is handed to its Node app, so files such as
+  `api/.env` are not served. Keep it that way: never point a domain's document
+  root at the repo folder itself, and after any domain change check that
+  `https://<domain>/api/.env` answers 404.
 - cPanel can only host Node apps, so the Go API (`api/bin/api`) runs as a
   background process on `127.0.0.1:PORT` and `api/server.cjs` forwards
   `backapi.topcasinosg.com.sg` to it. `deploy/cpanel/api-process.sh` starts,
@@ -61,7 +62,7 @@ Host github.com
   IdentitiesOnly yes
 EOF
 mkdir -p ~/apps ~/logs
-git clone git@github.com:tang-edgetech/topcasinosg.git ~/apps/topcasinosg
+git clone git@github.com:tang-edgetech/topcasinosg.git /home/topcasinosg/public_html/topcasinosg.com.sg
 ```
 
 ### 3. Go (to build the API)
@@ -77,8 +78,8 @@ The version must match the `go` line in `api/go.mod`.
 ### 4. API settings and uploads
 
 ```bash
-cp ~/apps/topcasinosg/deploy/cpanel/api.env.example ~/apps/topcasinosg/api/.env
-chmod 600 ~/apps/topcasinosg/api/.env
+cp /home/topcasinosg/public_html/topcasinosg.com.sg/deploy/cpanel/api.env.example /home/topcasinosg/public_html/topcasinosg.com.sg/api/.env
+chmod 600 /home/topcasinosg/public_html/topcasinosg.com.sg/api/.env
 openssl rand -base64 48   # JWT_SECRET
 openssl rand -hex 16      # OTP_ENCRYPTION_KEY (32 characters)
 ```
@@ -86,7 +87,7 @@ openssl rand -hex 16      # OTP_ENCRYPTION_KEY (32 characters)
 Edit `api/.env` (cPanel File Manager or `nano`): the database name, user and
 password from step 1, and the two generated secrets.
 
-Copy your local `api/uploads/` folder to `~/apps/topcasinosg/api/uploads/`
+Copy your local `api/uploads/` folder to `/home/topcasinosg/public_html/topcasinosg.com.sg/api/uploads/`
 (File Manager: upload a zip, then Extract). Without it, every uploaded image
 on the site is missing.
 
@@ -129,7 +130,7 @@ the first deploy does it.
 ### 7. First deploy
 
 ```bash
-bash ~/apps/topcasinosg/deploy/cpanel/deploy.sh --force
+bash /home/topcasinosg/public_html/topcasinosg.com.sg/deploy/cpanel/deploy.sh --force
 ```
 
 This installs packages, builds the web, backoffice and API, starts the API and
@@ -142,9 +143,9 @@ domains.
 
 | Schedule | Command |
 | --- | --- |
-| `*/10 * * * *` | `/bin/bash /home/topcasinosg/apps/topcasinosg/deploy/cpanel/deploy.sh >> /home/topcasinosg/logs/deploy.log 2>&1` |
-| `* * * * *` | `/bin/bash /home/topcasinosg/apps/topcasinosg/deploy/cpanel/api-process.sh ensure >> /home/topcasinosg/logs/api-process.log 2>&1` |
-| `* * * * *` | `/bin/bash /home/topcasinosg/apps/topcasinosg/deploy/cpanel/watchdog.sh >> /home/topcasinosg/logs/watchdog.log 2>&1` |
+| `*/10 * * * *` | `/bin/bash /home/topcasinosg/public_html/topcasinosg.com.sg/deploy/cpanel/deploy.sh >> /home/topcasinosg/logs/deploy.log 2>&1` |
+| `* * * * *` | `/bin/bash /home/topcasinosg/public_html/topcasinosg.com.sg/deploy/cpanel/api-process.sh ensure >> /home/topcasinosg/logs/api-process.log 2>&1` |
+| `* * * * *` | `/bin/bash /home/topcasinosg/public_html/topcasinosg.com.sg/deploy/cpanel/watchdog.sh >> /home/topcasinosg/logs/watchdog.log 2>&1` |
 
 The first deploys new commits; the second restarts the API if the host stops
 it (e.g. after a server reboot) and rotates `api.log`; the third checks the
@@ -171,10 +172,10 @@ account is recreated with that password on the next API start.)
   `~/logs/api-process.log` (API starts/stops), `~/logs/watchdog.log` (downtime).
 - Alerts: `api-process.sh test-alert` / `watchdog.sh test` send a sample
   Telegram message; `watchdog.sh status` shows what it last saw.
-- Deploy now instead of waiting: `bash ~/apps/topcasinosg/deploy/cpanel/deploy.sh`.
+- Deploy now instead of waiting: `bash /home/topcasinosg/public_html/topcasinosg.com.sg/deploy/cpanel/deploy.sh`.
 - After editing `api/.env` or `deploy/cpanel/production.env`: run it with
   `--force` (frontend settings are baked in at build time).
-- API only: `bash ~/apps/topcasinosg/deploy/cpanel/api-process.sh restart`
+- API only: `bash /home/topcasinosg/public_html/topcasinosg.com.sg/deploy/cpanel/api-process.sh restart`
   (also `status`, `stop`).
 
 ## Troubleshooting
