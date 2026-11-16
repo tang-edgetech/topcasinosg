@@ -24,7 +24,7 @@ load_settings() {
     line="${line%$'\r'}"
     case "$line" in ''|'#'*) continue ;; esac
     key="${line%%=*}"; key="${key//[[:space:]]/}"; key="${key#export}"
-    case "$key" in TELEGRAM_*|WATCHDOG_*) ;; *) continue ;; esac
+    case "$key" in TELEGRAM_*|WATCHDOG_*) ;; PORT) key=API_PORT ;; *) continue ;; esac
     # Settings already in the environment win over the file.
     [ -n "${!key:-}" ] && continue
     value="${line#*=}"
@@ -42,7 +42,16 @@ LABEL="${WATCHDOG_LABEL:-TopCasinoSG}"
 # One target per line or space: name|url|text the body must contain (optional).
 # A 2xx-4xx answer counts as up (a login redirect or a Cloudflare challenge
 # still means the server answered); 5xx, a timeout or no connection is down.
-TARGETS="${WATCHDOG_TARGETS:-web|https://topcasinosg.com.sg/ admin|https://backoffice.topcasinosg.com.sg/ api|https://backapi.topcasinosg.com.sg/health|\"status\":\"ok\"}"
+# The API is checked on its local port (PORT in api/.env), not through
+# Cloudflare: from this server that round trip can hang although the API is fine.
+TARGETS="${WATCHDOG_TARGETS:-web|https://topcasinosg.com.sg/ admin|https://backoffice.topcasinosg.com.sg/ api|http://127.0.0.1:${API_PORT:-8090}/health|\"status\":\"ok\"}"
+# For the same reason the https targets are sent straight to this server's
+# Apache (curl --resolve) instead of through Cloudflare: "auto" uses the
+# server's first IP address, an address uses that, "off" goes through DNS
+# (and Cloudflare) like a visitor. The certificate isn't checked on that path.
+ORIGIN_IP="${WATCHDOG_ORIGIN_IP:-auto}"
+if [ "$ORIGIN_IP" = auto ]; then ORIGIN_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"; fi
+[ "$ORIGIN_IP" = off ] && ORIGIN_IP=""
 TIMEOUT="${WATCHDOG_TIMEOUT:-20}"          # seconds before "loading forever" counts as down
 SLOW="${WATCHDOG_SLOW_SECONDS:-8}"         # slower than this is reported as slow
 FAILS_BEFORE_ALERT="${WATCHDOG_FAILS_BEFORE_ALERT:-2}"  # consecutive failed checks
@@ -91,8 +100,11 @@ check_target() {
   local now; now="$(date +%s)"
 
   local body errf; body="$(mktemp)"; errf="$(mktemp)"
-  local out code secs err
-  out="$(curl -sS -o "$body" -w '%{http_code} %{time_total}' --max-time "$TIMEOUT" \
+  local out code secs err via=()
+  if [ -n "$ORIGIN_IP" ] && [[ "$url" =~ ^https://([^/:]+)/ ]]; then
+    via=(--resolve "${BASH_REMATCH[1]}:443:$ORIGIN_IP" -k)
+  fi
+  out="$(curl -sS -o "$body" -w '%{http_code} %{time_total}' --max-time "$TIMEOUT" ${via[@]+"${via[@]}"} \
     -A "TopCasinoSG-Watchdog/1.0" -H "Cache-Control: no-cache" "$url" 2>"$errf")"
   code="${out%% *}"; secs="${out#* }"
   [ -n "$secs" ] && [ "$secs" != "$out" ] || secs=0

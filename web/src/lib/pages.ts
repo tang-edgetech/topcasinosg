@@ -1,3 +1,4 @@
+import { API_BASE_URL as SERVER_API_URL, PUBLIC_API_URL } from "@/lib/api-url";
 /**
  * Data-fetching + field-access helpers for the block-based Pages CMS
  * (admin/src/app/dashboard/pages). A page is an ordered list of sections;
@@ -9,7 +10,7 @@
 
 import { backgroundImage, backgroundPosition, backgroundSize, cssColor } from "./sectionStyle";
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
+export const API_BASE_URL = SERVER_API_URL;
 
 // Scheduled-publish pages can flip visibility at any moment — keep this
 // short, matching every other content fetcher in web/.
@@ -235,7 +236,9 @@ const UPLOADS_PREFIX = "/uploads/";
 // URLs pass through; other paths are this site's own files (e.g. /certifications/...).
 export function mediaUrl(url: string | null | undefined): string | null {
   if (!url) return null;
-  if (url.startsWith(`${API_BASE_URL}${UPLOADS_PREFIX}`)) url = url.slice(API_BASE_URL.length);
+  for (const base of [PUBLIC_API_URL, API_BASE_URL]) {
+    if (url.startsWith(`${base}${UPLOADS_PREFIX}`)) url = url.slice(base.length);
+  }
   if (url.startsWith(UPLOADS_PREFIX)) return `${SITE_URL}/assets/images/${url.slice(UPLOADS_PREFIX.length)}`;
   if (url.startsWith("http") || url.startsWith("//")) return url;
   return `${SITE_URL}${url.startsWith("/") ? "" : "/"}${url}`;

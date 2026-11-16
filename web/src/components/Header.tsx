@@ -1,9 +1,10 @@
+import { API_BASE_URL as SERVER_API_URL } from "@/lib/api-url";
 import HeaderNav, { type NavTab } from "./HeaderNav";
 import type { MegaMenuColumn, MegaMenuLink } from "./MegaMenu";
 import { getSiteSettings } from "@/lib/site-settings";
 import { mediaUrl } from "@/lib/pages";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
+const API_URL = SERVER_API_URL;
 const REVALIDATE_SECONDS = 60;
 
 type RegionDTO = { id: number; code: string; name: string; isActive: boolean; sortOrder: number };

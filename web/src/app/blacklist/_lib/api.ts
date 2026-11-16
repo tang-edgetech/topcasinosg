@@ -1,3 +1,4 @@
+import { API_BASE_URL as SERVER_API_URL } from "@/lib/api-url";
 /**
  * Data-fetching helpers for the `/blacklist` page.
  *
@@ -8,7 +9,7 @@
  * anything further.
  */
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
+export const API_BASE_URL = SERVER_API_URL;
 
 // Scheduled-publish content can flip from hidden to visible at any moment
 // (computed live by the DB, no rebuild/cron involved), so this fetch uses a

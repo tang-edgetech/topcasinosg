@@ -1,10 +1,11 @@
+import { API_BASE_URL as SERVER_API_URL } from "@/lib/api-url";
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
 import type { NextRequest } from "next/server";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
+const API_URL = SERVER_API_URL;
 
 // The API's upload folder. The website and the API run on the same machine
 // from one checkout, so by default it's ../api/uploads next to this app

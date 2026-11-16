@@ -1,3 +1,4 @@
+import { API_BASE_URL as SERVER_API_URL } from "@/lib/api-url";
 import Link from "next/link";
 import { getSiteSettings } from "@/lib/site-settings";
 import { mediaUrl } from "@/lib/pages";
@@ -15,7 +16,7 @@ import { mediaUrl } from "@/lib/pages";
  *   default badges are web/'s own files in /public/certifications.
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
+const API_BASE_URL = SERVER_API_URL;
 
 interface CasinoApiCasino {
   slug: string;

@@ -1,3 +1,4 @@
+import { API_BASE_URL as SERVER_API_URL } from "@/lib/api-url";
 import type { Metadata } from "next";
 import { getSiteSettings, type SiteSettings } from "./site-settings";
 import { mediaUrl } from "./pages";
@@ -12,7 +13,7 @@ import { mediaUrl } from "./pages";
  * handle, site name) fill the rest.
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
+const API_BASE_URL = SERVER_API_URL;
 const REVALIDATE_SECONDS = 60;
 const DESCRIPTION_MAX_LENGTH = 160;
 const OG_LOCALE = "en_SG";

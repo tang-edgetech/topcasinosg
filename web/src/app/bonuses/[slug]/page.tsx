@@ -1,3 +1,4 @@
+import { API_BASE_URL as SERVER_API_URL } from "@/lib/api-url";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -11,7 +12,7 @@ import { buildMetadata, getSeoMeta } from "@/lib/seo";
  * scheduled-publish aware, so every fetch uses a short revalidate window.
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
+const API_BASE_URL = SERVER_API_URL;
 
 interface BonusDTO {
   id: number;

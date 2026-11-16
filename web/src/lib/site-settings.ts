@@ -1,7 +1,8 @@
+import { API_BASE_URL as SERVER_API_URL } from "@/lib/api-url";
 import { DEFAULT_BREAKPOINTS, normalizeBreakpoints, type Breakpoints } from "./deviceCss";
 import type { ThemeConfig } from "./themeCss";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
+const API_URL = SERVER_API_URL;
 
 // Settings can change at any moment from the admin dashboard — keep this
 // short, matching every other content fetcher in web/. Next dedupes this

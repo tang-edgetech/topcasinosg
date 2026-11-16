@@ -19,9 +19,13 @@ the server so you can see what happened afterwards.
 | The whole server is off | a hosted uptime monitor (optional, see the end) | from that service |
 
 The API's own alerts can't fire when the API process is dead, so the watchdog
-is a separate script run by cron. It checks the three public addresses the way
-a visitor would (through Cloudflare), so it also notices Apache, Passenger and
-the Next.js apps failing.
+is a separate script run by cron. It asks this server's Apache for the site and
+the backoffice by their domain names, so it also notices Apache, Passenger and
+the Next.js apps failing, and it checks the API on its local port. It doesn't
+go out through Cloudflare and back: from this server that round trip can hang
+(November 2026: 30 s timeouts to `backapi.` while the API answered in 15 ms),
+which would raise false alarms. Problems with Cloudflare itself, or with the
+server's network, are what the outside monitor in step 7 is for.
 
 **No spam.** The same problem is sent once, then held back for 10 minutes; if
 it kept happening you get one "Repeated 37 more times" follow-up. The API sends
@@ -164,7 +168,8 @@ only the `TELEGRAM_*` and `WATCHDOG_*` lines from it.
 | `SLOW_REQUEST_IGNORE` | export, import and HTML-export routes | Comma-separated path starts that are allowed to be slow. |
 | `ERROR_LOG_FILE` | `~/logs/api-error.log` | Where the API writes its JSON error log. |
 | `ERROR_LOG_MAX_MB` / `ERROR_LOG_BACKUPS` | `10` / `5` | Rotation size and how many old files to keep. |
-| `WATCHDOG_TARGETS` | the three live addresses | Space-separated `name\|url\|text-the-page-must-contain` (the text is optional). |
+| `WATCHDOG_TARGETS` | the site and backoffice domains, and the API at `127.0.0.1:<PORT>` | Space-separated `name\|url\|text-the-page-must-contain` (the text is optional). |
+| `WATCHDOG_ORIGIN_IP` | `auto` (the server's first IP) | Where `https://` targets are sent instead of through DNS and Cloudflare. An IP address, `auto`, or `off` to check like a visitor. |
 | `WATCHDOG_TIMEOUT` | `20` | Seconds to wait before a page counts as down. |
 | `WATCHDOG_SLOW_SECONDS` | `8` | Slower than this is reported as slow. |
 | `WATCHDOG_FAILS_BEFORE_ALERT` | `2` | Failed checks in a row before the DOWN message. |

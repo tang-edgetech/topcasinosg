@@ -1,3 +1,4 @@
+import { API_BASE_URL as SERVER_API_URL } from "@/lib/api-url";
 /**
  * Shared data-fetching helpers for the region-scoped public pages
  * (`web/src/app/[region]/**`).
@@ -15,7 +16,7 @@ import { mediaUrl } from "@/lib/pages";
 export type { GameType };
 export { ALL_GAME_TYPES };
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
+export const API_BASE_URL = SERVER_API_URL;
 
 // Scheduled-publish content can flip from hidden to visible at any moment
 // (computed live by the DB, no rebuild/cron involved), so every fetch here

@@ -1,10 +1,11 @@
+import { API_BASE_URL as SERVER_API_URL } from "@/lib/api-url";
 /**
  * Fetch helper for the Sidebar widget (Figma "Comp / Header / Sidebar"),
  * shown on every non-Home page. Same envelope-unwrapping convention as
  * every other public endpoint: { success, data: { sections } }.
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
+const API_BASE_URL = SERVER_API_URL;
 const REVALIDATE_SECONDS = 60;
 
 export interface SidebarLink {

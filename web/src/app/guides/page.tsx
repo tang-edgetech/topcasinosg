@@ -1,3 +1,4 @@
+import { API_BASE_URL as SERVER_API_URL } from "@/lib/api-url";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { buildMetadata } from "@/lib/seo";
@@ -19,7 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * placeholder image when none is set.
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
+const API_BASE_URL = SERVER_API_URL;
 
 interface GuideDTO {
   id: number;

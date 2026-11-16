@@ -51,6 +51,11 @@ changed() {
 
 # Public settings baked into both frontends at build time.
 set -a; . "$REPO_DIR/deploy/cpanel/production.env"; set +a
+# The web build fetches pages' data from the API on this machine rather than
+# through Cloudflare and back (that round trip can hang the build). Same
+# setting as the running site gets in next-server.cjs; see web/src/lib/api-url.ts.
+API_PORT="$(sed -n -E "s/^[[:space:]]*PORT[[:space:]]*=[[:space:]]*['\"]?([0-9]+).*/\1/p" "$REPO_DIR/api/.env" 2>/dev/null | tail -n 1 || true)"
+export API_INTERNAL_URL="${API_INTERNAL_URL:-http://127.0.0.1:${API_PORT:-8090}}"
 
 restart_node_app() {
   local app_root="$1"
