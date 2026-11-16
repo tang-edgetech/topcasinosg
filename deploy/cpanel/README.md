@@ -183,7 +183,7 @@ account is recreated with that password on the next API start.)
 - **Web build fails: "took more than 60 seconds" on several pages**: the
   build fetches each page's data from the API. It does so on this machine
   (`API_INTERNAL_URL=http://127.0.0.1:<PORT from api/.env>`, set by
-  `deploy.sh`, and by `next-server.cjs` for the running site), because going
+  `web/next.config.ts` for builds and the running site), because going
   out to `backapi.` through Cloudflare and back can hang from this server.
   Check the API answers locally: `curl http://127.0.0.1:<PORT>/health`.
 
