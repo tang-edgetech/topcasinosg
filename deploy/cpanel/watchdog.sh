@@ -3,7 +3,8 @@
 # outside the apps and posts to Telegram when one is down (5xx, no answer,
 # or no answer within WATCHDOG_TIMEOUT), slow, or back up. It also reports
 # new error lines in ~/logs/*.log (failed deploys and builds, the API failing
-# to start...) and a deploy that seems stuck. Runs from cron every minute; it
+# to start...), a deploy that seems stuck, and each finished deploy with the
+# release and commit it put live. Runs from cron every minute; it
 # is separate from the API on purpose, so it still alerts when the API
 # process is dead. Setup: docs/MONITORING.md.
 #   watchdog.sh          check every target, then the logs (what cron runs)
@@ -141,7 +142,8 @@ $err" && last_alert="$now"
     if [ "$status" = down ]; then
       log "$name back UP after $(minutes $((now - since))) min (HTTP $code, ${ms} ms)"
       message "🟢" "$name is back UP after about $(minutes $((now - since))) min" "$url
-HTTP $code in ${ms} ms"
+HTTP $code in ${ms} ms
+Live: $(live_version)"
     elif [ "$fails" -gt 0 ]; then
       log "$name recovered after $fails failed check(s) (HTTP $code)"
     fi
@@ -169,7 +171,9 @@ LOG_SKIP="${WATCHDOG_LOG_SKIP:-watchdog.log api-error.log}"
 # A plain line is an error when it matches this (case-insensitive) ...
 LOG_ERRORS="${WATCHDOG_LOG_ERRORS:-error|failed|fatal|panic|exception|cannot |could not|denied|timed out|out of memory|killed|segmentation fault|npm err|connection refused|unable to|no such file or directory|no space left}"
 # ... and doesn't match this. Lines of Next.js' route table are never errors.
-LOG_IGNORE="${WATCHDOG_LOG_IGNORE:-telegram off|^[[:space:]]*[├└┌│○ƒ●]|0 errors}"
+# deploy.sh's "deploying <commit> <title>" and "done: ..." lines aren't errors
+# either, even when a commit title says "failed" or "error".
+LOG_IGNORE="${WATCHDOG_LOG_IGNORE:-telegram off|^[[:space:]]*[├└┌│○ƒ●]|0 errors|[]] deploying [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]|[]] done: }"
 LOG_MAX_BYTES=$((2 * 1024 * 1024))  # read at most this much new log per file per run
 # A deploy still running after this many minutes is reported as stuck.
 DEPLOY_MAX_MINUTES="${WATCHDOG_DEPLOY_MAX_MINUTES:-30}"
@@ -262,6 +266,81 @@ check_logs() {
   fi
 }
 
+# --- Deploy results ----------------------------------------------------------
+# deploy.sh writes LOG_DIR/deploy-result.txt (key=value lines) when a deploy
+# ends. Each new one is sent once: 🟢 with the release and commit now live,
+# or 🔴 with what failed. The first time this runs it only remembers the
+# latest result, so an old deploy isn't announced.
+DEPLOY_RESULT="$LOG_DIR/deploy-result.txt"
+
+result_field() { # key -> value from deploy-result.txt
+  [ -f "$DEPLOY_RESULT" ] || return 0
+  local v; v="$(sed -n "s/^$1=//p" "$DEPLOY_RESULT" | head -n 1)"
+  printf '%s' "${v%$'\r'}"
+}
+
+# "v1.0.45 (abc1234) Commit title": what the last deploy put live, or the
+# server's checkout when there's no deploy result yet.
+live_version() {
+  local release commit subject result
+  release="$(result_field release)"; commit="$(result_field commit)"; subject="$(result_field subject)"; result="$(result_field result)"
+  if [ -z "$commit" ]; then
+    commit="$(git -C "$REPO_DIR" log -1 --format=%h 2>/dev/null)"; subject="$(git -C "$REPO_DIR" log -1 --format=%s 2>/dev/null)"
+  fi
+  local text="${release:+$release }(${commit:-unknown}) $subject"
+  if [ -n "$result" ] && [ "$result" != ok ]; then text+=" [last deploy had errors]"; fi
+  printf '%s' "$text"
+}
+
+# The commit the running API reports on /health (stamped in by deploy.sh).
+api_commit() {
+  curl -sS --max-time 5 "http://127.0.0.1:${API_PORT:-8090}/health" 2>/dev/null |
+    grep -o '"commit":"[^"]*"' | head -n 1 | cut -d'"' -f4
+}
+
+# Returns 0 when it sent a message.
+check_deploy_result() {
+  [ -f "$DEPLOY_RESULT" ] || return 1
+  local state="$STATE_DIR/deploy-result.state" seen="" finished
+  finished="$(result_field finished)"
+  [ -n "$finished" ] || return 1
+  [ -f "$state" ] && read -r seen < "$state"
+  echo "$finished" > "$state"
+  if [ -z "$seen" ] || [ "$seen" = "$finished" ]; then return 1; fi
+
+  local result commit previous release subject built failed started took running api_line
+  result="$(result_field result)"; commit="$(result_field commit)"; previous="$(result_field previous)"
+  release="$(result_field release)"; subject="$(result_field subject)"
+  built="$(result_field built)"; failed="$(result_field failed)"; started="$(result_field started)"
+  took="?"; [ -n "$started" ] && took="$(minutes $((finished - started)))"
+  running="$(api_commit)"
+  if [[ " $built " == *" api "* ]]; then
+    if [ "$running" = "$commit" ]; then api_line="API: running $commit ✓"
+    elif [ -n "$running" ]; then api_line="API: reports $running, expected $commit (see api-process.log)"
+    else api_line="API: not answering /health yet"; fi
+  else
+    api_line="API: unchanged${running:+ (running $running)}"
+  fi
+  local details="$commit $subject
+Release: ${release:-untagged}
+Was: ${previous:-?}
+Rebuilt: ${built:-nothing (no app code changed)}
+$api_line
+Took about $took min"
+  if [ "$result" = ok ]; then
+    log "deploy result: $release ($commit) ok"
+    message "🟢" "Deployed ${release:-$commit} ($commit)" "$details"
+  else
+    local how="finished with errors"
+    [ "$result" = aborted ] && how="stopped part way"
+    log "deploy result: $release ($commit) $result, failed: $failed"
+    message "🔴" "Deploy of ${release:-$commit} ($commit) $how" "Failed: ${failed:-the deploy script itself (see deploy.log)}
+The failed parts still serve the previous build.
+$details"
+  fi
+  return 0
+}
+
 # A deploy that runs far longer than a build takes is probably stuck (a
 # hung npm or go build), and blocks every later deploy. Found by its process,
 # not by taking its lock, so a deploy starting meanwhile is never skipped.
@@ -282,9 +361,11 @@ Last lines of deploy.log:
 $(tail -n 8 "$LOG_DIR/deploy.log" 2>/dev/null)" && alerted="$now"
     fi
   else
-    if [ "$alerted" != 0 ]; then
+    # A finished deploy's own result message also covers a long one.
+    if ! check_deploy_result && [ "$alerted" != 0 ]; then
       log "deploy finished after $(minutes $((now - since))) min"
-      message "🟢" "The long deploy has finished (about $(minutes $((now - since))) min)" "$(tail -n 3 "$LOG_DIR/deploy.log" 2>/dev/null)"
+      message "🟢" "The long deploy has finished (about $(minutes $((now - since))) min)" "$(tail -n 3 "$LOG_DIR/deploy.log" 2>/dev/null)
+Live: $(live_version)"
     fi
     since=0; alerted=0
   fi

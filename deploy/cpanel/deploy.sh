@@ -35,11 +35,43 @@ OLD="$(git rev-parse HEAD)"
 NEW="$(git rev-parse "origin/$BRANCH")"
 if [ "$OLD" = "$NEW" ] && [ "$FORCE" = 0 ]; then exit 0; fi
 
+STARTED="$(date +%s)"
 log "deploying $(git log -1 --format='%h %s' "$NEW") (was ${OLD:0:7})"
 # The server copy is never edited by hand. Ignored files (api/.env,
 # api/uploads, api/bin, node_modules, .next) are untouched by the reset.
 git reset --hard --quiet "$NEW"
 git fetch --quiet --tags origin
+
+# The release this commit is: its CI tag (v1.0.45) in the VERSION series,
+# or, before CI has tagged it, the latest tag before it plus the commit
+# (v1.0.44-2-gb110136). Stamped into the API and reported to Telegram.
+SERIES="$(tr -d '[:space:]' < VERSION 2>/dev/null || true)"
+RELEASE="$(git tag --points-at "$NEW" --list "v${SERIES}.*" --sort=-v:refname | head -n 1 || true)"
+[ -n "$RELEASE" ] || RELEASE="$(git describe --tags --abbrev=7 --match "v${SERIES}.*" "$NEW" 2>/dev/null || echo "${NEW:0:7}")"
+
+# deploy-result.txt: how the last deploy ended, for the watchdog's Telegram
+# message (watchdog.sh check_deploy_result): which commit and release, what
+# was rebuilt and what failed. Written however the deploy ends, even if it
+# stops part way (result "aborted").
+BUILT=""
+FAILED=""
+RESULT_WRITTEN=0
+write_result() {
+  local f="$LOG_DIR/deploy-result.txt"
+  {
+    echo "result=$1"
+    echo "commit=${NEW:0:7}"
+    echo "previous=${OLD:0:7}"
+    echo "release=$RELEASE"
+    echo "subject=$(git -C "$REPO_DIR" log -1 --format=%s "$NEW" 2>/dev/null)"
+    echo "built=${BUILT# }"
+    echo "failed=${FAILED# }"
+    echo "started=$STARTED"
+    echo "finished=$(date +%s)"
+  } > "$f.tmp" && mv "$f.tmp" "$f"
+  RESULT_WRITTEN=1
+}
+trap '[ "$RESULT_WRITTEN" = 1 ] || write_result aborted' EXIT
 
 # Paths are from the repo root. -C matters: build_next calls this from inside
 # an app folder, where git would read "admin/package.json" as
@@ -117,7 +149,11 @@ build_next() {
 
 build_api() {
   log "api: building"
-  if ! (cd "$REPO_DIR/api" && mkdir -p bin && "$GO" build -o bin/api.new ./cmd/api); then
+  # The API reports this release and commit on /health and in its
+  # "API started" Telegram message, so it's clear which build is running.
+  local pkg=github.com/tang-edgetech/topcasinosg/api/internal/version
+  local ldflags="-X $pkg.Version=$RELEASE -X $pkg.Commit=${NEW:0:7} -X $pkg.BuildDate=$(date -u +%F)"
+  if ! (cd "$REPO_DIR/api" && mkdir -p bin && "$GO" build -ldflags "$ldflags" -o bin/api.new ./cmd/api); then
     log "api: build FAILED — still running the previous binary"
     return 1
   fi
@@ -128,13 +164,24 @@ build_api() {
 }
 
 STATUS=0
-if changed api; then build_api || STATUS=1; fi
-if changed web shared deploy/cpanel; then build_next web || STATUS=1; fi
-if changed admin shared deploy/cpanel VERSION; then build_next admin || STATUS=1; fi
+# step NAME COMMAND...: runs one build, noting it as rebuilt or failed.
+step() {
+  local name="$1"; shift
+  if "$@"; then BUILT+=" $name"; else FAILED+=" $name"; STATUS=1; fi
+}
+if changed api; then step api build_api; fi
+if changed web shared deploy/cpanel; then step web build_next web; fi
+if changed admin shared deploy/cpanel VERSION; then step admin build_next admin; fi
 # The proxy in front of the API only needs a restart when it changes.
-if changed api/server.cjs; then restart_node_app "$REPO_DIR/api"; fi
+if changed api/server.cjs; then restart_node_app "$REPO_DIR/api"; BUILT+=" api-proxy"; fi
 
-if [ "$STATUS" = 0 ]; then log "done"; else log "finished with errors"; fi
+if [ "$STATUS" = 0 ]; then
+  write_result ok
+  log "done: $RELEASE (${NEW:0:7}) is live"
+else
+  write_result errors
+  log "finished with errors: $RELEASE (${NEW:0:7}), failed:$FAILED"
+fi
 return "$STATUS"
 }
 

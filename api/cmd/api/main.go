@@ -169,7 +169,7 @@ func main() {
 	mon.Log.Info("api started", "version", version.Version, "port", cfg.Port, "env", cfg.Env, "telegram", mon.Alerts.Enabled())
 	// A restart nobody asked for (a crash brought back by api-process.sh)
 	// shows up in the group as an unexpected "started".
-	mon.Alerts.Info("API started", fmt.Sprintf("version %s, port %s", version.Version, cfg.Port))
+	mon.Alerts.Info("API started", fmt.Sprintf("version %s (commit %s), port %s", version.Version, orDash(version.Commit), cfg.Port))
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,
@@ -200,4 +200,12 @@ func sendTestAlert(mon *monitor.Monitor) int {
 	}
 	fmt.Println("Test alert sent.")
 	return 0
+}
+
+// orDash shows "-" for build details a plain go run leaves empty.
+func orDash(s string) string {
+	if s == "" {
+		return "-"
+	}
+	return s
 }

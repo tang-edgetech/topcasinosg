@@ -18,6 +18,7 @@ the server so you can see what happened afterwards.
 | Site, backoffice or API slow (over 8 s) | the watchdog | 🟠 `admin is SLOW` |
 | New error lines in `~/logs/*.log`: a failed deploy or build (`build FAILED`, `finished with errors`), the API failing to start (`api failed to start`, `server stopped … address already in use`), npm or Go errors | the watchdog | 🟠 `Errors in the server logs`, with the lines, grouped by file |
 | A deploy still running after 30 min (a stuck build blocks every later deploy) | the watchdog | 🟠 `Deploy still running after 31 min`, then 🟢 when it ends |
+| A deploy finished | the watchdog, from `deploy-result.txt` | 🟢 `Deployed v1.0.45 (abc1234)` with the commit title, the previous commit, what was rebuilt, and whether the API now reports that commit; 🔴 `Deploy of v1.0.45 (abc1234) finished with errors` with the parts that failed (they keep serving the previous build) |
 | The whole server is off | a hosted uptime monitor (optional, see the end) | from that service |
 
 The API's own alerts can't fire when the API process is dead, so the watchdog
@@ -45,6 +46,14 @@ and numbers aside) is held back for 30 minutes, so an API that fails to start
 every minute gives one message, not one a minute. Up to 5 lines per file are
 shown; check `tail -n 50 ~/logs/<file>` for the rest.
 
+**Which version is live.** Every deploy ends by writing `~/logs/deploy-result.txt`
+(result, commit, release, what was rebuilt or failed), and the watchdog posts it
+once. The release is the commit's CI tag (`v1.0.45`), or before CI has tagged
+it, the last tag plus the commit (`v1.0.44-2-gb110136`). The API is built with
+the same release and commit, so `curl -s http://127.0.0.1:<PORT>/health` and its
+🟢 `API started` message show exactly what is running. Every other 🟢 message
+ends with `Live: v1.0.45 (abc1234) <title>`.
+
 ## Log files (on the server, in `~/logs/`)
 
 | File | What's in it |
@@ -53,6 +62,7 @@ shown; check `tail -n 50 ~/logs/<file>` for the rest.
 | `api.log` | Everything the API prints, including the lines above. Rotated at 20 MB (keeps `.1`–`.3`). |
 | `watchdog.log` | One line per failed or slow check, and recoveries. |
 | `deploy.log`, `api-process.log` | Deploys, and API starts/stops. Errors in them are sent by the watchdog. |
+| `deploy-result.txt` | How the last deploy ended (overwritten each time); the watchdog posts each new one. |
 
 Look at the latest problems: `tail -n 50 ~/logs/api-error.log`.
 
