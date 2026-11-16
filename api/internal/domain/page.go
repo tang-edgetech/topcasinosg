@@ -93,6 +93,9 @@ var KnownBlockTypes = []string{
 	"table",
 	"star_rating",
 	"testimonial",
+	// The client's own components: HTML, CSS and JavaScript run in an
+	// isolated frame (web/src/components/sections/CustomCodeWidget.tsx).
+	BlockTypeCustomCode,
 }
 
 // PageSection is one visual block on a page. CustomClass/CustomID are the
@@ -143,6 +146,18 @@ func NormalizeSectionDepths(sections []PageSection) {
 // BlockTypeContainer wraps the sections after it that are one level deeper,
 // giving them a shared background and layout.
 const BlockTypeContainer = "container"
+
+// BlockTypeCustomCode is a component written as HTML, CSS and JavaScript
+// (its "html", "css" and "js" fields). The public site runs it in a
+// sandboxed iframe with no access to the page, the site's cookies or the
+// backoffice, so the code can be anything without putting the site at risk.
+const BlockTypeCustomCode = "custom_code"
+
+// CustomCodeMaxBytes caps each of a custom_code section's code fields.
+const CustomCodeMaxBytes = 256 * 1024
+
+// CustomCodeFields are the custom_code fields CustomCodeMaxBytes applies to.
+var CustomCodeFields = []string{"html", "css", "js"}
 
 // BlockTypeGlobalSection places a GlobalSection on a page; its "globalId"
 // field holds the global section's id.

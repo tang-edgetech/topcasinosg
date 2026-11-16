@@ -77,6 +77,7 @@ export const BLOCK_TYPE_LABELS: Record<PageBlockType, string> = {
   table: "Table",
   star_rating: "Star Rating",
   testimonial: "Testimonial",
+  custom_code: "Custom Code (HTML / CSS / JS)",
   global_section: "Global Section",
   title_set: "Title & Text",
   image: "Image",
@@ -244,6 +245,8 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
       ];
     case "star_rating":
       return [textField(0, "rating", "4.5", 1), blankField(0, "label", "text", 2)];
+    case "custom_code":
+      return [blankField(0, "html", "text", 1), blankField(0, "css", "text", 2), blankField(0, "js", "text", 3), blankField(0, "title", "text", 4)];
     case "testimonial":
       return [blankField(0, "quote", "text", 1), blankField(0, "name", "text", 2), blankField(0, "role", "text", 3), blankField(0, "photo", "image", 4)];
     case "image":
@@ -864,6 +867,8 @@ export default function BlockFieldEditor({ blockType, fields, nested = false, on
       return <StarRatingWidgetFields fields={fields} onChange={onChange} />;
     case "testimonial":
       return <TestimonialWidgetFields fields={fields} onChange={onChange} />;
+    case "custom_code":
+      return <CustomCodeFields fields={fields} onChange={onChange} />;
     case "title_set":
       return <TitleSetFields fields={fields} onChange={onChange} />;
     case "image":
@@ -4774,6 +4779,49 @@ function TestimonialWidgetFields({ fields, onChange }: WidgetFieldsProps) {
   );
 }
 
+// Custom Code (web CustomCodeWidget): the client's own HTML, CSS and
+// JavaScript, run on the site in an isolated frame. The API caps each field
+// at 256 KB (domain.CustomCodeMaxBytes).
+const CUSTOM_CODE_MAX = 256 * 1024;
+
+function CodeField({ label, hint, value, rows, onChange }: { label: string; hint: string; value: string; rows: number; onChange: (v: string) => void }) {
+  const size = new Blob([value]).size;
+  return (
+    <LabeledField label={label}>
+      <Input.TextArea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        autoSize={{ minRows: rows, maxRows: 30 }}
+        spellCheck={false}
+        placeholder={hint}
+        status={size > CUSTOM_CODE_MAX ? "error" : undefined}
+        className="font-mono text-xs"
+      />
+      {size > CUSTOM_CODE_MAX && <span className="text-xs text-danger">{Math.ceil(size / 1024)} KB: at most 256 KB. Load big libraries from a CDN instead.</span>}
+    </LabeledField>
+  );
+}
+
+function CustomCodeFields({ fields, onChange }: WidgetFieldsProps) {
+  const text = (key: string) => textOf(fields, key);
+  const set = textSetter(fields, onChange);
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-xs text-text-muted dark:text-text-muted-dark">
+        Your own component, e.g. a calculator or number generator. It runs on its own in a frame, so it can&apos;t break the rest of the page. The site&apos;s
+        colours and font are available as CSS variables, like <code>var(--color-primary-900)</code> and <code>var(--font-figtree)</code>. Text inside it
+        isn&apos;t read by search engines as page text.
+      </p>
+      <CodeField label="HTML" hint={'<div class="box">...</div>  (what goes inside <body>)'} value={text("html")} rows={6} onChange={set("html", 1)} />
+      <CodeField label="CSS" hint=".box { color: var(--color-primary-900); }" value={text("css")} rows={4} onChange={set("css", 2)} />
+      <CodeField label="JavaScript" hint="document.querySelector('.box') ..." value={text("js")} rows={4} onChange={set("js", 3)} />
+      <TextInputField label="Description for screen readers" value={text("title")} placeholder="4D number generator" onChange={set("title", 4)} />
+      <StyleFields>
+        <TextInputField label="Height in px (empty: follows the content)" value={text("height")} placeholder="Automatic" onChange={set("height", 5)} />
+      </StyleFields>
+    </div>
+  );
+}
 
 // Style tab "Layout" of the data widgets (web/src/lib/cardLayout.ts and
 // BonusCalculatorSection): "display" picks how the cards are laid out, the

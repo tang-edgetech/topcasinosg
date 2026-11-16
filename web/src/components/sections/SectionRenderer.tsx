@@ -49,6 +49,7 @@ import AlertWidget from "./AlertWidget";
 import TableWidget from "./TableWidget";
 import StarRatingWidget from "./StarRatingWidget";
 import TestimonialWidget from "./TestimonialWidget";
+import CustomCodeWidget from "./CustomCodeWidget";
 
 // Dispatches each section to its block-type component. Every instance of a
 // given blockType gets the same canonical CSS class (see sectionClassName /
@@ -195,6 +196,8 @@ function renderSection(section: PageSection, regionCode?: string) {
       return <StarRatingWidget key={section.id} section={section} />;
     case "testimonial":
       return <TestimonialWidget key={section.id} section={section} />;
+    case "custom_code":
+      return <CustomCodeWidget key={section.id} section={section} />;
     default:
       return null;
   }

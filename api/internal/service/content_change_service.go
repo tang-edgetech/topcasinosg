@@ -176,6 +176,9 @@ func (s *ContentChangeService) checkPageSections(ctx context.Context, kind strin
 			if strings.TrimSpace(f.FieldKey) == "" {
 				return invalid("%s: fieldKey is required", fwhere)
 			}
+			if customCodeTooLarge(section.BlockType, f.FieldKey, f.TextValue) {
+				return invalid("%s: %s is %d KB; custom_code html, css and js can each be at most %d KB (put large libraries on a CDN and load them with a <script src>)", fwhere, f.FieldKey, len(f.TextValue)/1024, domain.CustomCodeMaxBytes/1024)
+			}
 			if f.MediaID != nil {
 				if _, err := s.media.Get(ctx, *f.MediaID); err != nil {
 					return invalid("%s: mediaId %d is not in the Media Library (upload it with POST /api/v1/media)", fwhere, *f.MediaID)

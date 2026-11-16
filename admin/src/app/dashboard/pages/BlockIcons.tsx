@@ -72,6 +72,7 @@ const BLOCK_ICON_SHAPES: Record<PageBlockType, ReactNode> = {
   alert: [box(4, 7, 40, 18, 1), solid(4, 7, 3, 18, 2), dot(13, 16, 3, 3), line(19, 13, 20, 4), line(19, 18, 14, 5)],
   table: [solid(4, 4, 40, 6, 1), ...repeat(3, (i) => [line(4, 14 + i * 6, 11, `a${i}`), line(18, 14 + i * 6, 11, `b${i}`), line(32, 14 + i * 6, 12, `c${i}`)])],
   star_rating: repeat(5, (i) => <path key={i} d={`M${7 + i * 8.5} 11l1.6 3.3 3.6.5-2.6 2.5.6 3.6-3.2-1.7-3.2 1.7.6-3.6-2.6-2.5 3.6-.5z`} fillOpacity={i < 4 ? 0.6 : 0.2} />),
+  custom_code: [box(4, 4, 40, 24, 1), <path key="c" d="M18 11l-5 5 5 5M30 11l5 5-5 5M26 9l-4 14" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />],
   testimonial: [<path key="q" d="M6 6h5v5l-3 5H6l2-5H6zM14 6h5v5l-3 5h-2l2-5h-2z" fillOpacity={0.4} />, line(6, 20, 36, 1), dot(9, 27, 3, 2), line(15, 26, 14, 3)],
 };
 

@@ -178,6 +178,13 @@ var blockDocs = map[string]blockDoc{
 		txt("size", "Star size.", "s", "m", "l"),
 		txt("align", "Placement (default left).", alignLCR...),
 	}},
+	"custom_code": {Kind: "widget", About: "A component you write yourself as HTML, CSS and JavaScript: calculators, number generators, quizzes, games, interactive charts, or any design the other blocks can't make. This is the only block that runs JavaScript: script, form and style HTML in any other field is removed. It runs in an isolated frame (an iframe with its own document): it can't read or change the rest of the page, the site's cookies or the backoffice, and links open in the whole window. The frame's height follows its content. Inside it the site's theme is available as CSS variables (var(--color-primary-900), var(--color-secondary-500), var(--font-figtree) ...) and the body uses the site font, transparent background and no margin. Search engines don't index text inside it as page text, so keep headings and text that should rank in normal blocks around it.", Fields: []fieldDoc{
+		txt("html", "The component's HTML: what goes inside <body> (no <html>, <head> or <body> tags). <script src=\"https://...\"> and <link rel=\"stylesheet\" href=\"https://...\"> for libraries from a CDN are fine. At most 256 KB."),
+		txt("css", "Its CSS, without <style> tags. Applies only inside the component. At most 256 KB."),
+		txt("js", "Its JavaScript, without <script> tags. Runs after the HTML is in place. Use crypto.getRandomValues for random numbers. localStorage and cookies are not available. At most 256 KB."),
+		txt("title", "Short description for screen readers, e.g. \"4D number generator\"."),
+		txt("height", "Empty means the height follows the content. A number of px fixes it, e.g. \"600\"."),
+	}},
 	"testimonial": {Kind: "widget", About: "A quote with the person's name, photo and rating.", Fields: []fieldDoc{
 		txt("quote", "The quote."),
 		txt("name", "Who said it."),

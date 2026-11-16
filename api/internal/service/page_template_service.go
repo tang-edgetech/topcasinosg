@@ -26,9 +26,26 @@ func validateSections(sections []domain.PageSection) error {
 			if !isKnownFieldType(sections[i].Fields[j].FieldType) {
 				return ErrInvalidFieldType
 			}
+			if customCodeTooLarge(sections[i].BlockType, sections[i].Fields[j].FieldKey, sections[i].Fields[j].TextValue) {
+				return ErrCustomCodeTooLarge
+			}
 		}
 	}
 	return nil
+}
+
+// customCodeTooLarge reports a custom_code html/css/js field over
+// domain.CustomCodeMaxBytes.
+func customCodeTooLarge(blockType, fieldKey, value string) bool {
+	if blockType != domain.BlockTypeCustomCode || len(value) <= domain.CustomCodeMaxBytes {
+		return false
+	}
+	for _, k := range domain.CustomCodeFields {
+		if fieldKey == k {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *PageService) ListTemplates(ctx context.Context) ([]domain.SectionTemplate, error) {

@@ -97,6 +97,19 @@ Components
   or bonus data in by hand: it goes out of date.
 - Icons: use the nearest name from the icon list in /schema (check, shield,
   trophy, wallet, …). Don't upload icon SVGs as images.
+- Anything interactive or with no matching block (a calculator, 4D or lucky
+  number generator, quiz, game, interactive chart, an unusual card design) →
+  custom_code: put the component's own HTML in "html" (what goes inside <body>),
+  its CSS in "css" and its JavaScript in "js" (no <style>/<script> tags), and a
+  short "title" for screen readers. It is the ONLY block that runs JavaScript.
+  It runs in its own isolated frame whose height follows its content, so:
+  write self-contained code; style it with the site's CSS variables
+  (var(--color-primary-900), var(--color-secondary-500), var(--font-figtree)…)
+  so it matches the site; load libraries only from a CDN with <script src> /
+  <link href>; don't use localStorage or cookies (blocked); use
+  crypto.getRandomValues for random numbers. Each field is at most 256 KB.
+  Keep headings and text that should rank on Google in normal blocks around it
+  (search engines don't read text inside the frame as page text).
 Look
 - Colours: use the site's tokens, not the design's hex codes, matching the
   nearest one: primary-50 #e7e9f4, primary-100 #c3c8e5, primary-300 #7781c1,
@@ -143,7 +156,10 @@ Images
 == Never ==
 - Never paste the design's HTML/CSS into a text block to "copy the look", never
   add <style>, <script>, inline style attributes or class names that aren't
-  listed in styleClasses (they are removed or do nothing).
+  listed in styleClasses to any block except custom_code (they are removed or
+  do nothing).
+- Never build a whole page as one custom_code block: use the normal blocks for
+  layout and text, and custom_code only for the parts they can't make.
 - Never invent blockTypes, fields, values, casino facts, bonus amounts or licences.
 ```
 
@@ -185,8 +201,14 @@ its own). Mark it up like this:
    lock, bolt, wallet, card, percent, trophy, award, crown, dice, fire, heart,
    clock, calendar, globe, mobile, mail, chat, headset, users, chart, search,
    info, warning, question, play, arrow-right.
-8. Effects the website has no block for (custom animations, hover tricks, odd
-   shapes) won't be rebuilt. Keep the design within these blocks.
+8. Interactive parts and designs no block can make (calculators, number
+   generators, custom animations, unusual shapes) go in ONE element marked
+   data-block="custom_code", holding that part's own HTML, with its CSS in a
+   <style data-for="custom_code"> and its JavaScript in a
+   <script data-for="custom_code"> inside the same element. Make it
+   self-contained (it runs in its own frame) and use the site's colour
+   variables, e.g. var(--color-primary-900). Everything else stays in the
+   normal blocks above.
 ```
 
 ---
@@ -293,5 +315,8 @@ live API answers `valid: true`):
 - Build one page per chat, and check the draft in the admin before publishing.
 - If one part is off, name it: *"The three boxes should be side by side on
   tablet too"* works better than *"fix the layout"*.
-- Anything the blocks can't do (a special animation, an unusual shape) needs a
-  developer to add a new block.
+- Anything the blocks can't do (a calculator, a number generator, a special
+  animation, an unusual shape) can be built as a **Custom Code** block: ask
+  the AI to *"build it as a custom_code component"*. It runs on the live site
+  in its own frame, so a mistake in it can't break the rest of the page. In
+  the admin it's under Elements > Custom Code.

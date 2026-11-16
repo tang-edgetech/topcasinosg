@@ -592,7 +592,8 @@ export type PageBlockType =
   | "alert"
   | "table"
   | "star_rating"
-  | "testimonial";
+  | "testimonial"
+  | "custom_code";
 
 export interface PageSectionDTO {
   id: number;

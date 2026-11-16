@@ -323,6 +323,7 @@ const BLOCK_GROUPS: { label: string; blocks: [PageBlockType, string][] }[] = [
       ["table", "A simple table of 2-6 columns"],
       ["star_rating", "0-5 stars with the score"],
       ["testimonial", "A quote with name, photo and rating"],
+      ["custom_code", "Your own HTML, CSS and JavaScript component"],
     ],
   },
   {
