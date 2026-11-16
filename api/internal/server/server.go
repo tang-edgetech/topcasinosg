@@ -39,6 +39,7 @@ type Deps struct {
 	MenuItemHandler       *handler.MenuItemHandler
 	PageHandler           *handler.PageHandler
 	SnippetHandler        *handler.SnippetHandler
+	ComponentHandler      *handler.ComponentHandler
 	SidebarHandler        *handler.SidebarHandler
 	AuditHandler          *handler.AuditHandler
 	TransferHandler       *handler.TransferHandler
@@ -96,6 +97,7 @@ func NewRouter(deps Deps) http.Handler {
 	mux.HandleFunc("GET /api/page-previews/{token}", deps.PageHandler.GetPreviewPublic)
 	mux.HandleFunc("GET /api/seo/{type}/{id}", deps.SeoHandler.Get)
 	mux.HandleFunc("GET /api/snippets", deps.SnippetHandler.GetPublic)
+	mux.HandleFunc("GET /api/components/{id}", deps.ComponentHandler.GetPublic)
 
 	authenticateUser := middleware.Authenticate(deps.JWT, deps.Users, deps.TwoFactorRequired, deps.SessionActive, deps.Config.CookieName(httpx.AccessCookieName))
 	audit := middleware.Audit(deps.Audit, adminSnapshotter(mux))
@@ -282,6 +284,16 @@ func NewRouter(deps Deps) http.Handler {
 	mux.Handle("POST /api/admin/global-sections", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.CreateGlobal))))
 	mux.Handle("PUT /api/admin/global-sections/{id}", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.RenameGlobal))))
 	mux.Handle("DELETE /api/admin/global-sections/{id}", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.DeleteGlobal))))
+	// Components: everyone who edits pages can list them and place them;
+	// making, changing and deleting them (their code runs on the site) is
+	// for Super Admins and Admins.
+	mux.Handle("GET /api/admin/components", authenticate(contentStaff(http.HandlerFunc(deps.ComponentHandler.List))))
+	mux.Handle("GET /api/admin/components/{id}", authenticate(contentStaff(http.HandlerFunc(deps.ComponentHandler.Get))))
+	mux.Handle("GET /api/admin/components/{id}/pages", authenticate(contentStaff(http.HandlerFunc(deps.ComponentHandler.UsedOn))))
+	mux.Handle("GET /api/admin/components/{id}/revisions", authenticate(staffOnly(http.HandlerFunc(deps.ComponentHandler.Revisions))))
+	mux.Handle("POST /api/admin/components", authenticate(staffOnly(http.HandlerFunc(deps.ComponentHandler.Create))))
+	mux.Handle("PUT /api/admin/components/{id}", authenticate(staffOnly(http.HandlerFunc(deps.ComponentHandler.Update))))
+	mux.Handle("DELETE /api/admin/components/{id}", authenticate(staffOnly(http.HandlerFunc(deps.ComponentHandler.Delete))))
 	mux.Handle("GET /api/admin/section-templates", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.ListTemplates))))
 	mux.Handle("POST /api/admin/section-templates", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.CreateTemplate))))
 	mux.Handle("GET /api/admin/section-templates/{id}", authenticate(contentStaff(http.HandlerFunc(deps.PageHandler.GetTemplate))))
@@ -360,6 +372,10 @@ func NewRouter(deps Deps) http.Handler {
 	mux.Handle("GET /api/v1/global-sections", scoped(domain.APIScopePages, api.ListGlobalSections))
 	mux.Handle("GET /api/v1/global-sections/{id}", scoped(domain.APIScopePages, api.GetGlobalSection))
 	mux.Handle("POST /api/v1/global-sections/{id}/changes", scoped(domain.APIScopePages, api.ProposeGlobalSection))
+	// Components can be read and placed (a "component" block) but not
+	// changed through the Content API: they are code, made in the backoffice.
+	mux.Handle("GET /api/v1/components", scoped(domain.APIScopePages, deps.ComponentHandler.APIList))
+	mux.Handle("GET /api/v1/components/{id}", scoped(domain.APIScopePages, deps.ComponentHandler.APIGet))
 	mux.Handle("GET /api/v1/news", scoped(domain.APIScopeNews, api.ListNews))
 	mux.Handle("GET /api/v1/news/{id}", scoped(domain.APIScopeNews, api.GetNews))
 	mux.Handle("POST /api/v1/news", scoped(domain.APIScopeNews, api.ProposeNews))

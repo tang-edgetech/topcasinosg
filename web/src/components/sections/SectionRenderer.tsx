@@ -50,6 +50,7 @@ import TableWidget from "./TableWidget";
 import StarRatingWidget from "./StarRatingWidget";
 import TestimonialWidget from "./TestimonialWidget";
 import CustomCodeWidget from "./CustomCodeWidget";
+import ComponentBlock from "./ComponentBlock";
 
 // Dispatches each section to its block-type component. Every instance of a
 // given blockType gets the same canonical CSS class (see sectionClassName /
@@ -198,6 +199,8 @@ function renderSection(section: PageSection, regionCode?: string) {
       return <TestimonialWidget key={section.id} section={section} />;
     case "custom_code":
       return <CustomCodeWidget key={section.id} section={section} />;
+    case "component":
+      return <ComponentBlock key={section.id} section={section} />;
     default:
       return null;
   }

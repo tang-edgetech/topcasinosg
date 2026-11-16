@@ -96,6 +96,8 @@ var KnownBlockTypes = []string{
 	// The client's own components: HTML, CSS and JavaScript run in an
 	// isolated frame (web/src/components/sections/CustomCodeWidget.tsx).
 	BlockTypeCustomCode,
+	// A Component from the admin's Components library (domain.Component).
+	BlockTypeComponent,
 }
 
 // PageSection is one visual block on a page. CustomClass/CustomID are the

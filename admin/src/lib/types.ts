@@ -516,6 +516,51 @@ export interface SnippetDTO {
   updatedAt: string;
 }
 
+// Components library (admin Components; api/internal/domain/component.go and
+// handler/component_handler.go). A component is HTML/CSS/JS made once and
+// placed on pages with a "component" block, whose other fields are the
+// values of its settings.
+export type ComponentSettingType = "text" | "textarea" | "richtext" | "number" | "select" | "toggle";
+
+export interface ComponentSetting {
+  key: string;
+  label: string;
+  type: ComponentSettingType;
+  default: string;
+  help?: string;
+  options?: { value: string; label: string }[];
+}
+
+// A component without its code (GET /api/admin/components).
+export interface ComponentSummaryDTO {
+  id: number;
+  name: string;
+  description: string;
+  settings: ComponentSetting[];
+  usageCount: number;
+  updatedAt: string;
+}
+
+export interface ComponentDTO extends ComponentSummaryDTO {
+  html: string;
+  css: string;
+  js: string;
+  createdAt: string;
+}
+
+// One saved version of a component (newest first, the last 10 kept).
+export interface ComponentRevisionDTO {
+  id: number;
+  savedByName: string;
+  createdAt: string;
+  name: string;
+  description: string;
+  html: string;
+  css: string;
+  js: string;
+  settings: ComponentSetting[];
+}
+
 // One saved version of a snippet (newest first, the last 5 kept) — see
 // SnippetRevisionDTO in api/internal/handler/snippet_handler.go.
 export interface SnippetRevisionDTO {
@@ -593,7 +638,8 @@ export type PageBlockType =
   | "table"
   | "star_rating"
   | "testimonial"
-  | "custom_code";
+  | "custom_code"
+  | "component";
 
 export interface PageSectionDTO {
   id: number;

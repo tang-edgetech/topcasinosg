@@ -24,7 +24,7 @@ import {
   IconTrash,
 } from "@/components/Icons";
 import { api } from "@/lib/api";
-import type { CasinoDTO, GlobalSectionDTO, MediaDTO, PageBlockType, PageFieldType, RegionDTO } from "@/lib/types";
+import type { CasinoDTO, ComponentSummaryDTO, GlobalSectionDTO, MediaDTO, PageBlockType, PageFieldType, RegionDTO } from "@/lib/types";
 import { WIDGET_ICONS } from "@/lib/widgetIcons";
 import { BackgroundControl, DEVICE_SUFFIX, StyleRow, ToggleButtons, useEditDevice, type BackgroundValue, type ToggleOption } from "./StyleControls";
 
@@ -78,6 +78,7 @@ export const BLOCK_TYPE_LABELS: Record<PageBlockType, string> = {
   star_rating: "Star Rating",
   testimonial: "Testimonial",
   custom_code: "Custom Code (HTML / CSS / JS)",
+  component: "Component",
   global_section: "Global Section",
   title_set: "Title & Text",
   image: "Image",
@@ -245,6 +246,8 @@ export function defaultFieldsForBlockType(blockType: PageBlockType): EditableFie
       ];
     case "star_rating":
       return [textField(0, "rating", "4.5", 1), blankField(0, "label", "text", 2)];
+    case "component":
+      return [blankField(0, "componentId", "text", 1)];
     case "custom_code":
       return [blankField(0, "html", "text", 1), blankField(0, "css", "text", 2), blankField(0, "js", "text", 3), blankField(0, "title", "text", 4)];
     case "testimonial":
@@ -867,6 +870,8 @@ export default function BlockFieldEditor({ blockType, fields, nested = false, on
       return <StarRatingWidgetFields fields={fields} onChange={onChange} />;
     case "testimonial":
       return <TestimonialWidgetFields fields={fields} onChange={onChange} />;
+    case "component":
+      return <ComponentPlacementFields fields={fields} onChange={onChange} />;
     case "custom_code":
       return <CustomCodeFields fields={fields} onChange={onChange} />;
     case "title_set":
@@ -4775,6 +4780,123 @@ function TestimonialWidgetFields({ fields, onChange }: WidgetFieldsProps) {
           <Select value={text("align") === "center" ? "center" : "left"} onChange={set("align", 6)} options={WIDGET_ALIGN_OPTIONS.slice(0, 2)} />
         </LabeledField>
       </StyleFields>
+    </div>
+  );
+}
+
+// Component — places a component from the Components library (made by
+// Admins under Components) and fills in its settings for this page. Each
+// setting is a field named by its key; an empty one uses the component's
+// default (web ComponentBlock).
+function ComponentPlacementFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
+  const [components, setComponents] = useState<ComponentSummaryDTO[] | null>(null);
+  const id = textOf(fields, "componentId");
+  const component = components?.find((c) => String(c.id) === id) ?? null;
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get<{ components: ComponentSummaryDTO[] }>("/api/admin/components")
+      .then((data) => !cancelled && setComponents(data.components ?? []))
+      .catch(() => !cancelled && setComponents([]));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Choosing another component drops the old one's settings (keeping the
+  // Style tab's fields and a tab/panel title).
+  function choose(next: string) {
+    const picked = components?.find((c) => String(c.id) === next);
+    const keep = new Set(picked?.settings.map((s) => s.key) ?? []);
+    const kept = fields.filter((f) => f.fieldKey === "componentId" || f.fieldKey === "panelTitle" || /^st[A-Z]/.test(f.fieldKey) || keep.has(f.fieldKey));
+    onChange(upsertField(kept, 0, "componentId", "text", 1, { textValue: next }));
+  }
+
+  const setValue = (key: string, type: PageFieldType, order: number) => (v: string) =>
+    onChange(upsertField(fields, 0, key, type, order, { textValue: v }));
+
+  return (
+    <div className="flex flex-col gap-4">
+      <LabeledField label="Component">
+        <Select
+          showSearch
+          optionFilterProp="label"
+          loading={components === null}
+          placeholder="Choose a component"
+          value={id || undefined}
+          onChange={choose}
+          options={(components ?? []).map((c) => ({ value: String(c.id), label: c.name }))}
+        />
+      </LabeledField>
+      {component?.description && <p className="text-xs text-text-muted dark:text-text-muted-dark">{component.description}</p>}
+      {component &&
+        component.settings.map((s, i) => {
+          const value = textOf(fields, s.key);
+          const order = 10 + i;
+          const label = s.label || s.key;
+          const placeholder = s.default ? `Default: ${s.default}` : undefined;
+          let input;
+          if (s.type === "select") {
+            input = (
+              <Select
+                allowClear
+                value={value || undefined}
+                placeholder={s.default ? `Default: ${s.options?.find((o) => o.value === s.default)?.label ?? s.default}` : "Choose"}
+                onChange={(v?: string) => setValue(s.key, "text", order)(v ?? "")}
+                options={(s.options ?? []).map((o) => ({ value: o.value, label: o.label || o.value }))}
+              />
+            );
+          } else if (s.type === "toggle") {
+            input = (
+              <Select
+                allowClear
+                value={value || undefined}
+                placeholder={`Default: ${s.default === "yes" ? "Yes" : "No"}`}
+                onChange={(v?: string) => setValue(s.key, "text", order)(v ?? "")}
+                options={[
+                  { value: "yes", label: "Yes" },
+                  { value: "no", label: "No" },
+                ]}
+              />
+            );
+          } else if (s.type === "richtext") {
+            input = <RichTextEditor value={value} onChange={setValue(s.key, "richtext", order)} />;
+          } else if (s.type === "textarea") {
+            input = (
+              <Input.TextArea autoSize={{ minRows: 2 }} value={value} placeholder={placeholder} onChange={(e) => setValue(s.key, "text", order)(e.target.value)} />
+            );
+          } else {
+            input = (
+              <Input
+                type={s.type === "number" ? "number" : "text"}
+                value={value}
+                placeholder={placeholder}
+                onChange={(e) => setValue(s.key, "text", order)(e.target.value)}
+              />
+            );
+          }
+          return (
+            <div key={s.key} className="flex flex-col gap-1">
+              <LabeledField label={label}>{input}</LabeledField>
+              {s.help && <span className="text-xs text-text-muted dark:text-text-muted-dark">{s.help}</span>}
+            </div>
+          );
+        })}
+      {component && component.settings.length > 0 && (
+        <p className="text-xs text-text-muted dark:text-text-muted-dark">Leave a setting empty to use its default.</p>
+      )}
+      <p className="text-xs text-text-muted dark:text-text-muted-dark">
+        The component itself is made under Components and is the same code on every page that places it.{" "}
+        <a
+          href={id ? `/dashboard/components/${id}` : "/dashboard/components"}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary-600 hover:underline"
+        >
+          {id ? "Edit this component ↗" : "Manage components ↗"}
+        </a>
+      </p>
     </div>
   );
 }

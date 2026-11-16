@@ -185,6 +185,9 @@ var blockDocs = map[string]blockDoc{
 		txt("title", "Short description for screen readers, e.g. \"4D number generator\"."),
 		txt("height", "Empty means the height follows the content. A number of px fixes it, e.g. \"600\"."),
 	}},
+	"component": {Kind: "widget", About: "Places a component from the site's Components library (a calculator, number generator...: see \"components\" in /schema, or GET /api/v1/components). It runs on the page in its own isolated frame. Fill in its settings as extra text fields named by the settings' keys; settings left out use their default. To change how a component itself works, ask the site's developers: components are edited in the backoffice.", Fields: []fieldDoc{
+		txt("componentId", "The component's id (required)."),
+	}},
 	"testimonial": {Kind: "widget", About: "A quote with the person's name, photo and rating.", Fields: []fieldDoc{
 		txt("quote", "The quote."),
 		txt("name", "Who said it."),

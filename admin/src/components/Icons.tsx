@@ -342,6 +342,15 @@ export function IconCopy(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+// A puzzle piece: Components.
+export function IconPuzzle(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M10 3h4v2.5a1.5 1.5 0 0 0 3 0V3h2a2 2 0 0 1 2 2v4h-2.5a1.5 1.5 0 0 0 0 3H21v7a2 2 0 0 1-2 2h-4v-2.5a1.5 1.5 0 0 0-3 0V21H5a2 2 0 0 1-2-2v-5h2.5a1.5 1.5 0 0 0 0-3H3V5a2 2 0 0 1 2-2z" />
+    </svg>
+  );
+}
+
 export function IconExternalLink(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base(props)}>

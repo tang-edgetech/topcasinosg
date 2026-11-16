@@ -74,6 +74,20 @@ paths:
         "400": { $ref: "#/components/responses/Error" }
         "404": { $ref: "#/components/responses/Error" }
 
+  /components:
+    get:
+      operationId: listComponents
+      summary: The Components library (calculators, generators…), with each one's settings. Place one with a "component" block (componentId + one text field per setting). Read-only; components are made in the backoffice.
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+  /components/{id}:
+    get:
+      operationId: getComponent
+      summary: One component with its HTML, CSS, JavaScript and settings.
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "404": { $ref: "#/components/responses/Error" }
   /global-sections:
     get:
       operationId: listGlobalSections

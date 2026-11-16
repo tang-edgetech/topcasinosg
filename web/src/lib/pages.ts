@@ -78,7 +78,8 @@ export type PageBlockType =
   | "table"
   | "star_rating"
   | "testimonial"
-  | "custom_code";
+  | "custom_code"
+  | "component";
 
 export interface PageSection {
   id: number;
@@ -152,6 +153,39 @@ export async function getPage(path: string): Promise<PageWithSections | null> {
     if (!body.success || !body.data?.page) return null;
 
     return fillYear({ page: body.data.page, sections: body.data.sections ?? [] });
+  } catch {
+    return null;
+  }
+}
+
+// A Component from the backoffice's Components library (GET
+// /api/components/{id}; api/internal/domain/component.go), as a "component"
+// block runs it (components/sections/ComponentBlock.tsx).
+export interface ComponentSetting {
+  key: string;
+  label: string;
+  type: "text" | "textarea" | "richtext" | "number" | "select" | "toggle";
+  default: string;
+  help?: string;
+  options?: { value: string; label: string }[];
+}
+
+export interface SiteComponent {
+  id: number;
+  name: string;
+  html: string;
+  css: string;
+  js: string;
+  settings: ComponentSetting[];
+}
+
+export async function getComponent(id: number): Promise<SiteComponent | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/components/${id}`, { next: { revalidate: REVALIDATE_SECONDS } });
+    if (!res.ok) return null;
+    const body = (await res.json()) as ApiEnvelope<{ component?: SiteComponent }>;
+    if (!body.success || !body.data?.component) return null;
+    return { ...body.data.component, settings: body.data.component.settings ?? [] };
   } catch {
     return null;
   }

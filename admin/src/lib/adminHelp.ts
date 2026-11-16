@@ -371,6 +371,29 @@ export const ADMIN_HELP = {
     summary: "The sidebar is the link box shown beside the content on every page except Home. It has three fixed sections; edit their headings and links.",
     sections: [{ heading: "Tips", points: ["Changes apply to every page at once after you save."] }],
   },
+  components: {
+    summary:
+      "Components are your own page elements, written as HTML, CSS and JavaScript: calculators, number generators, quizzes. Make one here once, then place it on any page with the Component block.",
+    sections: [
+      {
+        heading: "Settings",
+        points: [
+          "Settings are the options each page can fill in, like a heading or a starting tab. Each has a key, a label, a type and a default.",
+          "In the HTML, {{key}} is replaced by the setting's value. In the JavaScript, it is window.settings.key.",
+          "Pages that leave a setting empty use its default.",
+        ],
+      },
+      {
+        heading: "How it runs",
+        points: [
+          "A component runs in its own frame on the page, so a mistake in it can't break the rest of the page, and it can't reach the site's cookies or this backoffice.",
+          "Use the site's colours as CSS variables, like var(--color-primary-900), so it matches the site.",
+          "Saving changes every page that places it. The last 10 saves are kept under Revisions, so you can go back.",
+          "A component placed on pages can't be deleted; remove it from those pages first.",
+        ],
+      },
+    ],
+  },
   snippets: {
     summary: "Snippets add code to the website, such as analytics, chat widgets or custom CSS.",
     sections: [

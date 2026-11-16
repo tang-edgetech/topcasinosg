@@ -21,11 +21,15 @@ import (
 // pending, and applies one only when an admin approves it. New pages and
 // articles are created as drafts; an update changes the existing content.
 type ContentChangeService struct {
-	changes *repository.ContentChangeRepo
-	pages   *PageService
-	news    *NewsArticleService
-	media   *MediaService
+	changes    *repository.ContentChangeRepo
+	pages      *PageService
+	news       *NewsArticleService
+	media      *MediaService
+	components *ComponentService
 }
+
+// SetComponents lets page changes check their component blocks.
+func (s *ContentChangeService) SetComponents(components *ComponentService) { s.components = components }
 
 func NewContentChangeService(changes *repository.ContentChangeRepo, pages *PageService, news *NewsArticleService, media *MediaService) *ContentChangeService {
 	return &ContentChangeService{changes: changes, pages: pages, news: news, media: media}
@@ -184,6 +188,9 @@ func (s *ContentChangeService) checkPageSections(ctx context.Context, kind strin
 					return invalid("%s: mediaId %d is not in the Media Library (upload it with POST /api/v1/media)", fwhere, *f.MediaID)
 				}
 			}
+			if section.BlockType == domain.BlockTypeComponent && f.FieldType != "text" && f.FieldType != "richtext" {
+				return invalid("%s: component settings are text or richtext fields", fwhere)
+			}
 			if section.BlockType == domain.BlockTypeGlobalSection && f.FieldKey == "globalId" {
 				id, err := strconv.ParseInt(strings.TrimSpace(f.TextValue), 10, 64)
 				if err != nil {
@@ -191,6 +198,15 @@ func (s *ContentChangeService) checkPageSections(ctx context.Context, kind strin
 				}
 				if _, err := s.pages.GlobalSections(ctx, id); err != nil {
 					return invalid("%s: there is no Global Section %d", fwhere, id)
+				}
+			}
+		}
+	}
+	if s.components != nil {
+		for i, section := range sections {
+			if section.BlockType == domain.BlockTypeComponent {
+				if err := s.components.CheckPlacement(ctx, fmt.Sprintf("sections[%d]", i), section.Fields); err != nil {
+					return err
 				}
 			}
 		}
@@ -315,7 +331,9 @@ func (s *ContentChangeService) fieldWarnings(ctx context.Context, sections []Sec
 	var warnings []string
 	for i, section := range sections {
 		keys := known[section.BlockType]
-		if len(keys) == 0 {
+		// A component block's fields are its component's settings, which
+		// checkPageSections already checked exactly.
+		if len(keys) == 0 || section.BlockType == domain.BlockTypeComponent {
 			continue
 		}
 		for j, f := range section.Fields {

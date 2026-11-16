@@ -111,11 +111,13 @@ func main() {
 	menuItemService := service.NewMenuItemService(menuItemRepo)
 	pageService := service.NewPageService(pageRepo)
 	snippetService := service.NewSnippetService(snippetRepo)
+	componentService := service.NewComponentService(repository.NewComponentRepo(conn))
 	sidebarService := service.NewSidebarService(sidebarRepo)
 	auditService := service.NewAuditService(auditRepo, users)
 	go purgeExpiredAuditLogs(auditService)
 	apiKeyService := service.NewAPIKeyService(repository.NewAPIKeyRepo(conn), users)
 	contentChangeService := service.NewContentChangeService(repository.NewContentChangeRepo(conn), pageService, newsArticleService, mediaService)
+	contentChangeService.SetComponents(componentService)
 
 	htmlExportService := service.NewHTMLExportService(pageService, regionService, siteSettingsService, cfg.WebURL, cfg.HTMLExportDir)
 	htmlExportHandler := handler.NewHTMLExportHandler(htmlExportService, auditService)
@@ -143,6 +145,7 @@ func main() {
 		MenuItemHandler:       handler.NewMenuItemHandler(menuItemService),
 		PageHandler:           handler.NewPageHandler(pageService),
 		SnippetHandler:        handler.NewSnippetHandler(snippetService),
+		ComponentHandler:      handler.NewComponentHandler(componentService),
 		SidebarHandler:        handler.NewSidebarHandler(sidebarService),
 		AuditHandler:          handler.NewAuditHandler(auditService),
 		TransferHandler:       handler.NewTransferHandler(service.NewTransferService(transferRepo, fileStorage)),
@@ -155,7 +158,7 @@ func main() {
 		)),
 		ContentAPIHandler: handler.NewContentAPIHandler(
 			apiKeyService, contentChangeService, pageService, newsArticleService, mediaService, siteSettingsService, auditService,
-		),
+		).WithComponents(componentService),
 		AuthenticateAPIKey: apiKeyService.Authenticate,
 		RecycleBin:         repository.NewRecycleBinRepo(conn),
 		Audit:              auditService,

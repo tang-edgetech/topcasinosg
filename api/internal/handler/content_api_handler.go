@@ -29,9 +29,17 @@ type ContentAPIHandler struct {
 	media    *service.MediaService
 	settings *service.SiteSettingsService
 	audit    *service.AuditService
+	// components lists the Components /schema says can be placed.
+	components *service.ComponentService
 	// snapshot reads a page or article through its admin GET route, for the
 	// before/after of an applied change (server.adminSnapshotter).
 	snapshot middleware.Snapshotter
+}
+
+// WithComponents adds the Components library to /schema.
+func (h *ContentAPIHandler) WithComponents(components *service.ComponentService) *ContentAPIHandler {
+	h.components = components
+	return h
 }
 
 // SetSnapshotter is called once the admin routes exist.
@@ -275,9 +283,29 @@ func (h *ContentAPIHandler) Schema(w http.ResponseWriter, r *http.Request) {
 			"button":   "A link: the label in textValue and the URL in urlValue.",
 		},
 		"blockTypes":   blocks,
+		"components":   h.schemaComponents(r),
 		"styleFields":  styleFields,
 		"styleClasses": styleClasses,
 	})
+}
+
+// schemaComponents is the Components library for /schema: what a
+// "component" block can place, with each one's settings.
+func (h *ContentAPIHandler) schemaComponents(r *http.Request) map[string]any {
+	out := map[string]any{"about": componentAbout, "list": []componentSummaryDTO{}}
+	if h.components == nil {
+		return out
+	}
+	components, err := h.components.List(r.Context())
+	if err != nil {
+		return out
+	}
+	list := make([]componentSummaryDTO, len(components))
+	for i := range components {
+		list[i] = toComponentSummary(&components[i])
+	}
+	out["list"] = list
+	return out
 }
 
 func (h *ContentAPIHandler) ListPages(w http.ResponseWriter, r *http.Request) {

@@ -39,6 +39,7 @@ import {
   IconHistory,
   IconTransfer,
   IconCopy,
+  IconPuzzle,
   IconLayoutBottom,
   IconTrash,
 } from "@/components/Icons";
@@ -81,6 +82,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/dashboard/pages", label: "Pages", roles: ALL_ROLES, icon: IconLayout },
       { href: "/dashboard/global-sections", label: "Global Sections", roles: ALL_ROLES, icon: IconCopy },
+      { href: "/dashboard/components", label: "Components", roles: STAFF_ROLES, icon: IconPuzzle },
       { href: "/dashboard/guides", label: "Guides", roles: ALL_ROLES, icon: IconBook },
       { href: "/dashboard/news", label: "News", roles: ALL_ROLES, icon: IconNewspaper },
       { href: "/dashboard/media", label: "Media Library", roles: ALL_ROLES, icon: IconPhoto },

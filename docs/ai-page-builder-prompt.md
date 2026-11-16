@@ -97,8 +97,15 @@ Components
   or bonus data in by hand: it goes out of date.
 - Icons: use the nearest name from the icon list in /schema (check, shield,
   trophy, wallet, …). Don't upload icon SVGs as images.
-- Anything interactive or with no matching block (a calculator, 4D or lucky
-  number generator, quiz, game, interactive chart, an unusual card design) →
+- A ready-made component (calculators, generators… listed under "components"
+  in /schema, or GET /components) → a "component" block: a text field
+  componentId with its id, plus one text field per setting you want to set
+  (fieldKey = the setting's key; leave one out for its default). Always use an
+  existing component rather than writing the same thing again in custom_code.
+  You can't create or change components: they are made by the site's
+  developers in the backoffice, so ask the user if one needs changing.
+- Anything else interactive or with no matching block (a one-off quiz, game,
+  interactive chart, an unusual card design) →
   custom_code: put the component's own HTML in "html" (what goes inside <body>),
   its CSS in "css" and its JavaScript in "js" (no <style>/<script> tags), and a
   short "title" for screen readers. It is the ONLY block that runs JavaScript.
@@ -315,8 +322,14 @@ live API answers `valid: true`):
 - Build one page per chat, and check the draft in the admin before publishing.
 - If one part is off, name it: *"The three boxes should be side by side on
   tablet too"* works better than *"fix the layout"*.
-- Anything the blocks can't do (a calculator, a number generator, a special
-  animation, an unusual shape) can be built as a **Custom Code** block: ask
-  the AI to *"build it as a custom_code component"*. It runs on the live site
-  in its own frame, so a mistake in it can't break the rest of the page. In
-  the admin it's under Elements > Custom Code.
+- Tools the site already has as **Components** (the 4D & Toto Prize
+  Calculator, the Lucky Number Generator, and any the developers add) are
+  placed with a Component block: *"Put the Lucky Number Generator on the
+  page, starting on the 4D tab"*. The AI sees them and their settings in
+  /schema. In the admin they're under Components (Admins) and Elements >
+  Component in the page builder.
+- Anything else the blocks can't do (a special animation, an unusual shape)
+  can be built as a **Custom Code** block: ask the AI to *"build it as a
+  custom_code component"*. It runs on the live site in its own frame, so a
+  mistake in it can't break the rest of the page. If it will be used on
+  several pages, ask the developers to make it a Component instead.
