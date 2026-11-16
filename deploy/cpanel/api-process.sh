@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Starts, stops and keeps alive the Go API binary (api/bin/api) on cPanel,
 # where it runs as a background process behind api/server.cjs.
-#   api-process.sh start | stop | restart | ensure | status
+#   api-process.sh start | stop | restart | ensure | status | test-alert
 # "ensure" starts it only when it isn't running — cron runs it every minute.
 # Settings come from api/.env (see deploy/cpanel/api.env.example).
 set -uo pipefail
@@ -57,11 +57,28 @@ stop() {
   log "api stopped (pid $pid)"
 }
 
+# api.log is the API's stdout, kept open by the process in append mode, so
+# it is rotated by copying and emptying it in place (keeping api.log.1-3).
+# api-error.log is rotated by the API itself.
+rotate_api_log() {
+  local f="$LOG_DIR/api.log" max=$((20 * 1024 * 1024))
+  [ -f "$f" ] && [ "$(stat -c %s "$f" 2>/dev/null || echo 0)" -gt "$max" ] || return 0
+  rm -f "$f.3"; [ -f "$f.2" ] && mv "$f.2" "$f.3"; [ -f "$f.1" ] && mv "$f.1" "$f.2"
+  cp "$f" "$f.1" && : > "$f"
+  log "api.log rotated"
+}
+
+# Sends one sample Telegram alert with the settings in api/.env.
+test_alert() {
+  ( cd "$API_DIR" && load_env ./.env && ./bin/api telegram-test )
+}
+
 case "${1:-}" in
   start) start ;;
   stop) stop ;;
   restart) stop; start ;;
-  ensure) running || start ;;
+  ensure) rotate_api_log; running || start ;;
   status) if running; then echo "running (pid $(cat "$PID_FILE"))"; else echo "stopped"; exit 1; fi ;;
-  *) echo "usage: $0 start|stop|restart|ensure|status"; exit 2 ;;
+  test-alert) test_alert ;;
+  *) echo "usage: $0 start|stop|restart|ensure|status|test-alert"; exit 2 ;;
 esac

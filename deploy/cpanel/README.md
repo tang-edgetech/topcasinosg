@@ -138,15 +138,23 @@ domains.
 
 ### 8. Cron jobs
 
-**Cron Jobs → Add New Cron Job**, two entries:
+**Cron Jobs → Add New Cron Job**, three entries:
 
 | Schedule | Command |
 | --- | --- |
 | `*/10 * * * *` | `/bin/bash /home/topcasinosg/apps/topcasinosg/deploy/cpanel/deploy.sh >> /home/topcasinosg/logs/deploy.log 2>&1` |
 | `* * * * *` | `/bin/bash /home/topcasinosg/apps/topcasinosg/deploy/cpanel/api-process.sh ensure >> /home/topcasinosg/logs/api-process.log 2>&1` |
+| `* * * * *` | `/bin/bash /home/topcasinosg/apps/topcasinosg/deploy/cpanel/watchdog.sh >> /home/topcasinosg/logs/watchdog.log 2>&1` |
 
 The first deploys new commits; the second restarts the API if the host stops
-it (e.g. after a server reboot).
+it (e.g. after a server reboot) and rotates `api.log`; the third checks the
+three domains and sends Telegram alerts when one is down.
+
+### 8b. Telegram alerts
+
+Create a bot and group, put `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in
+`api/.env`, restart the API and send a test alert — step by step in
+[docs/MONITORING.md](../../docs/MONITORING.md).
 
 ### 9. Secure the admin accounts
 
@@ -159,7 +167,10 @@ account is recreated with that password on the next API start.)
 
 - Push to `main` → live within about 10 minutes (plus build time).
 - Logs: `~/logs/deploy.log` (deploys), `~/logs/api.log` (API output),
-  `~/logs/api-process.log` (API starts/stops).
+  `~/logs/api-error.log` (API errors, slow requests — JSON),
+  `~/logs/api-process.log` (API starts/stops), `~/logs/watchdog.log` (downtime).
+- Alerts: `api-process.sh test-alert` / `watchdog.sh test` send a sample
+  Telegram message; `watchdog.sh status` shows what it last saw.
 - Deploy now instead of waiting: `bash ~/apps/topcasinosg/deploy/cpanel/deploy.sh`.
 - After editing `api/.env` or `deploy/cpanel/production.env`: run it with
   `--force` (frontend settings are baked in at build time).

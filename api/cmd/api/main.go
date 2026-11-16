@@ -2,13 +2,16 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/tang-edgetech/topcasinosg/api/internal/config"
 	"github.com/tang-edgetech/topcasinosg/api/internal/db"
 	"github.com/tang-edgetech/topcasinosg/api/internal/handler"
+	"github.com/tang-edgetech/topcasinosg/api/internal/monitor"
 	"github.com/tang-edgetech/topcasinosg/api/internal/repository"
 	"github.com/tang-edgetech/topcasinosg/api/internal/security"
 	"github.com/tang-edgetech/topcasinosg/api/internal/server"
@@ -34,16 +37,27 @@ func purgeExpiredAuditLogs(audit *service.AuditService) {
 
 func main() {
 	cfg := config.Load()
+	mon := monitor.New(cfg)
+	defer mon.Close()
+
+	// `api telegram-test` sends one sample alert with the settings in the
+	// environment and exits — see docs/MONITORING.md.
+	if len(os.Args) > 1 && os.Args[1] == "telegram-test" {
+		os.Exit(sendTestAlert(mon))
+	}
 
 	conn, err := db.Open(cfg.DBDsn)
 	if err != nil {
+		mon.Log.Error("startup failed", "step", "db open", "error", err.Error())
 		log.Fatalf("db: %v", err)
 	}
 	defer conn.Close()
 
 	if err := db.Migrate(conn); err != nil {
+		mon.Log.Error("startup failed", "step", "db migrate", "error", err.Error())
 		log.Fatalf("db migrate: %v", err)
 	}
+	go mon.WatchDB(conn, time.Minute)
 
 	users := repository.NewUserRepo(conn)
 	siteSettings := repository.NewSiteSettingsRepo(conn)
@@ -149,7 +163,38 @@ func main() {
 	router := server.NewRouter(deps)
 
 	log.Printf("topcasinosg-api %s listening on :%s (env=%s)", version.Version, cfg.Port, cfg.Env)
-	if err := http.ListenAndServe(":"+cfg.Port, router); err != nil {
+	mon.Log.Info("api started", "version", version.Version, "port", cfg.Port, "env", cfg.Env, "telegram", mon.Alerts.Enabled())
+	// A restart nobody asked for (a crash brought back by api-process.sh)
+	// shows up in the group as an unexpected "started".
+	mon.Alerts.Info("API started", fmt.Sprintf("version %s, port %s", version.Version, cfg.Port))
+
+	srv := &http.Server{
+		Addr:    ":" + cfg.Port,
+		Handler: mon.Middleware(router),
+		// Only the request headers get a deadline: exports and imports
+		// legitimately take minutes, so there's no overall write timeout.
+		ReadHeaderTimeout: 15 * time.Second,
+		IdleTimeout:       2 * time.Minute,
+	}
+	if err := srv.ListenAndServe(); err != nil {
+		mon.Log.Error("server stopped", "error", err.Error())
 		log.Fatal(err)
 	}
+}
+
+func sendTestAlert(mon *monitor.Monitor) int {
+	if !mon.Alerts.Enabled() {
+		fmt.Fprintln(os.Stderr, "Telegram alerts are off: set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID.")
+		return 1
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	err := mon.Alerts.Send(ctx, "Test alert from the TopCasinoSG API",
+		"If you can read this, server alerts reach this group.\nversion "+version.Version)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Test alert failed:", err)
+		return 1
+	}
+	fmt.Println("Test alert sent.")
+	return 0
 }

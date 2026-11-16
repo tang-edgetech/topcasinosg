@@ -308,6 +308,7 @@ Format **`vMAJOR.MINOR.PATCH`**, starting at `v1.0.0`. **Already implemented.**
 |---|---|
 | Roll back | `ln -sfn releases/<older> current && sudo systemctl restart tcsg-<env>-*`, or re-run the workflow for an older tag. |
 | Logs | `journalctl -u tcsg-staging-api -f` (same for web/admin). |
+| Alerts | Telegram alerts and the uptime watchdog: [MONITORING.md](MONITORING.md). Under systemd, run `watchdog.sh` from cron the same way, with `WATCHDOG_TARGETS` set to that environment's addresses. |
 | Restore DB | `mysql <db> < backups/<file>.sql` |
 | Daily backups | cPanel/WHM **Backup** (daily, keep 7–14 days) in addition to the per-deploy dump. Test a restore once. |
 | Disk | Old releases are pruned to 5 by the deploy script; per-deploy DB dumps are kept for 14 days. |

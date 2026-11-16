@@ -4,7 +4,9 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 )
 
 type Config struct {
@@ -45,6 +47,21 @@ type Config struct {
 	// Settings' Site URL. HTMLExportDir keeps the latest export's zip.
 	WebURL        string
 	HTMLExportDir string
+
+	// Monitoring (internal/monitor). Telegram alerts are off unless both
+	// TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are set. ErrorLogFile gets
+	// warnings and errors as JSON lines, rotated by size.
+	TelegramBotToken  string
+	TelegramChatID    string
+	TelegramThreadID  string
+	AlertLabel        string
+	AlertCooldown     time.Duration
+	SlowRequest       time.Duration
+	HungRequest       time.Duration
+	SlowRequestIgnore []string
+	ErrorLogFile      string
+	ErrorLogMaxBytes  int64
+	ErrorLogBackups   int
 }
 
 func Load() Config {
@@ -69,7 +86,30 @@ func Load() Config {
 
 		WebURL:        getEnv("WEB_URL", ""),
 		HTMLExportDir: getEnv("HTML_EXPORT_DIR", filepath.Join("tmp", "html-export")),
+
+		TelegramBotToken: strings.TrimSpace(os.Getenv("TELEGRAM_BOT_TOKEN")),
+		TelegramChatID:   strings.TrimSpace(os.Getenv("TELEGRAM_CHAT_ID")),
+		TelegramThreadID: strings.TrimSpace(os.Getenv("TELEGRAM_THREAD_ID")),
+		AlertLabel:       getEnv("ALERT_LABEL", "TopCasinoSG API ("+env+")"),
+		AlertCooldown:    time.Duration(getInt("ALERT_COOLDOWN_MINUTES", 10)) * time.Minute,
+		SlowRequest:      time.Duration(getInt("SLOW_REQUEST_MS", 5000)) * time.Millisecond,
+		HungRequest:      time.Duration(getInt("HUNG_REQUEST_SECONDS", 30)) * time.Second,
+		// Exports, imports and the HTML export are expected to take a while.
+		SlowRequestIgnore: splitCSV(getEnv("SLOW_REQUEST_IGNORE",
+			"/api/admin/exports/,/api/admin/imports,/api/admin/html-export,/api/admin/content-imports/")),
+		ErrorLogFile:     getEnv("ERROR_LOG_FILE", filepath.Join(getEnv("LOG_DIR", defaultLogDir()), "api-error.log")),
+		ErrorLogMaxBytes: int64(getInt("ERROR_LOG_MAX_MB", 10)) << 20,
+		ErrorLogBackups:  getInt("ERROR_LOG_BACKUPS", 5),
 	}
+}
+
+// getInt reads a whole number; a missing, unparsable or negative value
+// falls back to the default.
+func getInt(key string, fallback int) int {
+	if n, err := strconv.Atoi(strings.TrimSpace(os.Getenv(key))); err == nil && n >= 0 {
+		return n
+	}
+	return fallback
 }
 
 // defaultLogDir matches deploy.sh and api-process.sh: $HOME/logs.
