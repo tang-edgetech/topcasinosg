@@ -16,6 +16,8 @@ the server so you can see what happened afterwards.
 | API restarted (after a deploy, or after a crash) | the API itself | 🟢 `API started` |
 | Site, backoffice or API **down**: error page (5xx), no answer, or no answer within 20 s | the watchdog (cron, every minute) | 🔴 `web is DOWN`, a reminder every 30 min, 🟢 `back UP` |
 | Site, backoffice or API slow (over 8 s) | the watchdog | 🟠 `admin is SLOW` |
+| New error lines in `~/logs/*.log`: a failed deploy or build (`build FAILED`, `finished with errors`), the API failing to start (`api failed to start`, `server stopped … address already in use`), npm or Go errors | the watchdog | 🟠 `Errors in the server logs`, with the lines, grouped by file |
+| A deploy still running after 30 min (a stuck build blocks every later deploy) | the watchdog | 🟠 `Deploy still running after 31 min`, then 🟢 when it ends |
 | The whole server is off | a hosted uptime monitor (optional, see the end) | from that service |
 
 The API's own alerts can't fire when the API process is dead, so the watchdog
@@ -33,6 +35,16 @@ at most 30 messages an hour in total. The watchdog alerts after 2 failed checks
 in a row (so a single blip is ignored), then reminds every 30 minutes until the
 site is back.
 
+**Log errors.** Each minute the watchdog reads only what was added to each log
+since its last run, so old history is never sent (it starts at the end of a
+file the first time it sees it). It skips its own `watchdog.log`, and
+`api-error.log`, whose lines are also in `api.log`. In the API's JSON lines it
+only counts level `ERROR`, and not the panics, 5xx, stuck requests and
+database outages the API has already sent itself. The same error again (times
+and numbers aside) is held back for 30 minutes, so an API that fails to start
+every minute gives one message, not one a minute. Up to 5 lines per file are
+shown; check `tail -n 50 ~/logs/<file>` for the rest.
+
 ## Log files (on the server, in `~/logs/`)
 
 | File | What's in it |
@@ -40,7 +52,7 @@ site is back.
 | `api-error.log` | One JSON line per problem: panics (with the full stack), 5xx responses, slow and hung requests, database outages, API starts. Rotated by the API at 10 MB, keeping `api-error.log.1` … `.5`. |
 | `api.log` | Everything the API prints, including the lines above. Rotated at 20 MB (keeps `.1`–`.3`). |
 | `watchdog.log` | One line per failed or slow check, and recoveries. |
-| `deploy.log`, `api-process.log` | Deploys, and API starts/stops — unchanged. |
+| `deploy.log`, `api-process.log` | Deploys, and API starts/stops. Errors in them are sent by the watchdog. |
 
 Look at the latest problems: `tail -n 50 ~/logs/api-error.log`.
 
@@ -132,6 +144,9 @@ cPanel → **Cron Jobs → Add New Cron Job**, every minute (`* * * * *`):
 
 See what it last saw: `bash /home/topcasinosg/public_html/topcasinosg.com.sg/deploy/cpanel/watchdog.sh status`.
 
+The same cron job also checks the logs and the deploy. To run only that part
+by hand: `bash /home/topcasinosg/public_html/topcasinosg.com.sg/deploy/cpanel/watchdog.sh logs`.
+
 ### 7. Optional, recommended: an outside monitor
 
 The watchdog runs on the same server, so if the whole server or its network
@@ -175,6 +190,11 @@ only the `TELEGRAM_*` and `WATCHDOG_*` lines from it.
 | `WATCHDOG_FAILS_BEFORE_ALERT` | `2` | Failed checks in a row before the DOWN message. |
 | `WATCHDOG_REMIND_MINUTES` | `30` | How often "still down" / "slow" repeat. |
 | `WATCHDOG_LABEL` | `TopCasinoSG` | First line of the watchdog's messages. |
+| `WATCHDOG_LOG_DIR` | `~/logs` | The folder whose `*.log` files are checked for errors. |
+| `WATCHDOG_LOG_SKIP` | `watchdog.log api-error.log` | Space-separated log files not to check. |
+| `WATCHDOG_LOG_ERRORS` | `error\|failed\|fatal\|panic\|…` | What makes a plain line an error (a case-insensitive extended regex). |
+| `WATCHDOG_LOG_IGNORE` | `telegram off\|…` | Lines matching this are never errors (regex, as above), e.g. to silence a known harmless message. |
+| `WATCHDOG_DEPLOY_MAX_MINUTES` | `30` | A deploy running longer than this is reported as stuck. |
 
 After changing an API setting, run `api-process.sh restart`. Watchdog
 settings apply on its next run.

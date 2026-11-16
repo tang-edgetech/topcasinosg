@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # Uptime watchdog: checks the public site, the backoffice and the API from
 # outside the apps and posts to Telegram when one is down (5xx, no answer,
-# or no answer within WATCHDOG_TIMEOUT), slow, or back up. Runs from cron
-# every minute; it is separate from the API on purpose, so it still alerts
-# when the API process is dead. Setup: docs/MONITORING.md.
-#   watchdog.sh          check every target once (what cron runs)
+# or no answer within WATCHDOG_TIMEOUT), slow, or back up. It also reports
+# new error lines in ~/logs/*.log (failed deploys and builds, the API failing
+# to start...) and a deploy that seems stuck. Runs from cron every minute; it
+# is separate from the API on purpose, so it still alerts when the API
+# process is dead. Setup: docs/MONITORING.md.
+#   watchdog.sh          check every target, then the logs (what cron runs)
+#   watchdog.sh logs     check only the logs and the deploy
 #   watchdog.sh test     send a sample alert and exit
 #   watchdog.sh status   print the last known state of each target
 #
@@ -154,6 +157,140 @@ HTTP $code, limit ${SLOW}s" && last_slow="$now"
   echo "$status $fails $since $last_alert $last_slow" > "$state"
 }
 
+# --- Server logs -----------------------------------------------------------
+# Every run reads only what was added to each LOG_DIR/*.log since the last run
+# and posts one message listing new error lines: failed deploys and builds,
+# the API failing to start, and anything else that logs an error. The first
+# time a file is seen it starts from its end, so old history isn't sent.
+LOG_DIR="${WATCHDOG_LOG_DIR:-$HOME/logs}"
+# Not read: this script's own log (its problems are already alerts), and
+# api-error.log, whose lines are also in api.log.
+LOG_SKIP="${WATCHDOG_LOG_SKIP:-watchdog.log api-error.log}"
+# A plain line is an error when it matches this (case-insensitive) ...
+LOG_ERRORS="${WATCHDOG_LOG_ERRORS:-error|failed|fatal|panic|exception|cannot |could not|denied|timed out|out of memory|killed|segmentation fault|npm err|connection refused|unable to|no such file or directory|no space left}"
+# ... and doesn't match this. Lines of Next.js' route table are never errors.
+LOG_IGNORE="${WATCHDOG_LOG_IGNORE:-telegram off|^[[:space:]]*[├└┌│○ƒ●]|0 errors}"
+LOG_MAX_BYTES=$((2 * 1024 * 1024))  # read at most this much new log per file per run
+# A deploy still running after this many minutes is reported as stuck.
+DEPLOY_MAX_MINUTES="${WATCHDOG_DEPLOY_MAX_MINUTES:-30}"
+
+# Prints "signature<TAB>line" for each error line read from stdin. JSON lines
+# (the API's own log) count only at level ERROR, and not the ones the API
+# already sends to Telegram itself. The signature drops times and numbers,
+# so the same error again is recognised as a repeat.
+error_lines() {
+  awk -v errors="$LOG_ERRORS" -v ignore="$LOG_IGNORE" '
+    {
+      line = $0; sub(/\r$/, "", line)
+      if (line ~ /^[[:space:]]*\{/) {
+        if (line !~ /"level":"ERROR"/) next
+        msg = ""
+        if (match(line, /"msg":"[^"]*"/)) msg = substr(line, RSTART + 7, RLENGTH - 8)
+        if (msg == "panic" || msg == "server error" || msg == "hung request" || msg == "Database not answering") next
+        err = ""
+        if (match(line, /"error":"[^"]*"/)) err = substr(line, RSTART + 9, RLENGTH - 10)
+        sig = msg " " err
+      } else {
+        low = tolower(line)
+        if (low !~ errors || low ~ ignore) next
+        sig = line
+        sub(/^\[[^]]*\][[:space:]]*/, "", sig)            # [2026-11-16 06:30:18]
+        sub(/^[0-9][0-9\/: .TZ-]+[[:space:]]/, "", sig)   # 2026/11/16 06:30:16
+      }
+      gsub(/[0-9]+/, "#", sig)
+      if (length(line) > 300) line = substr(line, 1, 300) "…"
+      print sig "\t" line
+    }'
+}
+
+check_logs() {
+  [ -d "$LOG_DIR" ] || return 0
+  local sent="$STATE_DIR/log-alerts.state" now; now="$(date +%s)"
+  local keep=$((REMIND_MINUTES * 60))
+  touch "$sent"
+  local report="" held=0 f name skip
+  for f in "$LOG_DIR"/*.log; do
+    [ -f "$f" ] || continue
+    name="$(basename "$f")"
+    skip=0; for s in $LOG_SKIP; do [ "$name" = "$s" ] && skip=1; done
+    [ "$skip" = 1 ] && continue
+
+    local offf="$STATE_DIR/log-$name.offset" size off=-1
+    size="$(wc -c < "$f" | tr -d ' ')"
+    [ -f "$offf" ] && read -r off < "$offf"
+    [[ "$off" =~ ^[0-9]+$ ]] || off=-1
+    if [ "$off" -lt 0 ]; then echo "$size" > "$offf"; continue; fi   # first time: start at the end
+    [ "$size" -lt "$off" ] && off=0                                    # rotated or emptied
+    [ "$size" = "$off" ] && continue
+    local skipped=0
+    if [ $((size - off)) -gt "$LOG_MAX_BYTES" ]; then skipped=$((size - LOG_MAX_BYTES - off)); off=$((size - LOG_MAX_BYTES)); fi
+
+    # Only whole lines: a line still being written is read next time.
+    local chunk rest
+    chunk="$(tail -c +$((off + 1)) "$f" | head -c $((size - off)); printf x)"; chunk="${chunk%x}"
+    rest="${chunk##*$'\n'}"
+    [ "$rest" = "$chunk" ] && continue  # no complete line yet
+    local whole=$(( $(printf '%s' "$chunk" | wc -c) - $(printf '%s' "$rest" | wc -c) ))
+    echo $((off + whole)) > "$offf"
+
+    local found new="" count=0 more=0 sig line
+    found="$(printf '%s' "${chunk%"$rest"}" | error_lines)"
+    [ -n "$found" ] || continue
+    while IFS=$'\t' read -r sig line; do
+      # Reported in the last REMIND_MINUTES (this run included): held back.
+      if awk -F'\t' -v s="$sig" -v since=$((now - keep)) '$1 >= since && $2 == s { f = 1 } END { exit !f }' "$sent"; then
+        held=$((held + 1)); continue
+      fi
+      printf '%s\t%s\n' "$now" "$sig" >> "$sent"
+      count=$((count + 1))
+      if [ "$count" -le 5 ]; then new+="$line"$'\n'; else more=$((more + 1)); fi
+    done <<< "$found"
+    [ "$count" -gt 0 ] || continue
+    report+="$name: $count new error line(s)"
+    [ "$skipped" -gt 0 ] && report+=" (log grew fast: skipped $skipped bytes)"
+    report+=$'\n'"$new"
+    [ "$more" -gt 0 ] && report+="… and $more more"$'\n'
+    report+=$'\n'
+  done
+  # Forget what was sent before the hold-back window.
+  awk -F'\t' -v since=$((now - keep)) '$1 >= since' "$sent" > "$sent.tmp" && mv "$sent.tmp" "$sent"
+
+  if [ -n "$report" ]; then
+    [ "$held" -gt 0 ] && report+="($held repeat(s) of errors already reported held back)"
+    log "new errors in the logs: $(printf '%s' "$report" | grep -c 'new error line') file(s)"
+    message "🟠" "Errors in the server logs ($LOG_DIR)" "${report:0:3500}"
+  fi
+}
+
+# A deploy that runs far longer than a build takes is probably stuck (a
+# hung npm or go build), and blocks every later deploy. Found by its process,
+# not by taking its lock, so a deploy starting meanwhile is never skipped.
+check_deploy() {
+  local state="$STATE_DIR/deploy.state" since=0 alerted=0 now running=0 d
+  now="$(date +%s)"
+  [ -f "$state" ] && read -r since alerted < "$state"
+  for d in /proc/[0-9]*; do
+    if tr '\0' ' ' < "$d/cmdline" 2>/dev/null | grep -Eq "(^|/)bash .*deploy/cpanel/deploy\.sh"; then running=1; break; fi
+  done
+  if [ "$running" = 1 ]; then
+    [ "$since" = 0 ] && since="$now"
+    local mins=$(( (now - since) / 60 ))
+    if [ "$mins" -ge "$DEPLOY_MAX_MINUTES" ] && [ $((now - alerted)) -ge $((REMIND_MINUTES * 60)) ]; then
+      log "deploy running for $mins min"
+      message "🟠" "Deploy still running after $mins min: it may be stuck" "Later deploys wait until it ends.
+Last lines of deploy.log:
+$(tail -n 8 "$LOG_DIR/deploy.log" 2>/dev/null)" && alerted="$now"
+    fi
+  else
+    if [ "$alerted" != 0 ]; then
+      log "deploy finished after $(minutes $((now - since))) min"
+      message "🟢" "The long deploy has finished (about $(minutes $((now - since))) min)" "$(tail -n 3 "$LOG_DIR/deploy.log" 2>/dev/null)"
+    fi
+    since=0; alerted=0
+  fi
+  echo "$since $alerted" > "$state"
+}
+
 case "${1:-check}" in
   test)
     if [ -z "$TOKEN" ] || [ -z "$CHAT_ID" ]; then
@@ -174,6 +311,15 @@ case "${1:-check}" in
       IFS='|' read -r name url expect <<< "$t"
       [ -n "$name" ] && [ -n "$url" ] && check_target "$name" "$url" "$expect"
     done
+    check_logs
+    check_deploy
     ;;
-  *) echo "usage: $0 [check|test|status]"; exit 2 ;;
+  logs)
+    # Only the log and deploy checks (what "check" also does after the sites).
+    exec 9>"$STATE_DIR/watchdog.lock"
+    if command -v flock >/dev/null; then flock -n 9 || exit 0; fi
+    check_logs
+    check_deploy
+    ;;
+  *) echo "usage: $0 [check|logs|test|status]"; exit 2 ;;
 esac
