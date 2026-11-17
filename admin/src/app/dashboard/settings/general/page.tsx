@@ -40,6 +40,9 @@ export default function GeneralSettingsPage() {
   const [bpTablet, setBpTablet] = useState(768);
   const [bpDesktop, setBpDesktop] = useState(1200);
   const [pageTransition, setPageTransition] = useState<PageTransition>("off");
+  // Seconds, 0-1.0, as typed; saved as ms.
+  const [pageTransitionMin, setPageTransitionMin] = useState("0.3");
+  const [preloader, setPreloader] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -64,6 +67,8 @@ export default function GeneralSettingsPage() {
       setBpDesktop(settings.breakpoints.desktop);
     }
     setPageTransition(settings.pageTransition ?? "off");
+    setPageTransitionMin(String((settings.pageTransitionMinMs ?? 300) / 1000));
+    setPreloader(settings.preloader ?? false);
   }, [settings]);
 
   if (!user) return null;
@@ -92,6 +97,8 @@ export default function GeneralSettingsPage() {
         twitterHandle,
         breakpoints: { tablet: bpTablet, desktop: bpDesktop },
         pageTransition,
+        pageTransitionMinMs: Math.round(Math.min(1, Math.max(0, Number(pageTransitionMin) || 0)) * 1000),
+        preloader,
       });
       await refresh();
       setSuccess(true);
@@ -466,7 +473,53 @@ export default function GeneralSettingsPage() {
               </span>
             </label>
           ))}
+          {pageTransition !== "off" && (
+            <div className="form-field flex flex-col gap-1">
+              <label htmlFor="settings-page-transition-min" className="text-sm font-medium text-text dark:text-text-dark">
+                Show for at least (seconds)
+              </label>
+              <input
+                id="settings-page-transition-min"
+                type="number"
+                min={0}
+                max={1}
+                step={0.1}
+                required
+                value={pageTransitionMin}
+                onChange={(e) => setPageTransitionMin(e.target.value)}
+                className="w-28 rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-primary-500 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark"
+              />
+              <span className="text-xs text-text-muted dark:text-text-muted-dark">
+                0 to 1.0. Most pages open almost instantly, so the bar is held on screen this long to be seen. 0 shows it only when a
+                page is slow.
+              </span>
+            </div>
+          )}
           <p className="text-xs text-text-muted dark:text-text-muted-dark">The website picks up a change within a minute.</p>
+        </fieldset>
+
+        <fieldset
+          id="settings-preloader"
+          className="settings-preloader mt-4 flex flex-col gap-3 rounded-md border border-border p-4 dark:border-border-dark"
+        >
+          <legend className="px-1 text-lg font-bold text-text dark:text-text-dark">Preloader</legend>
+          <label className="flex cursor-pointer items-start gap-2 text-sm text-text dark:text-text-dark">
+            <input
+              id="settings-preloader-on"
+              type="checkbox"
+              checked={preloader}
+              onChange={(e) => setPreloader(e.target.checked)}
+              className="mt-0.5 h-4 w-4 cursor-pointer"
+            />
+            <span>
+              <span className="font-medium">Show a preloader on a visitor&apos;s first page</span>
+              <span className="block text-xs text-text-muted dark:text-text-muted-dark">
+                A white screen with the site logo and a loading bar, until the page has loaded. Only the first page opened in a browser
+                window or tab; after that, moving between pages uses the Page Transition above. Uses the logo under Logo &amp;
+                Favicon.
+              </span>
+            </span>
+          </label>
         </fieldset>
 
         <p id="settings-footer-moved" className="mt-4 text-sm text-text-muted dark:text-text-muted-dark">

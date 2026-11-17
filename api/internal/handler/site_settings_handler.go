@@ -45,6 +45,10 @@ type siteSettingsDTO struct {
 	Theme domain.ThemeConfig `json:"theme"`
 	// PageTransition: off, bar or bar_fade (Settings > General).
 	PageTransition string `json:"pageTransition"`
+	// PageTransitionMinMs: the loading bar shows at least this long, 0-1000.
+	PageTransitionMinMs int `json:"pageTransitionMinMs"`
+	// Preloader: the full-screen loader on a visitor's first page in a tab.
+	Preloader bool `json:"preloader"`
 }
 
 type socialDefaultsJSON struct {
@@ -62,22 +66,24 @@ type footerContactJSON struct {
 
 func toSiteSettingsDTO(s *domain.SiteSettings) siteSettingsDTO {
 	return siteSettingsDTO{
-		SiteURL:            s.SiteURL,
-		SiteTitle:          s.SiteTitle,
-		SEOIndex:           s.SEOIndex,
-		SEOFollow:          s.SEOFollow,
-		Timezone:           s.Timezone,
-		Language:           string(s.Language),
-		LogoURL:            s.LogoURL,
-		FaviconURL:         s.FaviconURL,
-		TwoFactorEnabled:   s.TwoFactorEnabled,
-		footerContactJSON:  footerContactJSON(s.FooterContact),
-		socialDefaultsJSON: socialDefaultsJSON(s.SocialDefaults),
-		Footer:             withFooterBadges(s.Footer),
-		Security:           s.Security,
-		Breakpoints:        s.Breakpoints,
-		Theme:              s.Theme,
-		PageTransition:     string(s.PageTransition),
+		SiteURL:             s.SiteURL,
+		SiteTitle:           s.SiteTitle,
+		SEOIndex:            s.SEOIndex,
+		SEOFollow:           s.SEOFollow,
+		Timezone:            s.Timezone,
+		Language:            string(s.Language),
+		LogoURL:             s.LogoURL,
+		FaviconURL:          s.FaviconURL,
+		TwoFactorEnabled:    s.TwoFactorEnabled,
+		footerContactJSON:   footerContactJSON(s.FooterContact),
+		socialDefaultsJSON:  socialDefaultsJSON(s.SocialDefaults),
+		Footer:              withFooterBadges(s.Footer),
+		Security:            s.Security,
+		Breakpoints:         s.Breakpoints,
+		Theme:               s.Theme,
+		PageTransition:      string(s.PageTransition),
+		PageTransitionMinMs: s.PageTransitionMinMs,
+		Preloader:           s.Preloader,
 	}
 }
 
@@ -135,9 +141,16 @@ type updateSiteSettingsRequest struct {
 	socialDefaultsJSON
 	// Optional: left out keeps the saved screen sizes.
 	Breakpoints *domain.Breakpoints `json:"breakpoints"`
-	// Optional: left out keeps the saved page transition.
-	PageTransition string `json:"pageTransition"`
+	// Optional: left out keeps the saved page transition. Its minimum show
+	// time is saved with it; left out with pageTransition sent, it is 300.
+	PageTransition      string `json:"pageTransition"`
+	PageTransitionMinMs *int   `json:"pageTransitionMinMs"`
+	// Optional: left out keeps the saved preloader setting.
+	Preloader *bool `json:"preloader"`
 }
+
+// defaultPageTransitionMinMs matches migration 0096's column default.
+const defaultPageTransitionMinMs = 300
 
 func (h *SiteSettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	actor := middleware.UserFromContext(r.Context())
@@ -159,9 +172,19 @@ func (h *SiteSettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 		next.Breakpoints = *req.Breakpoints
 	}
 	next.PageTransition = domain.PageTransition(req.PageTransition)
+	next.PageTransitionMinMs = defaultPageTransitionMinMs
+	if req.PageTransitionMinMs != nil {
+		next.PageTransitionMinMs = *req.PageTransitionMinMs
+	}
 	if err := h.settings.Update(r.Context(), actor, next); err != nil {
 		response.Err(w, siteSettingsErrorStatus(err), err.Error())
 		return
+	}
+	if req.Preloader != nil {
+		if err := h.settings.UpdatePreloader(r.Context(), actor, *req.Preloader); err != nil {
+			response.Err(w, siteSettingsErrorStatus(err), err.Error())
+			return
+		}
 	}
 	response.JSON(w, http.StatusOK, map[string]bool{"updated": true})
 }

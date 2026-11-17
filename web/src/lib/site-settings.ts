@@ -32,6 +32,10 @@ export interface SiteSettings {
   theme: ThemeConfig;
   // How the site moves between pages (components/PageTransition.tsx).
   pageTransition: PageTransitionMode;
+  // The loading bar shows at least this long (ms, 0-1000).
+  pageTransitionMinMs: number;
+  // A full-screen loader on a visitor's first page in a tab (components/Preloader.tsx).
+  preloader: boolean;
 }
 
 // The footer's arrangement, bottom bar and badges, edited on the admin
@@ -88,6 +92,8 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
   breakpoints: DEFAULT_BREAKPOINTS,
   theme: { colors: {} },
   pageTransition: "off",
+  pageTransitionMinMs: 300,
+  preloader: false,
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {
@@ -106,6 +112,8 @@ export async function getSiteSettings(): Promise<SiteSettings> {
       breakpoints: normalizeBreakpoints(data.breakpoints),
       theme: { colors: data.theme?.colors ?? {} },
       pageTransition: data.pageTransition === "bar" || data.pageTransition === "bar_fade" ? data.pageTransition : "off",
+      preloader: data.preloader === true,
+      pageTransitionMinMs: Math.min(1000, Math.max(0, Number(data.pageTransitionMinMs ?? 300) || 0)),
     };
   } catch {
     return DEFAULT_SITE_SETTINGS;

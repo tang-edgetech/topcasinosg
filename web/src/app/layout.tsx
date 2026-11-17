@@ -8,6 +8,7 @@ import RawHtmlBlock from "@/components/RawHtmlBlock";
 import ScrollToTop from "@/components/ScrollToTop";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import PageTransition from "@/components/PageTransition";
+import Preloader from "@/components/Preloader";
 import { getActiveSnippets } from "@/lib/snippets";
 import { getSiteSettings } from "@/lib/site-settings";
 import { deviceCss } from "@/lib/deviceCss";
@@ -81,6 +82,8 @@ export default async function RootLayout({
   return (
     <html lang="en" className={`${figtree.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col overflow-x-clip font-sans">
+        {/* First page in a tab only (Site Settings > General > Preloader). */}
+        {settings.preloader && <Preloader logoUrl={logo} siteTitle={settings.siteTitle} />}
         {/* Per-device page builder rules at the Site Settings screen sizes. */}
         <style id="device-css" dangerouslySetInnerHTML={{ __html: deviceCss(settings.breakpoints) }} />
         {/* Site-wide colours changed in Settings > Theme. */}
@@ -109,7 +112,7 @@ export default async function RootLayout({
         <RevealOnScroll />
         {/* Suspense: it reads the URL's query (useSearchParams). */}
         <Suspense fallback={null}>
-          <PageTransition mode={settings.pageTransition} />
+          <PageTransition mode={settings.pageTransition} minMs={settings.pageTransitionMinMs} />
         </Suspense>
         <RawHtmlBlock html={bottomOfBody} />
       </body>

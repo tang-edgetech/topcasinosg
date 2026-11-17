@@ -73,6 +73,10 @@ export interface SiteSettingsDTO {
   breakpoints?: BreakpointsDTO;
   // Public site page changes (domain.PageTransition): off, bar or bar_fade.
   pageTransition?: PageTransition;
+  // The loading bar shows at least this long (ms, 0-1000).
+  pageTransitionMinMs?: number;
+  // A full-screen loader with the logo on a visitor's first page in a tab.
+  preloader?: boolean;
 }
 
 export type PageTransition = "off" | "bar" | "bar_fade";

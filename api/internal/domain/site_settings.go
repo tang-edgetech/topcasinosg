@@ -34,8 +34,15 @@ type SiteSettings struct {
 	Theme       ThemeConfig
 	// PageTransition: how the public site moves between pages.
 	PageTransition PageTransition
-	UpdatedAt      time.Time
+	// PageTransitionMinMs: the loading bar shows at least this long (ms).
+	PageTransitionMinMs int
+	// Preloader: a full-screen loader on a visitor's first page in a tab.
+	Preloader bool
+	UpdatedAt time.Time
 }
+
+// MaxPageTransitionMinMs: the longest minimum show time (1 second).
+const MaxPageTransitionMinMs = 1000
 
 // PageTransition is how the public site moves from page to page (web/src/
 // components/PageTransition.tsx).

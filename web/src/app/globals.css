@@ -36,8 +36,9 @@ body {
 }
 
 /* Page transition (Site Settings > General; components/PageTransition.tsx).
-   The bar and the dimming wait 100ms, so instant page changes show
-   nothing. The bar creeps towards 85% while the page loads, then fills and
+   The bar and the dimming wait --page-transition-delay (0 when a minimum
+   show time is set, else 100ms, so instant changes show nothing). The bar
+   creeps towards 85% while the page loads, then fills and
    fades out. */
 .page-progress {
   position: fixed;
@@ -53,7 +54,7 @@ body {
 .page-progress.is-loading {
   width: 85%;
   opacity: 1;
-  transition: width 10s cubic-bezier(0.08, 0.75, 0.25, 1) 100ms, opacity 0s 100ms;
+  transition: width 4s cubic-bezier(0.08, 0.75, 0.25, 1) var(--page-transition-delay, 100ms), opacity 0s var(--page-transition-delay, 100ms);
 }
 .page-progress.is-done {
   width: 100%;
@@ -62,8 +63,71 @@ body {
 }
 #site-main.page-leaving {
   opacity: 0.4;
-  transition: opacity 0.25s ease 100ms;
+  transition: opacity 0.25s ease var(--page-transition-delay, 100ms);
 }
 #site-main.page-returning {
   transition: opacity 0.35s ease-out;
+}
+
+/* Preloader (Site Settings > General; components/Preloader.tsx): first page
+   in a tab only. is-skipped: this tab has seen it; is-hidden: the page has
+   loaded, so it fades away. */
+.site-preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  background: var(--color-surface, #ffffff);
+  transition: opacity 0.4s ease, visibility 0.4s;
+}
+.site-preloader.is-skipped {
+  display: none;
+}
+.site-preloader.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+.site-preloader__logo {
+  max-height: 56px;
+  max-width: 220px;
+  object-fit: contain;
+}
+.site-preloader__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-primary-900);
+}
+.site-preloader__bar {
+  position: relative;
+  width: 160px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--color-primary-50);
+}
+.site-preloader__bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: var(--color-secondary-900);
+  animation: site-preloader-slide 1s ease-in-out infinite;
+}
+@keyframes site-preloader-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .site-preloader__bar::after {
+    animation: none;
+    width: 100%;
+  }
 }

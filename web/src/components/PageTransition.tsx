@@ -12,12 +12,15 @@ const GIVE_UP_MS = 15000;
 const RETURN_MS = 450;
 
 // One bar per site (the root layout renders this once).
-const state = { bar: null as HTMLElement | null, loading: false, giveUp: null as ReturnType<typeof setTimeout> | null };
+type Timer = ReturnType<typeof setTimeout> | null;
+const state = { bar: null as HTMLElement | null, loading: false, minMs: 0, startedAt: 0, giveUp: null as Timer, hold: null as Timer };
 
 function start(fade: boolean) {
   const bar = state.bar;
   if (!bar) return;
   state.loading = true;
+  state.startedAt = performance.now();
+  if (state.hold) clearTimeout(state.hold);
   bar.classList.remove("is-done");
   // Restart from 0 even if a previous bar was still finishing.
   void bar.offsetWidth;
@@ -31,15 +34,24 @@ function start(fade: boolean) {
   state.giveUp = setTimeout(finish, GIVE_UP_MS);
 }
 
+// The new page is here: complete now, or once the bar has shown for its
+// minimum time.
 function finish() {
   if (!state.loading) return;
   state.loading = false;
   if (state.giveUp) clearTimeout(state.giveUp);
+  const wait = state.minMs - (performance.now() - state.startedAt);
+  if (wait > 0) state.hold = setTimeout(complete, wait);
+  else complete();
+}
+
+function complete() {
+  state.hold = null;
   state.bar?.classList.replace("is-loading", "is-done");
   const main = document.getElementById("site-main");
   if (!main?.classList.contains("page-leaving")) return;
-  // Back to full opacity from wherever the dimming had got to (nothing, if
-  // the page arrived within its 100ms delay), so it never flashes.
+  // Back to full opacity from wherever the dimming had got to, so it never
+  // flashes.
   main.classList.replace("page-leaving", "page-returning");
   setTimeout(() => main.classList.remove("page-returning"), RETURN_MS);
 }
@@ -58,11 +70,12 @@ function isPageLink(event: MouseEvent): boolean {
 // Site Settings > General > Page Transition. A click on a link to another
 // page of this site starts an orange loading bar at the top (and, for
 // "bar_fade", dims the page); when the new page's path or query arrives the
-// bar completes and the page fades back in. Instant (prefetched) changes
-// show nothing: both effects wait about 100ms before appearing. Visitors who
-// ask for reduced motion get the bar but not the fade. Styles:
+// bar completes and the page fades back in. minMs (Site Settings, up to 1s)
+// holds the bar on screen at least that long, since most changes are
+// instant; with 0, both effects wait 100ms and instant changes show nothing.
+// Visitors who ask for reduced motion get the bar but not the fade. Styles:
 // app/globals.css, "Page transition".
-export default function PageTransition({ mode }: { mode: PageTransitionMode }) {
+export default function PageTransition({ mode, minMs }: { mode: PageTransitionMode; minMs: number }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const barRef = useRef<HTMLDivElement>(null);
@@ -71,6 +84,10 @@ export default function PageTransition({ mode }: { mode: PageTransitionMode }) {
   useEffect(() => {
     if (mode === "off") return;
     state.bar = barRef.current;
+    state.minMs = minMs;
+    // With a minimum show time the bar (and dimming) appear at once;
+    // without one they wait 100ms, so instant changes show nothing.
+    document.documentElement.style.setProperty("--page-transition-delay", minMs > 0 ? "0ms" : "100ms");
     const fade = mode === "bar_fade" && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const onClick = (event: MouseEvent) => {
       if (isPageLink(event)) start(fade);
@@ -80,7 +97,7 @@ export default function PageTransition({ mode }: { mode: PageTransitionMode }) {
       document.removeEventListener("click", onClick, true);
       state.bar = null;
     };
-  }, [mode]);
+  }, [mode, minMs]);
 
   // The new page has arrived.
   useEffect(() => {

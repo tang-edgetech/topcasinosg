@@ -35,7 +35,7 @@ var (
 	ErrInvalidLockout           = errors.New("lockout: 0 (off) or 3–20 attempts, for 1–1440 minutes")
 	ErrInvalidPasswordLength    = errors.New("minimum password length must be 8–72 characters")
 	ErrInvalidThemeColor        = errors.New("theme: colours are #rgb, #rrggbb or #rrggbbaa, for the colours listed in Settings > Theme (GET .../settings/theme)")
-	ErrInvalidPageTransition    = errors.New("page transition must be off, bar or bar_fade")
+	ErrInvalidPageTransition    = errors.New("page transition must be off, bar or bar_fade, shown for at least 0-1000 ms")
 	ErrInvalidBreakpoints       = errors.New("screen sizes: tablet from at least 480px, desktop at least 100px wider than tablet and at most 2560px")
 )
 
@@ -74,14 +74,14 @@ func (s *SiteSettingsService) Update(ctx context.Context, actor *domain.AdminUse
 		return ErrInvalidBreakpoints
 	}
 	// Page transition left empty was not sent: keep the saved one.
-	if next.PageTransition != "" && !next.PageTransition.Valid() {
+	if next.PageTransition != "" && (!next.PageTransition.Valid() || next.PageTransitionMinMs < 0 || next.PageTransitionMinMs > domain.MaxPageTransitionMinMs) {
 		return ErrInvalidPageTransition
 	}
 	if err := s.settings.Update(ctx, next); err != nil {
 		return err
 	}
 	if next.PageTransition != "" {
-		if err := s.settings.UpdatePageTransition(ctx, next.PageTransition); err != nil {
+		if err := s.settings.UpdatePageTransition(ctx, next.PageTransition, next.PageTransitionMinMs); err != nil {
 			return err
 		}
 	}
@@ -91,6 +91,14 @@ func (s *SiteSettingsService) Update(ctx context.Context, actor *domain.AdminUse
 		}
 	}
 	return s.settings.UpdateSocialDefaults(ctx, sd)
+}
+
+// UpdatePreloader turns the first-visit preloader on or off.
+func (s *SiteSettingsService) UpdatePreloader(ctx context.Context, actor *domain.AdminUser, on bool) error {
+	if !canEditSiteSettings(actor) {
+		return ErrForbidden
+	}
+	return s.settings.UpdatePreloader(ctx, on)
 }
 
 // UpdateTheme saves the site-wide colour theme. A colour equal to its
