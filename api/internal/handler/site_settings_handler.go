@@ -49,6 +49,8 @@ type siteSettingsDTO struct {
 	PageTransitionMinMs int `json:"pageTransitionMinMs"`
 	// Preloader: the full-screen loader on a visitor's first page in a tab.
 	Preloader bool `json:"preloader"`
+	// PreloaderImageURL: its image; null shows the site logo.
+	PreloaderImageURL *string `json:"preloaderImageUrl"`
 }
 
 type socialDefaultsJSON struct {
@@ -84,6 +86,7 @@ func toSiteSettingsDTO(s *domain.SiteSettings) siteSettingsDTO {
 		PageTransition:      string(s.PageTransition),
 		PageTransitionMinMs: s.PageTransitionMinMs,
 		Preloader:           s.Preloader,
+		PreloaderImageURL:   s.PreloaderImageURL,
 	}
 }
 
@@ -115,6 +118,7 @@ func siteSettingsErrorStatus(err error) int {
 		errors.Is(err, service.ErrInvalidPasswordLength),
 		errors.Is(err, service.ErrInvalidBreakpoints),
 		errors.Is(err, service.ErrInvalidPageTransition),
+		errors.Is(err, service.ErrInvalidPreloaderImage),
 		errors.Is(err, service.ErrInvalidThemeColor):
 		return http.StatusBadRequest
 	default:
@@ -147,6 +151,8 @@ type updateSiteSettingsRequest struct {
 	PageTransitionMinMs *int   `json:"pageTransitionMinMs"`
 	// Optional: left out keeps the saved preloader setting.
 	Preloader *bool `json:"preloader"`
+	// Optional: left out keeps the saved image; "" goes back to the site logo.
+	PreloaderImageURL *string `json:"preloaderImageUrl"`
 }
 
 // defaultPageTransitionMinMs matches migration 0096's column default.
@@ -176,12 +182,19 @@ func (h *SiteSettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if req.PageTransitionMinMs != nil {
 		next.PageTransitionMinMs = *req.PageTransitionMinMs
 	}
+	// Checked first, so a bad image saves nothing.
+	if req.PreloaderImageURL != nil {
+		if err := service.ValidatePreloaderImage(*req.PreloaderImageURL); err != nil {
+			response.Err(w, http.StatusBadRequest, err.Error())
+			return
+		}
+	}
 	if err := h.settings.Update(r.Context(), actor, next); err != nil {
 		response.Err(w, siteSettingsErrorStatus(err), err.Error())
 		return
 	}
-	if req.Preloader != nil {
-		if err := h.settings.UpdatePreloader(r.Context(), actor, *req.Preloader); err != nil {
+	if req.Preloader != nil || req.PreloaderImageURL != nil {
+		if err := h.settings.UpdatePreloader(r.Context(), actor, req.Preloader, req.PreloaderImageURL); err != nil {
 			response.Err(w, siteSettingsErrorStatus(err), err.Error())
 			return
 		}

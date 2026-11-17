@@ -11,6 +11,10 @@ import IconButton from "@/components/IconButton";
 import { IconUpload, IconPhoto } from "@/components/Icons";
 import type { MediaDTO, PageTransition } from "@/lib/types";
 
+// The preloader image types the API accepts (service.preloaderImageTypes).
+const PRELOADER_IMAGE_TYPES = /.(jpe?g|png|webp|gif)$/i;
+const PRELOADER_IMAGE_ACCEPT = ".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif";
+
 const PAGE_TRANSITIONS: { value: PageTransition; label: string; hint: string }[] = [
   { value: "off", label: "Off", hint: "Pages swap instantly." },
   { value: "bar", label: "Loading bar", hint: "An orange bar runs across the top while the next page loads." },
@@ -43,6 +47,10 @@ export default function GeneralSettingsPage() {
   // Seconds, 0-1.0, as typed; saved as ms.
   const [pageTransitionMin, setPageTransitionMin] = useState("0.3");
   const [preloader, setPreloader] = useState(false);
+  const [preloaderImage, setPreloaderImage] = useState("");
+  const [preloaderImageError, setPreloaderImageError] = useState("");
+  const [preloaderUploading, setPreloaderUploading] = useState(false);
+  const preloaderInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -50,7 +58,7 @@ export default function GeneralSettingsPage() {
   const logoInputRef = useRef<HTMLInputElement>(null);
   const faviconInputRef = useRef<HTMLInputElement>(null);
   const [uploadError, setUploadError] = useState("");
-  const [mediaPickerField, setMediaPickerField] = useState<"logo" | "favicon" | "ogImage" | null>(null);
+  const [mediaPickerField, setMediaPickerField] = useState<"logo" | "favicon" | "ogImage" | "preloader" | null>(null);
 
   useEffect(() => {
     if (!settings) return;
@@ -69,6 +77,7 @@ export default function GeneralSettingsPage() {
     setPageTransition(settings.pageTransition ?? "off");
     setPageTransitionMin(String((settings.pageTransitionMinMs ?? 300) / 1000));
     setPreloader(settings.preloader ?? false);
+    setPreloaderImage(settings.preloaderImageUrl ?? "");
   }, [settings]);
 
   if (!user) return null;
@@ -99,6 +108,7 @@ export default function GeneralSettingsPage() {
         pageTransition,
         pageTransitionMinMs: Math.round(Math.min(1, Math.max(0, Number(pageTransitionMin) || 0)) * 1000),
         preloader,
+        preloaderImageUrl: preloaderImage,
       });
       await refresh();
       setSuccess(true);
@@ -126,6 +136,37 @@ export default function GeneralSettingsPage() {
       await refresh();
     } catch (err) {
       setUploadError(err instanceof ApiError ? err.message : `Could not upload ${field}.`);
+    }
+  }
+
+  // The preloader image goes into the media library, then into the form;
+  // Save Settings stores it.
+  function choosePreloaderImage(url: string) {
+    if (!PRELOADER_IMAGE_TYPES.test(url.split("?")[0])) {
+      setPreloaderImageError("Use a JPG, PNG, WebP or GIF image.");
+      return;
+    }
+    setPreloaderImageError("");
+    setPreloaderImage(url);
+  }
+
+  async function uploadPreloaderImage(file: File) {
+    if (!PRELOADER_IMAGE_TYPES.test(file.name)) {
+      setPreloaderImageError("Use a JPG, PNG, WebP or GIF image.");
+      return;
+    }
+    setPreloaderImageError("");
+    setPreloaderUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const { media } = await api.upload<{ media: MediaDTO }>("/api/admin/media", form);
+      choosePreloaderImage(media.url);
+    } catch (err) {
+      setPreloaderImageError(err instanceof ApiError ? err.message : "Could not upload the image.");
+    } finally {
+      setPreloaderUploading(false);
+      if (preloaderInputRef.current) preloaderInputRef.current.value = "";
     }
   }
 
@@ -245,6 +286,7 @@ export default function GeneralSettingsPage() {
         onClose={() => setMediaPickerField(null)}
         onSelect={(media) => {
           if (mediaPickerField === "ogImage") setOgImageUrl(media.url);
+          else if (mediaPickerField === "preloader") choosePreloaderImage(media.url);
           else if (mediaPickerField) handleSelectFromLibrary(mediaPickerField, media);
           setMediaPickerField(null);
         }}
@@ -514,12 +556,65 @@ export default function GeneralSettingsPage() {
             <span>
               <span className="font-medium">Show a preloader on a visitor&apos;s first page</span>
               <span className="block text-xs text-text-muted dark:text-text-muted-dark">
-                A white screen with the site logo and a loading bar, until the page has loaded. Only the first page opened in a browser
-                window or tab; after that, moving between pages uses the Page Transition above. Uses the logo under Logo &amp;
-                Favicon.
+                A white screen with an image and a loading bar, until the page has loaded. Only the first page opened in a browser
+                window or tab; after that, moving between pages uses the Page Transition above.
               </span>
             </span>
           </label>
+          <div className="form-field flex flex-col gap-2">
+            <span className="text-sm font-medium text-text dark:text-text-dark">Preloader Image</span>
+            <div className="flex items-center gap-4">
+              <div className="flex h-[84px] w-40 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-white dark:border-border-dark">
+                {preloaderImage ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={assetUrl(preloaderImage)} alt="Preloader image" className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <span className="px-2 text-center text-xs text-text-muted">Site logo is used</span>
+                )}
+              </div>
+              <div className="flex flex-col items-start gap-2">
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    id="settings-preloader-image-upload"
+                    disabled={preloaderUploading}
+                    onClick={() => preloaderInputRef.current?.click()}
+                    className="cursor-pointer rounded-md border border-primary-300 px-3 py-1.5 text-sm font-medium text-primary-700 hover:bg-primary-50 disabled:cursor-wait disabled:opacity-60"
+                  >
+                    {preloaderUploading ? "Uploading…" : "Upload Image"}
+                  </button>
+                  <button
+                    type="button"
+                    id="settings-preloader-image-choose"
+                    onClick={() => setMediaPickerField("preloader")}
+                    className="cursor-pointer rounded-md border border-primary-300 px-3 py-1.5 text-sm font-medium text-primary-700 hover:bg-primary-50"
+                  >
+                    Choose From Media Library
+                  </button>
+                </div>
+                {preloaderImage && (
+                  <button type="button" id="settings-preloader-image-remove" onClick={() => setPreloaderImage("")} className="cursor-pointer text-sm text-danger hover:underline">
+                    Remove (use the site logo)
+                  </button>
+                )}
+                <span className="text-xs text-text-muted dark:text-text-muted-dark">
+                  JPG, PNG, WebP or GIF (animated GIFs play), up to 10 MB. Shown up to 220 × 120 px.
+                </span>
+              </div>
+            </div>
+            <input
+              ref={preloaderInputRef}
+              id="settings-preloader-image-input"
+              type="file"
+              accept={PRELOADER_IMAGE_ACCEPT}
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) uploadPreloaderImage(file);
+              }}
+            />
+            {preloaderImageError && <p className="form-error text-sm text-danger">{preloaderImageError}</p>}
+          </div>
         </fieldset>
 
         <p id="settings-footer-moved" className="mt-4 text-sm text-text-muted dark:text-text-muted-dark">

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/mail"
 	"net/url"
+	"path"
 	"regexp"
 	"strings"
 	"unicode/utf8"
@@ -35,6 +36,7 @@ var (
 	ErrInvalidLockout           = errors.New("lockout: 0 (off) or 3–20 attempts, for 1–1440 minutes")
 	ErrInvalidPasswordLength    = errors.New("minimum password length must be 8–72 characters")
 	ErrInvalidThemeColor        = errors.New("theme: colours are #rgb, #rrggbb or #rrggbbaa, for the colours listed in Settings > Theme (GET .../settings/theme)")
+	ErrInvalidPreloaderImage    = errors.New("preloader image must be a jpg, png, webp or gif, uploaded or at a full http(s) address")
 	ErrInvalidPageTransition    = errors.New("page transition must be off, bar or bar_fade, shown for at least 0-1000 ms")
 	ErrInvalidBreakpoints       = errors.New("screen sizes: tablet from at least 480px, desktop at least 100px wider than tablet and at most 2560px")
 )
@@ -93,12 +95,60 @@ func (s *SiteSettingsService) Update(ctx context.Context, actor *domain.AdminUse
 	return s.settings.UpdateSocialDefaults(ctx, sd)
 }
 
-// UpdatePreloader turns the first-visit preloader on or off.
-func (s *SiteSettingsService) UpdatePreloader(ctx context.Context, actor *domain.AdminUser, on bool) error {
+// UpdatePreloader turns the first-visit preloader on or off and sets its
+// image ("" for the site logo). A nil argument is left as it is.
+func (s *SiteSettingsService) UpdatePreloader(ctx context.Context, actor *domain.AdminUser, on *bool, image *string) error {
 	if !canEditSiteSettings(actor) {
 		return ErrForbidden
 	}
-	return s.settings.UpdatePreloader(ctx, on)
+	var imageURL *string
+	if image != nil {
+		var err error
+		if imageURL, err = normalizePreloaderImage(*image); err != nil {
+			return err
+		}
+	}
+	if on != nil {
+		if err := s.settings.UpdatePreloader(ctx, *on); err != nil {
+			return err
+		}
+	}
+	if image != nil {
+		return s.settings.UpdatePreloaderImage(ctx, imageURL)
+	}
+	return nil
+}
+
+// ValidatePreloaderImage lets the handler check the image before saving
+// anything else from the same form.
+func ValidatePreloaderImage(image string) error {
+	_, err := normalizePreloaderImage(image)
+	return err
+}
+
+// preloaderImageTypes: still or animated images a browser shows in an <img>.
+var preloaderImageTypes = map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".webp": true, ".gif": true}
+
+// normalizePreloaderImage: "" is nil (the site logo); otherwise an uploaded
+// file (/uploads/...) or http(s) address ending in one of
+// preloaderImageTypes.
+func normalizePreloaderImage(image string) (*string, error) {
+	image = strings.TrimSpace(image)
+	if image == "" {
+		return nil, nil
+	}
+	local := strings.HasPrefix(image, "/") && !strings.HasPrefix(image, "//")
+	if !local && !isWebURL(image) {
+		return nil, ErrInvalidPreloaderImage
+	}
+	p := image
+	if u, err := url.Parse(image); err == nil {
+		p = u.Path
+	}
+	if !preloaderImageTypes[strings.ToLower(path.Ext(p))] || len(image) > 500 {
+		return nil, ErrInvalidPreloaderImage
+	}
+	return &image, nil
 }
 
 // UpdateTheme saves the site-wide colour theme. A colour equal to its

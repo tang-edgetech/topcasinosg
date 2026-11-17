@@ -77,6 +77,8 @@ export interface SiteSettingsDTO {
   pageTransitionMinMs?: number;
   // A full-screen loader with the logo on a visitor's first page in a tab.
   preloader?: boolean;
+  // Its image (jpg, png, webp or gif); null shows the site logo.
+  preloaderImageUrl?: string | null;
 }
 
 export type PageTransition = "off" | "bar" | "bar_fade";

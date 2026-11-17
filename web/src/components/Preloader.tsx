@@ -1,5 +1,6 @@
-// Site Settings > General > Preloader: a white screen with the site logo and
-// a sliding bar, shown only on the first page a visitor opens in a browser
+// Site Settings > General > Preloader: a white screen with its image (a jpg,
+// png, webp or gif from Settings; the site logo, or its title, without one)
+// and a sliding bar, shown only on the first page a visitor opens in a browser
 // window or tab, until that page has loaded. Later pages in the same tab use
 // the page transition (PageTransition.tsx) instead.
 //
@@ -30,11 +31,22 @@ const SCRIPT = `(function () {
   setTimeout(done, 6000);
 })();`;
 
-export default function Preloader({ logoUrl, siteTitle }: { logoUrl: string | null; siteTitle: string }) {
+export default function Preloader({
+  imageUrl,
+  logoUrl,
+  siteTitle,
+}: {
+  imageUrl: string | null | undefined;
+  logoUrl: string | null | undefined;
+  siteTitle: string;
+}) {
   return (
     <>
       <div id="site-preloader" className="site-preloader" aria-hidden="true" suppressHydrationWarning>
-        {logoUrl ? (
+        {imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={imageUrl} alt="" className="site-preloader__image" />
+        ) : logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={logoUrl} alt="" className="site-preloader__logo" />
         ) : (

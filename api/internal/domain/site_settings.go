@@ -38,7 +38,10 @@ type SiteSettings struct {
 	PageTransitionMinMs int
 	// Preloader: a full-screen loader on a visitor's first page in a tab.
 	Preloader bool
-	UpdatedAt time.Time
+	// PreloaderImageURL: the preloader's image (jpg, png, webp or gif); nil
+	// shows the site logo.
+	PreloaderImageURL *string
+	UpdatedAt         time.Time
 }
 
 // MaxPageTransitionMinMs: the longest minimum show time (1 second).

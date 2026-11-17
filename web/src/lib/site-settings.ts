@@ -36,6 +36,8 @@ export interface SiteSettings {
   pageTransitionMinMs: number;
   // A full-screen loader on a visitor's first page in a tab (components/Preloader.tsx).
   preloader: boolean;
+  // Its own image (jpg, png, webp or gif); null shows the site logo.
+  preloaderImageUrl: string | null;
 }
 
 // The footer's arrangement, bottom bar and badges, edited on the admin
@@ -94,6 +96,7 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
   pageTransition: "off",
   pageTransitionMinMs: 300,
   preloader: false,
+  preloaderImageUrl: null,
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {
@@ -113,6 +116,7 @@ export async function getSiteSettings(): Promise<SiteSettings> {
       theme: { colors: data.theme?.colors ?? {} },
       pageTransition: data.pageTransition === "bar" || data.pageTransition === "bar_fade" ? data.pageTransition : "off",
       preloader: data.preloader === true,
+      preloaderImageUrl: data.preloaderImageUrl || null,
       pageTransitionMinMs: Math.min(1000, Math.max(0, Number(data.pageTransitionMinMs ?? 300) || 0)),
     };
   } catch {

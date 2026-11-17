@@ -83,7 +83,9 @@ export default async function RootLayout({
     <html lang="en" className={`${figtree.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col overflow-x-clip font-sans">
         {/* First page in a tab only (Site Settings > General > Preloader). */}
-        {settings.preloader && <Preloader logoUrl={logo} siteTitle={settings.siteTitle} />}
+        {settings.preloader && (
+          <Preloader imageUrl={assetUrl(settings.preloaderImageUrl)} logoUrl={logo} siteTitle={settings.siteTitle} />
+        )}
         {/* Per-device page builder rules at the Site Settings screen sizes. */}
         <style id="device-css" dangerouslySetInnerHTML={{ __html: deviceCss(settings.breakpoints) }} />
         {/* Site-wide colours changed in Settings > Theme. */}

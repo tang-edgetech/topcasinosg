@@ -96,6 +96,11 @@ body {
   max-width: 220px;
   object-fit: contain;
 }
+.site-preloader__image {
+  max-height: 120px;
+  max-width: 220px;
+  object-fit: contain;
+}
 .site-preloader__title {
   font-size: 1.5rem;
   font-weight: 700;
