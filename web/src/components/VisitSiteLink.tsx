@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 // Every outbound casino/affiliate link: opens in a new tab with the same rel
 // everywhere (sponsored, no referrer leak), falling back to the casino's
@@ -8,11 +8,13 @@ export default function VisitSiteLink({
   href,
   fallbackHref,
   className,
+  style,
   children = "Visit Site",
 }: {
   href: string | null | undefined;
   fallbackHref: string;
   className: string;
+  style?: CSSProperties;
   children?: ReactNode;
 }) {
   const external = Boolean(href);
@@ -22,6 +24,7 @@ export default function VisitSiteLink({
       target={external ? "_blank" : undefined}
       rel={external ? "noopener noreferrer sponsored" : undefined}
       className={className}
+      style={style}
     >
       {children}
     </Link>

@@ -52,6 +52,36 @@ func dataBlock(about, perRowDefault string, allowed ...string) blockDoc {
 	return blockDoc{Kind: "data", About: about + " Its items come from the site's own data; other fields are listed as used on the site.", Fields: displayFields(perRowDefault, allowed...)}
 }
 
+// cardStyleFields: the casino cards' colours and rating icons (Top Bonus
+// Picks, Top Casinos By Region; web/src/lib/cardStyle.ts).
+func cardStyleFields() []fieldDoc {
+	color := func(key, what string) fieldDoc {
+		return txt(key, what+": a theme colour name (e.g. secondary-50, primary-900, white) or #hex. Empty keeps the built-in colour (amber on the first card, navy on the rest).")
+	}
+	image := func(key, what string) fieldDoc {
+		return fieldDoc{Key: key, Type: "image", About: what + " (ratingIcon custom). Empty falls back to the gold ingot."}
+	}
+	return []fieldDoc{
+		color("cardBg", "Card background"),
+		color("cardBorder", "Card border"),
+		color("ribbonColor", "Corner curve behind the flag"),
+		color("offerBg", "Bonus box background"),
+		color("offerText", "Bonus box text"),
+		color("footerBg", "Button bar background"),
+		color("ctaBg", "Visit Site button"),
+		color("ctaText", "Visit Site button text"),
+		txt("ratingIcon", "Rating icons. Empty means stars; ingot is gold ingots; custom uses ratingFull, ratingHalf and ratingEmpty.", "stars", "ingot", "custom"),
+		image("ratingFull", "Image for a full point"),
+		image("ratingHalf", "Image for a half point"),
+		image("ratingEmpty", "Image for an empty point"),
+	}
+}
+
+func withFields(d blockDoc, more []fieldDoc) blockDoc {
+	d.Fields = append(d.Fields, more...)
+	return d
+}
+
 var classicAbout = "Classic fixed block: still renders, but new content should be built from a container with widgets instead."
 
 var blockDocs = map[string]blockDoc{
@@ -223,8 +253,8 @@ var blockDocs = map[string]blockDoc{
 		txt("align", "Placement (default center).", alignLCR...),
 	}},
 
-	"top_bonus_picks":       dataBlock("Bonus picks from the casino list.", "3", "swipe", "grid", "carousel", "list", "table"),
-	"top_casinos_by_region": dataBlock("Top casinos for a region, with featured cards.", "3", "swipe", "grid", "carousel", "list"),
+	"top_bonus_picks":       withFields(dataBlock("Bonus picks from the casino list, as cards with the region's flag.", "3", "swipe", "grid", "carousel", "list", "table"), cardStyleFields()),
+	"top_casinos_by_region": withFields(dataBlock("Top casinos for a region, with featured cards (each with its country's flag).", "3", "swipe", "grid", "carousel", "list"), cardStyleFields()),
 	"blacklist_preview":     dataBlock("Blacklisted casinos.", "5", "carousel", "grid", "list"),
 	"game_rtp_carousel":     dataBlock("Games with their RTP.", "5", "carousel", "grid", "list"),
 	"content_carousel":      dataBlock("News or guide articles.", "4", "carousel", "grid", "list"),

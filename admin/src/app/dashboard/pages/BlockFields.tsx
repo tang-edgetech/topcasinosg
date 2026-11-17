@@ -26,7 +26,7 @@ import {
 import { api } from "@/lib/api";
 import type { CasinoDTO, ComponentSummaryDTO, GlobalSectionDTO, MediaDTO, PageBlockType, PageFieldType, RegionDTO } from "@/lib/types";
 import { WIDGET_ICONS } from "@/lib/widgetIcons";
-import { BackgroundControl, DEVICE_SUFFIX, StyleRow, ToggleButtons, useEditDevice, type BackgroundValue, type ToggleOption } from "./StyleControls";
+import { BackgroundControl, ColorField, DEVICE_SUFFIX, StyleRow, ToggleButtons, useEditDevice, type BackgroundValue, type ToggleOption } from "./StyleControls";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
 
@@ -1724,6 +1724,7 @@ function TopCasinosByRegionFields({ fields, onChange }: { fields: EditableField[
           region.
         </p>
       </div>
+      <CardStyleFields fields={fields} onChange={onChange} idPrefix="top-casinos-card" />
       <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 5, bgFrom: 6, bgTo: 7, bgImage: 8 }} />
     </div>
   );
@@ -3386,6 +3387,77 @@ function LinkCardGridFields({ fields, onChange }: { fields: EditableField[]; onC
   );
 }
 
+// Card colours and rating icons for Top Bonus Picks and Top Casinos By Region
+// (web/src/lib/cardStyle.ts). An empty colour keeps the card's built-in one
+// (amber for the #1 card, navy and grey for the rest).
+const CARD_COLOR_FIELDS: { key: string; label: string; order: number }[] = [
+  { key: "cardBg", label: "Card background", order: 70 },
+  { key: "cardBorder", label: "Card border", order: 71 },
+  { key: "ribbonColor", label: "Corner curve", order: 72 },
+  { key: "offerBg", label: "Bonus box background", order: 73 },
+  { key: "offerText", label: "Bonus box text", order: 74 },
+  { key: "footerBg", label: "Button bar background", order: 75 },
+  { key: "ctaBg", label: "Visit Site button", order: 76 },
+  { key: "ctaText", label: "Visit Site text", order: 77 },
+];
+const RATING_IMAGE_FIELDS = [
+  { key: "ratingFull", label: "Full", order: 79 },
+  { key: "ratingHalf", label: "Half", order: 80 },
+  { key: "ratingEmpty", label: "Empty", order: 81 },
+];
+
+function CardStyleFields({ fields, onChange, idPrefix }: { fields: EditableField[]; onChange: (f: EditableField[]) => void; idPrefix: string }) {
+  const text = (key: string) => getField(fields, 0, key)?.textValue ?? "";
+  const icon = text("ratingIcon") || "stars";
+  return (
+    <div className="flex flex-col gap-3 rounded-md border border-border bg-surface-muted p-4 dark:border-border-dark dark:bg-surface-muted-dark">
+      <span className="text-xs font-semibold tracking-wide text-text-muted uppercase dark:text-text-muted-dark">Card style</span>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {CARD_COLOR_FIELDS.map(({ key, label, order }) => (
+          <LabeledField key={key} label={label}>
+            <ColorField
+              id={`${idPrefix}-${key}`}
+              value={text(key)}
+              onChange={(v) => onChange(upsertField(fields, 0, key, "text", order, { textValue: v }))}
+            />
+          </LabeledField>
+        ))}
+      </div>
+      <LabeledField label="Rating icons">
+        <Select
+          value={icon}
+          onChange={(v) => onChange(upsertField(fields, 0, "ratingIcon", "text", 78, { textValue: v }))}
+          options={[
+            { value: "stars", label: "Stars" },
+            { value: "ingot", label: "Gold ingots" },
+            { value: "custom", label: "My own images (full, half, empty)" },
+          ]}
+        />
+      </LabeledField>
+      {icon === "custom" && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {RATING_IMAGE_FIELDS.map(({ key, label, order }) => {
+            const image = getField(fields, 0, key);
+            return (
+              <ImagePickerField
+                key={key}
+                label={label}
+                mediaId={image?.mediaId ?? null}
+                mediaUrl={image?.mediaUrl ?? null}
+                onChange={(mediaId, mediaUrl) => onChange(upsertField(fields, 0, key, "image", order, { mediaId, mediaUrl }))}
+              />
+            );
+          })}
+        </div>
+      )}
+      <p className="text-xs text-text-muted dark:text-text-muted-dark">
+        Colours apply to every card. Leave one on Default to keep the built-in look (amber for the first card, navy for the rest).
+        Missing custom images fall back to the gold ingots.
+      </p>
+    </div>
+  );
+}
+
 function TopBonusPicksFields({ fields, onChange }: { fields: EditableField[]; onChange: (f: EditableField[]) => void }) {
   return (
     <div className="flex flex-col gap-4">
@@ -3433,6 +3505,7 @@ function TopBonusPicksFields({ fields, onChange }: { fields: EditableField[]; on
         Cards are live data: the region&apos;s highest-rated casinos that have a published bonus of this type. Rating, logo, pros and
         links come from each Casino; the offer text comes from its Bonus.
       </p>
+      <CardStyleFields fields={fields} onChange={onChange} idPrefix="bonus-picks-card" />
       <SectionBackgroundFields fields={fields} onChange={onChange} sortOrders={{ bgType: 6, bgFrom: 7, bgTo: 8, bgImage: 9 }} />
     </div>
   );

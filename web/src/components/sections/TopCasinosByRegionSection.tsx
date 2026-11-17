@@ -7,6 +7,7 @@ import { loadRows } from "@/components/data-table/loadRows";
 import SwipeRow from "@/components/SwipeRow";
 import HorizontalSlider from "@/components/HorizontalSlider";
 import { cardDisplay, perRow, GRID_COLUMNS } from "@/lib/cardLayout";
+import { cardStyle } from "@/lib/cardStyle";
 import { BonusPickCard, BonusPickRow } from "./TopBonusPicksSection";
 import SectionTag from "./SectionTag";
 
@@ -53,6 +54,7 @@ export default async function TopCasinosByRegionSection({ section }: { section: 
   const display = cardDisplay(text(0, "display"), ["swipe", "grid", "carousel", "list"] as const);
   const cardsPerRow = perRow(text(0, "perRow"), 3);
   const { hasBleedBg, style: bgStyle } = sectionBgStyle(section.fields);
+  const look = cardStyle(section.fields);
 
   const regions = (await getRegions()).sort((a, b) => a.sortOrder - b.sortOrder);
   const entries: CountryEntry[] =
@@ -96,7 +98,7 @@ export default async function TopCasinosByRegionSection({ section }: { section: 
 
   if (perRegion.length === 0) return null;
   const featuredCards = perRegion.map(({ region, topCasino, bonus }) => (
-    <BonusPickCard key={region.id} pick={{ casino: topCasino, bonus }} rank={1} featured bonusLabel={bonusLabel} flagUrl={mediaUrl(region.flagUrl)} />
+    <BonusPickCard key={region.id} pick={{ casino: topCasino, bonus }} rank={1} featured bonusLabel={bonusLabel} flagUrl={mediaUrl(region.flagUrl)} look={look} />
   ));
 
   return (
@@ -123,7 +125,7 @@ export default async function TopCasinosByRegionSection({ section }: { section: 
             <div className="section-col">
               <HorizontalSlider label={heading || "Top casinos by country"} layout={display === "carousel" ? "slider" : display} slideClassName="w-[85%] sm:w-[340px]" showArrows gridClassName={GRID_COLUMNS[cardsPerRow]}>
                 {display === "list"
-                  ? perRegion.map(({ region, topCasino, bonus }, i) => <BonusPickRow key={region.id} pick={{ casino: topCasino, bonus }} rank={i + 1} bonusLabel={`${bonusLabel} · ${region.name}`} />)
+                  ? perRegion.map(({ region, topCasino, bonus }, i) => <BonusPickRow key={region.id} pick={{ casino: topCasino, bonus }} rank={i + 1} bonusLabel={`${bonusLabel} · ${region.name}`} look={look} />)
                   : featuredCards}
               </HorizontalSlider>
             </div>
