@@ -19,7 +19,7 @@ func NewSiteSettingsRepo(db *sql.DB) *SiteSettingsRepo {
 const siteSettingsColumns = `site_url, site_title, seo_index, seo_follow, timezone, language,
 	logo_url, favicon_url, og_image_url, twitter_handle, two_factor_enabled, security_policy,
 	footer_description, contact_address, contact_email, facebook_url, skype_url, footer_config,
-	breakpoint_tablet, breakpoint_desktop, theme_config, updated_at`
+	breakpoint_tablet, breakpoint_desktop, theme_config, page_transition, updated_at`
 
 func (r *SiteSettingsRepo) Get(ctx context.Context) (*domain.SiteSettings, error) {
 	var s domain.SiteSettings
@@ -28,7 +28,7 @@ func (r *SiteSettingsRepo) Get(ctx context.Context) (*domain.SiteSettings, error
 		&s.SiteURL, &s.SiteTitle, &s.SEOIndex, &s.SEOFollow, &s.Timezone, &s.Language,
 		&s.LogoURL, &s.FaviconURL, &s.OGImageURL, &s.TwitterHandle, &s.TwoFactorEnabled, &securityPolicy,
 		&s.FooterDescription, &s.ContactAddress, &s.ContactEmail, &s.FacebookURL, &s.SkypeURL, &footerConfig,
-		&s.Breakpoints.Tablet, &s.Breakpoints.Desktop, &themeConfig, &s.UpdatedAt,
+		&s.Breakpoints.Tablet, &s.Breakpoints.Desktop, &themeConfig, &s.PageTransition, &s.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -98,6 +98,11 @@ func (r *SiteSettingsRepo) UpdateTheme(ctx context.Context, theme domain.ThemeCo
 
 func (r *SiteSettingsRepo) UpdateBreakpoints(ctx context.Context, b domain.Breakpoints) error {
 	_, err := r.db.ExecContext(ctx, `UPDATE site_settings SET breakpoint_tablet = ?, breakpoint_desktop = ? WHERE id = 1`, b.Tablet, b.Desktop)
+	return err
+}
+
+func (r *SiteSettingsRepo) UpdatePageTransition(ctx context.Context, t domain.PageTransition) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE site_settings SET page_transition = ? WHERE id = 1`, t)
 	return err
 }
 

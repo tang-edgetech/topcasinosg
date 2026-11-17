@@ -1,6 +1,7 @@
 import { API_BASE_URL as SERVER_API_URL } from "@/lib/api-url";
 import { DEFAULT_BREAKPOINTS, normalizeBreakpoints, type Breakpoints } from "./deviceCss";
 import type { ThemeConfig } from "./themeCss";
+import type { PageTransitionMode } from "@/components/PageTransition";
 
 const API_URL = SERVER_API_URL;
 
@@ -29,6 +30,8 @@ export interface SiteSettings {
   breakpoints: Breakpoints;
   // Site-wide colours changed from tokens.css's defaults (lib/themeCss.ts).
   theme: ThemeConfig;
+  // How the site moves between pages (components/PageTransition.tsx).
+  pageTransition: PageTransitionMode;
 }
 
 // The footer's arrangement, bottom bar and badges, edited on the admin
@@ -84,6 +87,7 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
   footer: DEFAULT_FOOTER,
   breakpoints: DEFAULT_BREAKPOINTS,
   theme: { colors: {} },
+  pageTransition: "off",
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {
@@ -101,6 +105,7 @@ export async function getSiteSettings(): Promise<SiteSettings> {
       footer: data.footer ?? DEFAULT_FOOTER,
       breakpoints: normalizeBreakpoints(data.breakpoints),
       theme: { colors: data.theme?.colors ?? {} },
+      pageTransition: data.pageTransition === "bar" || data.pageTransition === "bar_fade" ? data.pageTransition : "off",
     };
   } catch {
     return DEFAULT_SITE_SETTINGS;

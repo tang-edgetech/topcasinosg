@@ -71,7 +71,11 @@ export interface SiteSettingsDTO {
   security: SecurityPolicyDTO;
   // Page builder screen sizes: tablet and desktop start at these widths (px).
   breakpoints?: BreakpointsDTO;
+  // Public site page changes (domain.PageTransition): off, bar or bar_fade.
+  pageTransition?: PageTransition;
 }
+
+export type PageTransition = "off" | "bar" | "bar_fade";
 
 // Settings > Theme — one colour the theme can change (GET
 // /api/admin/settings/theme; domain.ThemeColors in

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { headers } from "next/headers";
 import { Figtree } from "next/font/google";
 import Header from "@/components/Header";
@@ -6,6 +7,7 @@ import Footer from "@/components/Footer";
 import RawHtmlBlock from "@/components/RawHtmlBlock";
 import ScrollToTop from "@/components/ScrollToTop";
 import RevealOnScroll from "@/components/RevealOnScroll";
+import PageTransition from "@/components/PageTransition";
 import { getActiveSnippets } from "@/lib/snippets";
 import { getSiteSettings } from "@/lib/site-settings";
 import { deviceCss } from "@/lib/deviceCss";
@@ -105,6 +107,10 @@ export default async function RootLayout({
         <Footer />
         <ScrollToTop />
         <RevealOnScroll />
+        {/* Suspense: it reads the URL's query (useSearchParams). */}
+        <Suspense fallback={null}>
+          <PageTransition mode={settings.pageTransition} />
+        </Suspense>
         <RawHtmlBlock html={bottomOfBody} />
       </body>
     </html>

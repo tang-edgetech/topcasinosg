@@ -32,7 +32,23 @@ type SiteSettings struct {
 	Footer      FooterConfig
 	Breakpoints Breakpoints
 	Theme       ThemeConfig
-	UpdatedAt   time.Time
+	// PageTransition: how the public site moves between pages.
+	PageTransition PageTransition
+	UpdatedAt      time.Time
+}
+
+// PageTransition is how the public site moves from page to page (web/src/
+// components/PageTransition.tsx).
+type PageTransition string
+
+const (
+	PageTransitionOff     PageTransition = "off"      // instant swap
+	PageTransitionBar     PageTransition = "bar"      // loading bar at the top
+	PageTransitionBarFade PageTransition = "bar_fade" // loading bar, and the page fades
+)
+
+func (t PageTransition) Valid() bool {
+	return t == PageTransitionOff || t == PageTransitionBar || t == PageTransitionBarFade
 }
 
 // Breakpoints are the page builder's device sizes in px: tablet from Tablet,

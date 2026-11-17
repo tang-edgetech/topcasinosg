@@ -9,7 +9,13 @@ import { api, ApiError } from "@/lib/api";
 import MediaPicker from "@/components/media/MediaPicker";
 import IconButton from "@/components/IconButton";
 import { IconUpload, IconPhoto } from "@/components/Icons";
-import type { MediaDTO } from "@/lib/types";
+import type { MediaDTO, PageTransition } from "@/lib/types";
+
+const PAGE_TRANSITIONS: { value: PageTransition; label: string; hint: string }[] = [
+  { value: "off", label: "Off", hint: "Pages swap instantly." },
+  { value: "bar", label: "Loading bar", hint: "An orange bar runs across the top while the next page loads." },
+  { value: "bar_fade", label: "Loading bar + fade", hint: "The bar, and the page fades softly into the next one." },
+];
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
 
@@ -33,6 +39,7 @@ export default function GeneralSettingsPage() {
   // Page builder screen sizes (px): tablet and desktop start here.
   const [bpTablet, setBpTablet] = useState(768);
   const [bpDesktop, setBpDesktop] = useState(1200);
+  const [pageTransition, setPageTransition] = useState<PageTransition>("off");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -56,6 +63,7 @@ export default function GeneralSettingsPage() {
       setBpTablet(settings.breakpoints.tablet);
       setBpDesktop(settings.breakpoints.desktop);
     }
+    setPageTransition(settings.pageTransition ?? "off");
   }, [settings]);
 
   if (!user) return null;
@@ -83,6 +91,7 @@ export default function GeneralSettingsPage() {
         ogImageUrl,
         twitterHandle,
         breakpoints: { tablet: bpTablet, desktop: bpDesktop },
+        pageTransition,
       });
       await refresh();
       setSuccess(true);
@@ -429,6 +438,35 @@ export default function GeneralSettingsPage() {
           <p id="settings-bp-summary" className="text-sm text-text dark:text-text-dark">
             Mobile: below {bpTablet}px · Tablet: {bpTablet}–{bpDesktop - 1}px · Desktop: {bpDesktop}px and up
           </p>
+        </fieldset>
+
+        <fieldset
+          id="settings-page-transition"
+          className="settings-page-transition mt-4 flex flex-col gap-3 rounded-md border border-border p-4 dark:border-border-dark"
+        >
+          <legend className="px-1 text-lg font-bold text-text dark:text-text-dark">Page Transition</legend>
+          <p className="text-sm text-text-muted dark:text-text-muted-dark">
+            What visitors see on the website when they go from one page to another. Visitors whose device asks for less motion
+            don&apos;t get the fade.
+          </p>
+          {PAGE_TRANSITIONS.map((option) => (
+            <label key={option.value} className="flex cursor-pointer items-start gap-2 text-sm text-text dark:text-text-dark">
+              <input
+                id={`settings-page-transition-${option.value}`}
+                type="radio"
+                name="pageTransition"
+                value={option.value}
+                checked={pageTransition === option.value}
+                onChange={() => setPageTransition(option.value)}
+                className="mt-0.5 h-4 w-4 cursor-pointer"
+              />
+              <span>
+                <span className="font-medium">{option.label}</span>
+                <span className="block text-xs text-text-muted dark:text-text-muted-dark">{option.hint}</span>
+              </span>
+            </label>
+          ))}
+          <p className="text-xs text-text-muted dark:text-text-muted-dark">The website picks up a change within a minute.</p>
         </fieldset>
 
         <p id="settings-footer-moved" className="mt-4 text-sm text-text-muted dark:text-text-muted-dark">

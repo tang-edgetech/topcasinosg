@@ -43,6 +43,8 @@ type siteSettingsDTO struct {
 	Breakpoints domain.Breakpoints `json:"breakpoints"`
 	// Theme: the colours changed from the defaults (Settings > Theme).
 	Theme domain.ThemeConfig `json:"theme"`
+	// PageTransition: off, bar or bar_fade (Settings > General).
+	PageTransition string `json:"pageTransition"`
 }
 
 type socialDefaultsJSON struct {
@@ -75,6 +77,7 @@ func toSiteSettingsDTO(s *domain.SiteSettings) siteSettingsDTO {
 		Security:           s.Security,
 		Breakpoints:        s.Breakpoints,
 		Theme:              s.Theme,
+		PageTransition:     string(s.PageTransition),
 	}
 }
 
@@ -105,6 +108,7 @@ func siteSettingsErrorStatus(err error) int {
 		errors.Is(err, service.ErrInvalidLockout),
 		errors.Is(err, service.ErrInvalidPasswordLength),
 		errors.Is(err, service.ErrInvalidBreakpoints),
+		errors.Is(err, service.ErrInvalidPageTransition),
 		errors.Is(err, service.ErrInvalidThemeColor):
 		return http.StatusBadRequest
 	default:
@@ -131,6 +135,8 @@ type updateSiteSettingsRequest struct {
 	socialDefaultsJSON
 	// Optional: left out keeps the saved screen sizes.
 	Breakpoints *domain.Breakpoints `json:"breakpoints"`
+	// Optional: left out keeps the saved page transition.
+	PageTransition string `json:"pageTransition"`
 }
 
 func (h *SiteSettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
@@ -152,6 +158,7 @@ func (h *SiteSettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if req.Breakpoints != nil {
 		next.Breakpoints = *req.Breakpoints
 	}
+	next.PageTransition = domain.PageTransition(req.PageTransition)
 	if err := h.settings.Update(r.Context(), actor, next); err != nil {
 		response.Err(w, siteSettingsErrorStatus(err), err.Error())
 		return

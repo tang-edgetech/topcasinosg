@@ -34,3 +34,36 @@ body {
 .scroll-to-top {
   position: fixed;
 }
+
+/* Page transition (Site Settings > General; components/PageTransition.tsx).
+   The bar and the dimming wait 100ms, so instant page changes show
+   nothing. The bar creeps towards 85% while the page loads, then fills and
+   fades out. */
+.page-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  height: 3px;
+  width: 0;
+  opacity: 0;
+  background: var(--color-secondary-900);
+  pointer-events: none;
+}
+.page-progress.is-loading {
+  width: 85%;
+  opacity: 1;
+  transition: width 10s cubic-bezier(0.08, 0.75, 0.25, 1) 100ms, opacity 0s 100ms;
+}
+.page-progress.is-done {
+  width: 100%;
+  opacity: 0;
+  transition: width 0.2s ease-out, opacity 0.3s ease 0.2s;
+}
+#site-main.page-leaving {
+  opacity: 0.4;
+  transition: opacity 0.25s ease 100ms;
+}
+#site-main.page-returning {
+  transition: opacity 0.35s ease-out;
+}
