@@ -25,7 +25,7 @@ func toSectionTemplateDTO(t domain.SectionTemplate) SectionTemplateDTO {
 func (h *PageHandler) ListTemplates(w http.ResponseWriter, r *http.Request) {
 	templates, err := h.pages.ListTemplates(r.Context())
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load templates")
+		response.ServerErr(w, err, "could not load templates")
 		return
 	}
 	dtos := make([]SectionTemplateDTO, len(templates))

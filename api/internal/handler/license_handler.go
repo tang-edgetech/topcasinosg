@@ -51,7 +51,7 @@ func licenseErrorStatus(err error) int {
 func (h *LicenseHandler) List(w http.ResponseWriter, r *http.Request) {
 	licenses, err := h.licenses.List(r.Context())
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load licenses")
+		response.ServerErr(w, err, "could not load licenses")
 		return
 	}
 	dtos := make([]LicenseDTO, len(licenses))

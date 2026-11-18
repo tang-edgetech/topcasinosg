@@ -48,7 +48,7 @@ func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
 	actor := middleware.UserFromContext(r.Context())
 	users, err := h.users.List(r.Context(), actor)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load users")
+		response.ServerErr(w, err, "could not load users")
 		return
 	}
 	response.JSON(w, http.StatusOK, map[string]any{"users": toUserDTOs(users)})

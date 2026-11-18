@@ -41,3 +41,6 @@ func (w *notFoundAs200) WriteHeader(status int) {
 	}
 	w.ResponseWriter.WriteHeader(status)
 }
+
+// Unwrap lets response.ServerErr reach the monitor's writer underneath.
+func (w *notFoundAs200) Unwrap() http.ResponseWriter { return w.ResponseWriter }

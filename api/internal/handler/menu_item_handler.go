@@ -110,7 +110,7 @@ func (h *MenuItemHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	items, err := h.items.ListByLocation(r.Context(), location)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load menu items")
+		response.ServerErr(w, err, "could not load menu items")
 		return
 	}
 	dtos := make([]MenuItemDTO, len(items))
@@ -130,7 +130,7 @@ func (h *MenuItemHandler) ListPublic(w http.ResponseWriter, r *http.Request) {
 	}
 	items, err := h.items.ListByLocation(r.Context(), location)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load menu")
+		response.ServerErr(w, err, "could not load menu")
 		return
 	}
 	response.JSON(w, http.StatusOK, map[string]any{"items": buildMenuTree(items)})

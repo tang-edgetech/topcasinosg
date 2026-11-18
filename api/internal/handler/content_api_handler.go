@@ -228,7 +228,7 @@ type schemaBlockDTO struct {
 func (h *ContentAPIHandler) Schema(w http.ResponseWriter, r *http.Request) {
 	catalog, err := h.pages.FieldCatalog(r.Context())
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load the schema")
+		response.ServerErr(w, err, "could not load the schema")
 		return
 	}
 	// Documented fields first (exact values), then any other field the site
@@ -311,12 +311,12 @@ func (h *ContentAPIHandler) schemaComponents(r *http.Request) map[string]any {
 func (h *ContentAPIHandler) ListPages(w http.ResponseWriter, r *http.Request) {
 	pages, err := h.pages.List(r.Context())
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load pages")
+		response.ServerErr(w, err, "could not load pages")
 		return
 	}
 	paths, err := h.pages.PathsByID(r.Context())
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load pages")
+		response.ServerErr(w, err, "could not load pages")
 		return
 	}
 	dtos := make([]contentPageDTO, len(pages))
@@ -338,12 +338,12 @@ func (h *ContentAPIHandler) GetPage(w http.ResponseWriter, r *http.Request) {
 	}
 	sections, err := h.pages.Sections(r.Context(), id)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load the page")
+		response.ServerErr(w, err, "could not load the page")
 		return
 	}
 	paths, err := h.pages.PathsByID(r.Context())
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load the page")
+		response.ServerErr(w, err, "could not load the page")
 		return
 	}
 	inputs := service.SectionInputs(sections)
@@ -356,7 +356,7 @@ func (h *ContentAPIHandler) GetPage(w http.ResponseWriter, r *http.Request) {
 func (h *ContentAPIHandler) ListGlobalSections(w http.ResponseWriter, r *http.Request) {
 	globals, err := h.pages.ListGlobals(r.Context())
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load global sections")
+		response.ServerErr(w, err, "could not load global sections")
 		return
 	}
 	type globalDTO struct {
@@ -419,12 +419,12 @@ func (h *ContentAPIHandler) GetGlobalSection(w http.ResponseWriter, r *http.Requ
 	}
 	sections, err := h.pages.GlobalSections(r.Context(), id)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load the global section")
+		response.ServerErr(w, err, "could not load the global section")
 		return
 	}
 	used, err := h.globalUsage(r.Context(), id)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load the global section")
+		response.ServerErr(w, err, "could not load the global section")
 		return
 	}
 	inputs := service.SectionInputs(sections)
@@ -490,7 +490,7 @@ func (h *ContentAPIHandler) ListNews(w http.ResponseWriter, r *http.Request) {
 	pageSize, _ := strconv.Atoi(r.URL.Query().Get("pageSize"))
 	items, total, err := h.news.ListAdmin(r.Context(), page, pageSize)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load news")
+		response.ServerErr(w, err, "could not load news")
 		return
 	}
 	dtos := make([]contentNewsDTO, len(items))
@@ -518,7 +518,7 @@ func (h *ContentAPIHandler) ListMedia(w http.ResponseWriter, r *http.Request) {
 	pageSize, _ := strconv.Atoi(r.URL.Query().Get("pageSize"))
 	items, total, err := h.media.List(r.Context(), nil, page, pageSize)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load media")
+		response.ServerErr(w, err, "could not load media")
 		return
 	}
 	dtos := make([]MediaDTO, len(items))
@@ -786,7 +786,7 @@ func (h *ContentAPIHandler) ListOwnChanges(w http.ResponseWriter, r *http.Reques
 		Status: r.URL.Query().Get("status"), APIKeyID: &key.ID, Limit: 20, Offset: (page - 1) * 20,
 	})
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load changes")
+		response.ServerErr(w, err, "could not load changes")
 		return
 	}
 	dtos := make([]ContentChangeDTO, len(changes))
@@ -898,7 +898,7 @@ func (h *ContentAPIHandler) recordApplied(r *http.Request, c *domain.ContentChan
 func (h *ContentAPIHandler) ListKeys(w http.ResponseWriter, r *http.Request) {
 	keys, err := h.keys.List(r.Context())
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load API keys")
+		response.ServerErr(w, err, "could not load API keys")
 		return
 	}
 	dtos := make([]APIKeyDTO, len(keys))
@@ -960,7 +960,7 @@ func (h *ContentAPIHandler) ListChanges(w http.ResponseWriter, r *http.Request) 
 		Status: r.URL.Query().Get("status"), Limit: pageSize, Offset: (page - 1) * pageSize,
 	})
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load changes")
+		response.ServerErr(w, err, "could not load changes")
 		return
 	}
 	dtos := make([]ContentChangeDTO, len(changes))
@@ -973,7 +973,7 @@ func (h *ContentAPIHandler) ListChanges(w http.ResponseWriter, r *http.Request) 
 func (h *ContentAPIHandler) CountPending(w http.ResponseWriter, r *http.Request) {
 	n, err := h.changes.CountPending(r.Context())
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not count changes")
+		response.ServerErr(w, err, "could not count changes")
 		return
 	}
 	response.JSON(w, http.StatusOK, map[string]int{"pending": n})

@@ -26,6 +26,13 @@ const legacyDataFixMarker = "-- legacy-data-fix"
 // are done.
 const defaultMaxIdleConns = 2
 
+// How long a database connection is reused, and how long one may sit
+// unused, before it is replaced with a fresh one.
+const (
+	connMaxLifetime = 3 * time.Minute
+	connMaxIdleTime = time.Minute
+)
+
 // utcSessionTimeZone pins every connection to UTC, so DB-generated times
 // (DEFAULT CURRENT_TIMESTAMP, NOW()) match the UTC times the API writes and
 // reads, whatever time zone the MySQL server itself runs in.
@@ -49,6 +56,11 @@ func Open(dsn string) (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open mysql: %w", err)
 	}
+	// Replace connections well before MySQL (or a server restart, or the
+	// host's nightly maintenance) closes them from its side; an old one it
+	// had closed would otherwise fail the next request with a 500.
+	conn.SetConnMaxLifetime(connMaxLifetime)
+	conn.SetConnMaxIdleTime(connMaxIdleTime)
 	if err := conn.Ping(); err != nil {
 		return nil, fmt.Errorf("ping mysql: %w", err)
 	}

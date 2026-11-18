@@ -166,7 +166,7 @@ func (h *BonusHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	items, total, err := h.bonuses.ListAdmin(r.Context(), regionID, page, pageSize)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load bonuses")
+		response.ServerErr(w, err, "could not load bonuses")
 		return
 	}
 	dtos := make([]BonusDTO, len(items))
@@ -190,7 +190,7 @@ func (h *BonusHandler) ListPublic(w http.ResponseWriter, r *http.Request) {
 		}
 		items, total, err := h.bonuses.ListPublishedByCasino(r.Context(), casinoID, page, pageSize)
 		if err != nil {
-			response.Err(w, http.StatusInternalServerError, "could not load bonuses")
+			response.ServerErr(w, err, "could not load bonuses")
 			return
 		}
 		dtos := make([]BonusDTO, len(items))
@@ -212,7 +212,7 @@ func (h *BonusHandler) ListPublic(w http.ResponseWriter, r *http.Request) {
 	}
 	items, total, err := h.bonuses.ListPublished(r.Context(), regionCode, bonusType, page, pageSize)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load bonuses")
+		response.ServerErr(w, err, "could not load bonuses")
 		return
 	}
 	dtos := make([]BonusDTO, len(items))

@@ -130,7 +130,7 @@ func (h *NewsArticleHandler) List(w http.ResponseWriter, r *http.Request) {
 	page, pageSize := parsePaging(r)
 	items, total, err := h.news.ListAdmin(r.Context(), page, pageSize)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load news articles")
+		response.ServerErr(w, err, "could not load news articles")
 		return
 	}
 	dtos := make([]NewsArticleDTO, len(items))
@@ -144,7 +144,7 @@ func (h *NewsArticleHandler) ListPublic(w http.ResponseWriter, r *http.Request) 
 	page, pageSize := parsePaging(r)
 	items, total, err := h.news.ListPublished(r.Context(), page, pageSize)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load news articles")
+		response.ServerErr(w, err, "could not load news articles")
 		return
 	}
 	dtos := make([]NewsArticleDTO, len(items))

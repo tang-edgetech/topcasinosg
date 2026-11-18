@@ -36,7 +36,7 @@ func (h *HTMLExportHandler) Start(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, service.ErrHTMLExportSiteURL):
 		response.Err(w, http.StatusBadRequest, err.Error())
 	case err != nil:
-		response.Err(w, http.StatusInternalServerError, "could not start the export")
+		response.ServerErr(w, err, "could not start the export")
 	default:
 		response.JSON(w, http.StatusAccepted, map[string]any{"export": status})
 	}

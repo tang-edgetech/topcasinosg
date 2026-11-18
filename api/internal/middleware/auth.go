@@ -60,7 +60,7 @@ func Authenticate(jwtIssuer *security.JWTIssuer, users *repository.UserRepo, two
 			}
 			active, err := sessionActive(r.Context(), claims.UserID, claims.SID)
 			if err != nil {
-				response.Err(w, http.StatusInternalServerError, "could not check the session")
+				response.ServerErr(w, err, "could not check the session")
 				return
 			}
 			if !active {
@@ -70,7 +70,7 @@ func Authenticate(jwtIssuer *security.JWTIssuer, users *repository.UserRepo, two
 			if !claims.OTP {
 				required, err := twoFactorRequired(r.Context())
 				if err != nil {
-					response.Err(w, http.StatusInternalServerError, "could not check the 2FA setting")
+					response.ServerErr(w, err, "could not check the 2FA setting")
 					return
 				}
 				if required {

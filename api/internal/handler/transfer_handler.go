@@ -95,7 +95,7 @@ func (h *TransferHandler) Export(w http.ResponseWriter, r *http.Request) {
 
 	tmp, err := os.CreateTemp("", "tcsg-export-*.zip")
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not prepare the export")
+		response.ServerErr(w, err, "could not prepare the export")
 		return
 	}
 	defer os.Remove(tmp.Name())
@@ -108,11 +108,11 @@ func (h *TransferHandler) Export(w http.ResponseWriter, r *http.Request) {
 	}
 	size, err := tmp.Seek(0, io.SeekCurrent)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not build the export")
+		response.ServerErr(w, err, "could not build the export")
 		return
 	}
 	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not build the export")
+		response.ServerErr(w, err, "could not build the export")
 		return
 	}
 

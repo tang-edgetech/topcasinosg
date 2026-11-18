@@ -97,7 +97,7 @@ func (h *SeoHandler) Save(w http.ResponseWriter, r *http.Request) {
 	}
 	saved, err := h.seo.Get(r.Context(), entityType, id)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load SEO settings")
+		response.ServerErr(w, err, "could not load SEO settings")
 		return
 	}
 	response.JSON(w, http.StatusOK, map[string]any{"seo": toSeoMetaDTO(saved)})

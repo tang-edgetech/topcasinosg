@@ -131,7 +131,7 @@ func (h *BlacklistEntryHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	items, total, err := h.entries.ListAdmin(r.Context(), regionID, page, pageSize)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load blacklist entries")
+		response.ServerErr(w, err, "could not load blacklist entries")
 		return
 	}
 	dtos := make([]BlacklistEntryDTO, len(items))
@@ -152,7 +152,7 @@ func (h *BlacklistEntryHandler) ListPublic(w http.ResponseWriter, r *http.Reques
 	}
 	items, total, err := h.entries.ListPublished(r.Context(), regionCode, page, pageSize)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load blacklist entries")
+		response.ServerErr(w, err, "could not load blacklist entries")
 		return
 	}
 	dtos := make([]BlacklistEntryDTO, len(items))

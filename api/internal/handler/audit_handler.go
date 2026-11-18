@@ -103,7 +103,7 @@ func (h *AuditHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	logs, total, err := h.audit.List(r.Context(), actor, filter)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load activity")
+		response.ServerErr(w, err, "could not load activity")
 		return
 	}
 	dtos := make([]AuditLogDTO, len(logs))
@@ -117,7 +117,7 @@ func (h *AuditHandler) Actors(w http.ResponseWriter, r *http.Request) {
 	actor := middleware.UserFromContext(r.Context())
 	actors, err := h.audit.Actors(r.Context(), actor)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load users")
+		response.ServerErr(w, err, "could not load users")
 		return
 	}
 	dtos := make([]AuditActorDTO, len(actors))

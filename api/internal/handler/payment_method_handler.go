@@ -122,7 +122,7 @@ func (h *PaymentMethodHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	items, total, err := h.paymentMethods.ListAdmin(r.Context(), regionID, page, pageSize)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load payment methods")
+		response.ServerErr(w, err, "could not load payment methods")
 		return
 	}
 	dtos := make([]PaymentMethodDTO, len(items))
@@ -141,7 +141,7 @@ func (h *PaymentMethodHandler) ListPublic(w http.ResponseWriter, r *http.Request
 	page, pageSize := parsePaging(r)
 	items, total, err := h.paymentMethods.ListPublished(r.Context(), regionCode, page, pageSize)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load payment methods")
+		response.ServerErr(w, err, "could not load payment methods")
 		return
 	}
 	dtos := make([]PaymentMethodDTO, len(items))

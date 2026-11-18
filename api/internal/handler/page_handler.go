@@ -111,12 +111,12 @@ func pageErrorStatus(err error) int {
 func (h *PageHandler) List(w http.ResponseWriter, r *http.Request) {
 	pages, err := h.pages.List(r.Context())
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load pages")
+		response.ServerErr(w, err, "could not load pages")
 		return
 	}
 	paths, err := h.pages.PathsByID(r.Context())
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not compute page paths")
+		response.ServerErr(w, err, "could not compute page paths")
 		return
 	}
 	dtos := make([]PageDTO, len(pages))
@@ -139,12 +139,12 @@ func (h *PageHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 	sections, err := h.pages.Sections(r.Context(), id)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load page sections")
+		response.ServerErr(w, err, "could not load page sections")
 		return
 	}
 	paths, err := h.pages.PathsByID(r.Context())
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not compute page paths")
+		response.ServerErr(w, err, "could not compute page paths")
 		return
 	}
 	response.JSON(w, http.StatusOK, map[string]any{"page": toPageDTO(page, paths), "sections": toSectionDTOs(sections)})
@@ -163,7 +163,7 @@ func (h *PageHandler) GetPublic(w http.ResponseWriter, r *http.Request) {
 	}
 	sections, err := h.pages.Sections(r.Context(), page.ID)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load page sections")
+		response.ServerErr(w, err, "could not load page sections")
 		return
 	}
 	response.JSON(w, http.StatusOK, map[string]any{"page": toPageDTO(page, nil), "sections": toSectionDTOs(sections)})
@@ -192,7 +192,7 @@ func (h *PageHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	paths, err := h.pages.PathsByID(r.Context())
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not compute page paths")
+		response.ServerErr(w, err, "could not compute page paths")
 		return
 	}
 	response.JSON(w, http.StatusCreated, map[string]any{"page": toPageDTO(page, paths)})
@@ -308,7 +308,7 @@ func (h *PageHandler) Reorder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.pages.Reorder(r.Context(), req.ParentID, req.PageIDs); err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not reorder pages")
+		response.ServerErr(w, err, "could not reorder pages")
 		return
 	}
 	response.JSON(w, http.StatusOK, map[string]bool{"updated": true})

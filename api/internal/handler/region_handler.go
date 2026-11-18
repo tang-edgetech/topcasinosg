@@ -72,7 +72,7 @@ func regionErrorStatus(err error) int {
 func (h *RegionHandler) List(w http.ResponseWriter, r *http.Request) {
 	regions, err := h.regions.List(r.Context())
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load regions")
+		response.ServerErr(w, err, "could not load regions")
 		return
 	}
 	response.JSON(w, http.StatusOK, map[string]any{"regions": toRegionDTOs(regions)})
@@ -82,7 +82,7 @@ func (h *RegionHandler) List(w http.ResponseWriter, r *http.Request) {
 func (h *RegionHandler) ListPublic(w http.ResponseWriter, r *http.Request) {
 	regions, err := h.regions.ListActive(r.Context())
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load regions")
+		response.ServerErr(w, err, "could not load regions")
 		return
 	}
 	response.JSON(w, http.StatusOK, map[string]any{"regions": toRegionDTOs(regions)})

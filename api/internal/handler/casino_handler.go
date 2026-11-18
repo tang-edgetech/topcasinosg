@@ -197,7 +197,7 @@ func (h *CasinoHandler) List(w http.ResponseWriter, r *http.Request) {
 	page, pageSize := parsePaging(r)
 	items, total, err := h.casinos.ListAdmin(r.Context(), page, pageSize)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load casinos")
+		response.ServerErr(w, err, "could not load casinos")
 		return
 	}
 	dtos := make([]CasinoDTO, len(items))
@@ -219,7 +219,7 @@ func (h *CasinoHandler) ListPublic(w http.ResponseWriter, r *http.Request) {
 	}
 	items, total, err := h.casinos.ListPublished(r.Context(), regionCode, gameType, page, pageSize)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load casinos")
+		response.ServerErr(w, err, "could not load casinos")
 		return
 	}
 	dtos := make([]CasinoDTO, len(items))

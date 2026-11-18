@@ -59,7 +59,7 @@ func sidebarErrorStatus(err error) int {
 func (h *SidebarHandler) Get(w http.ResponseWriter, r *http.Request) {
 	sections, err := h.sidebar.GetAll(r.Context())
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load sidebar")
+		response.ServerErr(w, err, "could not load sidebar")
 		return
 	}
 	dtos := make([]SidebarSectionDTO, len(sections))

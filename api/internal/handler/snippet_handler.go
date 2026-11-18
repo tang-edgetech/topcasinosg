@@ -152,7 +152,7 @@ func (h *SnippetHandler) Revisions(w http.ResponseWriter, r *http.Request) {
 func (h *SnippetHandler) List(w http.ResponseWriter, r *http.Request) {
 	snippets, err := h.snippets.List(r.Context())
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load snippets")
+		response.ServerErr(w, err, "could not load snippets")
 		return
 	}
 	dtos := make([]SnippetDTO, len(snippets))
@@ -172,7 +172,7 @@ func (h *SnippetHandler) GetPublic(w http.ResponseWriter, r *http.Request) {
 	}
 	grouped, err := h.snippets.ListMatchingGrouped(r.Context(), path)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load snippets")
+		response.ServerErr(w, err, "could not load snippets")
 		return
 	}
 	response.JSON(w, http.StatusOK, map[string]any{

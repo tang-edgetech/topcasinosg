@@ -51,7 +51,7 @@ func gameProviderErrorStatus(err error) int {
 func (h *GameProviderHandler) List(w http.ResponseWriter, r *http.Request) {
 	providers, err := h.providers.List(r.Context())
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load game providers")
+		response.ServerErr(w, err, "could not load game providers")
 		return
 	}
 	dtos := make([]GameProviderDTO, len(providers))

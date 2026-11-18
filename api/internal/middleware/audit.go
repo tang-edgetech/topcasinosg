@@ -288,6 +288,9 @@ func (w *auditResponseRecorder) Write(p []byte) (int, error) {
 	return w.ResponseWriter.Write(p)
 }
 
+// Unwrap lets response.ServerErr reach the monitor's writer underneath.
+func (w *auditResponseRecorder) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
 // DecodeEnvelopeData unwraps {"success":true,"data":{"casino":{...}}} to the
 // record itself; a data object with several keys is returned as-is.
 func DecodeEnvelopeData(raw []byte) map[string]any {

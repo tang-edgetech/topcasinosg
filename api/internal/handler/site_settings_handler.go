@@ -129,7 +129,7 @@ func siteSettingsErrorStatus(err error) int {
 func (h *SiteSettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	settings, err := h.settings.Get(r.Context())
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load site settings")
+		response.ServerErr(w, err, "could not load site settings")
 		return
 	}
 	response.JSON(w, http.StatusOK, toSiteSettingsDTO(settings))
@@ -236,7 +236,7 @@ type themeColorDTO struct {
 func (h *SiteSettingsHandler) GetTheme(w http.ResponseWriter, r *http.Request) {
 	settings, err := h.settings.Get(r.Context())
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load the theme")
+		response.ServerErr(w, err, "could not load the theme")
 		return
 	}
 	colors := make([]themeColorDTO, len(domain.ThemeColors))
@@ -372,13 +372,13 @@ func (h *SiteSettingsHandler) saveUpload(w http.ResponseWriter, r *http.Request,
 
 	filename, err := storage.GenerateFilename(field, ext)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not generate file name")
+		response.ServerErr(w, err, "could not generate file name")
 		return "", false
 	}
 
 	url, err := h.storage.Save(r.Context(), filename, file)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not save file")
+		response.ServerErr(w, err, "could not save file")
 		return "", false
 	}
 

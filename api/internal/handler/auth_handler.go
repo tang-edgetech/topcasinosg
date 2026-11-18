@@ -81,7 +81,7 @@ func authErrorStatus(err error) int {
 func (h *AuthHandler) BootstrapStatus(w http.ResponseWriter, r *http.Request) {
 	needsBootstrap, err := h.auth.NeedsBootstrap(r.Context())
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not check setup status")
+		response.ServerErr(w, err, "could not check setup status")
 		return
 	}
 	response.JSON(w, http.StatusOK, map[string]bool{"needsBootstrap": needsBootstrap})
@@ -287,12 +287,12 @@ func (h *AuthHandler) ListOTPDevices(w http.ResponseWriter, r *http.Request) {
 	user := middleware.UserFromContext(r.Context())
 	devices, err := h.auth.ListOTPDevices(r.Context(), user)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load authenticator apps")
+		response.ServerErr(w, err, "could not load authenticator apps")
 		return
 	}
 	required, err := h.auth.TwoFactorRequired(r.Context())
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load authenticator apps")
+		response.ServerErr(w, err, "could not load authenticator apps")
 		return
 	}
 	dtos := make([]OTPDeviceDTO, len(devices))
@@ -374,7 +374,7 @@ type SessionDTO struct {
 func (h *AuthHandler) ListSessions(w http.ResponseWriter, r *http.Request) {
 	sessions, err := h.auth.ListSessions(r.Context(), middleware.UserFromContext(r.Context()))
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load sessions")
+		response.ServerErr(w, err, "could not load sessions")
 		return
 	}
 	current := middleware.SessionIDFromContext(r.Context())
@@ -395,7 +395,7 @@ func (h *AuthHandler) RevokeSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not sign the session out")
+		response.ServerErr(w, err, "could not sign the session out")
 		return
 	}
 	response.JSON(w, http.StatusOK, map[string]bool{"signedOut": true})
@@ -404,7 +404,7 @@ func (h *AuthHandler) RevokeSession(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) RevokeOtherSessions(w http.ResponseWriter, r *http.Request) {
 	n, err := h.auth.RevokeOtherSessions(r.Context(), middleware.UserFromContext(r.Context()), middleware.SessionIDFromContext(r.Context()))
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not sign the other sessions out")
+		response.ServerErr(w, err, "could not sign the other sessions out")
 		return
 	}
 	response.JSON(w, http.StatusOK, map[string]int64{"signedOut": n})

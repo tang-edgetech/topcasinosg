@@ -82,7 +82,7 @@ func componentError(w http.ResponseWriter, err error) {
 	case errors.Is(err, service.ErrComponentInUse):
 		response.Err(w, http.StatusConflict, err.Error())
 	default:
-		response.Err(w, http.StatusInternalServerError, "could not save the component")
+		response.ServerErr(w, err, "could not save the component")
 	}
 }
 
@@ -100,7 +100,7 @@ func componentID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 func (h *ComponentHandler) List(w http.ResponseWriter, r *http.Request) {
 	components, err := h.components.List(r.Context())
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load components")
+		response.ServerErr(w, err, "could not load components")
 		return
 	}
 	dtos := make([]componentSummaryDTO, len(components))
@@ -259,7 +259,7 @@ func (h *ComponentHandler) GetPublic(w http.ResponseWriter, r *http.Request) {
 func (h *ComponentHandler) APIList(w http.ResponseWriter, r *http.Request) {
 	components, err := h.components.List(r.Context())
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load components")
+		response.ServerErr(w, err, "could not load components")
 		return
 	}
 	dtos := make([]componentSummaryDTO, len(components))

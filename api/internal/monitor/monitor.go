@@ -117,9 +117,12 @@ func (m *Monitor) Middleware(next http.Handler) http.Handler {
 					response.Err(rec, http.StatusInternalServerError, "internal server error")
 				}
 			case rec.status() >= 500:
-				m.Log.Error("server error", append(attrs, "status", rec.status())...)
-				m.Alerts.Alert(fmt.Sprintf("%d %s", rec.status(), route), fmt.Sprintf("HTTP %d: %s", rec.status(), route),
-					fmt.Sprintf("%s %s\ntook %s", r.Method, path, dur.Round(time.Millisecond)))
+				details := fmt.Sprintf("%s %s\ntook %s", r.Method, path, dur.Round(time.Millisecond))
+				if rec.cause != "" {
+					details += "\nerror: " + rec.cause
+				}
+				m.Log.Error("server error", append(attrs, "status", rec.status(), "error", rec.cause)...)
+				m.Alerts.Alert(fmt.Sprintf("%d %s", rec.status(), route), fmt.Sprintf("HTTP %d: %s", rec.status(), route), details)
 			case timed && m.slow > 0 && dur >= m.slow:
 				m.Log.Warn("slow request", append(attrs, "status", rec.status())...)
 				if !hungAlerted {
@@ -233,6 +236,14 @@ type statusRecorder struct {
 	http.ResponseWriter
 	code        int
 	wroteHeader bool
+	cause       string // why a 5xx happened (response.ServerErr), first one wins
+}
+
+// RecordCause is called by the response package when it answers 5xx.
+func (s *statusRecorder) RecordCause(cause string) {
+	if s.cause == "" {
+		s.cause = cause
+	}
 }
 
 func (s *statusRecorder) WriteHeader(code int) {

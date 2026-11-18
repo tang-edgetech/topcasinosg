@@ -23,7 +23,12 @@ func JSON(w http.ResponseWriter, status int, data any) {
 	json.NewEncoder(w).Encode(envelope{Success: true, Data: data})
 }
 
+// Err answers with an error message. For a 5xx the message also goes to the
+// monitor as the reason, unless ServerErr already gave it the real error.
 func Err(w http.ResponseWriter, status int, message string) {
+	if status >= http.StatusInternalServerError {
+		recordCause(w, message)
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(envelope{Success: false, Error: &apiError{Message: message}})

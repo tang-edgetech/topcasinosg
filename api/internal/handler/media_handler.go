@@ -101,7 +101,7 @@ func (h *MediaHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	items, total, err := h.media.List(r.Context(), kind, page, pageSize)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load media")
+		response.ServerErr(w, err, "could not load media")
 		return
 	}
 

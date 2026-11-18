@@ -29,7 +29,7 @@ type globalSectionRequest struct {
 func (h *PageHandler) ListGlobals(w http.ResponseWriter, r *http.Request) {
 	globals, err := h.pages.ListGlobals(r.Context())
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load global sections")
+		response.ServerErr(w, err, "could not load global sections")
 		return
 	}
 	dtos := make([]GlobalSectionDTO, len(globals))

@@ -148,7 +148,7 @@ func (h *RTPEntryHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	items, total, err := h.entries.ListAdmin(r.Context(), regionID, page, pageSize)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load rtp entries")
+		response.ServerErr(w, err, "could not load rtp entries")
 		return
 	}
 	dtos := make([]RTPEntryDTO, len(items))
@@ -173,7 +173,7 @@ func (h *RTPEntryHandler) ListPublic(w http.ResponseWriter, r *http.Request) {
 		}
 		items, total, err := h.entries.ListPublishedByCasino(r.Context(), casinoID, page, pageSize)
 		if err != nil {
-			response.Err(w, http.StatusInternalServerError, "could not load rtp entries")
+			response.ServerErr(w, err, "could not load rtp entries")
 			return
 		}
 		dtos := make([]RTPEntryDTO, len(items))
@@ -192,7 +192,7 @@ func (h *RTPEntryHandler) ListPublic(w http.ResponseWriter, r *http.Request) {
 	categories := parseRTPCategories(r.URL.Query().Get("category"))
 	items, total, err := h.entries.ListPublished(r.Context(), regionCode, categories, page, pageSize)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load rtp entries")
+		response.ServerErr(w, err, "could not load rtp entries")
 		return
 	}
 	dtos := make([]RTPEntryDTO, len(items))

@@ -3,6 +3,7 @@ package monitor
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/tang-edgetech/topcasinosg/api/internal/response"
 )
 
 // fakeTelegram records sendMessage calls.
@@ -245,5 +248,43 @@ func TestNormalizePath(t *testing.T) {
 		if got := normalizePath(in); got != want {
 			t.Errorf("normalizePath(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// wrapWriter stands in for middleware that wraps the writer (audit log).
+type wrapWriter struct{ http.ResponseWriter }
+
+func (w wrapWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
+func TestServerErrorCarriesCause(t *testing.T) {
+	tg, fake, _ := newTestTelegram(t)
+	m, logs := newTestMonitor(t, tg)
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/regions", func(w http.ResponseWriter, _ *http.Request) {
+		response.ServerErr(wrapWriter{w}, errors.New("dial tcp 127.0.0.1:3306: connect: connection refused"), "could not load regions")
+	})
+	mux.HandleFunc("GET /api/casinos", func(w http.ResponseWriter, _ *http.Request) {
+		response.Err(w, http.StatusInternalServerError, "Error 1054: Unknown column 'x'")
+	})
+	h := m.Middleware(mux)
+	for _, p := range []string{"/api/regions", "/api/casinos"} {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, p, nil))
+		if rec.Code != http.StatusInternalServerError {
+			t.Fatalf("%s = %d", p, rec.Code)
+		}
+		if p == "/api/regions" && strings.Contains(rec.Body.String(), "3306") {
+			t.Errorf("the visitor saw the internal error: %s", rec.Body.String())
+		}
+	}
+	fake.waitFor(t, 2)
+	all := strings.Join(fake.msgs, "\n---\n")
+	for _, want := range []string{"error: dial tcp 127.0.0.1:3306: connect: connection refused", "error: Error 1054: Unknown column"} {
+		if !strings.Contains(all, want) {
+			t.Errorf("alerts missing %q:\n%s", want, all)
+		}
+	}
+	if !strings.Contains(logs.String(), `"error":"dial tcp`) {
+		t.Errorf("log missing the cause:\n%s", logs.String())
 	}
 }

@@ -22,7 +22,7 @@ func NewSystemHandler(system *service.SystemService) *SystemHandler {
 func (h *SystemHandler) Status(w http.ResponseWriter, r *http.Request) {
 	status, err := h.system.Status(r.Context())
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "Could not load the server status.")
+		response.ServerErr(w, err, "Could not load the server status.")
 		return
 	}
 	response.JSON(w, http.StatusOK, status)

@@ -140,7 +140,7 @@ func (h *GuideHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	items, total, err := h.guides.ListAdmin(r.Context(), regionID, page, pageSize)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load guides")
+		response.ServerErr(w, err, "could not load guides")
 		return
 	}
 	dtos := make([]GuideDTO, len(items))
@@ -161,7 +161,7 @@ func (h *GuideHandler) ListPublic(w http.ResponseWriter, r *http.Request) {
 	}
 	items, total, err := h.guides.ListPublished(r.Context(), regionCode, page, pageSize)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load guides")
+		response.ServerErr(w, err, "could not load guides")
 		return
 	}
 	dtos := make([]GuideDTO, len(items))

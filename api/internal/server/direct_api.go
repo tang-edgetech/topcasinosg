@@ -367,7 +367,7 @@ func (b *recycleBin) moveToBin(w http.ResponseWriter, r *http.Request, itemType 
 	ctx := r.Context()
 	label, status, publishAt, found, err := b.itemState(ctx, itemType, id)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "something went wrong on the server; try again")
+		response.ServerErr(w, err, "something went wrong on the server; try again")
 		return
 	}
 	if !found {
@@ -386,7 +386,7 @@ func (b *recycleBin) moveToBin(w http.ResponseWriter, r *http.Request, itemType 
 		return
 	}
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "something went wrong on the server; try again")
+		response.ServerErr(w, err, "something went wrong on the server; try again")
 		return
 	}
 	if code, body := b.setState(ctx, itemType, id, offSiteStatus(itemType), nil); code != http.StatusOK {
@@ -397,7 +397,7 @@ func (b *recycleBin) moveToBin(w http.ResponseWriter, r *http.Request, itemType 
 	b.record(r, "move to recycle bin", itemType, id, label)
 	saved, err := b.repo.Get(ctx, binID)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "something went wrong on the server; try again")
+		response.ServerErr(w, err, "something went wrong on the server; try again")
 		return
 	}
 	response.JSON(w, http.StatusOK, map[string]any{
@@ -422,7 +422,7 @@ func (b *recycleBin) record(r *http.Request, action, itemType string, id int64, 
 func (b *recycleBin) list(w http.ResponseWriter, r *http.Request) {
 	items, err := b.repo.List(r.Context(), nil)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "could not load the Recycle Bin")
+		response.ServerErr(w, err, "could not load the Recycle Bin")
 		return
 	}
 	dtos := make([]recycleBinItemDTO, len(items))
@@ -460,7 +460,7 @@ func (b *recycleBin) restore(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx := actingContext(r)
 	if _, _, _, found, err := b.itemState(ctx, item.ItemType, item.ItemID); err != nil {
-		response.Err(w, http.StatusInternalServerError, "something went wrong on the server; try again")
+		response.ServerErr(w, err, "something went wrong on the server; try again")
 		return
 	} else if !found {
 		_ = b.repo.Remove(ctx, item.ID)
@@ -472,7 +472,7 @@ func (b *recycleBin) restore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := b.repo.Remove(ctx, item.ID); err != nil {
-		response.Err(w, http.StatusInternalServerError, "something went wrong on the server; try again")
+		response.ServerErr(w, err, "something went wrong on the server; try again")
 		return
 	}
 	b.record(r, "restore from recycle bin", item.ItemType, item.ItemID, item.Label)
@@ -489,7 +489,7 @@ func (b *recycleBin) deleteNow(w http.ResponseWriter, r *http.Request) {
 	}
 	code, body, err := b.purge(actingContext(r), item)
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "something went wrong on the server; try again")
+		response.ServerErr(w, err, "something went wrong on the server; try again")
 		return
 	}
 	if code != http.StatusOK && code != http.StatusNotFound {
