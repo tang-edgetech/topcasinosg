@@ -7,6 +7,7 @@ import SectionRenderer from "@/components/sections/SectionRenderer";
 import IntroductionSectionBlock from "@/components/sections/IntroductionSectionBlock";
 import PageGrid from "@/components/PageGrid";
 import RawHtmlBlock from "@/components/RawHtmlBlock";
+import ItemSchema from "@/components/ItemSchema";
 import { buildPageMenu, regionMenuLabel } from "./_lib/pageMenu";
 import { getActiveRegionByCode, getBonuses, getGuides, getPaymentMethods, getRtpEntries } from "./_lib/api";
 
@@ -58,6 +59,7 @@ export default async function RegionOverviewPage({
 
     return (
       <div id="region-overview-page" className="region-overview flex flex-1 flex-col">
+        <ItemSchema type="page" id={result.page.id} />
         <RawHtmlBlock html={`${result.page.headSnippet}${result.page.bodySnippet}`} />
         <PageGrid>
           {hasIntro && <IntroductionSectionBlock section={first} fallbackPageMenu={pageMenu} currentPath={`/${region}`} />}

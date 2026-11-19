@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/tang-edgetech/topcasinosg/api/internal/domain"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -56,5 +57,27 @@ func TestAskedForDryRunTooLarge(t *testing.T) {
 	r.Header.Set("Content-Type", "application/json")
 	if _, err := askedForDryRun(httptest.NewRecorder(), r); err == nil {
 		t.Fatal("want an error for a body over the limit")
+	}
+}
+
+func TestDirectScope(t *testing.T) {
+	cases := []struct {
+		path  string
+		scope string
+		ok    bool
+	}{
+		{"redirects", domain.APIScopeNavigation, true},
+		{"redirects/7", domain.APIScopeNavigation, true},
+		{"menu-items", domain.APIScopeNavigation, true},
+		{"seo/page/12", domain.APIScopePages, true},
+		{"pages/12/snippets", domain.APIScopeSnippets, true},
+		{"users", "", false},
+		{"api-keys", "", false},
+	}
+	for _, c := range cases {
+		scope, ok := directScope(c.path)
+		if ok != c.ok || scope != c.scope {
+			t.Errorf("directScope(%q) = %q, %v; want %q, %v", c.path, scope, ok, c.scope, c.ok)
+		}
 	}
 }

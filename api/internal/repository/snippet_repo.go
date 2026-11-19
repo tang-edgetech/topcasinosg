@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"net/url"
 	"sort"
+	"strings"
 
 	"github.com/tang-edgetech/topcasinosg/api/internal/domain"
 )
@@ -263,12 +265,25 @@ func (r *SnippetRepo) Delete(ctx context.Context, id int64) error {
 }
 
 // ResolvePageIDForPath maps a request path to a Pages-CMS page id, for
-// "Page is/is not" condition matching. Only "/" (the Homepage) is backed by
-// the Pages CMS today — every other route returns nil, which correctly
-// makes "Page is X" always false and "Page is not X" always true there.
+// "Page is/is not" condition matching. "/" is the Homepage (slug "home");
+// any other path is followed through the page tree slug by slug, the same
+// walk the website uses to find a page (PageService.ResolvePath), so
+// "/terms" is the top-level page "terms" and "/safety/scams" is "scams"
+// under "safety". nil when no page lives at that path (a casino review, a
+// list page...), which makes "Page is X" false and "Page is not X" true.
 func (r *SnippetRepo) ResolvePageIDForPath(ctx context.Context, path string) (*int64, error) {
-	if path != "/" {
-		return nil, nil
+	var segments []string
+	for _, s := range strings.Split(path, "/") {
+		if s == "" {
+			continue
+		}
+		if decoded, err := url.PathUnescape(s); err == nil {
+			s = decoded
+		}
+		segments = append(segments, s)
+	}
+	if len(segments) > 0 {
+		return r.pageIDAtPath(ctx, segments)
 	}
 	var id int64
 	err := r.db.QueryRowContext(ctx, `SELECT id FROM pages WHERE slug = 'home'`).Scan(&id)
@@ -279,6 +294,46 @@ func (r *SnippetRepo) ResolvePageIDForPath(ctx context.Context, path string) (*i
 		return nil, err
 	}
 	return &id, nil
+}
+
+// pageIDAtPath finds the page at this chain of slugs (root first).
+func (r *SnippetRepo) pageIDAtPath(ctx context.Context, segments []string) (*int64, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT id, COALESCE(parent_id, 0), slug FROM pages WHERE kind = 'page'`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	type node struct {
+		id   int64
+		slug string
+	}
+	children := map[int64][]node{}
+	for rows.Next() {
+		var n node
+		var parent int64
+		if err := rows.Scan(&n.id, &parent, &n.slug); err != nil {
+			return nil, err
+		}
+		children[parent] = append(children[parent], n)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	var parent int64
+	for _, segment := range segments {
+		found := false
+		for _, n := range children[parent] {
+			if n.slug == segment {
+				parent, found = n.id, true
+				break
+			}
+		}
+		if !found {
+			return nil, nil
+		}
+	}
+	return &parent, nil
 }
 
 // ListMatchingGrouped is the public website's read: every active 'global'

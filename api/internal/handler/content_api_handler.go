@@ -733,7 +733,7 @@ func keyEndpoints(key *domain.APIKey) []string {
 		domain.APIScopeGuides:         "guides",
 		domain.APIScopeBlacklist:      "blacklist",
 		domain.APIScopeRegions:        "regions (PUT /api/v1/regions/{id}/active {active} instead of delete)",
-		domain.APIScopeNavigation:     "menu-items (header and footer menus: {location: \"header\" | \"footer\", parentId, label, href, sourceType: \"static\" | \"dynamic_regions\" | \"dynamic_casinos\", sortOrder}; DELETE /api/v1/menu-items/{id} deletes one with nothing under it), sidebar (GET, then PUT the whole sidebar back)",
+		domain.APIScopeNavigation:     "menu-items (header and footer menus: {location: \"header\" | \"footer\", parentId, label, href, sourceType: \"static\" | \"dynamic_regions\" | \"dynamic_casinos\", sortOrder}; DELETE /api/v1/menu-items/{id} deletes one with nothing under it), sidebar (GET, then PUT the whole sidebar back), redirects (old website addresses sent on to new ones: {fromPath: \"/old-address\", toUrl: \"/new-address\" or a full https:// address, statusCode: 301 permanent | 302 temporary, active, note}; switch one off with PUT {..., active: false}, a key can't delete it)",
 		domain.APIScopeSnippets:       "snippets (PUT /api/v1/snippets/{id}/active {active}), pages/{id}/snippets",
 		domain.APIScopeSettings:       "settings/site and settings/footer (GET, then PUT them back changed); settings/theme, the website's colours: GET lists every colour token with its default and current value, PUT {\"colors\": {\"primary-500\": \"#3e4ba8\", ...}} replaces the whole theme (a colour left out goes back to its default, so send every changed one)",
 	}

@@ -28,7 +28,7 @@ const SCOPES: { value: APIScope; label: string; help: string; directOnly?: boole
   { value: "guides", label: "Guides", help: "Guides.", directOnly: true },
   { value: "blacklist", label: "Blacklist", help: "Blacklisted casinos.", directOnly: true },
   { value: "regions", label: "Regions", help: "Countries: edit and switch on or off.", directOnly: true },
-  { value: "navigation", label: "Navigation", help: "Header and footer menus, and the sidebar.", directOnly: true },
+  { value: "navigation", label: "Navigation", help: "Header and footer menus, the sidebar, and Redirects.", directOnly: true },
   { value: "snippets", label: "Snippets", help: "Code added to the site's head, body or footer.", directOnly: true },
   { value: "settings", label: "Site Settings", help: "Site title, logo, footer text and contact details.", directOnly: true },
 ];

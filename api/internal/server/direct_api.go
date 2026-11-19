@@ -41,7 +41,8 @@ var areaScopes = map[string]string{
 	"casinos": domain.APIScopeCasinos, "game-providers": domain.APIScopeCasinos, "licenses": domain.APIScopeCasinos,
 	"bonuses": domain.APIScopeBonuses, "payment-methods": domain.APIScopePaymentMethods, "rtp": domain.APIScopeRTP,
 	"guides": domain.APIScopeGuides, "blacklist": domain.APIScopeBlacklist, "regions": domain.APIScopeRegions,
-	"menu-items": domain.APIScopeNavigation, "sidebar": domain.APIScopeNavigation, "snippets": domain.APIScopeSnippets,
+	"menu-items": domain.APIScopeNavigation, "sidebar": domain.APIScopeNavigation, "redirects": domain.APIScopeNavigation,
+	"snippets": domain.APIScopeSnippets,
 }
 
 // settingsPaths: the Site Settings a key may change (not 2FA or security).

@@ -3,6 +3,7 @@ import { cmsPageMetadata } from "@/lib/seo";
 import { getPage } from "@/lib/pages";
 import SectionRenderer from "@/components/sections/SectionRenderer";
 import RawHtmlBlock from "@/components/RawHtmlBlock";
+import ItemSchema from "@/components/ItemSchema";
 import PageGrid from "@/components/PageGrid";
 
 /**
@@ -22,6 +23,7 @@ export default async function CalculatorPage() {
 
   return (
     <div id="calculator-page" className="calculator-page flex flex-1 flex-col">
+      {result && <ItemSchema type="page" id={result.page.id} />}
       {result && <RawHtmlBlock html={`${result.page.headSnippet}${result.page.bodySnippet}`} />}
       {result && result.sections.length > 0 ? (
         <PageGrid>

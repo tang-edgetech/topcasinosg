@@ -8,6 +8,7 @@ import IntroductionSectionBlock from "@/components/sections/IntroductionSectionB
 import SectionRenderer from "@/components/sections/SectionRenderer";
 import PageGrid from "@/components/PageGrid";
 import RawHtmlBlock from "@/components/RawHtmlBlock";
+import ItemSchema from "@/components/ItemSchema";
 
 /**
  * /{region}/payment-methods — a real "payment-methods" page nested under
@@ -63,6 +64,7 @@ export default async function RegionPaymentMethodsPage({
 
   return (
     <div id="region-payment-methods-page" className="region-payment-methods flex flex-1 flex-col">
+      {result && <ItemSchema type="page" id={result.page.id} />}
       {result && <RawHtmlBlock html={`${result.page.headSnippet}${result.page.bodySnippet}`} />}
       <PageGrid>
         {intro}

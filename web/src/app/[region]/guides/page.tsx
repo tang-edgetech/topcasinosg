@@ -8,6 +8,7 @@ import IntroductionSection from "@/components/IntroductionSection";
 import SectionRenderer from "@/components/sections/SectionRenderer";
 import PageGrid from "@/components/PageGrid";
 import RawHtmlBlock from "@/components/RawHtmlBlock";
+import ItemSchema from "@/components/ItemSchema";
 
 /**
  * /{region}/guides — a real "guides" page nested under each region root
@@ -54,6 +55,7 @@ export default async function RegionGuidesPage({
 
   return (
     <div id="region-guides-page" className="region-guides flex flex-1 flex-col">
+      {result && <ItemSchema type="page" id={result.page.id} />}
       {result && <RawHtmlBlock html={`${result.page.headSnippet}${result.page.bodySnippet}`} />}
       <PageGrid>
         {intro}

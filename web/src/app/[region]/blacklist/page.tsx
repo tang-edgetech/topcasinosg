@@ -7,6 +7,7 @@ import IntroductionSection from "@/components/IntroductionSection";
 import SectionRenderer from "@/components/sections/SectionRenderer";
 import PageGrid from "@/components/PageGrid";
 import RawHtmlBlock from "@/components/RawHtmlBlock";
+import ItemSchema from "@/components/ItemSchema";
 
 /**
  * /{region}/blacklist — a real "blacklist" page nested under each region
@@ -56,6 +57,7 @@ export default async function RegionBlacklistPage({
 
   return (
     <div id="region-blacklist-page" className="region-blacklist flex flex-1 flex-col">
+      {result && <ItemSchema type="page" id={result.page.id} />}
       {result && <RawHtmlBlock html={`${result.page.headSnippet}${result.page.bodySnippet}`} />}
       <PageGrid>
         {intro}
