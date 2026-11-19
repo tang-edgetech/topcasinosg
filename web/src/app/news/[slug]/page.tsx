@@ -5,6 +5,7 @@ import { formatDate, getNewsArticleBySlug } from "../_lib/api";
 import { sanitizeRichText } from "@/lib/sanitize-html";
 import { articleJsonLd, buildMetadata, getSeoMeta } from "@/lib/seo";
 import JsonLd from "@/components/JsonLd";
+import ItemSchema from "@/components/ItemSchema";
 import Thumbnail from "@/components/Thumbnail";
 import PageGrid from "@/components/PageGrid";
 
@@ -54,6 +55,7 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
   return (
     <div id="news-detail-page" className="news-detail-page flex flex-1 flex-col bg-white">
       <JsonLd data={jsonLd} />
+      <ItemSchema type="news" id={article.id} />
       {/* Same width and Sidebar as the region and news list pages. */}
       <PageGrid>
       <div className="news-detail-page__content w-full flex-1 py-10">

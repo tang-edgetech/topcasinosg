@@ -183,6 +183,18 @@ export interface GameProviderDTO {
   createdAt: string;
 }
 
+// Admin > Redirects (api/internal/handler/redirect_handler.go).
+export interface RedirectDTO {
+  id: number;
+  fromPath: string;
+  toUrl: string;
+  statusCode: 301 | 302;
+  active: boolean;
+  note: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface LicenseDTO {
   id: number;
   name: string;
@@ -457,6 +469,8 @@ export interface SeoMetaDTO {
   robotsNoindex: boolean;
   robotsNofollow: boolean;
   articleAuthor: string;
+  // Schema box: the item's own schema.org JSON-LD ("" for none).
+  schemaJson: string;
 }
 
 // A saved section template (api/internal/domain/page.go SectionTemplate):

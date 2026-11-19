@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { sanitizeRichText } from "@/lib/sanitize-html";
 import { articleJsonLd, buildMetadata, getSeoMeta } from "@/lib/seo";
 import JsonLd from "@/components/JsonLd";
+import ItemSchema from "@/components/ItemSchema";
 import Thumbnail from "@/components/Thumbnail";
 import PageGrid from "@/components/PageGrid";
 
@@ -135,6 +136,7 @@ export default async function GuideDetailPage({
   return (
     <div id="guide-detail-page" className="flex flex-1 flex-col bg-surface font-sans">
       <JsonLd data={jsonLd} />
+      <ItemSchema type="guide" id={guide.id} />
       <PageGrid>
       <div id="guide-detail-breadcrumb" className="guide-detail__breadcrumb border-b border-primary-100 pt-10 pb-4">
           <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-sm text-primary-500">

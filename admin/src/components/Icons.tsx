@@ -684,3 +684,12 @@ export function IconUnlink(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+export function IconRedirect(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 19V11a4 4 0 0 1 4-4h12" />
+      <path d="m16 3 4 4-4 4" />
+    </svg>
+  );
+}

@@ -9,6 +9,7 @@ import IntroductionSectionBlock from "@/components/sections/IntroductionSectionB
 import SectionRenderer from "@/components/sections/SectionRenderer";
 import PageGrid from "@/components/PageGrid";
 import RawHtmlBlock from "@/components/RawHtmlBlock";
+import ItemSchema from "@/components/ItemSchema";
 
 // Shared shell for CMS-driven region pages (Bonuses, Reviews, the six bonus
 // types): content comes from the region's own page when it has sections,
@@ -34,6 +35,7 @@ export default async function RegionCmsPage({ region, subPath, menu, id }: { reg
 
   return (
     <div id={id} className={`${id} flex flex-1 flex-col`}>
+      {result && <ItemSchema type="page" id={result.page.id} />}
       {result && <RawHtmlBlock html={`${result.page.headSnippet}${result.page.bodySnippet}`} />}
       <PageGrid>
         {hasIntro && <IntroductionSectionBlock section={first} fallbackPageMenu={pageMenu} />}

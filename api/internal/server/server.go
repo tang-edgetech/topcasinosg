@@ -29,6 +29,7 @@ type Deps struct {
 	RegionHandler         *handler.RegionHandler
 	GameProviderHandler   *handler.GameProviderHandler
 	LicenseHandler        *handler.LicenseHandler
+	RedirectHandler       *handler.RedirectHandler
 	CasinoHandler         *handler.CasinoHandler
 	BonusHandler          *handler.BonusHandler
 	PaymentMethodHandler  *handler.PaymentMethodHandler
@@ -79,6 +80,7 @@ func NewRouter(deps Deps) http.Handler {
 	mux.HandleFunc("GET /api/regions", deps.RegionHandler.ListPublic)
 	mux.HandleFunc("GET /api/game-providers", deps.GameProviderHandler.List)
 	mux.HandleFunc("GET /api/licenses", deps.LicenseHandler.List)
+	mux.HandleFunc("GET /api/redirects", deps.RedirectHandler.ListPublic)
 	mux.HandleFunc("GET /api/sidebar", deps.SidebarHandler.Get)
 	mux.HandleFunc("GET /api/casinos", deps.CasinoHandler.ListPublic)
 	mux.HandleFunc("GET /api/casinos/{slug}", deps.CasinoHandler.GetPublic)
@@ -222,6 +224,14 @@ func NewRouter(deps Deps) http.Handler {
 	mux.Handle("POST /api/admin/licenses", authenticate(contentStaff(http.HandlerFunc(deps.LicenseHandler.Create))))
 	mux.Handle("PUT /api/admin/licenses/{id}", authenticate(contentStaff(http.HandlerFunc(deps.LicenseHandler.Update))))
 	mux.Handle("DELETE /api/admin/licenses/{id}", authenticate(contentStaff(http.HandlerFunc(deps.LicenseHandler.Delete))))
+
+	// Redirects — anyone in the backoffice can see them; the service limits
+	// changes to Super Admin and Admin.
+	mux.Handle("GET /api/admin/redirects", authenticate(contentStaff(http.HandlerFunc(deps.RedirectHandler.List))))
+	mux.Handle("GET /api/admin/redirects/{id}", authenticate(contentStaff(http.HandlerFunc(deps.RedirectHandler.Get))))
+	mux.Handle("POST /api/admin/redirects", authenticate(contentStaff(http.HandlerFunc(deps.RedirectHandler.Create))))
+	mux.Handle("PUT /api/admin/redirects/{id}", authenticate(contentStaff(http.HandlerFunc(deps.RedirectHandler.Update))))
+	mux.Handle("DELETE /api/admin/redirects/{id}", authenticate(contentStaff(http.HandlerFunc(deps.RedirectHandler.Delete))))
 
 	// Sidebar — the 3 sections are fixed (never created/deleted), so there's
 	// just a read + one bulk-replace endpoint, not full CRUD.

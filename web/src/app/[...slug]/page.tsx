@@ -6,6 +6,7 @@ import SectionRenderer from "@/components/sections/SectionRenderer";
 import IntroductionSectionBlock from "@/components/sections/IntroductionSectionBlock";
 import PageGrid from "@/components/PageGrid";
 import RawHtmlBlock from "@/components/RawHtmlBlock";
+import ItemSchema from "@/components/ItemSchema";
 
 /**
  * Root catch-all for hierarchical Pages CMS pages 2+ segments deep (e.g.
@@ -58,6 +59,7 @@ export default async function HierarchicalPage({ params }: { params: Promise<Slu
 
   return (
     <div id="hierarchical-page" className="hierarchical-page flex flex-1 flex-col">
+      <ItemSchema type="page" id={result.page.id} />
       <RawHtmlBlock html={`${result.page.headSnippet}${result.page.bodySnippet}`} />
       <PageGrid>
         {hasIntro && <IntroductionSectionBlock section={first} />}

@@ -16,6 +16,7 @@ import { mediaUrl } from "@/lib/pages";
 import { buildMetadata, getSeoMeta, siteBaseUrl } from "@/lib/seo";
 import { getSiteSettings } from "@/lib/site-settings";
 import JsonLd from "@/components/JsonLd";
+import ItemSchema from "@/components/ItemSchema";
 import { sanitizeRichText } from "@/lib/sanitize-html";
 import { DISPLAY_GAME_TYPES } from "@/lib/gameTypes";
 import CasinoLogo from "@/components/CasinoLogo";
@@ -98,6 +99,7 @@ export default async function CasinoReviewPage({ params }: { params: Promise<{ s
   return (
     <div id="casino-review-page" className="casino-review flex flex-1 flex-col bg-white">
       <JsonLd data={[reviewJsonLd, breadcrumbJsonLd]} />
+      <ItemSchema type="casino" id={casino.id} />
       <nav aria-label="Breadcrumb" className="casino-review__breadcrumb bg-gradient-to-r from-primary-900 to-primary-glow">
         <ol className="section-container flex flex-wrap items-center gap-2 py-3 text-xs text-white">
           <li>

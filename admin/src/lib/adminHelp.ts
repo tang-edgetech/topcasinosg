@@ -238,6 +238,30 @@ export const ADMIN_HELP = {
       },
     ],
   },
+  redirects: {
+    summary:
+      "Redirects send visitors and search engines from an old or unwanted address of the site to a new one, e.g. /guides to /sg/guides. They work for every address, built-in pages included.",
+    sections: [
+      {
+        heading: "What to fill in",
+        points: [
+          "Old address: the path after the domain, like /guides or /news/old-story. You can also paste the full address from the browser; only the path is kept.",
+          "New address: a page of this site starting with /, or a full https:// address of another website.",
+          "Type: 301 Permanent when the page has moved for good (search engines move its ranking to the new address); 302 Temporary when it's only for now.",
+          "Letter case and a trailing slash don't matter: /Guides/ is the same as /guides. Anything after ? in the visitor's address is passed on to the new one.",
+        ],
+      },
+      {
+        heading: "Good to know",
+        points: [
+          "A redirect takes over its old address completely: the page there can't be visited while the redirect is on. Switch it off instead of deleting it to bring the page back for a while.",
+          "The website picks up changes within about a minute.",
+          "The homepage, and addresses starting with /api or /preview, can't be redirected. A redirect that would send visitors round in a circle is refused.",
+          "Only Super Admins and Admins can add, change or delete redirects.",
+        ],
+      },
+    ],
+  },
   licenses: {
     summary: "Licenses are the regulators (Curaçao, Malta…) you attach to casinos to show where they're licensed.",
     sections: [

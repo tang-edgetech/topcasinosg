@@ -68,6 +68,7 @@ func main() {
 	regionRepo := repository.NewRegionRepo(conn)
 	gameProviderRepo := repository.NewGameProviderRepo(conn)
 	licenseRepo := repository.NewLicenseRepo(conn)
+	redirectRepo := repository.NewRedirectRepo(conn)
 	casinoRepo := repository.NewCasinoRepo(conn)
 	bonusRepo := repository.NewBonusRepo(conn)
 	paymentMethodRepo := repository.NewPaymentMethodRepo(conn)
@@ -101,6 +102,7 @@ func main() {
 	regionService := service.NewRegionService(regionRepo)
 	gameProviderService := service.NewGameProviderService(gameProviderRepo)
 	licenseService := service.NewLicenseService(licenseRepo)
+	redirectService := service.NewRedirectService(redirectRepo)
 	casinoService := service.NewCasinoService(casinoRepo)
 	bonusService := service.NewBonusService(bonusRepo)
 	paymentMethodService := service.NewPaymentMethodService(paymentMethodRepo)
@@ -135,6 +137,7 @@ func main() {
 		RegionHandler:         handler.NewRegionHandler(regionService),
 		GameProviderHandler:   handler.NewGameProviderHandler(gameProviderService),
 		LicenseHandler:        handler.NewLicenseHandler(licenseService),
+		RedirectHandler:       handler.NewRedirectHandler(redirectService),
 		CasinoHandler:         handler.NewCasinoHandler(casinoService),
 		BonusHandler:          handler.NewBonusHandler(bonusService),
 		PaymentMethodHandler:  handler.NewPaymentMethodHandler(paymentMethodService),

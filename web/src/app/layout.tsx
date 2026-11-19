@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { Figtree } from "next/font/google";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import RawHtmlBlock from "@/components/RawHtmlBlock";
+import SiteSnippets from "@/components/SiteSnippets";
 import ScrollToTop from "@/components/ScrollToTop";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import PageTransition from "@/components/PageTransition";
@@ -71,9 +71,10 @@ export default async function RootLayout({
   const snippets = await getActiveSnippets(pathname);
   // "Head" can't be injected literally inside <head> in the App Router (see
   // RawHtmlBlock's doc comment) — it renders as the very first thing in
-  // <body> instead, ahead of "Body" snippets.
-  const topOfBody = [...snippets.head, ...snippets.body].join("\n");
-  const bottomOfBody = snippets.footer.join("\n");
+  // <body> instead, ahead of "Body" snippets. SiteSnippets swaps them as
+  // the visitor clicks to other pages.
+  const topOfBody = [...snippets.head, ...snippets.body];
+  const bottomOfBody = snippets.footer;
   const settings = await getSiteSettings();
   const siteUrl = siteBaseUrl(settings);
   const logo = assetUrl(settings.logoUrl);
@@ -90,7 +91,7 @@ export default async function RootLayout({
         <style id="device-css" dangerouslySetInnerHTML={{ __html: deviceCss(settings.breakpoints) }} />
         {/* Site-wide colours changed in Settings > Theme. */}
         {themeCss(settings.theme) && <style id="theme-css" dangerouslySetInnerHTML={{ __html: themeCss(settings.theme) }} />}
-        <RawHtmlBlock html={topOfBody} />
+        <SiteSnippets slot="top" initial={topOfBody} />
         <JsonLd
           data={[
             { "@context": "https://schema.org", "@type": "WebSite", name: settings.siteTitle, url: `${siteUrl}/` },
@@ -116,7 +117,7 @@ export default async function RootLayout({
         <Suspense fallback={null}>
           <PageTransition mode={settings.pageTransition} minMs={settings.pageTransitionMinMs} />
         </Suspense>
-        <RawHtmlBlock html={bottomOfBody} />
+        <SiteSnippets slot="bottom" initial={bottomOfBody} />
       </body>
     </html>
   );

@@ -30,4 +30,7 @@ type SeoMeta struct {
 	RobotsNoindex  bool
 	RobotsNofollow bool
 	ArticleAuthor  string
+	// SchemaJSON is the item's own schema.org JSON-LD (an object or an array of
+	// them), printed on its page; empty for none.
+	SchemaJSON string
 }

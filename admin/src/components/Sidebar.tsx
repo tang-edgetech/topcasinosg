@@ -31,6 +31,7 @@ import {
   IconMenu,
   IconLayout,
   IconCode,
+  IconRedirect,
   IconDice,
   IconCertificate,
   IconList,
@@ -115,6 +116,7 @@ const NAV_SECTIONS: NavSection[] = [
       { href: "/dashboard/sidebar", label: "Sidebar", roles: STAFF_ROLES, icon: IconList },
       { href: "/dashboard/footer", label: "Footer", roles: STAFF_ROLES, icon: IconLayoutBottom },
       { href: "/dashboard/snippets", label: "Snippets", roles: STAFF_ROLES, icon: IconCode },
+      { href: "/dashboard/redirects", label: "Redirects", roles: STAFF_ROLES, icon: IconRedirect },
     ],
   },
   {

@@ -3,6 +3,7 @@ import { cmsPageMetadata } from "@/lib/seo";
 import { getPage } from "@/lib/pages";
 import SectionRenderer from "@/components/sections/SectionRenderer";
 import RawHtmlBlock from "@/components/RawHtmlBlock";
+import ItemSchema from "@/components/ItemSchema";
 
 // No robots field here — the single site-wide Settings > SEO toggle (see
 // app/layout.tsx's generateMetadata) is the only control, and this page
@@ -19,6 +20,7 @@ export default async function Home() {
 
   return (
     <div id="home-page" className="home-page flex flex-1 flex-col">
+      {result && <ItemSchema type="page" id={result.page.id} />}
       {result && <RawHtmlBlock html={`${result.page.headSnippet}${result.page.bodySnippet}`} />}
       {result && result.sections.length > 0 ? (
         <SectionRenderer sections={result.sections} />

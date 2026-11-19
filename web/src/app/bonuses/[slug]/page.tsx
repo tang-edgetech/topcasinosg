@@ -1,3 +1,4 @@
+import ItemSchema from "@/components/ItemSchema";
 import { API_BASE_URL as SERVER_API_URL } from "@/lib/api-url";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -137,6 +138,7 @@ export default async function BonusDetailPage({
 
   return (
     <div id="bonus-detail-page" className="flex flex-1 flex-col bg-surface font-sans">
+      <ItemSchema type="bonus" id={bonus.id} />
       <section
         id="bonus-detail-breadcrumb"
         className="bonus-detail__breadcrumb border-b border-primary-100 bg-primary-50"

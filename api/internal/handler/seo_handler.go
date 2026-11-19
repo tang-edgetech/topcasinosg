@@ -32,6 +32,7 @@ type SeoMetaDTO struct {
 	RobotsNoindex   bool    `json:"robotsNoindex"`
 	RobotsNofollow  bool    `json:"robotsNofollow"`
 	ArticleAuthor   string  `json:"articleAuthor"`
+	SchemaJSON      string  `json:"schemaJson"`
 }
 
 func toSeoMetaDTO(m *domain.SeoMeta) SeoMetaDTO {
@@ -39,6 +40,7 @@ func toSeoMetaDTO(m *domain.SeoMeta) SeoMetaDTO {
 		MetaTitle: m.MetaTitle, MetaDescription: m.MetaDescription, Keywords: m.Keywords,
 		OGTitle: m.OGTitle, OGDescription: m.OGDescription, OGImageMediaID: m.OGImageMediaID, OGImageURL: m.OGImageURL,
 		CanonicalURL: m.CanonicalURL, RobotsNoindex: m.RobotsNoindex, RobotsNofollow: m.RobotsNofollow, ArticleAuthor: m.ArticleAuthor,
+		SchemaJSON: m.SchemaJSON,
 	}
 }
 
@@ -46,7 +48,8 @@ func seoErrorStatus(err error) int {
 	switch {
 	case errors.Is(err, repository.ErrNotFound):
 		return http.StatusNotFound
-	case errors.Is(err, service.ErrInvalidSeoEntity), errors.Is(err, service.ErrInvalidCanonicalURL), errors.Is(err, service.ErrSeoFieldTooLong):
+	case errors.Is(err, service.ErrInvalidSeoEntity), errors.Is(err, service.ErrInvalidCanonicalURL), errors.Is(err, service.ErrSeoFieldTooLong),
+		errors.Is(err, service.ErrInvalidSchemaJSON):
 		return http.StatusBadRequest
 	default:
 		return http.StatusInternalServerError
@@ -80,7 +83,12 @@ func (h *SeoHandler) Save(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusBadRequest, "invalid id")
 		return
 	}
-	var req SeoMetaDTO
+	// schemaJson left out keeps the saved one, so a caller that doesn't know
+	// the Schema box can't empty it.
+	var req struct {
+		SeoMetaDTO
+		SchemaJSON *string `json:"schemaJson"`
+	}
 	if err := httpx.DecodeJSON(r, &req); err != nil {
 		response.Err(w, http.StatusBadRequest, "invalid request body")
 		return
@@ -90,6 +98,11 @@ func (h *SeoHandler) Save(w http.ResponseWriter, r *http.Request) {
 		MetaTitle: req.MetaTitle, MetaDescription: req.MetaDescription, Keywords: req.Keywords,
 		OGTitle: req.OGTitle, OGDescription: req.OGDescription, OGImageMediaID: req.OGImageMediaID,
 		CanonicalURL: req.CanonicalURL, RobotsNoindex: req.RobotsNoindex, RobotsNofollow: req.RobotsNofollow, ArticleAuthor: req.ArticleAuthor,
+	}
+	if req.SchemaJSON != nil {
+		meta.SchemaJSON = *req.SchemaJSON
+	} else if current, err := h.seo.Get(r.Context(), entityType, id); err == nil {
+		meta.SchemaJSON = current.SchemaJSON
 	}
 	if err := h.seo.Save(r.Context(), meta); err != nil {
 		response.Err(w, seoErrorStatus(err), err.Error())

@@ -24,6 +24,7 @@ const EMPTY_SEO: SeoMetaDTO = {
   robotsNoindex: false,
   robotsNofollow: false,
   articleAuthor: "",
+  schemaJson: "",
 };
 
 function assetUrl(url: string | null | undefined): string | null {
@@ -89,7 +90,13 @@ export default function SeoPanel({
     setSeo((prev) => ({ ...prev, [key]: value }));
   }
 
+  const schemaError = schemaProblem(seo.schemaJson);
+
   async function save() {
+    if (schemaError) {
+      message.error(`Schema box: ${schemaError}`);
+      return;
+    }
     setSaving(true);
     try {
       const data = await api.put<{ seo: SeoMetaDTO }>(`/api/admin/seo/${entityType}/${entityId}`, seo);
@@ -244,6 +251,30 @@ export default function SeoPanel({
         </Field>
       </div>
 
+      <Field
+        label="Schema (JSON-LD)"
+        hint="Optional. Structured data for search engines, added to this page alongside the site's own. Paste JSON-LD from a schema generator; a <script> tag around it is fine."
+      >
+        <TextArea
+          id={`seo-${entityType}-schema`}
+          rows={8}
+          value={seo.schemaJson}
+          placeholder={'{\n  "@context": "https://schema.org",\n  "@type": "FAQPage",\n  "mainEntity": [ … ]\n}'}
+          onChange={(e) => set("schemaJson", e.target.value)}
+          status={schemaError ? "error" : undefined}
+          spellCheck={false}
+          className="font-mono text-xs"
+        />
+        <span id={`seo-${entityType}-schema-status`} className={`text-xs ${schemaError ? "text-danger" : "text-success"}`}>
+          {schemaError ? schemaError : seo.schemaJson.trim() ? "Valid JSON. Check what Google reads from it with its " : ""}
+          {!schemaError && seo.schemaJson.trim() && (
+            <a href="https://search.google.com/test/rich-results" target="_blank" rel="noopener noreferrer" className="underline">
+              Rich Results Test
+            </a>
+          )}
+        </span>
+      </Field>
+
       <Collapse
         size="small"
         items={[
@@ -306,4 +337,24 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
       {hint && <span className="text-xs text-text-muted dark:text-text-muted-dark">{hint}</span>}
     </div>
   );
+}
+
+// What's wrong with the Schema box, or "" when it's empty or fine. The API
+// checks the same rules (api/internal/service/seo_service.go
+// NormalizeSchemaJSON).
+function schemaProblem(raw: string): string {
+  let text = raw.trim();
+  const wrapped = /^<script[^>]*>([\s\S]*)<\/script>$/i.exec(text);
+  if (wrapped) text = wrapped[1].trim();
+  if (!text) return "";
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch (err) {
+    return `Not valid JSON: ${err instanceof Error ? err.message : "check the commas, quotes and brackets"}`;
+  }
+  const isObject = (v: unknown) => typeof v === "object" && v !== null && !Array.isArray(v);
+  if (isObject(value)) return "";
+  if (Array.isArray(value) && value.every(isObject)) return "";
+  return "It must be a { … } object or a [ … ] list of them.";
 }

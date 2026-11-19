@@ -21,11 +21,11 @@ func (r *SeoRepo) Get(ctx context.Context, entityType string, entityID int64) (*
 	m := domain.SeoMeta{EntityType: entityType, EntityID: entityID}
 	err := r.db.QueryRowContext(ctx, `
 		SELECT s.meta_title, s.meta_description, s.keywords, s.og_title, s.og_description, s.og_image_media_id, media.url,
-			s.canonical_url, s.robots_noindex, s.robots_nofollow, s.article_author
+			s.canonical_url, s.robots_noindex, s.robots_nofollow, s.article_author, COALESCE(s.schema_json, '')
 		FROM seo_meta s LEFT JOIN media ON media.id = s.og_image_media_id
 		WHERE s.entity_type = ? AND s.entity_id = ?`, entityType, entityID,
 	).Scan(&m.MetaTitle, &m.MetaDescription, &m.Keywords, &m.OGTitle, &m.OGDescription, &m.OGImageMediaID, &m.OGImageURL,
-		&m.CanonicalURL, &m.RobotsNoindex, &m.RobotsNofollow, &m.ArticleAuthor)
+		&m.CanonicalURL, &m.RobotsNoindex, &m.RobotsNofollow, &m.ArticleAuthor, &m.SchemaJSON)
 	if errors.Is(err, sql.ErrNoRows) {
 		return &m, nil
 	}
@@ -38,15 +38,15 @@ func (r *SeoRepo) Get(ctx context.Context, entityType string, entityID int64) (*
 func (r *SeoRepo) Upsert(ctx context.Context, m *domain.SeoMeta) error {
 	_, err := r.db.ExecContext(ctx, `
 		INSERT INTO seo_meta (entity_type, entity_id, meta_title, meta_description, keywords, og_title, og_description,
-			og_image_media_id, canonical_url, robots_noindex, robots_nofollow, article_author)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			og_image_media_id, canonical_url, robots_noindex, robots_nofollow, article_author, schema_json)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULLIF(?, ''))
 		ON DUPLICATE KEY UPDATE
 			meta_title = VALUES(meta_title), meta_description = VALUES(meta_description), keywords = VALUES(keywords),
 			og_title = VALUES(og_title), og_description = VALUES(og_description), og_image_media_id = VALUES(og_image_media_id),
 			canonical_url = VALUES(canonical_url), robots_noindex = VALUES(robots_noindex),
-			robots_nofollow = VALUES(robots_nofollow), article_author = VALUES(article_author)`,
+			robots_nofollow = VALUES(robots_nofollow), article_author = VALUES(article_author), schema_json = VALUES(schema_json)`,
 		m.EntityType, m.EntityID, m.MetaTitle, m.MetaDescription, m.Keywords, m.OGTitle, m.OGDescription,
-		m.OGImageMediaID, m.CanonicalURL, m.RobotsNoindex, m.RobotsNofollow, m.ArticleAuthor,
+		m.OGImageMediaID, m.CanonicalURL, m.RobotsNoindex, m.RobotsNofollow, m.ArticleAuthor, m.SchemaJSON,
 	)
 	return err
 }

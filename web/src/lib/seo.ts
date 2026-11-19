@@ -31,6 +31,8 @@ export interface SeoMeta {
   robotsNoindex: boolean;
   robotsNofollow: boolean;
   articleAuthor: string;
+  // The SEO tab's Schema box: the item's own JSON-LD (ItemSchema prints it).
+  schemaJson?: string;
 }
 
 export interface SeoInput {
