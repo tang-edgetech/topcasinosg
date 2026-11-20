@@ -574,3 +574,33 @@ func (s *AuthService) PendingUserID(ephemeralToken string) int64 {
 	}
 	return 0
 }
+
+// ErrOTPNotSetUp: an action needs a 2FA code, but the user has no
+// authenticator app yet.
+var ErrOTPNotSetUp = errors.New("this needs a code from your authenticator app; set up two-factor authentication in My Account first")
+
+// ConfirmWithOTP checks a code from one of the signed-in user's
+// authenticator apps before a sensitive action (deleting an API key). A
+// wrong code counts toward the account's sign-in lockout, like a wrong code
+// at sign-in.
+func (s *AuthService) ConfirmWithOTP(ctx context.Context, userID int64, code string) error {
+	user, err := s.users.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if err := checkLocked(user); err != nil {
+		return err
+	}
+	devices, err := s.otpDevices.ListConfirmed(ctx, user.ID)
+	if err != nil {
+		return err
+	}
+	if len(devices) == 0 {
+		return ErrOTPNotSetUp
+	}
+	device := s.matchOTPDevice(devices, strings.TrimSpace(code))
+	if device == nil {
+		return s.failedSignIn(ctx, user, ErrInvalidOTP)
+	}
+	return s.otpDevices.MarkUsed(ctx, device.ID)
+}

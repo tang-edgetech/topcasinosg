@@ -161,7 +161,7 @@ func main() {
 		)),
 		ContentAPIHandler: handler.NewContentAPIHandler(
 			apiKeyService, contentChangeService, pageService, newsArticleService, mediaService, siteSettingsService, auditService,
-		).WithComponents(componentService),
+		).WithComponents(componentService).WithOTPCheck(authService.ConfirmWithOTP),
 		AuthenticateAPIKey: apiKeyService.Authenticate,
 		RecycleBin:         repository.NewRecycleBinRepo(conn),
 		Audit:              auditService,

@@ -97,3 +97,32 @@ func (r *APIKeyRepo) Revoke(ctx context.Context, id int64) error {
 	}
 	return nil
 }
+
+// UpdateSettings changes an active key's name, mode and areas; ErrNotFound
+// for an unknown or revoked key.
+func (r *APIKeyRepo) UpdateSettings(ctx context.Context, id int64, name, mode string, scopes []string) error {
+	var revoked sql.NullTime
+	err := r.db.QueryRowContext(ctx, `SELECT revoked_at FROM api_keys WHERE id = ?`, id).Scan(&revoked)
+	if errors.Is(err, sql.ErrNoRows) || (err == nil && revoked.Valid) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	_, err = r.db.ExecContext(ctx, `UPDATE api_keys SET name = ?, mode = ?, scopes = ? WHERE id = ? AND revoked_at IS NULL`,
+		name, mode, strings.Join(scopes, ","), id)
+	return err
+}
+
+// Delete removes a key, active or revoked; ErrNotFound for an unknown
+// one. What points at it (changes, Recycle Bin items) keeps its rows.
+func (r *APIKeyRepo) Delete(ctx context.Context, id int64) error {
+	res, err := r.db.ExecContext(ctx, `DELETE FROM api_keys WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}

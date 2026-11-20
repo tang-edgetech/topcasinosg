@@ -34,6 +34,14 @@ type ContentAPIHandler struct {
 	// snapshot reads a page or article through its admin GET route, for the
 	// before/after of an applied change (server.adminSnapshotter).
 	snapshot middleware.Snapshotter
+	// confirmOTP checks the signed-in admin's 2FA code (AuthService.ConfirmWithOTP).
+	confirmOTP func(ctx context.Context, userID int64, code string) error
+}
+
+// WithOTPCheck sets how a 2FA code is checked before a key is deleted.
+func (h *ContentAPIHandler) WithOTPCheck(check func(ctx context.Context, userID int64, code string) error) *ContentAPIHandler {
+	h.confirmOTP = check
+	return h
 }
 
 // WithComponents adds the Components library to /schema.
@@ -60,6 +68,7 @@ type APIKeyDTO struct {
 	Prefix        string     `json:"prefix"`
 	Mode          string     `json:"mode"`
 	Scopes        []string   `json:"scopes"`
+	CreatedByID   *int64     `json:"createdById"`
 	CreatedByName string     `json:"createdByName"`
 	CreatedAt     time.Time  `json:"createdAt"`
 	LastUsedAt    *time.Time `json:"lastUsedAt"`
@@ -72,7 +81,7 @@ func toAPIKeyDTO(k *domain.APIKey) APIKeyDTO {
 		scopes = []string{}
 	}
 	return APIKeyDTO{
-		ID: k.ID, Name: k.Name, Prefix: k.Prefix, Mode: k.Mode, Scopes: scopes, CreatedByName: k.CreatedByName,
+		ID: k.ID, Name: k.Name, Prefix: k.Prefix, Mode: k.Mode, Scopes: scopes, CreatedByID: k.CreatedByID, CreatedByName: k.CreatedByName,
 		CreatedAt: k.CreatedAt, LastUsedAt: k.LastUsedAt, RevokedAt: k.RevokedAt,
 	}
 }
@@ -943,6 +952,66 @@ func (h *ContentAPIHandler) RevokeKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.JSON(w, http.StatusOK, map[string]bool{"revoked": true})
+}
+
+// UpdateKey changes an active key's name, mode and areas.
+func (h *ContentAPIHandler) UpdateKey(w http.ResponseWriter, r *http.Request) {
+	id, ok := requestID(w, r)
+	if !ok {
+		return
+	}
+	var req createAPIKeyRequest
+	if err := httpx.DecodeJSON(r, &req); err != nil {
+		response.Err(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	key, err := h.keys.Update(r.Context(), id, req.Name, req.Mode, req.Scopes)
+	if err != nil {
+		contentChangeError(w, err, "API key not found, or it was revoked")
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]any{"apiKey": toAPIKeyDTO(key)})
+}
+
+// DeleteKey removes a key for good: Super Admin or the key's creator only,
+// with a code from their authenticator app ({otp}). A wrong code is 400,
+// not 401, so the dashboard doesn't take it for an expired sign-in.
+func (h *ContentAPIHandler) DeleteKey(w http.ResponseWriter, r *http.Request) {
+	id, ok := requestID(w, r)
+	if !ok {
+		return
+	}
+	var req struct {
+		OTP string `json:"otp"` // hidden in the activity log
+	}
+	if err := httpx.DecodeJSON(r, &req); err != nil {
+		response.Err(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	actor := requireActor(r)
+	err := h.keys.Delete(r.Context(), actor, id, func() error {
+		if h.confirmOTP == nil {
+			return service.ErrOTPNotSetUp
+		}
+		return h.confirmOTP(r.Context(), actor.ID, req.OTP)
+	})
+	var locked *service.AccountLockedError
+	switch {
+	case err == nil:
+		response.JSON(w, http.StatusOK, map[string]bool{"deleted": true})
+	case errors.Is(err, repository.ErrNotFound):
+		response.Err(w, http.StatusNotFound, "API key not found")
+	case errors.Is(err, service.ErrAPIKeyDeleteNotAllowed):
+		response.Err(w, http.StatusForbidden, err.Error())
+	case errors.Is(err, service.ErrInvalidOTP):
+		response.Err(w, http.StatusBadRequest, "that code isn't right; enter the current 6-digit code from your authenticator app")
+	case errors.Is(err, service.ErrOTPNotSetUp):
+		response.Err(w, http.StatusBadRequest, err.Error())
+	case errors.As(err, &locked):
+		response.Err(w, http.StatusTooManyRequests, err.Error())
+	default:
+		response.ServerErr(w, err, "could not delete the API key")
+	}
 }
 
 // --- Admin: reviewing changes (content staff) ---

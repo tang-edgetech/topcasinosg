@@ -854,6 +854,7 @@ export interface APIKeyDTO {
   prefix: string;
   mode: APIKeyMode;
   scopes: APIScope[];
+  createdById: number | null;
   createdByName: string;
   createdAt: string;
   lastUsedAt: string | null;

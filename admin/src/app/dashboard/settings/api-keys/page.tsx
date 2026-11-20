@@ -6,6 +6,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import { Checkbox, Input, Modal, Radio, App as AntApp } from "antd";
 import { api, ApiError } from "@/lib/api";
 import { useConfirm } from "@/components/ConfirmDialog";
+import { useAuth } from "@/lib/auth-context";
 import type { APIKeyDTO, APIKeyMode, APIScope } from "@/lib/types";
 
 dayjs.extend(relativeTime);
@@ -56,12 +57,20 @@ export default function APIKeysSettingsPage() {
   const [keys, setKeys] = useState<APIKeyDTO[] | null>(null);
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
+  // The key the form is changing; null while creating a new one.
+  const [editing, setEditing] = useState<APIKeyDTO | null>(null);
   const [name, setName] = useState("");
   const [mode, setMode] = useState<APIKeyMode>("review");
   const [scopes, setScopes] = useState<APIScope[]>(["pages", "news", "media"]);
   const availableScopes = SCOPES.filter((scope) => mode === "direct" || !scope.directOnly);
   const [saving, setSaving] = useState(false);
   const [newKey, setNewKey] = useState<{ name: string; secretKey: string } | null>(null);
+  const { user } = useAuth();
+  // The key being deleted, waiting for the admin's 2FA code.
+  const [deleting, setDeleting] = useState<APIKeyDTO | null>(null);
+  const [otp, setOtp] = useState("");
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   function load() {
     return api.get<{ apiKeys: APIKeyDTO[] }>("/api/admin/api-keys").then(
@@ -74,23 +83,77 @@ export default function APIKeysSettingsPage() {
     load();
   }, []);
 
-  async function handleCreate() {
+  // Opens the form: blank for a new key, filled in from `from` to change
+  // that key (edit) or to make a new key with the same settings (a
+  // replacement for a revoked or lost one).
+  function openForm(from: APIKeyDTO | null, edit: boolean) {
+    setEditing(edit ? from : null);
+    setName(from ? from.name : "");
+    setMode(from ? from.mode : "review");
+    setScopes(from ? from.scopes : ["pages", "news", "media"]);
+    setCreating(true);
+  }
+
+  async function handleSave() {
     setSaving(true);
+    const body = { name, mode, scopes: scopes.filter((s) => availableScopes.some((a) => a.value === s)) };
     try {
-      const created = await api.post<{ name: string; secretKey: string }>("/api/admin/api-keys", {
-        name,
-        mode,
-        scopes: scopes.filter((s) => availableScopes.some((a) => a.value === s)),
-      });
+      if (editing) {
+        await api.put(`/api/admin/api-keys/${editing.id}`, body);
+        message.success("Key updated. The tool using it keeps the same key; the new permissions apply from its next request.");
+      } else {
+        setNewKey(await api.post<{ name: string; secretKey: string }>("/api/admin/api-keys", body));
+      }
       setCreating(false);
+      setEditing(null);
       setName("");
-      setNewKey(created);
       await load();
     } catch (err) {
-      message.error(err instanceof ApiError ? err.message : "Could not create the key.");
+      message.error(err instanceof ApiError ? err.message : "Could not save the key.");
     } finally {
       setSaving(false);
     }
+  }
+
+  // Deleting needs a code from the admin's authenticator app; the API checks
+  // who may delete (CanDeleteAPIKey) and the code.
+  function canDelete(key: APIKeyDTO) {
+    return !!user && (user.role === "super_admin" || key.createdById === user.id);
+  }
+
+  async function handleDelete() {
+    if (!deleting) return;
+    setDeleteBusy(true);
+    setDeleteError("");
+    try {
+      await api.post(`/api/admin/api-keys/${deleting.id}/delete`, { otp: otp.trim() });
+      message.success("Key deleted.");
+      setDeleting(null);
+      setOtp("");
+      await load();
+    } catch (err) {
+      setDeleteError(err instanceof ApiError ? err.message : "Could not delete the key.");
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
+
+  function deleteButton(key: APIKeyDTO) {
+    if (!canDelete(key)) return null;
+    return (
+      <button
+        type="button"
+        id={`api-key-${key.id}-delete`}
+        onClick={() => {
+          setOtp("");
+          setDeleteError("");
+          setDeleting(key);
+        }}
+        className={`${SECONDARY_BUTTON_CLASS} text-danger!`}
+      >
+        Delete
+      </button>
+    );
   }
 
   async function handleRevoke(key: APIKeyDTO) {
@@ -129,10 +192,11 @@ export default function APIKeysSettingsPage() {
             A key lets a tool such as an AI assistant manage the site&apos;s content through the Content API. A{" "}
             <strong>Needs approval</strong> key&apos;s page and article changes wait in <strong>AI Changes</strong> until someone approves
             them. A <strong>Direct</strong> key&apos;s changes go live straight away, and what it deletes goes to the{" "}
-            <strong>Recycle Bin</strong>. A key stops working if it is revoked, or if the admin who created it is disabled.
+            <strong>Recycle Bin</strong>. A key stops working if it is revoked or deleted, or if the admin who created it is disabled. Only a Super
+            Admin or the admin who created a key can delete it, with a code from their authenticator app.
           </p>
         </div>
-        <button type="button" id="api-keys-create" onClick={() => setCreating(true)} className={PRIMARY_BUTTON_CLASS}>
+        <button type="button" id="api-keys-create" onClick={() => openForm(null, false)} className={PRIMARY_BUTTON_CLASS}>
           + Create Key
         </button>
       </div>
@@ -159,8 +223,8 @@ export default function APIKeysSettingsPage() {
             </thead>
             <tbody className="divide-y divide-border dark:divide-border-dark">
               {keys.map((key) => (
-                <tr key={key.id} id={`api-key-${key.id}`} className={key.revokedAt ? "opacity-60" : ""}>
-                  <td className="px-4 py-3 font-medium text-text dark:text-text-dark">{key.name}</td>
+                <tr key={key.id} id={`api-key-${key.id}`} className={key.revokedAt ? "api-key--revoked" : ""}>
+                  <td className={`px-4 py-3 font-medium text-text dark:text-text-dark ${key.revokedAt ? "opacity-60" : ""}`}>{key.name}</td>
                   <td className="px-4 py-3 font-mono text-xs text-text-muted dark:text-text-muted-dark">{key.prefix}…</td>
                   <td className="px-4 py-3">
                     {key.mode === "direct" ? (
@@ -181,13 +245,33 @@ export default function APIKeysSettingsPage() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     {key.revokedAt ? (
-                      <span className="text-xs font-semibold text-text-muted dark:text-text-muted-dark">
-                        Revoked {dayjs(key.revokedAt).format("D MMM YYYY")}
-                      </span>
+                      <div className="flex flex-col items-end gap-2">
+                        <span className="text-xs font-semibold text-text-muted dark:text-text-muted-dark">
+                          Revoked {dayjs(key.revokedAt).format("D MMM YYYY")}
+                        </span>
+                        <div className="flex justify-end gap-2 whitespace-nowrap">
+                          <button
+                            type="button"
+                            id={`api-key-${key.id}-replace`}
+                            onClick={() => openForm(key, false)}
+                            title="Create a new key with the same name, mode and permissions"
+                            className={SECONDARY_BUTTON_CLASS}
+                          >
+                            Create Replacement
+                          </button>
+                          {deleteButton(key)}
+                        </div>
+                      </div>
                     ) : (
-                      <button type="button" id={`api-key-${key.id}-revoke`} onClick={() => handleRevoke(key)} className={SECONDARY_BUTTON_CLASS}>
-                        Revoke
-                      </button>
+                      <div className="flex justify-end gap-2 whitespace-nowrap">
+                        <button type="button" id={`api-key-${key.id}-edit`} onClick={() => openForm(key, true)} className={SECONDARY_BUTTON_CLASS}>
+                          Edit
+                        </button>
+                        <button type="button" id={`api-key-${key.id}-revoke`} onClick={() => handleRevoke(key)} className={SECONDARY_BUTTON_CLASS}>
+                          Revoke
+                        </button>
+                        {deleteButton(key)}
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -199,10 +283,13 @@ export default function APIKeysSettingsPage() {
 
       <Modal
         open={creating}
-        title="Create API Key"
-        onCancel={() => setCreating(false)}
-        onOk={handleCreate}
-        okText="Create Key"
+        title={editing ? "Edit API Key" : "Create API Key"}
+        onCancel={() => {
+          setCreating(false);
+          setEditing(null);
+        }}
+        onOk={handleSave}
+        okText={editing ? "Save Changes" : "Create Key"}
         okButtonProps={{
           disabled: !name.trim() || !scopes.some((s) => availableScopes.some((a) => a.value === s)),
           loading: saving,
@@ -210,6 +297,11 @@ export default function APIKeysSettingsPage() {
         destroyOnHidden
       >
         <div className="flex flex-col gap-4 py-2">
+          {editing && (
+            <p className="rounded-md bg-surface-muted px-3 py-2 text-xs text-text dark:bg-surface-muted-dark dark:text-text-dark">
+              The key itself stays the same, so the tool using it doesn&apos;t need anything new. The changes apply from its next request.
+            </p>
+          )}
           <label className="flex flex-col gap-1.5 text-sm font-medium text-text dark:text-text-dark">
             Name
             <Input
@@ -253,6 +345,47 @@ export default function APIKeysSettingsPage() {
             ))}
           </div>
         </div>
+      </Modal>
+
+      <Modal
+        open={deleting !== null}
+        title="Delete API Key"
+        onCancel={() => setDeleting(null)}
+        onOk={handleDelete}
+        okText="Delete"
+        okButtonProps={{ danger: true, disabled: !/^\d{6}$/.test(otp.trim()), loading: deleteBusy }}
+        destroyOnHidden
+      >
+        {deleting && (
+          <form
+            id="api-key-delete-form"
+            className="flex flex-col gap-3 py-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (/^\d{6}$/.test(otp.trim())) handleDelete();
+            }}
+          >
+            <p className="text-sm text-text dark:text-text-dark">
+              Delete <strong>{deleting.name}</strong> for good?{" "}
+              {deleting.revokedAt ? "" : "Any tool still using it stops working at once. "}
+              Its changes in AI Changes and its Activity Log entries stay. This can&apos;t be undone.
+            </p>
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-text dark:text-text-dark" htmlFor="api-key-delete-otp">
+              Code from your authenticator app
+              <Input
+                id="api-key-delete-otp"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                autoFocus
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                className="tracking-widest"
+              />
+            </label>
+            {deleteError && <p className="form-error text-sm text-danger">{deleteError}</p>}
+          </form>
+        )}
       </Modal>
 
       <Modal

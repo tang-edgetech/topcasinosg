@@ -334,12 +334,14 @@ func NewRouter(deps Deps) http.Handler {
 	mux.Handle("PUT /api/admin/news/{id}/status", authenticate(contentStaff(http.HandlerFunc(deps.NewsArticleHandler.SetStatus))))
 	mux.Handle("DELETE /api/admin/news/{id}", authenticate(contentStaff(http.HandlerFunc(deps.NewsArticleHandler.Delete))))
 
-	// API keys and AI Changes. Keys are created and revoked by Super Admin
+	// API keys and AI Changes. Keys are created, changed and revoked by Super Admin
 	// and Admin; any content-management role reviews what keys propose,
 	// since approving one is the same as editing that content directly.
 	mux.Handle("GET /api/admin/api-keys", authenticate(staffOnly(http.HandlerFunc(deps.ContentAPIHandler.ListKeys))))
 	mux.Handle("POST /api/admin/api-keys", authenticate(staffOnly(http.HandlerFunc(deps.ContentAPIHandler.CreateKey))))
 	mux.Handle("POST /api/admin/api-keys/{id}/revoke", authenticate(staffOnly(http.HandlerFunc(deps.ContentAPIHandler.RevokeKey))))
+	mux.Handle("PUT /api/admin/api-keys/{id}", authenticate(staffOnly(http.HandlerFunc(deps.ContentAPIHandler.UpdateKey))))
+	mux.Handle("POST /api/admin/api-keys/{id}/delete", authenticate(staffOnly(http.HandlerFunc(deps.ContentAPIHandler.DeleteKey))))
 	mux.Handle("GET /api/admin/content-changes", authenticate(contentStaff(http.HandlerFunc(deps.ContentAPIHandler.ListChanges))))
 	mux.Handle("GET /api/admin/content-changes/count", authenticate(contentStaff(http.HandlerFunc(deps.ContentAPIHandler.CountPending))))
 	mux.Handle("GET /api/admin/content-changes/{id}", authenticate(contentStaff(http.HandlerFunc(deps.ContentAPIHandler.GetChange))))

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/tang-edgetech/topcasinosg/api/internal/domain"
@@ -29,32 +30,9 @@ func (s *APIKeyService) List(ctx context.Context) ([]domain.APIKey, error) {
 // stored or shown again. mode is domain.APIKeyModeReview (the default) or
 // domain.APIKeyModeDirect; a review key may only have domain.ReviewAPIScopes.
 func (s *APIKeyService) Create(ctx context.Context, actor *domain.AdminUser, name, mode string, scopes []string) (*domain.APIKey, string, error) {
-	name = strings.TrimSpace(name)
-	if name == "" || len(name) > 100 {
-		return nil, "", ErrAPIKeyNameRequired
-	}
-	if mode == "" {
-		mode = domain.APIKeyModeReview
-	}
-	allowed := domain.ReviewAPIScopes
-	switch mode {
-	case domain.APIKeyModeReview:
-	case domain.APIKeyModeDirect:
-		allowed = domain.KnownAPIScopes
-	default:
-		return nil, "", ErrInvalidAPIKeyMode
-	}
-	var clean []string
-	for _, known := range allowed {
-		for _, s := range scopes {
-			if s == known {
-				clean = append(clean, known)
-				break
-			}
-		}
-	}
-	if len(clean) == 0 || len(clean) != len(uniqueStrings(scopes)) {
-		return nil, "", ErrInvalidAPIScopes
+	name, mode, clean, err := checkAPIKeySettings(name, mode, scopes)
+	if err != nil {
+		return nil, "", err
 	}
 	token, err := security.GenerateOpaqueToken()
 	if err != nil {
@@ -70,6 +48,82 @@ func (s *APIKeyService) Create(ctx context.Context, actor *domain.AdminUser, nam
 	}
 	created, err := s.keys.GetByID(ctx, id)
 	return created, key, err
+}
+
+// Update changes a key's name, mode and areas. The key itself stays the
+// same, so the tool using it keeps working, with the new permissions from
+// its next request. A revoked key can't be changed.
+func (s *APIKeyService) Update(ctx context.Context, id int64, name, mode string, scopes []string) (*domain.APIKey, error) {
+	name, mode, clean, err := checkAPIKeySettings(name, mode, scopes)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.keys.UpdateSettings(ctx, id, name, mode, clean); err != nil {
+		return nil, err
+	}
+	return s.keys.GetByID(ctx, id)
+}
+
+// ErrAPIKeyDeleteNotAllowed: only a Super Admin or the admin who created a
+// key may delete it.
+var ErrAPIKeyDeleteNotAllowed = errors.New("only a Super Admin or the admin who created this key can delete it")
+
+// Delete removes a key for good, active or revoked: a tool still using it
+// stops working at once. Only a Super Admin or the key's creator may, and
+// only after confirm (their 2FA code) passes. The key's AI Changes, Recycle
+// Bin items and activity log entries stay; they keep its name.
+func (s *APIKeyService) Delete(ctx context.Context, actor *domain.AdminUser, id int64, confirm func() error) error {
+	key, err := s.keys.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if !CanDeleteAPIKey(actor, key) {
+		return ErrAPIKeyDeleteNotAllowed
+	}
+	if err := confirm(); err != nil {
+		return err
+	}
+	return s.keys.Delete(ctx, id)
+}
+
+// CanDeleteAPIKey: a Super Admin, or the admin who created the key.
+func CanDeleteAPIKey(actor *domain.AdminUser, key *domain.APIKey) bool {
+	if actor == nil {
+		return false
+	}
+	return actor.Role == domain.RoleSuperAdmin || (key.CreatedByID != nil && *key.CreatedByID == actor.ID)
+}
+
+// checkAPIKeySettings validates and tidies a key's name, mode and areas.
+func checkAPIKeySettings(name, mode string, scopes []string) (string, string, []string, error) {
+	name = strings.TrimSpace(name)
+	if name == "" || len(name) > 100 {
+		return "", "", nil, ErrAPIKeyNameRequired
+	}
+	if mode == "" {
+		mode = domain.APIKeyModeReview
+	}
+	allowed := domain.ReviewAPIScopes
+	switch mode {
+	case domain.APIKeyModeReview:
+	case domain.APIKeyModeDirect:
+		allowed = domain.KnownAPIScopes
+	default:
+		return "", "", nil, ErrInvalidAPIKeyMode
+	}
+	var clean []string
+	for _, known := range allowed {
+		for _, s := range scopes {
+			if s == known {
+				clean = append(clean, known)
+				break
+			}
+		}
+	}
+	if len(clean) == 0 || len(clean) != len(uniqueStrings(scopes)) {
+		return "", "", nil, ErrInvalidAPIScopes
+	}
+	return name, mode, clean, nil
 }
 
 func (s *APIKeyService) Revoke(ctx context.Context, id int64) error {
