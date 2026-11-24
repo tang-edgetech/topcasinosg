@@ -1,3 +1,6 @@
+import PreloaderGuard from "./PreloaderGuard";
+import { startPreloader } from "@/lib/preloader-script";
+
 // Site Settings > General > Preloader: a white screen with its image (a jpg,
 // png, webp or gif from Settings; the site logo, or its title, without one)
 // and a sliding bar, shown only on the first page a visitor opens in a browser
@@ -11,25 +14,9 @@
 // changes this element's class, never removes it, so React's hydration
 // still finds it (suppressHydrationWarning covers the class). Styles:
 // app/globals.css, "Preloader".
-const SCRIPT = `(function () {
-  var el = document.getElementById("site-preloader");
-  if (!el) return;
-  var seen = false;
-  try {
-    seen = sessionStorage.getItem("tcs-preloaded") === "1";
-    sessionStorage.setItem("tcs-preloaded", "1");
-  } catch (e) {}
-  if (seen) { el.className += " is-skipped"; return; }
-  var start = Date.now(), finished = false;
-  function done() {
-    if (finished) return;
-    finished = true;
-    setTimeout(function () { el.className += " is-hidden"; }, Math.max(0, 400 - (Date.now() - start)));
-  }
-  if (document.readyState === "complete") done();
-  else window.addEventListener("load", done);
-  setTimeout(done, 6000);
-})();`;
+// The hide logic itself: lib/preloader-script.ts (PreloaderGuard runs it
+// too, for pages drawn by the browser, where this script never runs).
+const SCRIPT = `(${startPreloader.toString()})();`;
 
 export default function Preloader({
   imageUrl,
@@ -55,6 +42,7 @@ export default function Preloader({
         <span className="site-preloader__bar" />
       </div>
       <script dangerouslySetInnerHTML={{ __html: SCRIPT }} />
+      <PreloaderGuard />
       <noscript>
         <style>{"#site-preloader{display:none}"}</style>
       </noscript>
