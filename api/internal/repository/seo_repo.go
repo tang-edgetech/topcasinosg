@@ -56,7 +56,11 @@ func (r *SeoRepo) Upsert(ctx context.Context, m *domain.SeoMeta) error {
 func deleteSeoMeta(ctx context.Context, exec interface {
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
 }, entityType string, entityID int64) error {
-	_, err := exec.ExecContext(ctx, `DELETE FROM seo_meta WHERE entity_type = ? AND entity_id = ?`, entityType, entityID)
+	if _, err := exec.ExecContext(ctx, `DELETE FROM seo_meta WHERE entity_type = ? AND entity_id = ?`, entityType, entityID); err != nil {
+		return err
+	}
+	// Its Sitemap choice (include/exclude) goes with it.
+	_, err := exec.ExecContext(ctx, `DELETE FROM sitemap_entries WHERE entity_type = ? AND entity_id = ?`, entityType, entityID)
 	return err
 }
 

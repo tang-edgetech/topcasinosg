@@ -936,3 +936,34 @@ export interface PageRevisionDTO {
   createdAt: string;
   sections: PageSectionDTO[];
 }
+
+// Sitemap (api/internal/handler/sitemap_handler.go): Settings > Sitemap and
+// the Sitemap box in each item's SEO tab.
+export type SitemapType = SeoEntityType | "listing";
+export type SitemapMode = "default" | "include" | "exclude";
+export type SitemapReason =
+  | "listed"
+  | "included"
+  | "excluded"
+  | "type_off"
+  | "noindex"
+  | "redirected"
+  | "unpublished";
+
+export interface SitemapSettingsDTO {
+  enabled: boolean;
+  types: SitemapType[];
+  extraUrls: string[];
+  updatedAt: string;
+}
+
+export interface SitemapItemDTO {
+  entityType: SitemapType;
+  entityId: number;
+  name: string;
+  path: string;
+  updatedAt: string | null;
+  mode: SitemapMode;
+  listed: boolean;
+  reason: SitemapReason;
+}

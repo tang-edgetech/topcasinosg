@@ -46,6 +46,7 @@ type Deps struct {
 	TransferHandler       *handler.TransferHandler
 	ContentImportHandler  *handler.ContentImportHandler
 	SeoHandler            *handler.SeoHandler
+	SitemapHandler        *handler.SitemapHandler
 	SystemHandler         *handler.SystemHandler
 	HTMLExportHandler     *handler.HTMLExportHandler
 	ContentAPIHandler     *handler.ContentAPIHandler
@@ -81,6 +82,8 @@ func NewRouter(deps Deps) http.Handler {
 	mux.HandleFunc("GET /api/game-providers", deps.GameProviderHandler.List)
 	mux.HandleFunc("GET /api/licenses", deps.LicenseHandler.List)
 	mux.HandleFunc("GET /api/redirects", deps.RedirectHandler.ListPublic)
+	// The addresses the website lists in /sitemap.xml.
+	mux.HandleFunc("GET /api/sitemap", deps.SitemapHandler.Public)
 	mux.HandleFunc("GET /api/sidebar", deps.SidebarHandler.Get)
 	mux.HandleFunc("GET /api/casinos", deps.CasinoHandler.ListPublic)
 	mux.HandleFunc("GET /api/casinos/{slug}", deps.CasinoHandler.GetPublic)
@@ -149,6 +152,13 @@ func NewRouter(deps Deps) http.Handler {
 	mux.Handle("POST /api/admin/content-imports/{type}", authenticate(contentStaff(http.HandlerFunc(deps.ContentImportHandler.Import))))
 	mux.Handle("GET /api/admin/seo/{type}/{id}", authenticate(contentStaff(http.HandlerFunc(deps.SeoHandler.Get))))
 	mux.Handle("PUT /api/admin/seo/{type}/{id}", authenticate(contentStaff(http.HandlerFunc(deps.SeoHandler.Save))))
+	// Sitemap: each item's include/exclude choice is part of its SEO tab, so
+	// anyone who edits content can change it; Settings > Sitemap (the whole
+	// sitemap, content types, extra addresses) is Super Admin and Admin.
+	mux.Handle("GET /api/admin/sitemap", authenticate(contentStaff(http.HandlerFunc(deps.SitemapHandler.Overview))))
+	mux.Handle("GET /api/admin/sitemap/items/{type}/{id}", authenticate(contentStaff(http.HandlerFunc(deps.SitemapHandler.ItemStatus))))
+	mux.Handle("PUT /api/admin/sitemap/items", authenticate(contentStaff(http.HandlerFunc(deps.SitemapHandler.SetModes))))
+	mux.Handle("PUT /api/admin/sitemap/settings", authenticate(staffOnly(http.HandlerFunc(deps.SitemapHandler.UpdateSettings))))
 
 	// Users — Super Admin and Admin only; Editors have no access at all.
 	mux.Handle("GET /api/admin/users", authenticate(staffOnly(http.HandlerFunc(deps.UserHandler.List))))

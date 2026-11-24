@@ -1,11 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Checkbox, Collapse, Input, Select, App as AntApp } from "antd";
+import { Checkbox, Collapse, Input, Radio, Select, App as AntApp } from "antd";
 import { api, ApiError } from "@/lib/api";
 import { useSiteSettings } from "@/lib/site-settings-context";
 import MediaPicker from "@/components/media/MediaPicker";
-import type { SeoEntityType, SeoMetaDTO } from "@/lib/types";
+import { SITEMAP_REASONS, SITEMAP_TONE_CLASSES, sitemapTypeLabel } from "@/lib/sitemap";
+import type { SeoEntityType, SeoMetaDTO, SitemapItemDTO, SitemapMode } from "@/lib/types";
+
+// The item's Sitemap box (GET /api/admin/sitemap/items/{type}/{id}).
+interface SitemapStatus {
+  item: SitemapItemDTO;
+  sitemapOn: boolean;
+  typeOn: boolean;
+}
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
 const TITLE_LIMIT = 60;
@@ -73,6 +81,9 @@ export default function SeoPanel({
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Sitemap box: the saved status, and the choice being edited.
+  const [sitemap, setSitemap] = useState<SitemapStatus | null>(null);
+  const [sitemapMode, setSitemapMode] = useState<SitemapMode>("default");
 
   useEffect(() => {
     let cancelled = false;
@@ -81,6 +92,14 @@ export default function SeoPanel({
       .then((data) => !cancelled && setSeo({ ...EMPTY_SEO, ...data.seo }))
       .catch((err) => !cancelled && message.error(err instanceof ApiError ? err.message : "Could not load SEO settings."))
       .finally(() => !cancelled && setLoaded(true));
+    api
+      .get<SitemapStatus>(`/api/admin/sitemap/items/${entityType}/${entityId}`)
+      .then((data) => {
+        if (cancelled) return;
+        setSitemap(data);
+        setSitemapMode(data.item.mode);
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -101,6 +120,15 @@ export default function SeoPanel({
     try {
       const data = await api.put<{ seo: SeoMetaDTO }>(`/api/admin/seo/${entityType}/${entityId}`, seo);
       setSeo({ ...EMPTY_SEO, ...data.seo });
+      if (sitemap && sitemapMode !== sitemap.item.mode) {
+        await api.put("/api/admin/sitemap/items", { items: [{ entityType, entityId, mode: sitemapMode }] });
+      }
+      // Noindex and the Sitemap choice both change whether it's listed.
+      if (sitemap) {
+        const status = await api.get<SitemapStatus>(`/api/admin/sitemap/items/${entityType}/${entityId}`);
+        setSitemap(status);
+        setSitemapMode(status.item.mode);
+      }
       message.success("SEO & sharing settings saved.");
     } catch (err) {
       message.error(err instanceof ApiError ? err.message : "Could not save SEO settings.");
@@ -274,6 +302,42 @@ export default function SeoPanel({
           )}
         </span>
       </Field>
+
+      {sitemap && (
+        <div id={`seo-${entityType}-sitemap`} className="seo-panel__sitemap flex flex-col gap-2 rounded-md bg-surface-muted p-4 dark:bg-surface-muted-dark">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-sm font-semibold text-text dark:text-text-dark">Sitemap</span>
+            <span
+              id={`seo-${entityType}-sitemap-status`}
+              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                sitemap.sitemapOn ? SITEMAP_TONE_CLASSES[SITEMAP_REASONS[sitemap.item.reason].tone] : SITEMAP_TONE_CLASSES.off
+              }`}
+            >
+              {sitemap.sitemapOn ? SITEMAP_REASONS[sitemap.item.reason].label : "Sitemap is off"}
+            </span>
+          </div>
+          <span className="text-xs text-text-muted dark:text-text-muted-dark">
+            Whether this {sitemapTypeLabel(entityType, true).toLowerCase()} is listed at {siteUrl || "the website"}/sitemap.xml.
+          </span>
+          <Radio.Group
+            id={`seo-${entityType}-sitemap-mode`}
+            value={sitemapMode}
+            onChange={(e) => setSitemapMode(e.target.value as SitemapMode)}
+            options={[
+              {
+                value: "default",
+                label: `Use the default (${sitemapTypeLabel(entityType)} ${sitemap.typeOn ? "are listed" : "aren't listed"})`,
+              },
+              { value: "include", label: "Always include" },
+              { value: "exclude", label: "Exclude from sitemap" },
+            ]}
+          />
+          <span className="text-xs text-text-muted dark:text-text-muted-dark">
+            The default is set in Settings › Sitemap. Anything set to “Hide from search results (noindex)” is always left out. Saved with
+            the button above.
+          </span>
+        </div>
+      )}
 
       <Collapse
         size="small"

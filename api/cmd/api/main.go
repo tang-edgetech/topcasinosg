@@ -155,6 +155,7 @@ func main() {
 		HTMLExportHandler:     htmlExportHandler,
 		SystemHandler:         handler.NewSystemHandler(service.NewSystemService(cfg.LogDir, cfg.RepoDir, repository.NewDeploymentReviewRepo(conn))),
 		SeoHandler:            handler.NewSeoHandler(service.NewSeoService(repository.NewSeoRepo(conn))),
+		SitemapHandler:        handler.NewSitemapHandler(service.NewSitemapService(repository.NewSitemapRepo(conn), siteSettingsService)),
 		ContentImportHandler: handler.NewContentImportHandler(service.NewContentImportService(
 			regionService, gameProviderService, licenseService, casinoService, bonusService,
 			paymentMethodService, rtpEntryService, blacklistEntryService, guideService, newsArticleService,
