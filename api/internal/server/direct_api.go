@@ -45,6 +45,52 @@ var areaScopes = map[string]string{
 	"snippets": domain.APIScopeSnippets,
 }
 
+// sitemapScopes: the scope for each sitemap item type
+// (sitemap/items/{type}/{id}, and each item of PUT sitemap/items). The fixed
+// list pages (/casinos, /guides, ...) are site-wide, so they need settings.
+// GET sitemap and PUT sitemap/settings need settings too.
+var sitemapScopes = map[string]string{
+	domain.SeoEntityPage: domain.APIScopePages, domain.SeoEntityNews: domain.APIScopeNews, domain.SeoEntityCasino: domain.APIScopeCasinos,
+	domain.SeoEntityBonus: domain.APIScopeBonuses, domain.SeoEntityGuide: domain.APIScopeGuides, domain.SitemapTypeListing: domain.APIScopeSettings,
+}
+
+// sitemapItemsScope: directScope's marker for PUT sitemap/items, whose
+// scopes come from the body (sitemapItemsAllowed).
+const sitemapItemsScope = "sitemap-items"
+
+// sitemapItemsAllowed checks a PUT sitemap/items body: every item's type
+// must be one of the key's scopes. An empty string means allowed; a body
+// that isn't valid JSON is left for the admin handler to refuse.
+func sitemapItemsAllowed(w http.ResponseWriter, r *http.Request, key *domain.APIKey) (string, error) {
+	if r.Body == nil || r.Body == http.NoBody {
+		return "", nil
+	}
+	raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxDirectJSONBody))
+	_ = r.Body.Close()
+	if err != nil {
+		return "", err
+	}
+	r.Body = io.NopCloser(bytes.NewReader(raw))
+	var body struct {
+		Items []struct {
+			EntityType string `json:"entityType"`
+		} `json:"items"`
+	}
+	if json.Unmarshal(raw, &body) != nil {
+		return "", nil
+	}
+	for _, item := range body.Items {
+		scope, ok := sitemapScopes[item.EntityType]
+		if !ok {
+			continue // the admin handler refuses unknown types
+		}
+		if !key.HasScope(scope) {
+			return fmt.Sprintf("this API key can't change the sitemap for %q items: that needs the %s area; an admin can create a key that includes it", item.EntityType, scope), nil
+		}
+	}
+	return "", nil
+}
+
 // settingsPaths: the Site Settings a key may change (not 2FA or security).
 var settingsPaths = map[string]bool{
 	"settings/site": true, "settings/footer": true, "settings/theme": true, "settings/site/logo": true, "settings/site/favicon": true,
@@ -62,6 +108,19 @@ func directScope(path string) (string, bool) {
 		return domain.APIScopeSettings, settingsPaths[path]
 	case segments[0] == "pages" && len(segments) == 3 && segments[2] == "snippets":
 		return domain.APIScopeSnippets, true
+	case segments[0] == "sitemap":
+		switch {
+		case path == "sitemap" || path == "sitemap/settings":
+			return domain.APIScopeSettings, true
+		case path == "sitemap/items":
+			// PUT: each item in the body needs its own type's scope
+			// (sitemapItemsAllowed); the key needs at least one of them.
+			return sitemapItemsScope, true
+		case len(segments) == 4 && segments[1] == "items":
+			scope, ok := sitemapScopes[segments[2]]
+			return scope, ok
+		}
+		return "", false
 	}
 	scope, ok := areaScopes[segments[0]]
 	return scope, ok
@@ -90,7 +149,21 @@ func directAPI(mux *http.ServeMux, bin *recycleBin, isGlobal func(context.Contex
 			response.Err(w, http.StatusForbidden, "this is a \"Needs approval\" key: it can only propose page and news changes (POST /api/v1/pages, /api/v1/news) and upload media; an admin can create a Direct key in Settings > API Keys")
 			return
 		}
-		if !key.HasScope(scope) {
+		if scope == sitemapItemsScope {
+			if r.Method != http.MethodPut {
+				response.Err(w, http.StatusMethodNotAllowed, "use PUT /api/v1/sitemap/items {items: [{entityType, entityId, mode}]}")
+				return
+			}
+			refused, err := sitemapItemsAllowed(w, r, key)
+			if err != nil {
+				response.Err(w, http.StatusRequestEntityTooLarge, "the request body is too large")
+				return
+			}
+			if refused != "" {
+				response.Err(w, http.StatusForbidden, refused)
+				return
+			}
+		} else if !key.HasScope(scope) {
 			response.Err(w, http.StatusForbidden, "this API key can't use "+scope+"; an admin can create a key that includes it")
 			return
 		}

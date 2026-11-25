@@ -750,6 +750,12 @@ func keyEndpoints(key *domain.APIKey) []string {
 		"Direct key - for each area below: GET /api/v1/{area} lists, GET /api/v1/{area}/{id} reads one, POST /api/v1/{area} creates, PUT /api/v1/{area}/{id} updates (send the same fields GET returns), PUT /api/v1/{area}/{id}/status {\"status\": \"draft\" | \"published\" | \"scheduled\", \"publishAt\"} publishes or unpublishes, DELETE /api/v1/{area}/{id} moves it to the Recycle Bin",
 		"These Direct-key calls (everything except POST /api/v1/pages, /pages/{id}/changes, /news, /news/{id}/changes and /global-sections/{id}/changes) save at once and have no dry run: a request with dryRun is refused with 400 and nothing is saved. Read the item first, say exactly what you will change, and send it once the user agrees",
 		"SEO: GET/PUT /api/v1/seo/{page|news|casino|bonus|guide}/{id}",
+		"Sitemap (the website's /sitemap.xml, built live from published content; drafts, noindex items and redirected addresses are always left out): "+
+			"GET /api/v1/sitemap/items/{page|news|casino|bonus|guide|listing}/{id} - one item's sitemap status {item: {mode, listed, reason}, sitemapOn, typeOn}; "+
+			"PUT /api/v1/sitemap/items {\"items\": [{\"entityType\": \"page\", \"entityId\": 12, \"mode\": \"default\" | \"include\" | \"exclude\"}]} - \"default\" follows the content type's switch, \"include\" always lists it, \"exclude\" never does; all or nothing, each item needs that type's area. "+
+			"With the settings area: GET /api/v1/sitemap - the settings {enabled, types, extraUrls} and every published item with mode, listed and reason; "+
+			"PUT /api/v1/sitemap/settings {enabled, types: [\"page\",\"casino\",\"guide\",\"news\",\"bonus\",\"listing\"], extraUrls: [\"/path\" or a full address on this website]} - send only the fields to change (extraUrls replaces the whole list; only an Admin's key can). "+
+			"\"listing\" is the fixed list pages (/casinos, /guides, /news, /blacklist, ids 1-4). If the whole site is set to noindex in Settings, the sitemap is empty whatever these say",
 		"GET /api/v1/recycle-bin - what was deleted; POST /api/v1/recycle-bin/{id}/restore - undo a delete",
 		"Only pages, news, casinos, bonuses, payment-methods, rtp, guides, blacklist and snippets can be deleted by a key (to the Recycle Bin), and menu items with nothing under them; ask an admin for anything else",
 	)

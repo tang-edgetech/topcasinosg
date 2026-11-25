@@ -106,16 +106,33 @@ func (h *SitemapHandler) Overview(w http.ResponseWriter, r *http.Request) {
 
 // UpdateSettings: PUT /api/admin/sitemap/settings.
 func (h *SitemapHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
+	// A field left out keeps its current value, so an API key that sends
+	// only {"types": [...]} doesn't switch the sitemap off by accident.
 	var req struct {
-		Enabled   bool     `json:"enabled"`
-		Types     []string `json:"types"`
-		ExtraURLs []string `json:"extraUrls"`
+		Enabled   *bool     `json:"enabled"`
+		Types     *[]string `json:"types"`
+		ExtraURLs *[]string `json:"extraUrls"`
 	}
 	if err := httpx.DecodeJSON(r, &req); err != nil {
 		response.Err(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	settings, err := h.sitemap.UpdateSettings(r.Context(), req.Enabled, req.Types, req.ExtraURLs)
+	current, err := h.sitemap.Settings(r.Context())
+	if err != nil {
+		h.fail(w, err, "could not load the sitemap settings")
+		return
+	}
+	enabled, types, extra := current.Enabled, current.Types, current.ExtraURLs
+	if req.Enabled != nil {
+		enabled = *req.Enabled
+	}
+	if req.Types != nil {
+		types = *req.Types
+	}
+	if req.ExtraURLs != nil {
+		extra = *req.ExtraURLs
+	}
+	settings, err := h.sitemap.UpdateSettings(r.Context(), enabled, types, extra)
 	if err != nil {
 		h.fail(w, err, "could not save the sitemap settings")
 		return
